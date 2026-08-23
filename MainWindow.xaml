@@ -1,0 +1,906 @@
+﻿<Window x:Class="Sonator.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Sonator"
+        mc:Ignorable="d"
+        Title="Sonator"
+        Width="1400"
+        Height="860"
+        
+        Background="#DDE7F2"
+        Foreground="#FF263241"
+        PreviewKeyDown="Window_PreviewKeyDown"
+        WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <SolidColorBrush x:Key="Paper" Color="#1B2330" />
+        <SolidColorBrush x:Key="PaperHigh" Color="#212D3A" />
+        <SolidColorBrush x:Key="Ink" Color="#BCC9D8" />
+        <SolidColorBrush x:Key="Line" Color="#586E86" />
+        <SolidColorBrush x:Key="Shade" Color="#2B3949" />
+        <SolidColorBrush x:Key="DarkShade" Color="#3A4F68" />
+        <SolidColorBrush x:Key="Accent" Color="#7AA6D8" />
+        <SolidColorBrush x:Key="AccentSoft" Color="#1F3D66" />
+        <SolidColorBrush x:Key="Success" Color="#49B88D" />
+        <local:SignalPeakVisibilityConverter x:Key="SignalPeakVisibilityConverter" />
+
+        <Style TargetType="Button">
+            <Setter Property="Margin" Value="1" />
+            <Setter Property="Padding" Value="6,4" />
+            <Setter Property="Background" Value="#2A3948" />
+            <Setter Property="Foreground" Value="#C4CFDA" />
+            <Setter Property="BorderBrush" Value="#5C7A99" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontFamily" Value="Consolas" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="5">
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#354D69" />
+                    <Setter Property="BorderBrush" Value="#7EB2FF" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style TargetType="TextBox">
+            <Setter Property="Margin" Value="1" />
+            <Setter Property="Padding" Value="4,2" />
+            <Setter Property="Background" Value="#212D3A" />
+            <Setter Property="Foreground" Value="#C4CFDA" />
+            <Setter Property="BorderBrush" Value="#607A96" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontFamily" Value="Consolas" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Cursor" Value="Arrow" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="5">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <EventSetter Event="PreviewMouseWheel" Handler="EditableTextBox_PreviewMouseWheel" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#27374A" />
+                    <Setter Property="BorderBrush" Value="#7EB2FF" />
+                </Trigger>
+                <Trigger Property="IsReadOnly" Value="False">
+                    <Setter Property="Cursor" Value="Hand" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style TargetType="GroupBox">
+            <Setter Property="Margin" Value="1" />
+            <Setter Property="Padding" Value="3" />
+            <Setter Property="BorderBrush" Value="#485B72" />
+            <Setter Property="Background" Value="#212D3A" />
+            <Setter Property="Foreground" Value="#C4CFDA" />
+            <Setter Property="FontFamily" Value="Segoe UI Semibold" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="GroupBox">
+                        <Border BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="8">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <Border Background="#2C3B4D"
+                                        BorderBrush="#5A728D"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="7,3"
+                                        CornerRadius="7,7,0,0">
+                                    <ContentPresenter ContentSource="Header" RecognizesAccessKey="True" />
+                                </Border>
+                                <ContentPresenter Grid.Row="1" Margin="{TemplateBinding Padding}" />
+                            </Grid>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="VerticalMeter" TargetType="ProgressBar">
+            <Setter Property="Width" Value="24" />
+            <Setter Property="Height" Value="10" />
+            <Setter Property="Minimum" Value="0" />
+            <Setter Property="Maximum" Value="1" />
+            <Setter Property="Foreground" Value="#52C7A1" />
+            <Setter Property="Background" Value="#1A2430" />
+            <Setter Property="LayoutTransform">
+                <Setter.Value>
+                    <RotateTransform Angle="-90" />
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SongTimelineRepeatButtonStyle" TargetType="RepeatButton">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="BorderBrush" Value="#FF8AAAC6" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RepeatButton">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SongTimelineSliderStyle" TargetType="Slider">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="MinHeight" Value="24" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Border Background="#1F2C3A"
+                                BorderBrush="#6F869C"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="4,2">
+                            <Grid>
+                                <Track x:Name="PART_Track">
+                                    <Track.DecreaseRepeatButton>
+                                        <RepeatButton Style="{StaticResource SongTimelineRepeatButtonStyle}" Background="#41AF8B" />
+                                    </Track.DecreaseRepeatButton>
+                                    <Track.IncreaseRepeatButton>
+                                        <RepeatButton Style="{StaticResource SongTimelineRepeatButtonStyle}" Background="#425A72" />
+                                    </Track.IncreaseRepeatButton>
+                                    <Track.Thumb>
+                                        <Thumb Width="12" Height="22" Cursor="Hand">
+                                            <Thumb.Template>
+                                                <ControlTemplate TargetType="Thumb">
+                                                    <Border Background="#BEC9D5"
+                                                            BorderBrush="#8EA9C7"
+                                                            BorderThickness="1"
+                                                            CornerRadius="4" />
+                                                </ControlTemplate>
+                                            </Thumb.Template>
+                                        </Thumb>
+                                    </Track.Thumb>
+                                </Track>
+                            </Grid>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Background="{StaticResource Paper}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="#34475C" BorderBrush="#5D7A98" BorderThickness="0,0,0,1" Padding="5,4" MinHeight="42">
+            <StackPanel>
+                <TextBlock Text="Desk  File  Functions  Quantize  MIDI  Flags  Options  Edit  Copy"
+                           HorizontalAlignment="Center"
+                           FontFamily="Segoe UI Semibold"
+                           FontSize="13"
+                           Margin="0,0,0,2"
+                           Foreground="#C7D0DA" />
+                <TextBlock Text="SONATOR 1.0 - 2026 JOE SCARAMUCCI"
+                           HorizontalAlignment="Center"
+                           FontFamily="Segoe UI Semibold"
+                           FontSize="15"
+                           FontWeight="Bold"
+                           Foreground="#CDD6E0"
+                           Margin="0,2,0,0" />
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="1" Background="#2A3748" BorderBrush="#4C657F" BorderThickness="0,0,0,1" Padding="3">
+            <UniformGrid Columns="9">
+                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
+                    <StackPanel>
+                        <TextBlock Text="427086" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                        <TextBlock Text="FREE" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                    </StackPanel>
+                </Border>
+                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
+                    <StackPanel>
+                        <TextBlock Text="0 N" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                        <TextBlock Text="ARRANGE" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                    </StackPanel>
+                </Border>
+                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
+                    <StackPanel>
+                        <TextBlock Text="00.0" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                        <TextBlock Text="SYNC DEL" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                    </StackPanel>
+                </Border>
+                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
+                    <StackPanel>
+                        <TextBlock Text="intero" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                        <TextBlock Text="SYNC" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                    </StackPanel>
+                </Border>
+                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
+                    <StackPanel>
+                        <TextBlock Text="{Binding Tempo, StringFormat=0.000}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                        <TextBlock Text="TEMPO" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                    </StackPanel>
+                </Border>
+                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
+                    <StackPanel>
+                        <TextBlock Text="1/16" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                        <TextBlock Text="FORMAT" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                    </StackPanel>
+                </Border>
+                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
+                    <StackPanel>
+                        <TextBlock Text="{Binding TimeSignature}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                        <TextBlock Text="SIGNATURE" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                    </StackPanel>
+                </Border>
+                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
+                    <StackPanel>
+                        <TextBlock Text="{Binding TransportPosition}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                        <TextBlock Text="MIN:SEC.1/100" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                    </StackPanel>
+                </Border>
+                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
+                    <StackPanel>
+                        <TextBlock Text="{Binding CurrentStepBar}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                        <TextBlock Text="BAR 4 8 16" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                    </StackPanel>
+                </Border>
+            </UniformGrid>
+        </Border>
+
+        <Grid Grid.Row="2" Margin="2" Background="{StaticResource Paper}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.05*" />
+                <ColumnDefinition Width="1*" />
+                <ColumnDefinition Width="0.52*" />
+                <ColumnDefinition Width="0.55*" />
+            </Grid.ColumnDefinitions>
+
+            <GroupBox Header="ARRANGE" Grid.Column="0">
+                <DockPanel>
+                    <Grid DockPanel.Dock="Top" Visibility="Collapsed">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="28" />
+                            <ColumnDefinition Width="112" />
+                            <ColumnDefinition Width="62" />
+                            <ColumnDefinition Width="62" />
+                            <ColumnDefinition Width="62" />
+                            <ColumnDefinition Width="62" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="BAR" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas" />
+                        <TextBlock Grid.Column="1" Text="ARRANGE" HorizontalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" />
+                        <TextBlock Grid.Column="2" Text="a" HorizontalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" />
+                        <TextBlock Grid.Column="3" Text="b" HorizontalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" />
+                        <TextBlock Grid.Column="4" Text="c" HorizontalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" />
+                        <TextBlock Grid.Column="5" Text="d" HorizontalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" />
+                    </Grid>
+                    <StackPanel DockPanel.Dock="Bottom" Margin="0,4,0,0">
+                        <Grid Margin="0,3,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="38" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="38" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="BARS" VerticalAlignment="Center" FontSize="10" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding SelectedArrangePatternLength, UpdateSourceTrigger=PropertyChanged}"
+                                     HorizontalContentAlignment="Center"
+                                     Padding="1,0" />
+                            <TextBlock Grid.Column="2" Text="TRANSPOSE" Margin="5,0,0,0" VerticalAlignment="Center" FontSize="10" />
+                            <TextBox Grid.Column="3"
+                                     Text="{Binding SelectedPatternTranspose, UpdateSourceTrigger=PropertyChanged}"
+                                     HorizontalContentAlignment="Center"
+                                     Padding="1,0" />
+                        </Grid>
+                        <Grid Margin="0,3,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="34" />
+                                <ColumnDefinition Width="54" />
+                                <ColumnDefinition Width="28" />
+                                <ColumnDefinition Width="54" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="START" VerticalAlignment="Center" FontSize="9" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding SelectedArrangePatternStart, Mode=OneWay}"
+                                     IsReadOnly="True"
+                                     Padding="1,0"
+                                     HorizontalContentAlignment="Center" />
+                            <TextBlock Grid.Column="2" Text="END" VerticalAlignment="Center" FontSize="9" />
+                            <TextBox Grid.Column="3"
+                                     Text="{Binding SelectedArrangePatternEnd, Mode=OneWay}"
+                                     IsReadOnly="True"
+                                     Padding="1,0"
+                                     HorizontalContentAlignment="Center" />
+                        </Grid>
+                        <Grid Margin="0,2,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="44" />
+                                <ColumnDefinition Width="54" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="LENGTH" VerticalAlignment="Center" FontSize="9" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding SelectedArrangePatternLengthDisplay, UpdateSourceTrigger=LostFocus}"
+                                     Padding="1,0"
+                                     HorizontalContentAlignment="Center" />
+                        </Grid>
+                        <UniformGrid Columns="4" Margin="0,3,0,0">
+                            <Button Content="&#x2191; PREV" Command="{Binding MoveArrangePatternUpCommand}" />
+                            <Button Content="&#x2193; NEXT" Command="{Binding MoveArrangePatternDownCommand}" />
+                            <Button Content="COPIA" Command="{Binding CopyArrangePatternCommand}" />
+                            <Button Content="DELETE" Command="{Binding DeleteArrangePatternCommand}" />
+                        </UniformGrid>
+                        <Button Content="CREA NUOVO PATTERN"
+                                Command="{Binding CreateArrangePatternCommand}"
+                                Margin="0,3,0,0" />
+                    </StackPanel>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
+                            <Grid Height="20">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="0.28*" />
+                                    <ColumnDefinition Width="1.12*" />
+                                    <ColumnDefinition Width="0.62*" />
+                                    <ColumnDefinition Width="0.62*" />
+                                    <ColumnDefinition Width="0.62*" />
+                                    <ColumnDefinition Width="0.62*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="BAR" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10" FontFamily="Consolas" Foreground="#C4CFDA" />
+                                <TextBlock Grid.Column="1" Text="ARRANGE" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" Foreground="#C4CFDA" />
+                                <TextBlock Grid.Column="2" Text="a" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" Foreground="#C4CFDA" />
+                                <TextBlock Grid.Column="3" Text="b" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" Foreground="#C4CFDA" />
+                                <TextBlock Grid.Column="4" Text="c" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" Foreground="#C4CFDA" />
+                                <TextBlock Grid.Column="5" Text="d" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" Foreground="#C4CFDA" />
+                            </Grid>
+                            <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0">
+                            <ItemsControl ItemsSource="{Binding VisibleSongArrangeRows}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Height="34"
+                                              Cursor="Hand"
+                                              MouseEnter="ArrangePatternRow_MouseEnter"
+                                              MouseLeave="ArrangePatternRow_MouseLeave">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="0.28*" />
+                                                <ColumnDefinition Width="1.12*" />
+                                                <ColumnDefinition Width="0.62*" />
+                                                <ColumnDefinition Width="0.62*" />
+                                                <ColumnDefinition Width="0.62*" />
+                                                <ColumnDefinition Width="0.62*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0"
+                                                    BorderBrush="{StaticResource Line}"
+                                                    BorderThickness="1"
+                                                    PreviewMouseDown="ArrangeBar_PreviewMouseDown">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                       <Setter Property="Background" Value="#2A3748" />
+                                                        <Style.Triggers>
+                                                           <DataTrigger Binding="{Binding IsPointerOver}" Value="True">
+                                                               <Setter Property="Background" Value="#3D536D" />
+                                                           </DataTrigger>
+                                                           <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                               <Setter Property="Background" Value="#4A6E97" />
+                                                           </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Text="{Binding DisplayBarNumber}" HorizontalAlignment="Center" VerticalAlignment="Center" FontFamily="Consolas" FontSize="10" FontWeight="Bold">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#C4CFDA" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsPointerOver}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#CAD4DE" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#CAD4DE" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
+                                            <Border Grid.Column="1"
+                                                    BorderBrush="{StaticResource Line}"
+                                                    BorderThickness="1,1,0,1"
+                                                    PreviewMouseDown="ArrangePatternRow_PreviewMouseDown">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                       <Setter Property="Background" Value="#2A3748" />
+                                                       <Style.Triggers>
+                                                           <DataTrigger Binding="{Binding IsPointerOver}" Value="True">
+                                                               <Setter Property="Background" Value="#3D536D" />
+                                                           </DataTrigger>
+                                                           <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                               <Setter Property="Background" Value="#4A6E97" />
+                                                           </DataTrigger>
+                                                       </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Text="{Binding DisplayPatternName}" Margin="4,0" VerticalAlignment="Center" FontFamily="Consolas" FontWeight="Bold">
+                                                    <TextBlock.Style>
+                                                       <Style TargetType="TextBlock">
+                                                           <Setter Property="Foreground" Value="#C4CFDA" />
+                                                           <Style.Triggers>
+                                                               <DataTrigger Binding="{Binding IsPointerOver}" Value="True">
+                                                                   <Setter Property="Foreground" Value="#CAD4DE" />
+                                                               </DataTrigger>
+                                                               <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                   <Setter Property="Foreground" Value="#CAD4DE" />
+                                                               </DataTrigger>
+                                                           </Style.Triggers>
+                                                       </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
+                                            <ItemsControl Grid.Column="2"
+                                                         Grid.ColumnSpan="4"
+                                                         ItemsSource="{Binding Cells}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                       <UniformGrid Columns="4" />
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                       <Border BorderBrush="{StaticResource Line}"
+                                                               BorderThickness="1,1,0,1"
+                                                               PreviewMouseDown="ArrangeCell_PreviewMouseDown">
+                                                           <Border.Style>
+                                                               <Style TargetType="Border">
+                                                                   <Setter Property="Background" Value="#2F3F54" />
+                                                                   <Style.Triggers>
+                                                                       <DataTrigger Binding="{Binding DataContext.IsPointerOver, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="True">
+                                                                           <Setter Property="Background" Value="#405E81" />
+                                                                       </DataTrigger>
+                                                                       <DataTrigger Binding="{Binding DataContext.IsSelected, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="True">
+                                                                           <Setter Property="Background" Value="#4A6E97" />
+                                                                       </DataTrigger>
+                                                                       <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                           <Setter Property="Background" Value="#4A6E97" />
+                                                                       </DataTrigger>
+                                                                   </Style.Triggers>
+                                                               </Style>
+                                                           </Border.Style>
+                                                           <TextBlock Text="{Binding DisplayLabel}" HorizontalAlignment="Center" VerticalAlignment="Center" FontFamily="Consolas" FontSize="10">
+                                                               <TextBlock.Style>
+                                                                   <Style TargetType="TextBlock">
+                                                                       <Setter Property="Foreground" Value="#C4CFDA" />
+                                                                       <Style.Triggers>
+                                                                           <DataTrigger Binding="{Binding DataContext.IsPointerOver, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="True">
+                                                                               <Setter Property="Foreground" Value="#CAD4DE" />
+                                                                           </DataTrigger>
+                                                                           <DataTrigger Binding="{Binding DataContext.IsSelected, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="True">
+                                                                               <Setter Property="Foreground" Value="#CAD4DE" />
+                                                                           </DataTrigger>
+                                                                           <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                               <Setter Property="Foreground" Value="#CAD4DE" />
+                                                                           </DataTrigger>
+                                                                       </Style.Triggers>
+                                                                   </Style>
+                                                               </TextBlock.Style>
+                                                           </TextBlock>
+                                                       </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </DockPanel>
+            </GroupBox>
+
+            <GroupBox Header="STATUS" Grid.Column="1">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Top" Margin="0,0,0,4">
+                        <TextBlock Text="{Binding SelectedPattern.Name}" HorizontalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" FontSize="13" />
+                        <TextBlock Text="{Binding SelectedPattern.Summary}" HorizontalAlignment="Center" FontFamily="Consolas" FontSize="10" Margin="0,1,0,4" />
+                        <Grid Margin="0,2,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="52" />
+                                <ColumnDefinition Width="24" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="70" />
+                                <ColumnDefinition Width="36" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="M" HorizontalAlignment="Center" FontSize="9" />
+                            <TextBlock Grid.Column="1" Text="LVL" HorizontalAlignment="Center" FontSize="9" />
+                            <TextBlock Grid.Column="2" Text="STATUS" FontSize="9" FontWeight="Bold" />
+                            <TextBlock Grid.Column="3" Text="INSTR." HorizontalAlignment="Center" FontSize="9" />
+                            <TextBlock Grid.Column="4" Text="CH" HorizontalAlignment="Center" FontSize="9" />
+                        </Grid>
+                    </StackPanel>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <ListBox ItemsSource="{Binding Tracks}"
+                                 SelectedItem="{Binding SelectedTrack, Mode=TwoWay}"
+                                 Background="Transparent"
+                                 BorderThickness="0">
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="Padding" Value="0" />
+                                    <Setter Property="Margin" Value="0,0,0,1" />
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ListBoxItem">
+                                                <ContentPresenter />
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Padding="1">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="{StaticResource Paper}" />
+                                                <Setter Property="BorderBrush" Value="{StaticResource Line}" />
+                                                <Setter Property="BorderThickness" Value="1" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                        <Setter Property="Background" Value="{StaticResource Ink}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="52" />
+                                            <ColumnDefinition Width="24" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="70" />
+                                            <ColumnDefinition Width="36" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                            <Button Content="M"
+                                                    Width="22"
+                                                    Height="18"
+                                                    Padding="0"
+                                                    Command="{Binding DataContext.ToggleTrackMuteCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding}">
+                                                <Button.Style>
+                                                    <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                        <Setter Property="Background" Value="#3E536B" />
+                                                        <Setter Property="BorderBrush" Value="#6F87A0" />
+                                                        <Setter Property="Foreground" Value="#BCC9D8" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsMuted}" Value="True">
+                                                                <Setter Property="Background" Value="#D94C4C" />
+                                                                <Setter Property="Foreground" Value="#F2D9D9" />
+                                                                <Setter Property="BorderBrush" Value="#A62B2B" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+                                            <Button Content="S"
+                                                    Width="22"
+                                                    Height="18"
+                                                    Padding="0"
+                                                    Command="{Binding DataContext.ToggleTrackSoloCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding}">
+                                                <Button.Style>
+                                                    <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                        <Setter Property="Background" Value="#365864" />
+                                                        <Setter Property="BorderBrush" Value="#63808B" />
+                                                        <Setter Property="Foreground" Value="#BCC9D8" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsSolo}" Value="True">
+                                                                <Setter Property="Background" Value="#D94C4C" />
+                                                                <Setter Property="Foreground" Value="#F2D9D9" />
+                                                                <Setter Property="BorderBrush" Value="#A62B2B" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+                                        </StackPanel>
+                                        <Border Grid.Column="1"
+                                                Width="16"
+                                                Height="28"
+                                                VerticalAlignment="Center"
+                                                Background="#1B2633"
+                                                BorderBrush="#5F7288"
+                                                BorderThickness="1">
+                                            <Grid ClipToBounds="True">
+                                                <Grid Margin="3,2">
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="1*" />
+                                                        <RowDefinition Height="7*" />
+                                                    </Grid.RowDefinitions>
+                                                    <Border Background="#FFD9534F"
+                                                            BorderBrush="#FFAF302C"
+                                                            BorderThickness="0,0,0,1"
+                                                            Visibility="{Binding SignalLevel, Converter={StaticResource SignalPeakVisibilityConverter}}" />
+                                                    <ProgressBar Grid.Row="1"
+                                                                 Style="{StaticResource VerticalMeter}"
+                                                                 HorizontalAlignment="Center"
+                                                                 VerticalAlignment="Center"
+                                                                 Value="{Binding SignalLevel}" />
+                                                </Grid>
+                                                <UniformGrid Rows="8" IsHitTestVisible="False">
+                                                    <Border BorderBrush="#4B6278" BorderThickness="0,0,0,1" />
+                                                    <Border BorderBrush="#4B6278" BorderThickness="0,0,0,1" />
+                                                    <Border BorderBrush="#4B6278" BorderThickness="0,0,0,1" />
+                                                    <Border BorderBrush="#4B6278" BorderThickness="0,0,0,1" />
+                                                    <Border BorderBrush="#4B6278" BorderThickness="0,0,0,1" />
+                                                    <Border BorderBrush="#4B6278" BorderThickness="0,0,0,1" />
+                                                    <Border BorderBrush="#4B6278" BorderThickness="0,0,0,1" />
+                                                    <Border BorderBrush="#4B6278" BorderThickness="0,0,0,1" />
+                                                </UniformGrid>
+                                            </Grid>
+                                        </Border>
+                                        <Border Grid.Column="2" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="1">
+                                            <TextBlock Text="{Binding Name}" HorizontalAlignment="Left" Margin="3,0,0,0" FontFamily="Consolas">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{StaticResource Ink}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                <Setter Property="Foreground" Value="{StaticResource Paper}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Border>
+                                        <TextBox Grid.Column="3" Text="{Binding Instrument, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBox Grid.Column="4" Text="{Binding Channel, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </ScrollViewer>
+                </DockPanel>
+            </GroupBox>
+
+            <GroupBox Header="{Binding SelectedTrackHeader}" Grid.Column="2">
+                <StackPanel>
+                    <TextBlock Text="{Binding SelectedTrack.Name}" FontSize="16" FontWeight="Bold" />
+                    <Grid Margin="0,2,0,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="42" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding SelectedTrack.Instrument}" TextWrapping="Wrap" />
+                        <TextBlock Grid.Column="1" Text="{Binding SelectedTrack.Channel}" HorizontalAlignment="Right" />
+                    </Grid>
+
+                    <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="4" Margin="0,4,0,4">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="52" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="TRACK" />
+                            <TextBlock Grid.Column="1" Text="{Binding SelectedTrackIndex}" HorizontalAlignment="Right" />
+                        </Grid>
+                    </Border>
+
+                    <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="4" Margin="0,0,0,4">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="52" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="CHANNEL" />
+                            <TextBlock Grid.Column="1" Text="{Binding SelectedTrack.Channel}" HorizontalAlignment="Right" />
+                        </Grid>
+                    </Border>
+
+                    <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="4" Margin="0,0,0,4">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="52" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="QUANTIZE" />
+                            <TextBlock Grid.Column="1" Text="1536" HorizontalAlignment="Right" />
+                        </Grid>
+                    </Border>
+                    <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="4" Margin="0,0,0,4">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="52" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="GROOVE" />
+                            <TextBlock Grid.Column="1" Text="0" HorizontalAlignment="Right" />
+                        </Grid>
+                    </Border>
+                    <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="4" Margin="0,0,0,4">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="52" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="TRANSPOSE" />
+                            <TextBlock Grid.Column="1" Text="0" HorizontalAlignment="Right" />
+                        </Grid>
+                    </Border>
+                    <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="4" Margin="0,0,0,4">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="52" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="VELOCITY" />
+                            <TextBlock Grid.Column="1" Text="20" HorizontalAlignment="Right" />
+                        </Grid>
+                    </Border>
+                    <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="4" Margin="0,0,0,4">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="52" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="COMPRESS" />
+                            <TextBlock Grid.Column="1" Text="-1:2" HorizontalAlignment="Right" />
+                        </Grid>
+                    </Border>
+
+                    <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="4" Margin="0,0,0,4">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="52" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="DELAY" />
+                            <TextBlock Grid.Column="1" Text="00.0" HorizontalAlignment="Right" />
+                        </Grid>
+                    </Border>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,6,0,4">
+                        <Button Content="RMG" Width="50" />
+                        <Button Content="EDIT" Width="50" />
+                    </StackPanel>
+                    <Button Content="DO QUANTIZE" Command="{Binding QuantizeTrackCommand}" />
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
+                        <Button Content="SOLO" Width="50" />
+                        <Button Content="HIDE" Width="50" />
+                    </StackPanel>
+                    <Button Content="DEFAULT" />
+                </StackPanel>
+            </GroupBox>
+
+            <GroupBox Header="TRANSPORT" Grid.Column="3">
+                <StackPanel Margin="1">
+                    <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="4" Margin="0,0,0,4">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="38" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="LEFT LOCATOR" FontSize="10" VerticalAlignment="Center" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding LoopStartStep, UpdateSourceTrigger=PropertyChanged}"
+                                     HorizontalContentAlignment="Center"
+                                     Padding="1,0" />
+                        </Grid>
+                    </Border>
+                    <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="4" Margin="0,0,0,4">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="38" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="RIGHT LOCATOR" FontSize="10" VerticalAlignment="Center" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding LoopEndStep, UpdateSourceTrigger=PropertyChanged}"
+                                     HorizontalContentAlignment="Center"
+                                     Padding="1,0" />
+                        </Grid>
+                    </Border>
+
+                    <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="3" Margin="0,0,0,4">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="{Binding TransportPosition}" VerticalAlignment="Center" FontWeight="Bold" />
+                            <TextBlock Grid.Column="1" Text="REC" Margin="5,0,0,0" FontWeight="Bold">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsRecording}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
+                    </Border>
+
+                    <UniformGrid Columns="2" Margin="0,0,0,4">
+                        <Button Content="UNDO" Command="{Binding UndoCommand}" />
+                        <Button Content="RECORD" Command="{Binding ToggleRecordCommand}" />
+                    </UniformGrid>
+                    <UniformGrid Columns="2" Margin="0,0,0,4">
+                        <Button Content="STOP" Command="{Binding StopCommand}" />
+                        <Button Content="START" Command="{Binding PlayCommand}" />
+                    </UniformGrid>
+                    <Button Content="IMPORT MIDI" Command="{Binding ImportMidiCommand}" Margin="0,0,0,4" />
+                    <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="9" Margin="2,2,2,0" />
+                </StackPanel>
+            </GroupBox>
+        </Grid>
+
+        <Border Grid.Row="3"
+                Background="#2A3748"
+                BorderBrush="#4C657F"
+                BorderThickness="0,1,0,0"
+                Padding="10,6,10,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Text="SONG"
+                           FontFamily="Consolas"
+                           FontSize="10"
+                           FontWeight="Bold"
+                           VerticalAlignment="Center"
+                           Margin="0,0,8,0" />
+
+                <Slider Grid.Column="1"
+                        Style="{StaticResource SongTimelineSliderStyle}"
+                        Minimum="0"
+                        Maximum="{Binding TimelineTotalSteps}"
+                        Value="{Binding TimelinePositionStep, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                        SmallChange="1"
+                        LargeChange="16"
+                        TickFrequency="1"
+                        IsSnapToTickEnabled="True"
+                        IsMoveToPointEnabled="True"
+                        Height="26" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
+
