@@ -1026,7 +1026,9 @@
                                                 Background="{StaticResource Shade}"
                                                 BorderBrush="{StaticResource Line}"
                                                 BorderThickness="1"
-                                                ToolTip="{Binding FilePath}">
+                                                Cursor="Hand"
+                                                ToolTip="{Binding FilePath}"
+                                                MouseLeftButtonDown="VstPluginThumbnail_MouseLeftButtonDown">
                                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                                                 <Border Width="32"
                                                         Height="32"

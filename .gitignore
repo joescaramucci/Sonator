@@ -2,3 +2,5 @@ bin/
 obj/
 .vs/
 .vscode/
+# Native VST bridge build artifacts (prebuilt/ DLL is checked in)
+native/VstHostBridge/build/

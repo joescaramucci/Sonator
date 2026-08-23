@@ -318,6 +318,26 @@ public partial class MainWindow : Window
         ShowEditTrackDialog(viewModel, viewModel.SelectedTrack);
     }
 
+    private void VstPluginThumbnail_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount != 2)
+        {
+            return;
+        }
+
+        if (sender is not FrameworkElement element || element.DataContext is not VstPluginViewModel plugin)
+        {
+            return;
+        }
+
+        var dialog = new VstPluginEditorDialog(plugin.Name, plugin.FilePath, plugin.Kind)
+        {
+            Owner = this
+        };
+        dialog.ShowDialog();
+        e.Handled = true;
+    }
+
     private void ShowAddTrackDialog(PatternTrackType trackType)
     {
         if (DataContext is not MainViewModel viewModel)

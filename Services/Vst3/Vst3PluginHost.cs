@@ -1,0 +1,336 @@
+using System.Runtime.InteropServices;
+using System.Text;
+
+namespace Sonator.Services.Vst3;
+
+/// <summary>
+/// Default <see cref="IVst3PluginHost"/> implementation backed by the native
+/// VstHostBridge.dll. See native/VstHostBridge and docs/VST3_HOSTING.md for
+/// the current (scaffold-only) status and the roadmap towards real VST3
+/// hosting. This class is written defensively so Sonator keeps working
+/// normally when the native DLL is missing (e.g. it hasn't been built yet):
+/// every native call is guarded and turned into a friendly error message.
+/// </summary>
+public sealed class Vst3PluginHost : IVst3PluginHost
+{
+    private bool? _nativeBridgeAvailable;
+
+    public bool IsNativeBridgeAvailable => _nativeBridgeAvailable ??= ProbeNativeBridge();
+
+    public Vst3ModuleHandle? TryLoadModule(string filePath, out string? error)
+    {
+        if (!IsNativeBridgeAvailable)
+        {
+            error = "Il bridge nativo VstHostBridge.dll non è presente o non è compatibile. " +
+                    "Consulta docs/VST3_HOSTING.md per compilarlo e collegare l'SDK VST3 di Steinberg.";
+            return null;
+        }
+
+        try
+        {
+            var nativeHandle = Vst3HostInterop.VstHostBridge_LoadModule(filePath);
+            if (nativeHandle == IntPtr.Zero)
+            {
+                error = ReadLastError();
+                return null;
+            }
+
+            error = null;
+            return new Vst3ModuleHandle(nativeHandle, filePath);
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            error = $"Bridge nativo VST3 non utilizzabile: {ex.Message}";
+            return null;
+        }
+    }
+
+    public void UnloadModule(Vst3ModuleHandle handle)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+
+        if (handle.NativeHandle == IntPtr.Zero)
+        {
+            return;
+        }
+
+        try
+        {
+            Vst3HostInterop.VstHostBridge_UnloadModule(handle.NativeHandle);
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            // Bridge unavailable: nothing left to release on the managed side.
+        }
+    }
+
+    public string? GetPluginDisplayName(Vst3ModuleHandle handle)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+
+        if (handle.NativeHandle == IntPtr.Zero)
+        {
+            return null;
+        }
+
+        try
+        {
+            var buffer = new StringBuilder(256);
+            var ok = Vst3HostInterop.VstHostBridge_GetPluginDisplayName(handle.NativeHandle, buffer, buffer.Capacity);
+            return ok != 0 ? buffer.ToString() : null;
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            return null;
+        }
+    }
+
+    public IReadOnlyList<Vst3ParameterInfo> GetParameters(Vst3ModuleHandle handle)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+
+        var parameters = new List<Vst3ParameterInfo>();
+        if (handle.NativeHandle == IntPtr.Zero)
+        {
+            return parameters;
+        }
+
+        try
+        {
+            var count = Vst3HostInterop.VstHostBridge_GetParameterCount(handle.NativeHandle);
+            if (count <= 0)
+            {
+                return parameters;
+            }
+
+            var title = new StringBuilder(256);
+            var units = new StringBuilder(256);
+            for (var i = 0; i < count; i++)
+            {
+                var ok = Vst3HostInterop.VstHostBridge_GetParameterInfo(
+                    handle.NativeHandle, i, out var id, title, title.Capacity, units, units.Capacity,
+                    out var stepCount, out var defaultNormalized);
+                if (ok == 0)
+                {
+                    continue;
+                }
+
+                var currentNormalized = Vst3HostInterop.VstHostBridge_GetParameterNormalized(handle.NativeHandle, id);
+                parameters.Add(new Vst3ParameterInfo(id, title.ToString(), units.ToString(), stepCount, defaultNormalized, currentNormalized));
+            }
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            // Bridge unavailable: report whatever was gathered so far (likely nothing).
+        }
+
+        return parameters;
+    }
+
+    public bool SetParameterValue(Vst3ModuleHandle handle, uint parameterId, double normalizedValue)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+
+        if (handle.NativeHandle == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        try
+        {
+            return Vst3HostInterop.VstHostBridge_SetParameterNormalized(handle.NativeHandle, parameterId, normalizedValue) != 0;
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            return false;
+        }
+    }
+
+    public bool HasNativeEditor(Vst3ModuleHandle handle)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+
+        if (handle.NativeHandle == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        try
+        {
+            return Vst3HostInterop.VstHostBridge_HasEditor(handle.NativeHandle) != 0;
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            return false;
+        }
+    }
+
+    public bool TryOpenNativeEditor(Vst3ModuleHandle handle, IntPtr parentHwnd, out IntPtr childHwnd, out int width, out int height, out string? error)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+
+        childHwnd = IntPtr.Zero;
+        width = 0;
+        height = 0;
+
+        if (handle.NativeHandle == IntPtr.Zero)
+        {
+            error = "Modulo VST3 non caricato.";
+            return false;
+        }
+
+        try
+        {
+            var ok = Vst3HostInterop.VstHostBridge_OpenEditor(handle.NativeHandle, parentHwnd, out childHwnd, out width, out height);
+            if (ok == 0)
+            {
+                error = ReadLastError();
+                return false;
+            }
+
+            error = null;
+            return true;
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            error = $"Bridge nativo VST3 non utilizzabile: {ex.Message}";
+            return false;
+        }
+    }
+
+    public void CloseNativeEditor(Vst3ModuleHandle handle)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+
+        if (handle.NativeHandle == IntPtr.Zero)
+        {
+            return;
+        }
+
+        try
+        {
+            Vst3HostInterop.VstHostBridge_CloseEditor(handle.NativeHandle);
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            // Bridge unavailable: nothing left to release on the managed side.
+        }
+    }
+
+    public bool HasAudioProcessor(Vst3ModuleHandle handle)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+
+        if (handle.NativeHandle == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        try
+        {
+            return Vst3HostInterop.VstHostBridge_HasAudioProcessor(handle.NativeHandle) != 0;
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            return false;
+        }
+    }
+
+    public bool TryStartAudio(Vst3ModuleHandle handle, out string? error)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+
+        if (handle.NativeHandle == IntPtr.Zero)
+        {
+            error = "Modulo VST3 non caricato.";
+            return false;
+        }
+
+        try
+        {
+            var ok = Vst3HostInterop.VstHostBridge_StartAudio(handle.NativeHandle);
+            if (ok == 0)
+            {
+                error = ReadLastError();
+                return false;
+            }
+
+            error = null;
+            return true;
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            error = $"Bridge nativo VST3 non utilizzabile: {ex.Message}";
+            return false;
+        }
+    }
+
+    public void StopAudio(Vst3ModuleHandle handle)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+
+        if (handle.NativeHandle == IntPtr.Zero)
+        {
+            return;
+        }
+
+        try
+        {
+            Vst3HostInterop.VstHostBridge_StopAudio(handle.NativeHandle);
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            // Bridge unavailable: nothing left to release on the managed side.
+        }
+    }
+
+    public bool IsAudioRunning(Vst3ModuleHandle handle)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+
+        if (handle.NativeHandle == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        try
+        {
+            return Vst3HostInterop.VstHostBridge_IsAudioRunning(handle.NativeHandle) != 0;
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            return false;
+        }
+    }
+
+    private static bool ProbeNativeBridge()
+    {
+        try
+        {
+            _ = Vst3HostInterop.VstHostBridge_GetVersion();
+            return true;
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            return false;
+        }
+    }
+
+    private static string ReadLastError()
+    {
+        try
+        {
+            var pointer = Vst3HostInterop.VstHostBridge_GetLastError();
+            return pointer == IntPtr.Zero
+                ? "Errore sconosciuto nel bridge VST3."
+                : Marshal.PtrToStringAnsi(pointer) ?? "Errore sconosciuto nel bridge VST3.";
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            return "Bridge nativo VST3 non disponibile.";
+        }
+    }
+
+    private static bool IsBridgeUnavailableException(Exception ex) =>
+        ex is DllNotFoundException or BadImageFormatException or EntryPointNotFoundException;
+}

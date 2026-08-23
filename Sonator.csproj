@@ -11,4 +11,12 @@
   <ItemGroup>
     <PackageReference Include="Melanchall.DryWetMidi" Version="8.0.3" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Prebuilt native VST3 hosting bridge (see native/VstHostBridge/README.md).
+         Copied next to the app so P/Invoke calls in Services/Vst3 can find it. -->
+    <None Include="native\VstHostBridge\prebuilt\VstHostBridge.dll" Condition="Exists('native\VstHostBridge\prebuilt\VstHostBridge.dll')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>VstHostBridge.dll</Link>
+    </None>
+  </ItemGroup>
 </Project>

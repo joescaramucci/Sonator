@@ -1,0 +1,23 @@
+<Window x:Class="Sonator.Vst3NativeEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="GUI nativa VST3"
+        Width="440"
+        Height="320"
+        MinWidth="200"
+        MinHeight="150"
+        Background="#1B2330"
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="Manual"
+        ShowInTaskbar="False">
+    <Grid>
+        <ContentControl x:Name="EditorHostContainer" />
+        <TextBlock x:Name="FallbackText"
+                   Foreground="#C4CFDA"
+                   FontFamily="Consolas"
+                   FontSize="12"
+                   TextWrapping="Wrap"
+                   Margin="16"
+                   Visibility="Collapsed" />
+    </Grid>
+</Window>
