@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Sonator"
         mc:Ignorable="d"
-        Title="Sonator"
+        Title="{Binding WindowTitle}"
         Width="1400"
         Height="860"
         
@@ -24,6 +24,18 @@
         <SolidColorBrush x:Key="AccentSoft" Color="#1F3D66" />
         <SolidColorBrush x:Key="Success" Color="#49B88D" />
         <local:SignalPeakVisibilityConverter x:Key="SignalPeakVisibilityConverter" />
+
+        <Style TargetType="MenuItem">
+            <Setter Property="Foreground" Value="#1B2330" />
+            <Style.Triggers>
+                <Trigger Property="Role" Value="TopLevelHeader">
+                    <Setter Property="Foreground" Value="#C4CFDA" />
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Foreground" Value="#8A93A0" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
 
         <Style TargetType="Button">
             <Setter Property="Margin" Value="1" />
@@ -207,21 +219,72 @@
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" Background="#34475C" BorderBrush="#5D7A98" BorderThickness="0,0,0,1" Padding="5,4" MinHeight="42">
-            <StackPanel>
-                <TextBlock Text="Desk  File  Functions  Quantize  MIDI  Flags  Options  Edit  Copy"
+            <Grid>
+                <Menu HorizontalAlignment="Left"
+                      VerticalAlignment="Top"
+                      Background="#2A3948"
+                      Foreground="#C4CFDA"
+                      BorderBrush="#5C7A99"
+                      BorderThickness="1"
+                      FontFamily="Segoe UI Semibold"
+                      FontSize="12">
+                    <MenuItem Header="_File">
+                        <MenuItem Header="_Nuovo progetto" Command="{Binding NewProjectCommand}" InputGestureText="Ctrl+N" />
+                        <MenuItem Header="_Apri progetto..." Command="{Binding LoadProjectCommand}" InputGestureText="Ctrl+L" />
+                        <Separator />
+                        <MenuItem Header="_Salva progetto" Command="{Binding SaveProjectCommand}" InputGestureText="Ctrl+S" />
+                        <MenuItem Header="Salva con _nome..." Command="{Binding SaveProjectAsCommand}" InputGestureText="Ctrl+Shift+S" />
+                        <Separator />
+                        <MenuItem Header="Importa _MIDI..." Command="{Binding ImportMidiCommand}" />
+                        <MenuItem Header="Chiudi _progetto" Click="CloseProjectMenuItem_Click" />
+                        <Separator />
+                        <MenuItem Header="_Chiudi" Click="CloseMenuItem_Click" InputGestureText="Alt+F4" />
+                    </MenuItem>
+                    <MenuItem Header="_Edit">
+                        <MenuItem Header="_Undo" Command="{Binding UndoCommand}" InputGestureText="Ctrl+Z" />
+                        <MenuItem Header="_Redo" Command="{Binding RedoCommand}" InputGestureText="Ctrl+Y" />
+                        <Separator />
+                        <MenuItem Header="Copia _track" Command="{Binding CopyTrackCommand}" />
+                        <MenuItem Header="Incolla tr_ack" Command="{Binding PasteTrackCommand}" />
+                        <MenuItem Header="Cancella cella arrange" Command="{Binding ClearArrangeCellCommand}" />
+                    </MenuItem>
+                    <MenuItem Header="_Functions">
+                        <MenuItem Header="_Start" Command="{Binding PlayCommand}" />
+                        <MenuItem Header="S_top" Command="{Binding StopCommand}" />
+                        <MenuItem Header="_Record arm" Command="{Binding ToggleRecordCommand}" />
+                    </MenuItem>
+                    <MenuItem Header="_Arrange">
+                        <MenuItem Header="Crea pattern arrange" Command="{Binding CreateArrangePatternCommand}" />
+                        <MenuItem Header="Copia pattern arrange" Command="{Binding CopyArrangePatternCommand}" />
+                        <Separator />
+                        <MenuItem Header="Sposta pattern su" Command="{Binding MoveArrangePatternUpCommand}" />
+                        <MenuItem Header="Sposta pattern giù" Command="{Binding MoveArrangePatternDownCommand}" />
+                        <MenuItem Header="Elimina pattern arrange" Command="{Binding DeleteArrangePatternCommand}" />
+                    </MenuItem>
+                    <MenuItem Header="_Track">
+                        <MenuItem Header="Nuova traccia MIDI CH" Click="AddMidiTrackMenuItem_Click" />
+                        <MenuItem Header="Nuova traccia VST" Click="AddVstTrackMenuItem_Click" />
+                        <MenuItem Header="Nuova traccia Audio input" Click="AddAudioTrackMenuItem_Click" />
+                        <Separator />
+                        <MenuItem Header="Transpose +1" Command="{Binding TransposeUpCommand}" />
+                        <MenuItem Header="Transpose -1" Command="{Binding TransposeDownCommand}" />
+                        <MenuItem Header="_Do Quantize" Command="{Binding QuantizeTrackCommand}" />
+                    </MenuItem>
+                    <MenuItem Header="_MIDI">
+                        <MenuItem Header="Importa MIDI..." Command="{Binding ImportMidiCommand}" />
+                        <MenuItem Header="Refresh devices" Command="{Binding RefreshMidiDevicesCommand}" />
+                    </MenuItem>
+                </Menu>
+
+                <TextBlock Text="{Binding SongTitle, StringFormat='{}{0} — SONATOR 1.0'}"
                            HorizontalAlignment="Center"
-                           FontFamily="Segoe UI Semibold"
-                           FontSize="13"
-                           Margin="0,0,0,2"
-                           Foreground="#C7D0DA" />
-                <TextBlock Text="SONATOR 1.0 - 2026 JOE SCARAMUCCI"
-                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
                            FontFamily="Segoe UI Semibold"
                            FontSize="15"
                            FontWeight="Bold"
                            Foreground="#CDD6E0"
                            Margin="0,2,0,0" />
-            </StackPanel>
+            </Grid>
         </Border>
 
         <Border Grid.Row="1" Background="#2A3748" BorderBrush="#4C657F" BorderThickness="0,0,0,1" Padding="3">
@@ -540,19 +603,20 @@
                                 <ColumnDefinition Width="52" />
                                 <ColumnDefinition Width="24" />
                                 <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="70" />
-                                <ColumnDefinition Width="36" />
+                                <ColumnDefinition Width="56" />
+                                <ColumnDefinition Width="82" />
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="M" HorizontalAlignment="Center" FontSize="9" />
                             <TextBlock Grid.Column="1" Text="LVL" HorizontalAlignment="Center" FontSize="9" />
                             <TextBlock Grid.Column="2" Text="STATUS" FontSize="9" FontWeight="Bold" />
-                            <TextBlock Grid.Column="3" Text="INSTR." HorizontalAlignment="Center" FontSize="9" />
-                            <TextBlock Grid.Column="4" Text="CH" HorizontalAlignment="Center" FontSize="9" />
+                            <TextBlock Grid.Column="3" Text="TYPE" HorizontalAlignment="Center" FontSize="9" Foreground="#C4CFDA" />
+                            <TextBlock Grid.Column="4" Text="ROUTE" HorizontalAlignment="Center" FontSize="9" Foreground="#C4CFDA" />
                         </Grid>
                     </StackPanel>
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <ListBox ItemsSource="{Binding Tracks}"
                                  SelectedItem="{Binding SelectedTrack, Mode=TwoWay}"
+                                 MouseDoubleClick="TrackList_MouseDoubleClick"
                                  Background="Transparent"
                                  BorderThickness="0">
                             <ListBox.ItemContainerStyle>
@@ -589,8 +653,8 @@
                                             <ColumnDefinition Width="52" />
                                             <ColumnDefinition Width="24" />
                                             <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="70" />
-                                            <ColumnDefinition Width="36" />
+                                            <ColumnDefinition Width="56" />
+                                            <ColumnDefinition Width="82" />
                                         </Grid.ColumnDefinitions>
                                         <StackPanel Grid.Column="0" Orientation="Horizontal">
                                             <Button Content="M"
@@ -685,8 +749,41 @@
                                                 </TextBlock.Style>
                                             </TextBlock>
                                         </Border>
-                                        <TextBox Grid.Column="3" Text="{Binding Instrument, UpdateSourceTrigger=PropertyChanged}" />
-                                        <TextBox Grid.Column="4" Text="{Binding Channel, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" />
+                                        <TextBlock Grid.Column="3"
+                                                   Text="{Binding DisplayTrackType}"
+                                                   VerticalAlignment="Center"
+                                                   HorizontalAlignment="Center"
+                                                   FontFamily="Consolas"
+                                                   FontSize="10">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="{StaticResource Ink}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                            <Setter Property="Foreground" Value="{StaticResource Paper}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                        <TextBlock Grid.Column="4"
+                                                   Text="{Binding RoutingDisplay}"
+                                                   VerticalAlignment="Center"
+                                                   HorizontalAlignment="Center"
+                                                   FontFamily="Consolas"
+                                                   FontSize="10"
+                                                   TextTrimming="CharacterEllipsis">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="{StaticResource Ink}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                            <Setter Property="Foreground" Value="{StaticResource Paper}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>
@@ -702,10 +799,10 @@
                     <Grid Margin="0,2,0,4">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="42" />
+                            <ColumnDefinition Width="74" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="{Binding SelectedTrack.Instrument}" TextWrapping="Wrap" />
-                        <TextBlock Grid.Column="1" Text="{Binding SelectedTrack.Channel}" HorizontalAlignment="Right" />
+                        <TextBlock Grid.Column="1" Text="{Binding SelectedTrack.DisplayTrackType}" HorizontalAlignment="Right" />
                     </Grid>
 
                     <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="4" Margin="0,4,0,4">
@@ -723,10 +820,10 @@
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="52" />
+                                <ColumnDefinition Width="120" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="CHANNEL" />
-                            <TextBlock Grid.Column="1" Text="{Binding SelectedTrack.Channel}" HorizontalAlignment="Right" />
+                            <TextBlock Text="ROUTING" />
+                            <TextBlock Grid.Column="1" Text="{Binding SelectedTrack.RoutingDisplay}" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" />
                         </Grid>
                     </Border>
 
@@ -805,7 +902,13 @@
                 </StackPanel>
             </GroupBox>
 
-            <GroupBox Header="TRANSPORT" Grid.Column="3">
+            <Grid Grid.Column="3">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <GroupBox Header="TRANSPORT" Grid.Row="0">
                 <StackPanel Margin="1">
                     <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="4" Margin="0,0,0,4">
                         <Grid>
@@ -867,7 +970,94 @@
                     <Button Content="IMPORT MIDI" Command="{Binding ImportMidiCommand}" Margin="0,0,0,4" />
                     <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="9" Margin="2,2,2,0" />
                 </StackPanel>
-            </GroupBox>
+                </GroupBox>
+
+                <GroupBox Header="VST PLUG-IN" Grid.Row="1" Margin="0,4,0,0">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,4">
+                            <TextBlock Text="Cartella VST aggiuntiva (oltre a Program Files\Common Files\VST3)" FontSize="10" Margin="0,0,0,2" TextWrapping="Wrap" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Text="{Binding VstPluginsPath, Mode=OneWay}"
+                                         IsReadOnly="True"
+                                         ToolTip="{Binding VstPluginsPath}"
+                                         Padding="2,1"
+                                         VerticalContentAlignment="Center" />
+                                <Button Grid.Column="1"
+                                        Content="Sfoglia..."
+                                        Margin="4,0,0,0"
+                                        Command="{Binding BrowseVstPluginsPathCommand}" />
+                            </Grid>
+                        </StackPanel>
+
+                        <TextBlock DockPanel.Dock="Top"
+                                   Text="Nessun plug-in trovato. Seleziona una cartella VST."
+                                   FontSize="10"
+                                   TextWrapping="Wrap"
+                                   Foreground="{StaticResource Ink}"
+                                   Margin="0,0,0,4">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding VstPlugins.Count}" Value="0">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding VstPlugins}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Width="64"
+                                                Height="64"
+                                                Margin="3"
+                                                Background="{StaticResource Shade}"
+                                                BorderBrush="{StaticResource Line}"
+                                                BorderThickness="1"
+                                                ToolTip="{Binding FilePath}">
+                                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                <Border Width="32"
+                                                        Height="32"
+                                                        CornerRadius="4"
+                                                        Background="{StaticResource AccentSoft}"
+                                                        BorderBrush="{StaticResource Accent}"
+                                                        BorderThickness="1"
+                                                        HorizontalAlignment="Center">
+                                                    <TextBlock Text="{Binding Badge}"
+                                                               FontWeight="Bold"
+                                                               FontSize="11"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"
+                                                               Foreground="{StaticResource Accent}" />
+                                                </Border>
+                                                <TextBlock Text="{Binding Name}"
+                                                           FontSize="9"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           TextAlignment="Center"
+                                                           MaxWidth="60"
+                                                           Foreground="{StaticResource Ink}"
+                                                           Margin="0,3,0,0" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </DockPanel>
+                </GroupBox>
+            </Grid>
         </Grid>
 
         <Border Grid.Row="3"
@@ -903,4 +1093,3 @@
         </Border>
     </Grid>
 </Window>
-

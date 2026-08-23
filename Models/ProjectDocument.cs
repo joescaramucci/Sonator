@@ -8,9 +8,20 @@ public sealed record ProjectDocument(
     string? SelectedPatternSlot,
     string? SelectedMidiOutputDeviceName,
     int LoopStartStep,
-    int LoopEndStep,
-    List<PatternDocument> Patterns,
-    List<ArrangeRowDocument> ArrangeRows);
+        int LoopEndStep,
+        List<PatternDocument> Patterns,
+    List<ArrangeRowDocument> ArrangeRows,
+    List<string[]> SongGrid,
+        List<SongArrangeBlockDocument>? ArrangeBlocks = null);
+
+public sealed record SongArrangeBlockDocument(
+    int Row,
+    int Column,
+    int RowSpan,
+    int ColumnSpan,
+    string Label,
+    string Detail,
+    string Accent);
 
 public sealed record PatternDocument(
     string Name,
@@ -25,7 +36,9 @@ public sealed record TrackDocument(
     int NoteNumber,
     List<StepDocument> Steps,
     int ProgramNumber = 0,
-    List<MidiNoteEventDocument>? MidiNoteEvents = null);
+    List<MidiNoteEventDocument>? MidiNoteEvents = null,
+    PatternTrackType TrackType = PatternTrackType.MidiChannel,
+    string? Source = null);
 
 public sealed record StepDocument(
     int Index,

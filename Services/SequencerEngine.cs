@@ -317,6 +317,11 @@ internal sealed class SequencerEngine : IDisposable
 
         foreach (var track in pattern.Tracks)
         {
+            if (!track.SupportsMidiPlayback)
+            {
+                continue;
+            }
+
             _midiOutput?.ProgramChange(track.Channel - 1, track.ProgramNumber);
         }
     }
@@ -327,7 +332,7 @@ internal sealed class SequencerEngine : IDisposable
         {
             foreach (var track in pattern.Tracks)
             {
-                if (!IsTrackAudible(track) || stepIndex >= track.Steps.Count)
+                if (!track.SupportsMidiPlayback || !IsTrackAudible(track) || stepIndex >= track.Steps.Count)
                 {
                     continue;
                 }
@@ -399,6 +404,11 @@ internal sealed class SequencerEngine : IDisposable
             {
                 foreach (var track in pattern.Tracks)
                 {
+                    if (!track.SupportsMidiPlayback)
+                    {
+                        continue;
+                    }
+
                     _midiOutput?.AllNotesOff(track.Channel - 1);
                 }
             }

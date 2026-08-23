@@ -1,5 +1,6 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.IO;
+
 using System.Linq;
 using Melanchall.DryWetMidi.Standards;
 using System.Windows;
@@ -19,6 +20,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly TrackClipboardService _trackClipboardService;
     private readonly MidiOutputDeviceService _midiOutputDeviceService;
     private readonly MidiFileImportService _midiFileImportService;
+    private readonly VstPluginService _vstPluginService;
+    private readonly AppSettingsService _appSettingsService;
     private readonly Stack<ProjectDocument> _undoStack = new();
     private readonly Stack<ProjectDocument> _redoStack = new();
     private PatternViewModel? _selectedPattern;
@@ -43,10 +46,27 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private string _transportPosition = "00:00.00";
     private string _statusMessage = "Ready";
     private string? _currentProjectPath;
+    private string? _vstPluginsPath;
 
     public MainViewModel()
         : this(null, null, null, null, null)
     {
+    }
+
+    private void RebuildArrangeBlocks(IReadOnlyList<SongArrangeBlockDocument> blocks)
+    {
+        ArrangeBlocks.Clear();
+        foreach (var block in blocks)
+        {
+            ArrangeBlocks.Add(new SongArrangeBlockViewModel(
+                block.Row,
+                block.Column,
+                block.RowSpan,
+                block.ColumnSpan,
+                block.Label,
+                block.Detail,
+                block.Accent));
+        }
     }
 
     internal MainViewModel(
@@ -54,13 +74,17 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         ProjectFileService? projectFileService,
         TrackClipboardService? trackClipboardService,
         MidiOutputDeviceService? midiOutputDeviceService,
-        MidiFileImportService? midiFileImportService)
+        MidiFileImportService? midiFileImportService,
+        VstPluginService? vstPluginService = null,
+        AppSettingsService? appSettingsService = null)
     {
         _engine = engine ?? new SequencerEngine();
         _projectFileService = projectFileService ?? new ProjectFileService();
         _trackClipboardService = trackClipboardService ?? new TrackClipboardService();
         _midiOutputDeviceService = midiOutputDeviceService ?? new MidiOutputDeviceService();
         _midiFileImportService = midiFileImportService ?? new MidiFileImportService();
+        _vstPluginService = vstPluginService ?? new VstPluginService();
+        _appSettingsService = appSettingsService ?? new AppSettingsService();
         _engine.StepChanged += OnStepChanged;
 
         Patterns = BuildDefaultPatterns();
@@ -70,6 +94,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         VisibleSongArrangeRows = new ObservableCollection<SongArrangeRowViewModel>();
         ArrangeBlocks = new ObservableCollection<SongArrangeBlockViewModel>();
         Tracks = new ObservableCollection<PatternTrackViewModel>();
+        VstPlugins = new ObservableCollection<VstPluginViewModel>();
         MidiOutputDevices = new ObservableCollection<MidiOutputDeviceViewModel>(
             _midiOutputDeviceService.GetOutputDevices()
                 .Select(device => new MidiOutputDeviceViewModel(device.DeviceId, device.DisplayName)));
@@ -96,13 +121,16 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             out var undoCommand,
             out var redoCommand,
             out var saveProjectCommand,
+            out var saveProjectAsCommand,
             out var loadProjectCommand,
             out var importMidiCommand,
             out var newProjectCommand,
+            out var addTrackCommand,
             out var transposeUpCommand,
             out var transposeDownCommand,
             out var quantizeTrackCommand,
-            out var refreshMidiDevicesCommand);
+            out var refreshMidiDevicesCommand,
+            out var browseVstPluginsPathCommand);
 
         PlayCommand = playCommand;
         StopCommand = stopCommand;
@@ -124,15 +152,19 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         UndoCommand = undoCommand;
         RedoCommand = redoCommand;
         SaveProjectCommand = saveProjectCommand;
+        SaveProjectAsCommand = saveProjectAsCommand;
         LoadProjectCommand = loadProjectCommand;
         ImportMidiCommand = importMidiCommand;
         NewProjectCommand = newProjectCommand;
+        AddTrackCommand = addTrackCommand;
         TransposeUpCommand = transposeUpCommand;
         TransposeDownCommand = transposeDownCommand;
         QuantizeTrackCommand = quantizeTrackCommand;
         RefreshMidiDevicesCommand = refreshMidiDevicesCommand;
+        BrowseVstPluginsPathCommand = browseVstPluginsPathCommand;
 
         InitializeInitialSelection();
+        InitializeVstPlugins();
     }
 
     private void InitializeCollections()
@@ -153,6 +185,85 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             _copiedTrackDocument = null;
         }
+    }
+
+    private static string DefaultVstDirectory { get; } = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.CommonProgramFiles),
+        "VST3");
+
+    private void InitializeVstPlugins()
+    {
+        var settings = _appSettingsService.Load();
+        _vstPluginsPath = settings.VstPluginsPath;
+        RaisePropertyChanged(nameof(VstPluginsPath));
+        RescanVstPlugins();
+    }
+
+    private void RescanVstPlugins()
+    {
+        VstPlugins.Clear();
+
+        var scannedFolders = new List<string>();
+        var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var plugins = new List<(string Name, string FilePath, string Kind)>();
+
+        if (Directory.Exists(DefaultVstDirectory))
+        {
+            scannedFolders.Add(DefaultVstDirectory);
+            foreach (var plugin in _vstPluginService.ScanDirectory(DefaultVstDirectory))
+            {
+                if (seenPaths.Add(plugin.FilePath))
+                {
+                    plugins.Add(plugin);
+                }
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(_vstPluginsPath)
+            && !string.Equals(_vstPluginsPath, DefaultVstDirectory, StringComparison.OrdinalIgnoreCase))
+        {
+            scannedFolders.Add(_vstPluginsPath);
+            foreach (var plugin in _vstPluginService.ScanDirectory(_vstPluginsPath))
+            {
+                if (seenPaths.Add(plugin.FilePath))
+                {
+                    plugins.Add(plugin);
+                }
+            }
+        }
+
+        foreach (var plugin in plugins.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            VstPlugins.Add(new VstPluginViewModel(plugin.Name, plugin.FilePath, plugin.Kind));
+        }
+
+        var scannedFoldersText = scannedFolders.Count > 0 ? string.Join(", ", scannedFolders) : "nessuna cartella";
+        StatusMessage = VstPlugins.Count > 0
+            ? $"Trovati {VstPlugins.Count} plug-in VST ({scannedFoldersText})"
+            : $"Nessun plug-in VST trovato ({scannedFoldersText})";
+    }
+
+    private void BrowseVstPluginsPath()
+    {
+        var dialog = new OpenFolderDialog
+        {
+            Title = "Seleziona la cartella dei plug-in VST",
+            Multiselect = false
+        };
+
+        if (!string.IsNullOrWhiteSpace(_vstPluginsPath) && Directory.Exists(_vstPluginsPath))
+        {
+            dialog.InitialDirectory = _vstPluginsPath;
+        }
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        VstPluginsPath = dialog.FolderName;
+        _appSettingsService.Save(new AppSettings { VstPluginsPath = VstPluginsPath });
+        RescanVstPlugins();
     }
 
     private void InitializeInitialSelection()
@@ -192,13 +303,16 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         out RelayCommand undoCommand,
         out RelayCommand redoCommand,
         out RelayCommand saveProjectCommand,
+        out RelayCommand saveProjectAsCommand,
         out RelayCommand loadProjectCommand,
         out RelayCommand importMidiCommand,
         out RelayCommand newProjectCommand,
+        out RelayCommand addTrackCommand,
         out RelayCommand transposeUpCommand,
         out RelayCommand transposeDownCommand,
         out RelayCommand quantizeTrackCommand,
-        out RelayCommand refreshMidiDevicesCommand)
+        out RelayCommand refreshMidiDevicesCommand,
+        out RelayCommand browseVstPluginsPathCommand)
     {
         playCommand = new RelayCommand(_ => StartPlayback(), _ => SelectedPattern is not null && !IsPlaying);
         stopCommand = new RelayCommand(_ => StopPlayback(), _ => IsPlaying);
@@ -224,13 +338,16 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         undoCommand = new RelayCommand(_ => Undo(), _ => _undoStack.Count > 0);
         redoCommand = new RelayCommand(_ => Redo(), _ => _redoStack.Count > 0);
         saveProjectCommand = new RelayCommand(_ => SaveProject(), _ => SelectedPattern is not null);
+        saveProjectAsCommand = new RelayCommand(_ => SaveProjectAs(), _ => SelectedPattern is not null);
         loadProjectCommand = new RelayCommand(_ => LoadProject());
         importMidiCommand = new RelayCommand(_ => ImportMidiFile());
         newProjectCommand = new RelayCommand(_ => CreateNewProject());
+        addTrackCommand = new RelayCommand(parameter => AddTrack(parameter), _ => SelectedPattern is not null);
         transposeUpCommand = new RelayCommand(_ => TransposeSelectedTrack(1), _ => SelectedTrack is not null);
         transposeDownCommand = new RelayCommand(_ => TransposeSelectedTrack(-1), _ => SelectedTrack is not null);
         quantizeTrackCommand = new RelayCommand(_ => QuantizeSelectedTrack(), _ => SelectedTrack is not null);
         refreshMidiDevicesCommand = new RelayCommand(_ => ReloadMidiOutputDevices());
+        browseVstPluginsPathCommand = new RelayCommand(_ => BrowseVstPluginsPath());
     }
 
     public ObservableCollection<PatternViewModel> Patterns { get; }
@@ -248,6 +365,14 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public ObservableCollection<PatternTrackViewModel> Tracks { get; }
 
     public ObservableCollection<MidiOutputDeviceViewModel> MidiOutputDevices { get; }
+
+    public ObservableCollection<VstPluginViewModel> VstPlugins { get; }
+
+    public string? VstPluginsPath
+    {
+        get => _vstPluginsPath;
+        set => SetProperty(ref _vstPluginsPath, value);
+    }
 
     public PatternViewModel? SelectedPattern
     {
@@ -284,9 +409,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 PlayCommand?.RaiseCanExecuteChanged();
                 StopCommand?.RaiseCanExecuteChanged();
                 SaveProjectCommand?.RaiseCanExecuteChanged();
+                SaveProjectAsCommand?.RaiseCanExecuteChanged();
                 QuantizeTrackCommand?.RaiseCanExecuteChanged();
                 MovePatternUpCommand?.RaiseCanExecuteChanged();
                 MovePatternDownCommand?.RaiseCanExecuteChanged();
+                AddTrackCommand?.RaiseCanExecuteChanged();
                 RefreshPianoRoll();
             }
         }
@@ -682,8 +809,21 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public string? CurrentProjectPath
     {
         get => _currentProjectPath;
-        set => SetProperty(ref _currentProjectPath, value);
+        set
+        {
+            if (SetProperty(ref _currentProjectPath, value))
+            {
+                RaisePropertyChanged(nameof(SongTitle));
+                RaisePropertyChanged(nameof(WindowTitle));
+            }
+        }
     }
+
+    public string SongTitle => string.IsNullOrWhiteSpace(CurrentProjectPath)
+        ? "Nuovo progetto"
+        : System.IO.Path.GetFileNameWithoutExtension(CurrentProjectPath);
+
+    public string WindowTitle => $"Sonator - {SongTitle}";
 
     public string NotesSummary => "Next milestones: MIDI device routing, pattern copy/paste, save/load, and a real piano roll.";
 
@@ -727,11 +867,15 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public RelayCommand SaveProjectCommand { get; }
 
+    public RelayCommand SaveProjectAsCommand { get; }
+
     public RelayCommand LoadProjectCommand { get; }
 
     public RelayCommand ImportMidiCommand { get; }
 
     public RelayCommand NewProjectCommand { get; }
+
+    public RelayCommand AddTrackCommand { get; }
 
     public RelayCommand TransposeUpCommand { get; }
 
@@ -740,6 +884,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public RelayCommand QuantizeTrackCommand { get; }
 
     public RelayCommand RefreshMidiDevicesCommand { get; }
+
+    public RelayCommand BrowseVstPluginsPathCommand { get; }
 
     public void Dispose()
     {
@@ -821,6 +967,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         SaveProjectCommand?.RaiseCanExecuteChanged();
+        SaveProjectAsCommand?.RaiseCanExecuteChanged();
         PasteTrackCommand?.RaiseCanExecuteChanged();
         RaiseHistoryStateChanged();
     }
@@ -862,20 +1009,42 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         var path = CurrentProjectPath;
         if (string.IsNullOrWhiteSpace(path))
         {
-            var dialog = new SaveFileDialog
-            {
-                Filter = "Sonator project (*.sonator.json)|*.sonator.json|JSON files (*.json)|*.json",
-                FileName = "sonator-project.sonator.json"
-            };
-
-            if (dialog.ShowDialog() != true)
+            path = PromptForSavePath();
+            if (path is null)
             {
                 return;
             }
-
-            path = dialog.FileName;
         }
 
+        SaveProjectToPath(path);
+    }
+
+    private void SaveProjectAs()
+    {
+        var path = PromptForSavePath();
+        if (path is null)
+        {
+            return;
+        }
+
+        SaveProjectToPath(path);
+    }
+
+    private string? PromptForSavePath()
+    {
+        var dialog = new SaveFileDialog
+        {
+            Filter = "Sonator project (*.sonator.json)|*.sonator.json|JSON files (*.json)|*.json",
+            FileName = string.IsNullOrWhiteSpace(CurrentProjectPath)
+                ? "sonator-project.sonator.json"
+                : System.IO.Path.GetFileName(CurrentProjectPath)
+        };
+
+        return dialog.ShowDialog() == true ? dialog.FileName : null;
+    }
+
+    private void SaveProjectToPath(string path)
+    {
         try
         {
             _projectFileService.Save(path, BuildProjectDocument());
@@ -910,6 +1079,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             CurrentProjectPath = dialog.FileName;
             StatusMessage = $"Project loaded from {dialog.FileName}";
             SaveProjectCommand?.RaiseCanExecuteChanged();
+            SaveProjectAsCommand?.RaiseCanExecuteChanged();
             PasteTrackCommand?.RaiseCanExecuteChanged();
             RaiseHistoryStateChanged();
         }
@@ -1002,6 +1172,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         SaveProjectCommand?.RaiseCanExecuteChanged();
+        SaveProjectAsCommand?.RaiseCanExecuteChanged();
         PasteTrackCommand?.RaiseCanExecuteChanged();
         RaiseHistoryStateChanged();
     }
@@ -1564,7 +1735,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private static ObservableCollection<PatternViewModel> BuildDefaultPatterns()
     {
-        return new ObservableCollection<PatternViewModel>();
+        return new ObservableCollection<PatternViewModel>
+        {
+            CreatePattern("Pattern 1", "Default pattern (16 MIDI channels)", "01")
+        };
     }
 
     private void ResetTrackMeters()
@@ -1618,6 +1792,179 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         return new PatternTrackViewModel(name, instrument, channel, noteNumber, stepItems);
+    }
+
+    public bool TryGetNewTrackDefaults(
+        PatternTrackType trackType,
+        out string name,
+        out string instrument,
+        out string source,
+        out int channel,
+        out int noteNumber)
+    {
+        var pattern = SelectedPattern;
+        if (pattern is null)
+        {
+            name = string.Empty;
+            instrument = string.Empty;
+            source = string.Empty;
+            channel = 1;
+            noteNumber = 36;
+            return false;
+        }
+
+        var nextIndex = pattern.Tracks.Count + 1;
+        channel = Math.Clamp(nextIndex, 1, 16);
+        noteNumber = 36;
+        name = $"Track {nextIndex}";
+        instrument = trackType switch
+        {
+            PatternTrackType.VstInstrument => "VST Instrument",
+            PatternTrackType.AudioInput => "Audio Input",
+            _ => "MIDI Channel"
+        };
+        source = trackType switch
+        {
+            PatternTrackType.VstInstrument => "VSTi",
+            PatternTrackType.AudioInput => "Microphone / External",
+            _ => string.Empty
+        };
+
+        return true;
+    }
+
+    public bool TryAddTrack(
+        PatternTrackType trackType,
+        string name,
+        string instrument,
+        string source,
+        int channel,
+        int noteNumber,
+        out string errorMessage)
+    {
+        var pattern = SelectedPattern;
+        if (pattern is null)
+        {
+            errorMessage = "No pattern selected.";
+            return false;
+        }
+
+        if (!ValidateTrackDefinition(name, channel, noteNumber, out errorMessage))
+        {
+            return false;
+        }
+
+        CaptureUndoStateIfNeeded();
+
+        var track = new PatternTrackViewModel(
+            name.Trim(),
+            instrument,
+            channel,
+            noteNumber,
+            BuildDefaultTrackSteps(),
+            trackType: trackType,
+            source: source.Trim());
+
+        pattern.Tracks.Add(track);
+        Tracks.Add(track);
+        SelectedTrack = track;
+        StatusMessage = $"{track.Name} added ({track.DisplayTrackType})";
+        errorMessage = string.Empty;
+        return true;
+    }
+
+    public bool TryUpdateTrack(
+        PatternTrackViewModel track,
+        PatternTrackType trackType,
+        string name,
+        string instrument,
+        string source,
+        int channel,
+        int noteNumber,
+        out string errorMessage)
+    {
+        if (!ValidateTrackDefinition(name, channel, noteNumber, out errorMessage))
+        {
+            return false;
+        }
+
+        CaptureUndoStateIfNeeded();
+        track.Name = name.Trim();
+        track.Instrument = instrument.Trim();
+        track.TrackType = trackType;
+        track.Source = source.Trim();
+        track.Channel = channel;
+        track.NoteNumber = noteNumber;
+        if (track.TrackType == PatternTrackType.AudioInput)
+        {
+            track.MidiNoteEvents = Array.Empty<MidiNoteEventViewModel>();
+            foreach (var step in track.Steps)
+            {
+                step.IsActive = false;
+                step.MidiNoteNumber = null;
+            }
+        }
+
+        if (ReferenceEquals(track, SelectedTrack))
+        {
+            RefreshPianoRoll();
+        }
+
+        StatusMessage = $"{track.Name} updated";
+        errorMessage = string.Empty;
+        return true;
+    }
+
+    private void AddTrack(object? parameter)
+    {
+        var trackType = parameter?.ToString()?.ToLowerInvariant() switch
+        {
+            "vst" => PatternTrackType.VstInstrument,
+            "audio" => PatternTrackType.AudioInput,
+            _ => PatternTrackType.MidiChannel
+        };
+
+        if (!TryGetNewTrackDefaults(trackType, out var name, out var instrument, out var source, out var channel, out var noteNumber))
+        {
+            return;
+        }
+
+        TryAddTrack(trackType, name, instrument, source, channel, noteNumber, out _);
+    }
+
+    private static bool ValidateTrackDefinition(string name, int channel, int noteNumber, out string errorMessage)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            errorMessage = "Track name is required.";
+            return false;
+        }
+
+        if (channel < 1 || channel > 16)
+        {
+            errorMessage = "MIDI channel must be between 1 and 16.";
+            return false;
+        }
+
+        if (noteNumber < 0 || noteNumber > 127)
+        {
+            errorMessage = "Base note must be between 0 and 127.";
+            return false;
+        }
+
+        errorMessage = string.Empty;
+        return true;
+    }
+
+    private static ObservableCollection<StepViewModel> BuildDefaultTrackSteps()
+    {
+        var steps = new ObservableCollection<StepViewModel>();
+        for (var i = 0; i < 16; i++)
+        {
+            steps.Add(new StepViewModel(i, false));
+        }
+
+        return steps;
     }
 
     private static void PadTracksToSixteen(ObservableCollection<PatternTrackViewModel> tracks)
@@ -1933,7 +2280,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         var confirmation = MessageBox.Show(
-            $"Verrà copiato il pattern \"{sourcePattern.Name}\" subito dopo la sua posizione corrente. Continuare?",
+            $"VerrÃ  copiato il pattern \"{sourcePattern.Name}\" subito dopo la sua posizione corrente. Continuare?",
             "Copia pattern",
             MessageBoxButton.YesNo,
             MessageBoxImage.Question);
@@ -2096,6 +2443,20 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             .ToList();
     }
 
+    private List<SongArrangeBlockDocument> GetSongArrangeBlocks()
+    {
+        return ArrangeBlocks
+            .Select(block => new SongArrangeBlockDocument(
+                block.Row,
+                block.Column,
+                block.RowSpan,
+                block.ColumnSpan,
+                block.Label,
+                block.Detail,
+                block.Accent))
+            .ToList();
+    }
+
     private void RebuildSongArrangeRows(IReadOnlyList<string[]> assignments)
     {
         SongArrangeRows.Clear();
@@ -2226,7 +2587,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             LoopStartStep,
             LoopEndStep,
             Patterns.Select(BuildPatternDocument).ToList(),
-            ArrangeRows.Select(BuildArrangeRowDocument).ToList());
+            ArrangeRows.Select(BuildArrangeRowDocument).ToList(),
+            GetSongArrangeAssignments(),
+            GetSongArrangeBlocks());
     }
 
     private static PatternDocument BuildPatternDocument(PatternViewModel pattern)
@@ -2249,11 +2612,26 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             track.ProgramNumber,
             track.MidiNoteEvents
                 .Select(note => new MidiNoteEventDocument(note.StepIndex, note.DurationSteps, note.NoteNumber, note.Velocity))
-                .ToList());
+                .ToList(),
+            track.TrackType,
+            track.Source);
     }
 
     private static void ApplyTrackDocumentToTrack(PatternTrackViewModel targetTrack, TrackDocument sourceTrack)
     {
+        targetTrack.Name = sourceTrack.Name;
+        targetTrack.Instrument = sourceTrack.Instrument;
+        targetTrack.Channel = sourceTrack.Channel;
+        targetTrack.NoteNumber = sourceTrack.NoteNumber;
+        targetTrack.ProgramNumber = sourceTrack.ProgramNumber;
+        targetTrack.TrackType = sourceTrack.TrackType;
+        targetTrack.Source = sourceTrack.Source ?? string.Empty;
+        targetTrack.MidiNoteEvents = sourceTrack.MidiNoteEvents is null
+            ? Array.Empty<MidiNoteEventViewModel>()
+            : sourceTrack.MidiNoteEvents
+                .Select(note => new MidiNoteEventViewModel(note.StepIndex, note.DurationSteps, note.NoteNumber, note.Velocity))
+                .ToList();
+
         var count = Math.Min(targetTrack.Steps.Count, sourceTrack.Steps.Count);
         for (var i = 0; i < count; i++)
         {
@@ -2300,6 +2678,24 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 ArrangeRows.Add(ApplyArrangeRowDocument(arrangeDocument));
             }
 
+            if (document.SongGrid != null)
+            {
+                RebuildSongArrangeRows(document.SongGrid);
+            }
+            else
+            {
+                ResetSongArrangeRows();
+            }
+
+            if (document.ArrangeBlocks != null)
+            {
+                RebuildArrangeBlocks(document.ArrangeBlocks);
+            }
+            else
+            {
+                ResetArrangeBlocks();
+            }
+
             SelectedArrangeCell = null;
             SelectedPattern = Patterns.FirstOrDefault(pattern => pattern.Slot == document.SelectedPatternSlot) ?? Patterns.FirstOrDefault();
             if (IsLegacyProject(document.Version))
@@ -2316,6 +2712,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             SelectedMidiOutputDevice = MidiOutputDevices.FirstOrDefault(device => device.DisplayName == document.SelectedMidiOutputDeviceName)
                 ?? MidiOutputDevices.FirstOrDefault();
             SaveProjectCommand?.RaiseCanExecuteChanged();
+        SaveProjectAsCommand?.RaiseCanExecuteChanged();
             PasteTrackCommand?.RaiseCanExecuteChanged();
             RaiseHistoryStateChanged();
         }
@@ -2360,7 +2757,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             trackDocument.ProgramNumber,
             trackDocument.MidiNoteEvents?
                 .Select(note => new MidiNoteEventViewModel(note.StepIndex, note.DurationSteps, note.NoteNumber, note.Velocity))
-                .ToList());
+                .ToList(),
+            trackDocument.TrackType,
+            trackDocument.Source);
     }
 
     private void MovePattern(object? parameter, int offset)

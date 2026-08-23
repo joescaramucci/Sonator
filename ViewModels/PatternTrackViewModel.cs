@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Sonator.Models;
 
 namespace Sonator.ViewModels;
 
@@ -9,6 +10,8 @@ public sealed class PatternTrackViewModel : ViewModelBase
     private int _channel;
     private int _programNumber;
     private int _noteNumber;
+    private PatternTrackType _trackType;
+    private string _source;
     private bool _isMuted;
     private bool _isSolo;
     private bool _isSelected;
@@ -22,13 +25,17 @@ public sealed class PatternTrackViewModel : ViewModelBase
         int noteNumber,
         ObservableCollection<StepViewModel> steps,
         int programNumber = 0,
-        IReadOnlyList<MidiNoteEventViewModel>? midiNoteEvents = null)
+        IReadOnlyList<MidiNoteEventViewModel>? midiNoteEvents = null,
+        PatternTrackType trackType = PatternTrackType.MidiChannel,
+        string? source = null)
     {
         _name = name;
         _instrument = instrument;
         _channel = channel;
         _noteNumber = noteNumber;
         _programNumber = programNumber;
+        _trackType = trackType;
+        _source = source ?? string.Empty;
         Steps = steps;
         _midiNoteEvents = midiNoteEvents ?? Array.Empty<MidiNoteEventViewModel>();
     }
@@ -48,7 +55,13 @@ public sealed class PatternTrackViewModel : ViewModelBase
     public int Channel
     {
         get => _channel;
-        set => SetProperty(ref _channel, Math.Clamp(value, 1, 16));
+        set
+        {
+            if (SetProperty(ref _channel, Math.Clamp(value, 1, 16)))
+            {
+                RaisePropertyChanged(nameof(RoutingDisplay));
+            }
+        }
     }
 
     public int NoteNumber
@@ -62,6 +75,45 @@ public sealed class PatternTrackViewModel : ViewModelBase
         get => _programNumber;
         set => SetProperty(ref _programNumber, Math.Clamp(value, 0, 127));
     }
+
+    public PatternTrackType TrackType
+    {
+        get => _trackType;
+        set
+        {
+            if (SetProperty(ref _trackType, value))
+            {
+                RaisePropertyChanged(nameof(DisplayTrackType));
+                RaisePropertyChanged(nameof(RoutingDisplay));
+                RaisePropertyChanged(nameof(SupportsMidiPlayback));
+            }
+        }
+    }
+
+    public string Source
+    {
+        get => _source;
+        set
+        {
+            if (SetProperty(ref _source, value ?? string.Empty))
+            {
+                RaisePropertyChanged(nameof(RoutingDisplay));
+            }
+        }
+    }
+
+    public string DisplayTrackType => TrackType switch
+    {
+        PatternTrackType.VstInstrument => "VST",
+        PatternTrackType.AudioInput => "AUDIO",
+        _ => "MIDI"
+    };
+
+    public string RoutingDisplay => string.IsNullOrWhiteSpace(Source)
+        ? (TrackType == PatternTrackType.MidiChannel ? $"CH {Channel}" : string.Empty)
+        : Source;
+
+    public bool SupportsMidiPlayback => TrackType != PatternTrackType.AudioInput;
 
     public ObservableCollection<StepViewModel> Steps { get; }
 

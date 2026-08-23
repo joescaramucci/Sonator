@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using Sonator.Models;
 using Sonator.ViewModels;
 
 namespace Sonator;
@@ -33,6 +34,34 @@ public partial class MainWindow : Window
 
         if (DataContext is not MainViewModel viewModel)
         {
+            return;
+        }
+
+        if (e.Key == Key.S && (Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) == (ModifierKeys.Control | ModifierKeys.Shift))
+        {
+            viewModel.SaveProjectAsCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.S && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+        {
+            viewModel.SaveProjectCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.L && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+        {
+            viewModel.LoadProjectCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.N && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+        {
+            viewModel.NewProjectCommand.Execute(null);
+            e.Handled = true;
             return;
         }
 
@@ -249,6 +278,112 @@ public partial class MainWindow : Window
 
         textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
         e.Handled = true;
+    }
+
+    private void CloseProjectMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel)
+        {
+            viewModel.NewProjectCommand.Execute(null);
+        }
+    }
+
+    private void CloseMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+
+    private void AddMidiTrackMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        ShowAddTrackDialog(PatternTrackType.MidiChannel);
+    }
+
+    private void AddVstTrackMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        ShowAddTrackDialog(PatternTrackType.VstInstrument);
+    }
+
+    private void AddAudioTrackMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        ShowAddTrackDialog(PatternTrackType.AudioInput);
+    }
+
+    private void TrackList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel || viewModel.SelectedTrack is null)
+        {
+            return;
+        }
+
+        ShowEditTrackDialog(viewModel, viewModel.SelectedTrack);
+    }
+
+    private void ShowAddTrackDialog(PatternTrackType trackType)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        if (!viewModel.TryGetNewTrackDefaults(trackType, out var name, out var instrument, out var source, out var channel, out var noteNumber))
+        {
+            return;
+        }
+
+        var dialog = new TrackEditDialog(name, instrument, trackType, source, channel, noteNumber, true)
+        {
+            Owner = this
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        if (!viewModel.TryAddTrack(
+                dialog.TrackType,
+                dialog.TrackName,
+                dialog.Instrument,
+                dialog.Source,
+                dialog.Channel,
+                dialog.NoteNumber,
+                out var errorMessage))
+        {
+            MessageBox.Show(errorMessage, "Nuova traccia", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void ShowEditTrackDialog(MainViewModel viewModel, PatternTrackViewModel track)
+    {
+        var dialog = new TrackEditDialog(
+            track.Name,
+            track.Instrument,
+            track.TrackType,
+            track.Source,
+            track.Channel,
+            track.NoteNumber,
+            false)
+        {
+            Owner = this
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        if (!viewModel.TryUpdateTrack(
+                track,
+                dialog.TrackType,
+                dialog.TrackName,
+                dialog.Instrument,
+                dialog.Source,
+                dialog.Channel,
+                dialog.NoteNumber,
+                out var errorMessage))
+        {
+            MessageBox.Show(errorMessage, "Modifica traccia", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
 }
