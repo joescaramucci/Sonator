@@ -12,6 +12,7 @@ namespace Sonator;
 
 public partial class MainWindow : Window
 {
+    private const string ArrangePatternDragFormat = "Sonator.ArrangePatternRow";
     private readonly Vst3ThumbnailService _vst3ThumbnailService = new();
     private readonly HashSet<string> _thumbnailRequests = new(StringComparer.OrdinalIgnoreCase);
     private MainViewModel? _mainViewModel;
@@ -19,6 +20,8 @@ public partial class MainWindow : Window
     private bool _isDraggingTimelineRuler;
     private double _timelineRulerDragStartX;
     private double _timelineRulerDragStartBarWidth;
+    private Point? _arrangePatternDragStart;
+    private SongArrangeRowViewModel? _draggedArrangePattern;
 
     public MainWindow()
     {
@@ -111,13 +114,15 @@ public partial class MainWindow : Window
 
     private void ScrollTimelineToCurrentBar(MainViewModel viewModel)
         {
-            var barStart = 154 + ((viewModel.CurrentSongBarNumber - 1) * viewModel.TimelineBarWidth);
+            var barStart = MainViewModel.TimelineTrackHeaderWidth +
+                           ((viewModel.CurrentSongBarNumber - 1) * viewModel.TimelineBarWidth);
             var barEnd = barStart + viewModel.TimelineBarWidth;
             var visibleStart = ArrangeTimelineScrollViewer.HorizontalOffset;
             var visibleEnd = visibleStart + ArrangeTimelineScrollViewer.ViewportWidth;
             if (barStart < visibleStart)
             {
-                ArrangeTimelineScrollViewer.ScrollToHorizontalOffset(Math.Max(0, barStart - 154));
+                ArrangeTimelineScrollViewer.ScrollToHorizontalOffset(
+                    Math.Max(0, barStart - MainViewModel.TimelineTrackHeaderWidth));
             }
             else if (barEnd > visibleEnd)
             {
@@ -216,7 +221,7 @@ public partial class MainWindow : Window
             }
 
             var pointerX = e.GetPosition(ArrangeTimelineScrollViewer).X;
-            var timelinePointerX = Math.Max(0, pointerX - 154);
+            var timelinePointerX = Math.Max(0, pointerX - MainViewModel.TimelineTrackHeaderWidth);
             var contentPosition = ArrangeTimelineScrollViewer.HorizontalOffset + timelinePointerX;
             var oldWidth = viewModel.TimelineBarWidth;
             var newWidth = Math.Clamp(oldWidth + (e.Delta > 0 ? 20 : -20), 80, 480);
@@ -256,6 +261,13 @@ public partial class MainWindow : Window
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (e.Key == Key.Space && DataContext is MainViewModel transportViewModel)
+        {
+            transportViewModel.TogglePlayback();
+            e.Handled = true;
+            return;
+        }
+
         if (Keyboard.FocusedElement is TextBox)
         {
             return;
@@ -290,13 +302,6 @@ public partial class MainWindow : Window
         if (e.Key == Key.N && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
         {
             viewModel.NewProjectCommand.Execute(null);
-            e.Handled = true;
-            return;
-        }
-
-        if (e.Key == Key.Space)
-        {
-            viewModel.TogglePlayback();
             e.Handled = true;
             return;
         }
@@ -435,10 +440,171 @@ public partial class MainWindow : Window
         }
 
         viewModel.SelectSongArrangeRow(row);
+        if (e.ChangedButton == MouseButton.Left && e.ClickCount == 1)
+        {
+            BeginArrangePatternDrag(element, row, false);
+        }
+
         if (e.ChangedButton == MouseButton.Left && e.ClickCount == 2)
         {
             ShowArrangePatternEditorDialog(viewModel);
         }
+        e.Handled = true;
+    }
+
+    private void ArrangePatternDragHandle_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement element ||
+            DataContext is not MainViewModel viewModel ||
+            viewModel.SelectedArrangeCell is null)
+        {
+            return;
+        }
+
+        _draggedArrangePattern = viewModel.SongArrangeRows.FirstOrDefault(row =>
+            row.Cells.Contains(viewModel.SelectedArrangeCell));
+        if (_draggedArrangePattern is null)
+        {
+            return;
+        }
+
+        BeginArrangePatternDrag(element, _draggedArrangePattern, true);
+        e.Handled = true;
+    }
+
+    private void ArrangePatternDragHandle_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        ContinueArrangePatternDrag(sender, e);
+    }
+
+    private void ArrangePatternListItem_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        ContinueArrangePatternDrag(sender, e);
+    }
+
+    private void BeginArrangePatternDrag(
+        FrameworkElement element,
+        SongArrangeRowViewModel row,
+        bool highlightHeader)
+    {
+        ResetArrangePatternDrag();
+        _arrangePatternDragStart = Mouse.GetPosition(this);
+        _draggedArrangePattern = row;
+        if (highlightHeader)
+        {
+            ArrangePatternDragHandle.Background = new SolidColorBrush(Color.FromRgb(47, 120, 196));
+        }
+        else
+        {
+            row.IsDragging = true;
+        }
+
+        element.CaptureMouse();
+    }
+
+    private void ContinueArrangePatternDrag(object sender, MouseEventArgs e)
+    {
+        if (sender is not FrameworkElement element ||
+            _arrangePatternDragStart is not Point dragStart ||
+            _draggedArrangePattern is null ||
+            e.LeftButton != MouseButtonState.Pressed)
+        {
+            return;
+        }
+
+        var position = e.GetPosition(this);
+        if (Math.Abs(position.X - dragStart.X) < SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(position.Y - dragStart.Y) < SystemParameters.MinimumVerticalDragDistance)
+        {
+            return;
+        }
+
+        var data = new DataObject(ArrangePatternDragFormat, _draggedArrangePattern);
+        element.ReleaseMouseCapture();
+        try
+        {
+            DragDrop.DoDragDrop(element, data, DragDropEffects.Move);
+        }
+        finally
+        {
+            ResetArrangePatternDrag();
+        }
+    }
+
+    private void ArrangePatternDragHandle_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        CompleteArrangePatternDrag(sender, e);
+    }
+
+    private void ArrangePatternListItem_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        CompleteArrangePatternDrag(sender, e);
+    }
+
+    private void CompleteArrangePatternDrag(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is UIElement element)
+        {
+            element.ReleaseMouseCapture();
+        }
+
+        ResetArrangePatternDrag();
+        e.Handled = true;
+    }
+
+    private void ResetArrangePatternDrag()
+    {
+        if (_draggedArrangePattern is not null)
+        {
+            _draggedArrangePattern.IsDragging = false;
+        }
+
+        _arrangePatternDragStart = null;
+        _draggedArrangePattern = null;
+        ArrangePatternDragHandle.Background = (Brush)FindResource("Paper");
+    }
+
+    private void ArrangePatternRow_DragOver(object sender, DragEventArgs e)
+    {
+        e.Effects = sender is FrameworkElement { DataContext: SongArrangeRowViewModel targetRow } &&
+                    e.Data.GetDataPresent(ArrangePatternDragFormat) &&
+                    e.Data.GetData(ArrangePatternDragFormat) is SongArrangeRowViewModel sourceRow &&
+                    !ReferenceEquals(sourceRow, targetRow)
+            ? DragDropEffects.Move
+            : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private void ArrangePatternRow_Drop(object sender, DragEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel &&
+            sender is FrameworkElement { DataContext: SongArrangeRowViewModel targetRow } element &&
+            e.Data.GetData(ArrangePatternDragFormat) is SongArrangeRowViewModel sourceRow)
+        {
+            var insertAfter = e.GetPosition(element).Y >= element.ActualHeight / 2;
+            viewModel.MoveArrangePattern(sourceRow, targetRow, insertAfter);
+        }
+
+        e.Handled = true;
+    }
+
+    private void ArrangePatternEndDrop_DragOver(object sender, DragEventArgs e)
+    {
+        e.Effects = e.Data.GetDataPresent(ArrangePatternDragFormat) &&
+                    e.Data.GetData(ArrangePatternDragFormat) is SongArrangeRowViewModel
+            ? DragDropEffects.Move
+            : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private void ArrangePatternEndDrop_Drop(object sender, DragEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel &&
+            e.Data.GetData(ArrangePatternDragFormat) is SongArrangeRowViewModel sourceRow)
+        {
+            viewModel.MoveArrangePatternToEnd(sourceRow);
+        }
+
         e.Handled = true;
     }
 
@@ -603,7 +769,7 @@ public partial class MainWindow : Window
                 dialog.NoteNumber,
                 out var errorMessage))
         {
-            MessageBox.Show(errorMessage, "Nuova traccia", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(errorMessage, "New track", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
@@ -636,7 +802,7 @@ public partial class MainWindow : Window
                 dialog.NoteNumber,
                 out var errorMessage))
         {
-            MessageBox.Show(errorMessage, "Modifica traccia", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(errorMessage, "Edit track", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 

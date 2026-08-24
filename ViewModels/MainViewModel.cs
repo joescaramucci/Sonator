@@ -14,7 +14,8 @@ namespace Sonator.ViewModels;
 
 public sealed class MainViewModel : ViewModelBase, IDisposable
 {
-    private const int ArrangementPatternLength = 4;
+    private const int ArrangementPatternLength = 8;
+    public const double TimelineTrackHeaderWidth = 220;
     private readonly SequencerEngine _engine;
     private readonly ProjectFileService _projectFileService;
     private readonly TrackClipboardService _trackClipboardService;
@@ -46,6 +47,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private bool _isLoopEnabled;
     private bool _isFollowingArrangePlayback;
     private bool _isRestoringState;
+    private int _previousTimelineStep = -1;
+    private int _previousPianoRollStep = -1;
     private string _transportPosition = "00:00.00";
     private string _statusMessage = "Ready";
     private string? _currentProjectPath;
@@ -178,6 +181,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         ToggleLoopCommand = new RelayCommand(_ => IsLoopEnabled = !IsLoopEnabled);
         ZoomTimelineInCommand = new RelayCommand(_ => TimelineBarWidth += 20);
         ZoomTimelineOutCommand = new RelayCommand(_ => TimelineBarWidth -= 20);
+        DeleteTrackCommand = new RelayCommand(
+            _ => DeleteSelectedTrack(),
+            _ => SelectedPattern is not null && SelectedTrack is not null);
 
         InitializeInitialSelection();
         InitializeVstPlugins();
@@ -253,17 +259,17 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             VstPlugins.Add(new VstPluginViewModel(plugin.Name, plugin.FilePath, plugin.Kind));
         }
 
-        var scannedFoldersText = scannedFolders.Count > 0 ? string.Join(", ", scannedFolders) : "nessuna cartella";
+        var scannedFoldersText = scannedFolders.Count > 0 ? string.Join(", ", scannedFolders) : "no folders";
         StatusMessage = VstPlugins.Count > 0
-            ? $"Trovati {VstPlugins.Count} plug-in VST ({scannedFoldersText})"
-            : $"Nessun plug-in VST trovato ({scannedFoldersText})";
+            ? $"Found {VstPlugins.Count} VST plug-ins ({scannedFoldersText})"
+            : $"No VST plug-ins found ({scannedFoldersText})";
     }
 
     private void BrowseVstPluginsPath()
     {
         var dialog = new OpenFolderDialog
         {
-            Title = "Seleziona la cartella dei plug-in VST",
+            Title = "Select the VST plug-in folder",
             Multiselect = false
         };
 
@@ -284,18 +290,22 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private void InitializeInitialSelection()
     {
-        SelectedPattern = Patterns.FirstOrDefault();
         SelectedMidiOutputDevice = MidiOutputDevices.FirstOrDefault();
         _engine.SetLoopRange(LoopStartStep, LoopEndStep);
 
-        if (SongArrangeRows.Count > 0)
+        var initialArrangeCell = SongArrangeRows
+            .SelectMany(row => row.Cells)
+            .FirstOrDefault(cell => !string.IsNullOrWhiteSpace(cell.Label));
+        if (initialArrangeCell is not null)
         {
-            SelectArrangeCell(SongArrangeRows[0].Cells[0]);
+            SelectArrangeCell(initialArrangeCell);
         }
         else
         {
-            SelectedArrangeCell = null;
+            SelectedPattern = Patterns.FirstOrDefault();
         }
+
+        RebuildTimeline();
     }
 
     private void InitializeCommands(
@@ -464,6 +474,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 QuantizeTrackCommand?.RaiseCanExecuteChanged();
                 CopyTrackCommand?.RaiseCanExecuteChanged();
                 PasteTrackCommand?.RaiseCanExecuteChanged();
+                DeleteTrackCommand?.RaiseCanExecuteChanged();
             }
         }
     }
@@ -846,8 +857,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             TransportPosition = "00:00.00";
             RaisePropertyChanged(nameof(ArrangeModeText));
             StatusMessage = value
-                ? "Arrange ON: riproduzione dell'intero brano."
-                : "Arrange OFF: riproduzione del pattern selezionato.";
+                ? "Arrange ON: playing the complete song."
+                : "Arrange OFF: playing the selected pattern.";
         }
     }
 
@@ -881,8 +892,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             TransportPosition = "00:00.00";
             RaisePropertyChanged(nameof(LoopModeText));
             StatusMessage = value
-                ? "Loop ON: ripetizione del pattern selezionato."
-                : "Loop OFF: il pattern selezionato viene eseguito una volta.";
+                ? "Loop ON: repeating the selected pattern."
+                : "Loop OFF: the selected pattern plays once.";
         }
     }
 
@@ -909,9 +920,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public double TimelineContentWidth => Math.Max(
         TimelineBarWidth,
-        Math.Max(TimelineBarNumbers.Count * TimelineBarWidth, TimelineViewportWidth - 154));
+        Math.Max(TimelineBarNumbers.Count * TimelineBarWidth, TimelineViewportWidth - TimelineTrackHeaderWidth));
 
-    public double TimelineWorkspaceWidth => 154 + TimelineContentWidth;
+    public double TimelineWorkspaceWidth => TimelineTrackHeaderWidth + TimelineContentWidth;
 
     public double TimelineViewportWidth
     {
@@ -964,7 +975,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     }
 
     public string SongTitle => string.IsNullOrWhiteSpace(CurrentProjectPath)
-        ? "Nuovo progetto"
+        ? "New project"
         : System.IO.Path.GetFileNameWithoutExtension(CurrentProjectPath);
 
     public string WindowTitle => $"Sonator - {SongTitle}";
@@ -1020,6 +1031,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public RelayCommand NewProjectCommand { get; }
 
     public RelayCommand AddTrackCommand { get; }
+
+    public RelayCommand DeleteTrackCommand { get; }
 
     public RelayCommand TransposeUpCommand { get; }
 
@@ -1126,6 +1139,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         SaveProjectAsCommand?.RaiseCanExecuteChanged();
         PasteTrackCommand?.RaiseCanExecuteChanged();
         RaiseHistoryStateChanged();
+        ConfigurePlaybackSource();
+        RebuildTimeline();
     }
 
     private void ApplySelectedMidiOutputDevice()
@@ -1313,6 +1328,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             TimeSignature = "4/4";
             Tempo = importedSong.TempoBpm;
             LoopStartStep = 0;
+            IsLoopEnabled = false;
             _selectedArrangePatternCell = SongArrangeRows.Count > 0 && SongArrangeRows[0].Cells.Count > 0
                 ? SongArrangeRows[0].Cells[0]
                 : null;
@@ -1331,6 +1347,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         SaveProjectAsCommand?.RaiseCanExecuteChanged();
         PasteTrackCommand?.RaiseCanExecuteChanged();
         RaiseHistoryStateChanged();
+        ConfigurePlaybackSource();
+        RebuildTimeline();
     }
 
     private static IEnumerable<MidiImportLane> BuildImportedSongLanes(MidiImportDocument importedSong)
@@ -1344,14 +1362,16 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             .ToList();
 
         return importedNotes
-            .GroupBy(item => item.Lane.Channel)
-            .OrderBy(group => group.Key)
+            .GroupBy(item => (item.Lane.SourceTrackIndex, item.Lane.Channel))
+            .OrderBy(group => group.Key.SourceTrackIndex)
+            .ThenBy(group => group.Key.Channel)
             .Select(group =>
             {
                 var firstLane = group.First().Lane;
                 return new MidiImportLane(
+                    firstLane.SourceTrackIndex,
                     RemoveVoiceSuffix(firstLane.Name),
-                    group.Key,
+                    group.Key.Channel,
                     firstLane.ProgramNumber,
                     group.Select(item => item.Note).ToList());
             });
@@ -1429,6 +1449,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private void OnStepChanged(object? sender, int stepIndex)
     {
+        if (!IsPlaying)
+        {
+            return;
+        }
+
         CurrentStepIndex = stepIndex;
         UpdateSongTimelinePosition(stepIndex);
         TransportPosition = TimeSpan
@@ -1463,14 +1488,14 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         CurrentStepIndex = 0;
         TransportPosition = "00:00.00";
         StatusMessage = IsArrangeMode
-            ? "Riproduzione dell'arrange completata."
-            : "Riproduzione del pattern completata.";
+            ? "Arrange playback completed."
+            : "Pattern playback completed.";
     }
 
     private void OnPlaybackFaulted(object? sender, Exception exception)
     {
         IsPlaying = false;
-        StatusMessage = $"Errore playback: {exception.Message}";
+        StatusMessage = $"Playback error: {exception.Message}";
     }
 
     private void ConfigurePlaybackSource()
@@ -1487,16 +1512,37 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private List<PatternViewModel> GetArrangePlaybackPatterns()
     {
         var sequence = new List<PatternViewModel>();
-        foreach (var row in SongArrangeRows)
+        for (var rowIndex = 0; rowIndex < SongArrangeRows.Count;)
         {
-            var slot = row.Cells.FirstOrDefault(cell => !string.IsNullOrWhiteSpace(cell.Label))?.Label;
+            var slot = SongArrangeRows[rowIndex].Cells
+                .FirstOrDefault(cell => !string.IsNullOrWhiteSpace(cell.Label))?.Label;
             var pattern = Patterns.FirstOrDefault(candidate =>
                 string.Equals(candidate.Slot, slot, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(candidate.Name, slot, StringComparison.OrdinalIgnoreCase));
-            if (pattern is not null)
+            if (pattern is null)
             {
-                sequence.Add(pattern);
+                rowIndex++;
+                continue;
             }
+
+            var assignedBars = 1;
+            while (rowIndex + assignedBars < SongArrangeRows.Count)
+            {
+                var nextSlot = SongArrangeRows[rowIndex + assignedBars].Cells
+                    .FirstOrDefault(cell => !string.IsNullOrWhiteSpace(cell.Label))?.Label;
+                if (!string.Equals(nextSlot, slot, StringComparison.OrdinalIgnoreCase))
+                {
+                    break;
+                }
+
+                assignedBars++;
+            }
+
+            var repetitions = Math.Max(
+                1,
+                (int)Math.Ceiling(assignedBars / (double)GetPatternTimelineBarCount(pattern)));
+            sequence.AddRange(Enumerable.Repeat(pattern, repetitions));
+            rowIndex += assignedBars;
         }
 
         return sequence.Count > 0 ? sequence : Patterns.ToList();
@@ -1506,11 +1552,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     {
         var timelinePatterns = IsArrangeMode
             ? GetArrangePlaybackPatterns()
-            : SelectedPattern is null ? new List<PatternViewModel>() : new List<PatternViewModel> { SelectedPattern };
+            : GetSelectedPatternTimelinePatterns();
 
         TimelineTracks.Clear();
         TimelineBarNumbers.Clear();
-        for (var bar = 1; bar <= timelinePatterns.Count; bar++)
+        _previousTimelineStep = -1;
+        var timelineBarCount = timelinePatterns.Sum(GetPatternTimelineBarCount);
+        for (var bar = 1; bar <= timelineBarCount; bar++)
         {
             TimelineBarNumbers.Add(bar);
         }
@@ -1532,7 +1580,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             foreach (var pattern in timelinePatterns)
             {
                 var track = trackIndex < pattern.Tracks.Count ? pattern.Tracks[trackIndex] : null;
-                for (var stepIndex = 0; stepIndex < 16; stepIndex++)
+                var timelineStepCount = GetPatternTimelineBarCount(pattern) * 16;
+                for (var stepIndex = 0; stepIndex < timelineStepCount; stepIndex++)
                 {
                     var sourceStep = track is not null && stepIndex < track.Steps.Count
                         ? track.Steps[stepIndex]
@@ -1549,15 +1598,46 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         UpdateSongTimelinePosition(CurrentStepIndex);
     }
 
+    private List<PatternViewModel> GetSelectedPatternTimelinePatterns()
+    {
+        if (SelectedPattern is null)
+        {
+            return new List<PatternViewModel>();
+        }
+
+        var barCount = TryGetSelectedArrangePatternRange(out _, out _, out var length)
+            ? length
+            : GetPatternTimelineBarCount(SelectedPattern);
+        var repetitions = Math.Max(
+            1,
+            (int)Math.Ceiling(barCount / (double)GetPatternTimelineBarCount(SelectedPattern)));
+        return Enumerable.Repeat(SelectedPattern, repetitions).ToList();
+    }
+
+    private static int GetPatternTimelineBarCount(PatternViewModel pattern)
+    {
+        var stepCount = pattern.Tracks
+            .Select(track => track.Steps.Count)
+            .DefaultIfEmpty(16)
+            .Max();
+        return Math.Max(1, (stepCount + 15) / 16);
+    }
+
     private void UpdateSongTimelinePosition(int absoluteStep)
     {
         foreach (var track in TimelineTracks)
         {
-            foreach (var step in track.Steps)
+            if (_previousTimelineStep >= 0 && _previousTimelineStep < track.Steps.Count)
             {
-                step.IsCurrent = step.AbsoluteStepIndex == absoluteStep;
+                track.Steps[_previousTimelineStep].IsCurrent = false;
+            }
+
+            if (absoluteStep >= 0 && absoluteStep < track.Steps.Count)
+            {
+                track.Steps[absoluteStep].IsCurrent = true;
             }
         }
+        _previousTimelineStep = absoluteStep;
 
         CurrentSongBarNumber = Math.Max(1, absoluteStep / 16 + 1);
         var rowIndex = Math.Clamp(CurrentSongBarNumber - 1, 0, Math.Max(0, SongArrangeRows.Count - 1));
@@ -1760,11 +1840,97 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         SelectedArrangeCell = cell;
+        if (!IsArrangeMode)
+        {
+            RebuildTimeline();
+        }
     }
 
     public void SelectSongArrangeRow(SongArrangeRowViewModel? row)
     {
         SelectArrangeCell(row?.Cells.FirstOrDefault(cell => !string.IsNullOrWhiteSpace(cell.Label)));
+    }
+
+    public void MoveArrangePattern(
+        SongArrangeRowViewModel sourceRow,
+        SongArrangeRowViewModel targetRow,
+        bool insertAfter)
+    {
+        var sourceRowIndex = SongArrangeRows.IndexOf(sourceRow);
+        var targetRowIndex = SongArrangeRows.IndexOf(targetRow);
+        var sourceColumn = sourceRow.Cells
+            .Select((cell, index) => (cell, index))
+            .FirstOrDefault(item => !string.IsNullOrWhiteSpace(item.cell.Label))
+            .index;
+        var targetColumn = targetRow.Cells
+            .Select((cell, index) => (cell, index))
+            .FirstOrDefault(item => !string.IsNullOrWhiteSpace(item.cell.Label))
+            .index;
+
+        if (sourceRowIndex < 0 ||
+            targetRowIndex < 0 ||
+            ReferenceEquals(sourceRow, targetRow) ||
+            !TryGetArrangePatternRange(sourceRowIndex, sourceColumn, out var sourceStartRow, out _, out var sourceLength) ||
+            !TryGetArrangePatternRange(targetRowIndex, targetColumn, out var targetStartRow, out _, out var targetLength))
+        {
+            return;
+        }
+
+        var insertionRow = insertAfter ? targetStartRow + targetLength : targetStartRow;
+        var assignments = GetSongArrangeAssignments();
+        var movedRows = assignments.GetRange(sourceStartRow, sourceLength);
+        assignments.RemoveRange(sourceStartRow, sourceLength);
+        if (insertionRow > sourceStartRow)
+        {
+            insertionRow -= sourceLength;
+        }
+
+        insertionRow = Math.Clamp(insertionRow, 0, assignments.Count);
+        if (insertionRow == sourceStartRow)
+        {
+            return;
+        }
+
+        CaptureUndoStateIfNeeded();
+        assignments.InsertRange(insertionRow, movedRows);
+        RebuildSongArrangeRows(assignments);
+        _selectedArrangePatternCell = SongArrangeRows[insertionRow].Cells[sourceColumn];
+        SelectArrangeCell(_selectedArrangePatternCell);
+        RaisePropertyChanged(nameof(SelectedArrangePatternLength));
+        RaisePropertyChanged(nameof(SelectedArrangePatternStart));
+        RaisePropertyChanged(nameof(SelectedArrangePatternEnd));
+        RaisePropertyChanged(nameof(SelectedArrangePatternLengthDisplay));
+        StatusMessage = $"Pattern moved to bar {insertionRow + 1}";
+    }
+
+    public void MoveArrangePatternToEnd(SongArrangeRowViewModel sourceRow)
+    {
+        var sourceRowIndex = SongArrangeRows.IndexOf(sourceRow);
+        var sourceColumn = sourceRow.Cells
+            .Select((cell, index) => (cell, index))
+            .FirstOrDefault(item => !string.IsNullOrWhiteSpace(item.cell.Label))
+            .index;
+        if (sourceRowIndex < 0 ||
+            !TryGetArrangePatternRange(sourceRowIndex, sourceColumn, out var sourceStartRow, out _, out var sourceLength) ||
+            sourceStartRow + sourceLength >= SongArrangeRows.Count)
+        {
+            return;
+        }
+
+        CaptureUndoStateIfNeeded();
+        var assignments = GetSongArrangeAssignments();
+        var movedRows = assignments.GetRange(sourceStartRow, sourceLength);
+        assignments.RemoveRange(sourceStartRow, sourceLength);
+        var insertionRow = assignments.Count;
+        assignments.InsertRange(insertionRow, movedRows);
+        RebuildSongArrangeRows(assignments);
+        _selectedArrangePatternCell = SongArrangeRows[insertionRow].Cells[sourceColumn];
+        SelectArrangeCell(_selectedArrangePatternCell);
+        RaisePropertyChanged(nameof(SelectedArrangePatternLength));
+        RaisePropertyChanged(nameof(SelectedArrangePatternStart));
+        RaisePropertyChanged(nameof(SelectedArrangePatternEnd));
+        RaisePropertyChanged(nameof(SelectedArrangePatternLengthDisplay));
+        StatusMessage = $"Pattern moved to bar {insertionRow + 1}";
     }
 
     public bool TryGetSelectedArrangePatternEditorState(out string patternName, out string assignmentNumber, out int subChannelIndex)
@@ -2030,7 +2196,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     {
         return new ObservableCollection<PatternViewModel>
         {
-            CreatePattern("Pattern 1", "Default pattern (16 MIDI channels)", "01")
+            CreatePattern("Pattern 1", "Default pattern (8 MIDI channels)", "01")
         };
     }
 
@@ -2055,7 +2221,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             var localStep = track.Steps.Count == 0 ? -1 : stepIndex % track.Steps.Count;
             if (localStep >= 0 && track.Steps[localStep].IsActive)
             {
-                var velocity = track.Steps[localStep].Velocity / 127.0;
+                var velocity = track.Steps[localStep].Velocity / 127.0 * track.Volume;
                 track.SignalLevel = Math.Max(track.SignalLevel * 0.55, velocity);
             }
             else
@@ -2067,9 +2233,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private static PatternViewModel CreatePattern(string name, string summary, string slot)
     {
-        var tracks = new ObservableCollection<PatternTrackViewModel>();
-
-        PadTracksToSixteen(tracks);
+        var tracks = new ObservableCollection<PatternTrackViewModel>(
+            Enumerable.Range(1, 8).Select(channel => CreateTrack(
+                $"Track {channel}",
+                "MIDI Channel",
+                channel,
+                36,
+                Enumerable.Repeat(false, 16).ToArray())));
 
         return new PatternViewModel(name, summary, slot, tracks);
     }
@@ -2107,8 +2277,26 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return false;
         }
 
-        var nextIndex = pattern.Tracks.Count + 1;
-        channel = Math.Clamp(nextIndex, 1, 16);
+        var nextIndex = pattern.Tracks
+            .Select(track => track.Name.StartsWith("Track ", StringComparison.OrdinalIgnoreCase) &&
+                             int.TryParse(track.Name["Track ".Length..], out var index)
+                ? index
+                : 0)
+            .DefaultIfEmpty(0)
+            .Max() + 1;
+        var highestChannel = pattern.Tracks
+            .Select(track => track.Channel)
+            .DefaultIfEmpty(0)
+            .Max();
+        channel = highestChannel < 16
+            ? highestChannel + 1
+            : Enumerable.Range(1, 16).FirstOrDefault(candidate =>
+                pattern.Tracks.All(track => track.Channel != candidate));
+        if (channel == 0)
+        {
+            channel = 16;
+        }
+
         noteNumber = 36;
         name = $"Track {nextIndex}";
         instrument = trackType switch
@@ -2162,9 +2350,37 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         pattern.Tracks.Add(track);
         Tracks.Add(track);
         SelectedTrack = track;
+        ConfigurePlaybackSource();
+        RebuildTimeline();
         StatusMessage = $"{track.Name} added ({track.DisplayTrackType})";
         errorMessage = string.Empty;
         return true;
+    }
+
+    private void DeleteSelectedTrack()
+    {
+        var pattern = SelectedPattern;
+        var track = SelectedTrack;
+        if (pattern is null || track is null)
+        {
+            return;
+        }
+
+        var trackIndex = pattern.Tracks.IndexOf(track);
+        if (trackIndex < 0)
+        {
+            return;
+        }
+
+        CaptureUndoStateIfNeeded();
+        pattern.Tracks.RemoveAt(trackIndex);
+        Tracks.Remove(track);
+        SelectedTrack = pattern.Tracks.Count == 0
+            ? null
+            : pattern.Tracks[Math.Min(trackIndex, pattern.Tracks.Count - 1)];
+        ConfigurePlaybackSource();
+        RebuildTimeline();
+        StatusMessage = $"{track.Name} deleted";
     }
 
     public bool TryUpdateTrack(
@@ -2259,18 +2475,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         return steps;
-    }
-
-    private static void PadTracksToSixteen(ObservableCollection<PatternTrackViewModel> tracks)
-    {
-        for (var channel = tracks.Count + 1; channel <= 16; channel++)
-        {
-            tracks.Add(CreateTrack($"Track {channel}", string.Empty, channel, 36, new[]
-            {
-                false, false, false, false, false, false, false, false,
-                false, false, false, false, false, false, false, false
-            }));
-        }
     }
 
     private static ArrangeRowViewModel CreateArrangeRow(string track, string instrument, IReadOnlyList<string> labels)
@@ -2473,6 +2677,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         RaisePropertyChanged(nameof(SelectedArrangePatternStart));
         RaisePropertyChanged(nameof(SelectedArrangePatternEnd));
         RaisePropertyChanged(nameof(SelectedArrangePatternLengthDisplay));
+        RebuildTimeline();
         StatusMessage = $"Pattern duration set to {requestedLength} bars";
     }
 
@@ -2516,14 +2721,15 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         RebuildSongArrangeRows(assignments);
         _selectedArrangePatternCell = null;
         SelectedArrangeCell = null;
+        RebuildTimeline();
         StatusMessage = "Pattern removed from arrangement";
     }
 
     private void CreateArrangePattern()
     {
         var patternName = Interaction.InputBox(
-            "Inserisci il titolo del nuovo pattern:",
-            "Crea nuovo pattern",
+            "Enter the new pattern name:",
+            "Create new pattern",
             $"PATTERN {Patterns.Count + 1}").Trim();
         if (string.IsNullOrWhiteSpace(patternName))
         {
@@ -2574,8 +2780,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         var confirmation = MessageBox.Show(
-            $"VerrÃ  copiato il pattern \"{sourcePattern.Name}\" subito dopo la sua posizione corrente. Continuare?",
-            "Copia pattern",
+            $"Pattern \"{sourcePattern.Name}\" will be copied immediately after its current position. Continue?",
+            "Copy pattern",
             MessageBoxButton.YesNo,
             MessageBoxImage.Question);
         if (confirmation != MessageBoxResult.Yes)
@@ -2827,11 +3033,17 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
         foreach (var row in PianoRollRows)
         {
-            foreach (var cell in row.Cells)
+            if (_previousPianoRollStep >= 0 && _previousPianoRollStep < row.Cells.Count)
             {
-                cell.IsPlayhead = cell.StepIndex == stepIndex;
+                row.Cells[_previousPianoRollStep].IsPlayhead = false;
+            }
+
+            if (stepIndex >= 0 && stepIndex < row.Cells.Count)
+            {
+                row.Cells[stepIndex].IsPlayhead = true;
             }
         }
+        _previousPianoRollStep = stepIndex;
     }
 
     private void RefreshPianoRoll()
@@ -2852,6 +3064,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         var rows = new ObservableCollection<PianoRollRowViewModel>();
+        _previousPianoRollStep = -1;
         var topNote = track.NoteNumber + 5;
 
         for (var midiNote = topNote; midiNote >= topNote - 11; midiNote--)
@@ -2908,7 +3121,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 .Select(note => new MidiNoteEventDocument(note.StepIndex, note.DurationSteps, note.NoteNumber, note.Velocity))
                 .ToList(),
             track.TrackType,
-            track.Source);
+            track.Source,
+            track.Volume,
+            track.IsRecordArmed);
     }
 
     private static void ApplyTrackDocumentToTrack(PatternTrackViewModel targetTrack, TrackDocument sourceTrack)
@@ -2920,6 +3135,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         targetTrack.ProgramNumber = sourceTrack.ProgramNumber;
         targetTrack.TrackType = sourceTrack.TrackType;
         targetTrack.Source = sourceTrack.Source ?? string.Empty;
+        targetTrack.Volume = sourceTrack.Volume;
+        targetTrack.IsRecordArmed = sourceTrack.IsRecordArmed;
         targetTrack.MidiNoteEvents = sourceTrack.MidiNoteEvents is null
             ? Array.Empty<MidiNoteEventViewModel>()
             : sourceTrack.MidiNoteEvents
@@ -3025,7 +3242,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     {
         var tracks = new ObservableCollection<PatternTrackViewModel>(
             patternDocument.Tracks.Select(trackDocument => ApplyTrackDocument(trackDocument)));
-        PadTracksToSixteen(tracks);
         return new PatternViewModel(patternDocument.Name, patternDocument.Summary, patternDocument.Slot, tracks);
     }
 
@@ -3053,7 +3269,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 .Select(note => new MidiNoteEventViewModel(note.StepIndex, note.DurationSteps, note.NoteNumber, note.Velocity))
                 .ToList(),
             trackDocument.TrackType,
-            trackDocument.Source);
+            trackDocument.Source,
+            trackDocument.Volume,
+            trackDocument.IsRecordArmed);
     }
 
     private void MovePattern(object? parameter, int offset)

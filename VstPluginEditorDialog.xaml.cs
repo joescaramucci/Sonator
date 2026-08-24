@@ -52,7 +52,7 @@ public partial class VstPluginEditorDialog : Window
         var handle = _vst3Host.TryLoadModule(_filePath, out var error);
         if (handle is null)
         {
-            StatusText.Text = error ?? "Impossibile caricare il modulo VST3.";
+            StatusText.Text = error ?? "Unable to load the VST3 module.";
             return;
         }
 
@@ -66,7 +66,7 @@ public partial class VstPluginEditorDialog : Window
         }
 
         var hasNativeEditor = _vst3Host.HasNativeEditor(handle);
-        OpenNativeEditorButton.Content = hasNativeEditor ? "Apri editor nativo" : "GUI nativa non disponibile";
+        OpenNativeEditorButton.Content = hasNativeEditor ? "Open native editor" : "Native GUI unavailable";
         OpenNativeEditorButton.IsEnabled = hasNativeEditor;
 
         // Start real-time audio right away (if the plugin supports it) so
@@ -76,20 +76,20 @@ public partial class VstPluginEditorDialog : Window
         if (_vst3Host.HasAudioProcessor(handle))
         {
             audioStatus = _vst3Host.TryStartAudio(handle, out var audioError)
-                ? " Audio in tempo reale attivo (output predefinito di Windows)."
-                : $" Audio non avviato: {audioError}";
+                ? " Real-time audio active (default Windows output)."
+                : $" Audio did not start: {audioError}";
         }
 
         var parameters = _vst3Host.GetParameters(handle);
         if (parameters.Count == 0)
         {
-            StatusText.Text = "Modulo VST3 caricato, ma il plug-in non espone parametri leggibili." + audioStatus;
+            StatusText.Text = "VST3 module loaded, but the plug-in exposes no readable parameters." + audioStatus;
             return;
         }
 
         StatusText.Text = (parameters.Count > MaxParametersShown
-            ? $"{parameters.Count} parametri reali letti dal plug-in (i primi {MaxParametersShown} sono mostrati qui sotto)."
-            : $"{parameters.Count} parametri reali letti dal plug-in.") + audioStatus;
+            ? $"{parameters.Count} real parameters read from the plug-in (the first {MaxParametersShown} are shown below)."
+            : $"{parameters.Count} real parameters read from the plug-in.") + audioStatus;
 
         ParametersPanel.Children.Clear();
         foreach (var parameter in parameters.Take(MaxParametersShown))
@@ -142,8 +142,8 @@ public partial class VstPluginEditorDialog : Window
         {
             MessageBox.Show(
                 this,
-                "Il modulo VST3 non è (ancora) caricato correttamente.",
-                "GUI nativa non disponibile",
+                "The VST3 module is not loaded correctly yet.",
+                "Native GUI unavailable",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
             return;
@@ -153,9 +153,9 @@ public partial class VstPluginEditorDialog : Window
         {
             MessageBox.Show(
                 this,
-                "Questo plug-in non espone una GUI nativa incorporabile (IPlugView) su questa piattaforma.\n\n" +
-                "I parametri reali del plug-in sono comunque leggibili e modificabili qui sopra.",
-                "GUI nativa non disponibile",
+                "This plug-in does not expose an embeddable native GUI (IPlugView) on this platform.\n\n" +
+                "The plug-in's real parameters remain readable and editable above.",
+                "Native GUI unavailable",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
             return;

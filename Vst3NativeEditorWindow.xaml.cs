@@ -23,7 +23,7 @@ public partial class Vst3NativeEditorWindow : Window
         InitializeComponent();
         _vst3Host = vst3Host;
         _moduleHandle = moduleHandle;
-        Title = $"GUI nativa - {pluginName}";
+        Title = $"Native GUI - {pluginName}";
 
         AttachEditor();
 
@@ -35,23 +35,23 @@ public partial class Vst3NativeEditorWindow : Window
         InitializeComponent();
         _vst3Host = new Vst3PluginHost();
         _ownsModule = true;
-        Title = $"GUI nativa - {pluginName}";
+        Title = $"Native GUI - {pluginName}";
 
         _moduleHandle = _vst3Host.TryLoadModule(filePath, out var loadError);
         if (_moduleHandle is null)
         {
-            ShowFallback(loadError ?? "Impossibile caricare il modulo VST3.");
+            ShowFallback(loadError ?? "Unable to load the VST3 module.");
         }
         else if (!_vst3Host.HasNativeEditor(_moduleHandle))
         {
-            ShowFallback("Questo plug-in non espone un editor nativo VST3 incorporabile.");
+            ShowFallback("This plug-in does not expose an embeddable native VST3 editor.");
         }
         else
         {
             if (_vst3Host.HasAudioProcessor(_moduleHandle)
                 && !_vst3Host.TryStartAudio(_moduleHandle, out var audioError))
             {
-                Title = $"GUI nativa - {pluginName} (audio non disponibile: {audioError})";
+                Title = $"Native GUI - {pluginName} (audio unavailable: {audioError})";
             }
 
             AttachEditor();

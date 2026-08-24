@@ -21,6 +21,9 @@ internal sealed class SequencerEngine : IDisposable
     private CancellationTokenSource? _playbackCts;
     private Task? _playbackTask;
     private uint? _midiOutputDeviceId;
+    private PatternViewModel? _highlightedPattern;
+    private int _highlightedStep = -1;
+    private int _playbackGeneration;
 
     public SequencerEngine()
     {
@@ -150,7 +153,8 @@ internal sealed class SequencerEngine : IDisposable
 
             ApplyProgramChanges(_pattern);
             _playbackCts = new CancellationTokenSource();
-            _playbackTask = RunPlaybackLoopAsync(_playbackCts.Token);
+            var playbackGeneration = unchecked(++_playbackGeneration);
+            _playbackTask = RunPlaybackLoopAsync(_playbackCts.Token, playbackGeneration);
             _ = _playbackTask.ContinueWith(
                 task => _dispatcher.InvokeAsync(() =>
                     PlaybackFaulted?.Invoke(this, task.Exception!.GetBaseException())),
@@ -167,6 +171,10 @@ internal sealed class SequencerEngine : IDisposable
         {
             cts = _playbackCts;
             _playbackCts = null;
+            unchecked
+            {
+                _playbackGeneration++;
+            }
         }
 
         if (cts is null)
@@ -217,7 +225,7 @@ internal sealed class SequencerEngine : IDisposable
         }
     }
 
-    private async Task RunPlaybackLoopAsync(CancellationToken token)
+    private async Task RunPlaybackLoopAsync(CancellationToken token, int playbackGeneration)
     {
         try
         {
@@ -227,7 +235,7 @@ internal sealed class SequencerEngine : IDisposable
             while (!token.IsCancellationRequested)
             {
                 var currentStep = GetCurrentStep();
-                ProcessStep(currentStep);
+                ProcessStep(currentStep, playbackGeneration);
 
                 nextStepAt += (long)(stepDuration.TotalSeconds * Stopwatch.Frequency);
                 await WaitUntilAsync(nextStepAt, token).ConfigureAwait(false);
@@ -236,7 +244,15 @@ internal sealed class SequencerEngine : IDisposable
                 {
                     if (!AdvanceStep(_currentStep))
                     {
-                        _dispatcher.InvokeAsync(() => PlaybackCompleted?.Invoke(this, EventArgs.Empty));
+                        _dispatcher.InvokeAsync(
+                            () =>
+                            {
+                                if (IsCurrentPlaybackGeneration(playbackGeneration))
+                                {
+                                    PlaybackCompleted?.Invoke(this, EventArgs.Empty);
+                                }
+                            },
+                            DispatcherPriority.Background);
                         break;
                     }
 
@@ -250,7 +266,7 @@ internal sealed class SequencerEngine : IDisposable
         }
     }
 
-    private void ProcessStep(int stepIndex)
+    private void ProcessStep(int stepIndex, int playbackGeneration)
     {
         var playbackPosition = ResolvePlaybackPosition(stepIndex);
         var pattern = playbackPosition.Pattern;
@@ -267,17 +283,40 @@ internal sealed class SequencerEngine : IDisposable
             }
 
             ApplyProgramChanges(pattern);
-            _dispatcher.InvokeAsync(() => PatternChanged?.Invoke(this, pattern));
+            _dispatcher.InvokeAsync(
+                () =>
+                {
+                    if (IsCurrentPlaybackGeneration(playbackGeneration))
+                    {
+                        PatternChanged?.Invoke(this, pattern);
+                    }
+                },
+                DispatcherPriority.Background);
         }
 
         TickActiveNotes();
         PlayStepNotes(pattern, playbackPosition.LocalStep);
 
-        _dispatcher.InvokeAsync(() =>
+        _dispatcher.InvokeAsync(
+            () =>
+            {
+                if (!IsCurrentPlaybackGeneration(playbackGeneration))
+                {
+                    return;
+                }
+
+                HighlightPlaybackStep(pattern, playbackPosition.LocalStep);
+                StepChanged?.Invoke(this, stepIndex);
+            },
+            DispatcherPriority.Background);
+    }
+
+    private bool IsCurrentPlaybackGeneration(int playbackGeneration)
+    {
+        lock (_sync)
         {
-            HighlightPlaybackStep(pattern, playbackPosition.LocalStep);
-            StepChanged?.Invoke(this, stepIndex);
-        });
+            return _playbackGeneration == playbackGeneration && _playbackCts is not null;
+        }
     }
 
     private int GetCurrentStep()
@@ -371,19 +410,27 @@ internal sealed class SequencerEngine : IDisposable
 
     private void HighlightPlaybackStep(PatternViewModel activePattern, int activeStep)
     {
-        var patterns = _songPatterns.Count > 0
-            ? _songPatterns
-            : new List<PatternViewModel> { activePattern };
-        foreach (var pattern in patterns)
+        if (_highlightedPattern is not null && _highlightedStep >= 0)
         {
-            foreach (var track in pattern.Tracks)
+            foreach (var track in _highlightedPattern.Tracks)
             {
-                foreach (var step in track.Steps)
+                if (_highlightedStep < track.Steps.Count)
                 {
-                    step.IsCurrent = ReferenceEquals(pattern, activePattern) && step.Index == activeStep;
+                    track.Steps[_highlightedStep].IsCurrent = false;
                 }
             }
         }
+
+        foreach (var track in activePattern.Tracks)
+        {
+            if (activeStep < track.Steps.Count)
+            {
+                track.Steps[activeStep].IsCurrent = true;
+            }
+        }
+
+        _highlightedPattern = activePattern;
+        _highlightedStep = activeStep;
     }
 
     private void TickActiveNotes()
@@ -436,7 +483,10 @@ internal sealed class SequencerEngine : IDisposable
                 {
                     foreach (var noteEvent in track.MidiNoteEvents.Where(note => note.StepIndex == stepIndex))
                     {
-                        _midiOutput?.NoteOn(track.Channel - 1, noteEvent.NoteNumber, noteEvent.Velocity);
+                        _midiOutput?.NoteOn(
+                            track.Channel - 1,
+                            noteEvent.NoteNumber,
+                            ApplyTrackVolume(noteEvent.Velocity, track.Volume));
                         _activeNotes.Add(new ActiveNote(
                             track,
                             track.Channel - 1,
@@ -454,10 +504,19 @@ internal sealed class SequencerEngine : IDisposable
                 }
 
                 var noteNumber = step.MidiNoteNumber ?? track.NoteNumber;
-                _midiOutput?.NoteOn(track.Channel - 1, noteNumber, step.Velocity);
+                _midiOutput?.NoteOn(
+                    track.Channel - 1,
+                    noteNumber,
+                    ApplyTrackVolume(step.Velocity, track.Volume));
                 _activeNotes.Add(new ActiveNote(track, track.Channel - 1, noteNumber, step.DurationSteps));
             }
+
         }
+    }
+
+    private static int ApplyTrackVolume(int velocity, double volume)
+    {
+        return Math.Clamp((int)Math.Round(velocity * volume), 0, 127);
     }
 
     private void HighlightStep(PatternViewModel pattern, int stepIndex)
@@ -509,6 +568,8 @@ internal sealed class SequencerEngine : IDisposable
             }
 
             _activeNotes.Clear();
+            _highlightedPattern = null;
+            _highlightedStep = -1;
         }
     }
 

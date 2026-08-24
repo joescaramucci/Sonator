@@ -51,10 +51,17 @@ public sealed class SongArrangeRowViewModel : ViewModelBase
         set => SetProperty(ref _isPointerOver, value);
     }
 
+    public bool IsDragging
+    {
+        get => _isDragging;
+        set => SetProperty(ref _isDragging, value);
+    }
+
     private string _displayBarNumber = string.Empty;
     private string _displayPatternName = string.Empty;
     private bool _isSelected;
     private bool _isPointerOver;
+    private bool _isDragging;
     private bool _isPlaying;
 
     public bool IsPlaying

@@ -38,7 +38,9 @@ public sealed record TrackDocument(
     int ProgramNumber = 0,
     List<MidiNoteEventDocument>? MidiNoteEvents = null,
     PatternTrackType TrackType = PatternTrackType.MidiChannel,
-    string? Source = null);
+    string? Source = null,
+    double Volume = 1.0,
+    bool IsRecordArmed = false);
 
 public sealed record StepDocument(
     int Index,

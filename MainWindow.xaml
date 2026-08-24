@@ -26,6 +26,7 @@
         <SolidColorBrush x:Key="AccentSoft" Color="#1F3D66" />
         <SolidColorBrush x:Key="Success" Color="#49B88D" />
         <local:SignalPeakVisibilityConverter x:Key="SignalPeakVisibilityConverter" />
+        <local:VolumePercentConverter x:Key="VolumePercentConverter" />
 
         <Style TargetType="MenuItem">
             <Setter Property="Foreground" Value="#1B2330" />
@@ -68,6 +69,39 @@
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="#354D69" />
                     <Setter Property="BorderBrush" Value="#7EB2FF" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="TrackRecordArmButton" TargetType="ToggleButton">
+            <Setter Property="Background" Value="#3E536B" />
+            <Setter Property="BorderBrush" Value="#6F87A0" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="#BCC9D8" />
+            <Setter Property="FontFamily" Value="Consolas" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="3">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="#8DA8C2" />
+                </Trigger>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="Background" Value="#D94C4C" />
+                    <Setter Property="BorderBrush" Value="#A62B2B" />
+                    <Setter Property="Foreground" Value="White" />
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -142,8 +176,8 @@
         </Style>
 
         <Style x:Key="VerticalMeter" TargetType="ProgressBar">
-            <Setter Property="Width" Value="24" />
-            <Setter Property="Height" Value="10" />
+            <Setter Property="Width" Value="42" />
+            <Setter Property="Height" Value="8" />
             <Setter Property="Minimum" Value="0" />
             <Setter Property="Maximum" Value="1" />
             <Setter Property="Foreground" Value="#52C7A1" />
@@ -231,22 +265,22 @@
                       FontFamily="Segoe UI Semibold"
                       FontSize="12">
                     <MenuItem Header="_File">
-                        <MenuItem Header="_Nuovo progetto" Command="{Binding NewProjectCommand}" InputGestureText="Ctrl+N" />
-                        <MenuItem Header="_Apri progetto..." Command="{Binding LoadProjectCommand}" InputGestureText="Ctrl+L" />
+                        <MenuItem Header="_New project" Command="{Binding NewProjectCommand}" InputGestureText="Ctrl+N" />
+                        <MenuItem Header="_Open project..." Command="{Binding LoadProjectCommand}" InputGestureText="Ctrl+L" />
                         <Separator />
-                        <MenuItem Header="_Salva progetto" Command="{Binding SaveProjectCommand}" InputGestureText="Ctrl+S" />
-                        <MenuItem Header="Salva con _nome..." Command="{Binding SaveProjectAsCommand}" InputGestureText="Ctrl+Shift+S" />
+                        <MenuItem Header="_Save project" Command="{Binding SaveProjectCommand}" InputGestureText="Ctrl+S" />
+                        <MenuItem Header="Save _As..." Command="{Binding SaveProjectAsCommand}" InputGestureText="Ctrl+Shift+S" />
                         <Separator />
-                        <MenuItem Header="Importa _MIDI..." Command="{Binding ImportMidiCommand}" />
-                        <MenuItem Header="Chiudi _progetto" Click="CloseProjectMenuItem_Click" />
+                        <MenuItem Header="Import _MIDI..." Command="{Binding ImportMidiCommand}" />
+                        <MenuItem Header="Close _project" Click="CloseProjectMenuItem_Click" />
                         <Separator />
-                        <MenuItem Header="_Chiudi" Click="CloseMenuItem_Click" InputGestureText="Alt+F4" />
+                        <MenuItem Header="_Exit" Click="CloseMenuItem_Click" InputGestureText="Alt+F4" />
                     </MenuItem>
                     <MenuItem Header="_Edit">
                         <MenuItem Header="_Undo" Command="{Binding UndoCommand}" InputGestureText="Ctrl+Z" />
                         <MenuItem Header="_Redo" Command="{Binding RedoCommand}" InputGestureText="Ctrl+Y" />
                         <Separator />
-                        <MenuItem Header="Copia _track" Command="{Binding CopyTrackCommand}" />
+                        <MenuItem Header="Copy _track" Command="{Binding CopyTrackCommand}" />
                         <MenuItem Header="Incolla tr_ack" Command="{Binding PasteTrackCommand}" />
                         <MenuItem Header="Cancella cella arrange" Command="{Binding ClearArrangeCellCommand}" />
                     </MenuItem>
@@ -256,24 +290,24 @@
                         <MenuItem Header="_Record arm" Command="{Binding ToggleRecordCommand}" />
                     </MenuItem>
                     <MenuItem Header="_Arrange">
-                        <MenuItem Header="Crea pattern arrange" Command="{Binding CreateArrangePatternCommand}" />
-                        <MenuItem Header="Copia pattern arrange" Command="{Binding CopyArrangePatternCommand}" />
+                        <MenuItem Header="Create arrange pattern" Command="{Binding CreateArrangePatternCommand}" />
+                        <MenuItem Header="Copy arrange pattern" Command="{Binding CopyArrangePatternCommand}" />
                         <Separator />
-                        <MenuItem Header="Sposta pattern su" Command="{Binding MoveArrangePatternUpCommand}" />
-                        <MenuItem Header="Sposta pattern giù" Command="{Binding MoveArrangePatternDownCommand}" />
-                        <MenuItem Header="Elimina pattern arrange" Command="{Binding DeleteArrangePatternCommand}" />
+                        <MenuItem Header="Move pattern up" Command="{Binding MoveArrangePatternUpCommand}" />
+                        <MenuItem Header="Move pattern down" Command="{Binding MoveArrangePatternDownCommand}" />
+                        <MenuItem Header="Delete arrange pattern" Command="{Binding DeleteArrangePatternCommand}" />
                     </MenuItem>
                     <MenuItem Header="_Track">
-                        <MenuItem Header="Nuova traccia MIDI CH" Click="AddMidiTrackMenuItem_Click" />
-                        <MenuItem Header="Nuova traccia VST" Click="AddVstTrackMenuItem_Click" />
-                        <MenuItem Header="Nuova traccia Audio input" Click="AddAudioTrackMenuItem_Click" />
+                        <MenuItem Header="New MIDI channel track" Click="AddMidiTrackMenuItem_Click" />
+                        <MenuItem Header="New VST track" Click="AddVstTrackMenuItem_Click" />
+                        <MenuItem Header="New audio input track" Click="AddAudioTrackMenuItem_Click" />
                         <Separator />
                         <MenuItem Header="Transpose +1" Command="{Binding TransposeUpCommand}" />
                         <MenuItem Header="Transpose -1" Command="{Binding TransposeDownCommand}" />
                         <MenuItem Header="_Do Quantize" Command="{Binding QuantizeTrackCommand}" />
                     </MenuItem>
                     <MenuItem Header="_MIDI">
-                        <MenuItem Header="Importa MIDI..." Command="{Binding ImportMidiCommand}" />
+                        <MenuItem Header="Import MIDI..." Command="{Binding ImportMidiCommand}" />
                         <MenuItem Header="Refresh devices" Command="{Binding RefreshMidiDevicesCommand}" />
                     </MenuItem>
                 </Menu>
@@ -459,10 +493,10 @@
                         <UniformGrid Columns="4" Margin="0,3,0,0">
                             <Button Content="&#x2191; PREV" Command="{Binding MoveArrangePatternUpCommand}" />
                             <Button Content="&#x2193; NEXT" Command="{Binding MoveArrangePatternDownCommand}" />
-                            <Button Content="COPIA" Command="{Binding CopyArrangePatternCommand}" />
+                            <Button Content="COPY" Command="{Binding CopyArrangePatternCommand}" />
                             <Button Content="DELETE" Command="{Binding DeleteArrangePatternCommand}" />
                         </UniformGrid>
-                        <Button Content="CREA NUOVO PATTERN"
+                        <Button Content="CREATE NEW PATTERN"
                                 Command="{Binding CreateArrangePatternCommand}"
                                 Margin="0,3,0,0" />
                     </StackPanel>
@@ -490,7 +524,10 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <Grid Height="34"
+                                              AllowDrop="True"
                                               Cursor="Hand"
+                                              DragOver="ArrangePatternRow_DragOver"
+                                              Drop="ArrangePatternRow_Drop"
                                               MouseEnter="ArrangePatternRow_MouseEnter"
                                               MouseLeave="ArrangePatternRow_MouseLeave">
                                             <Grid.ColumnDefinitions>
@@ -540,7 +577,9 @@
                                             <Border Grid.Column="1"
                                                     BorderBrush="{StaticResource Line}"
                                                     BorderThickness="1,1,0,1"
-                                                    PreviewMouseDown="ArrangePatternRow_PreviewMouseDown">
+                                                    PreviewMouseDown="ArrangePatternRow_PreviewMouseDown"
+                                                    PreviewMouseMove="ArrangePatternListItem_PreviewMouseMove"
+                                                    PreviewMouseLeftButtonUp="ArrangePatternListItem_PreviewMouseLeftButtonUp">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
                                                        <Setter Property="Background" Value="#2A3748" />
@@ -553,6 +592,9 @@
                                                            </DataTrigger>
                                                            <DataTrigger Binding="{Binding IsPlaying}" Value="True">
                                                                <Setter Property="Background" Value="#2D745D" />
+                                                           </DataTrigger>
+                                                           <DataTrigger Binding="{Binding IsDragging}" Value="True">
+                                                               <Setter Property="Background" Value="#2F78C4" />
                                                            </DataTrigger>
                                                        </Style.Triggers>
                                                     </Style>
@@ -629,6 +671,21 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                             </Border>
+                            <Border Height="26"
+                                    Margin="0,4,1,0"
+                                    AllowDrop="True"
+                                    Background="#1E2B39"
+                                    BorderBrush="#55708C"
+                                    BorderThickness="1"
+                                    DragOver="ArrangePatternEndDrop_DragOver"
+                                    Drop="ArrangePatternEndDrop_Drop">
+                                <TextBlock Text="DROP HERE TO MOVE TO END"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           FontFamily="Consolas"
+                                           FontSize="9"
+                                           Foreground="#9FB4C9" />
+                            </Border>
                         </StackPanel>
                     </ScrollViewer>
                 </DockPanel>
@@ -639,14 +696,14 @@
                 <ScrollViewer x:Name="ArrangeTimelineScrollViewer"
                               HorizontalScrollBarVisibility="Auto"
                               VerticalScrollBarVisibility="Disabled"
-                              ToolTip="Usa la rotellina per cambiare lo zoom della timeline"
+                              ToolTip="Use the mouse wheel to zoom the timeline"
                               PreviewMouseWheel="Timeline_PreviewMouseWheel"
                               SizeChanged="ArrangeTimelineScrollViewer_SizeChanged">
                 <Grid Width="{Binding TimelineWorkspaceWidth}">
                 <DockPanel>
                     <Grid DockPanel.Dock="Top" Height="42" Margin="0,0,0,3">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="154" />
+                            <ColumnDefinition Width="220" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <StackPanel Margin="5,2">
@@ -657,7 +714,7 @@
                                       Width="{Binding TimelineContentWidth}"
                                       ItemsSource="{Binding TimelineBarNumbers}"
                                       Cursor="SizeWE"
-                                      ToolTip="Trascina o usa la rotellina per cambiare lo zoom della timeline"
+                                      ToolTip="Drag or use the mouse wheel to zoom the timeline"
                                       SnapsToDevicePixels="True"
                                       UseLayoutRounding="True"
                                       PreviewMouseWheel="Timeline_PreviewMouseWheel"
@@ -685,6 +742,8 @@
                     </Grid>
                     <ListBox x:Name="TimelineBodyListBox"
                              ItemsSource="{Binding TimelineTracks}"
+                             SelectedValuePath="SourceTrack"
+                             SelectedValue="{Binding SelectedTrack, Mode=TwoWay}"
                              MouseDoubleClick="TrackList_MouseDoubleClick"
                              Width="{Binding TimelineWorkspaceWidth}"
                              Background="Transparent"
@@ -701,9 +760,9 @@
                         </ListBox.ItemContainerStyle>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Grid Height="52">
+                                <Grid Height="64">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="154" />
+                                        <ColumnDefinition Width="220" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
                                     <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Background="#263545" Padding="3">
@@ -711,7 +770,12 @@
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="48" />
                                                 <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="14" />
                                             </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="34" />
+                                                <RowDefinition Height="20" />
+                                            </Grid.RowDefinitions>
                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Top">
                                                 <Button Content="M"
                                                         Width="22" Height="18" Padding="0"
@@ -753,13 +817,50 @@
                                                 </Button>
                                             </StackPanel>
                                             <StackPanel Grid.Column="1">
-                                                <TextBlock Text="{Binding Name}" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding SourceTrack.Name}"
+                                                           FontWeight="Bold"
+                                                           Foreground="#E4ECF4"
+                                                           TextTrimming="CharacterEllipsis" />
                                                 <TextBlock FontSize="9" Foreground="#8FA6BD">
-                                                    <Run Text="{Binding DisplayTrackType, Mode=OneWay}" />
+                                                    <Run Text="{Binding SourceTrack.Instrument, Mode=OneWay}" />
+                                                    <Run Text="  ·  " />
+                                                    <Run Text="{Binding SourceTrack.DisplayTrackType, Mode=OneWay}" />
                                                     <Run Text="  " />
-                                                    <Run Text="{Binding RoutingDisplay, Mode=OneWay}" />
+                                                    <Run Text="{Binding SourceTrack.RoutingDisplay, Mode=OneWay}" />
                                                 </TextBlock>
                                             </StackPanel>
+                                            <Grid Grid.Row="1" Grid.ColumnSpan="2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="24" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <ToggleButton Content="R"
+                                                              Width="22"
+                                                              Height="18"
+                                                              Padding="0"
+                                                              Focusable="False"
+                                                              Style="{StaticResource TrackRecordArmButton}"
+                                                              AutomationProperties.Name="RECORD ARM"
+                                                              IsChecked="{Binding SourceTrack.IsRecordArmed, Mode=TwoWay}"
+                                                              ToolTip="Arm track for recording" />
+                                                <Slider Grid.Column="1"
+                                                        Height="16"
+                                                        Margin="3,0,1,0"
+                                                        Minimum="0"
+                                                        Maximum="100"
+                                                        AutoToolTipPlacement="TopLeft"
+                                                        AutoToolTipPrecision="0"
+                                                        Focusable="False"
+                                                        AutomationProperties.Name="TRACK VOLUME"
+                                                        Value="{Binding SourceTrack.Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource VolumePercentConverter}}"
+                                                        ToolTip="Track volume" />
+                                            </Grid>
+                                            <ProgressBar Grid.RowSpan="2"
+                                                         Grid.Column="2"
+                                                         Style="{StaticResource VerticalMeter}"
+                                                         Value="{Binding SourceTrack.SignalLevel}"
+                                                         VerticalAlignment="Center"
+                                                         ToolTip="Channel level" />
                                         </Grid>
                                     </Border>
                                     <Grid Grid.Column="1"
@@ -781,15 +882,15 @@
                                                             <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
                                                             <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
                                                             <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
-                                                            <Border BorderBrush="#334A5F" BorderThickness="1,0,0,0" />
+                                                            <Border BorderBrush="#3D566D" BorderThickness="1,0,0,0" />
                                                             <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
                                                             <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
                                                             <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
-                                                            <Border BorderBrush="#334A5F" BorderThickness="1,0,0,0" />
+                                                            <Border BorderBrush="#3D566D" BorderThickness="1,0,0,0" />
                                                             <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
                                                             <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
                                                             <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
-                                                            <Border BorderBrush="#334A5F" BorderThickness="1,0,0,0" />
+                                                            <Border BorderBrush="#3D566D" BorderThickness="1,0,0,0" />
                                                             <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
                                                             <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
                                                             <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
@@ -900,7 +1001,7 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
                 </DockPanel>
-                <ItemsControl Margin="154,0,0,0"
+                <ItemsControl Margin="220,0,0,0"
                               Width="{Binding TimelineContentWidth}"
                               HorizontalAlignment="Left"
                               ItemsSource="{Binding TimelineBarNumbers}"
@@ -925,13 +1026,31 @@
                 </ItemsControl>
                 </Grid>
                 </ScrollViewer>
-                <Border Width="154"
+                <Border Width="220"
                         Margin="0,42,0,0"
                         HorizontalAlignment="Left"
+                        VerticalAlignment="Top"
                         Background="{StaticResource Paper}"
                         Panel.ZIndex="10">
+                    <DockPanel>
+                    <UniformGrid DockPanel.Dock="Bottom"
+                                 Columns="2"
+                                 Height="24"
+                                 Margin="0,3,0,0">
+                        <Button Content="NEW TRACK"
+                                Command="{Binding AddTrackCommand}"
+                                CommandParameter="midi"
+                                Padding="2,0"
+                                FontSize="9" />
+                        <Button Content="DELETE TRACK"
+                                Command="{Binding DeleteTrackCommand}"
+                                Padding="2,0"
+                                FontSize="9" />
+                    </UniformGrid>
                     <ListBox x:Name="FrozenTrackListBox"
                              ItemsSource="{Binding TimelineTracks}"
+                             SelectedValuePath="SourceTrack"
+                             SelectedValue="{Binding SelectedTrack, Mode=TwoWay}"
                              MouseDoubleClick="TrackList_MouseDoubleClick"
                              Background="{StaticResource Paper}"
                              BorderThickness="0"
@@ -947,7 +1066,7 @@
                         </ListBox.ItemContainerStyle>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Border Height="52"
+                                <Border Height="64"
                                         BorderBrush="{StaticResource Line}"
                                         BorderThickness="1"
                                         Background="#263545"
@@ -956,7 +1075,12 @@
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="48" />
                                             <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="14" />
                                         </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="34" />
+                                            <RowDefinition Height="20" />
+                                        </Grid.RowDefinitions>
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Top">
                                             <Button Content="M"
                                                     Width="22"
@@ -1002,28 +1126,73 @@
                                             </Button>
                                         </StackPanel>
                                         <StackPanel Grid.Column="1">
-                                            <TextBlock Text="{Binding Name}" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding SourceTrack.Name}"
+                                                       FontWeight="Bold"
+                                                       Foreground="#E4ECF4"
+                                                       TextTrimming="CharacterEllipsis" />
                                             <TextBlock FontSize="9" Foreground="#8FA6BD">
-                                                <Run Text="{Binding DisplayTrackType, Mode=OneWay}" />
+                                                <Run Text="{Binding SourceTrack.Instrument, Mode=OneWay}" />
+                                                <Run Text="  ·  " />
+                                                <Run Text="{Binding SourceTrack.DisplayTrackType, Mode=OneWay}" />
                                                 <Run Text="  " />
-                                                <Run Text="{Binding RoutingDisplay, Mode=OneWay}" />
+                                                <Run Text="{Binding SourceTrack.RoutingDisplay, Mode=OneWay}" />
                                             </TextBlock>
                                         </StackPanel>
+                                        <Grid Grid.Row="1" Grid.ColumnSpan="2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="24" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <ToggleButton Content="R"
+                                                          Width="22"
+                                                          Height="18"
+                                                          Padding="0"
+                                                          Focusable="False"
+                                                          Style="{StaticResource TrackRecordArmButton}"
+                                                          AutomationProperties.Name="RECORD ARM"
+                                                          IsChecked="{Binding SourceTrack.IsRecordArmed, Mode=TwoWay}"
+                                                          ToolTip="Arm track for recording" />
+                                            <Slider Grid.Column="1"
+                                                    Height="16"
+                                                    Margin="3,0,1,0"
+                                                    Minimum="0"
+                                                    Maximum="100"
+                                                    AutoToolTipPlacement="TopLeft"
+                                                    AutoToolTipPrecision="0"
+                                                    Focusable="False"
+                                                    AutomationProperties.Name="TRACK VOLUME"
+                                                    Value="{Binding SourceTrack.Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource VolumePercentConverter}}"
+                                                    ToolTip="Track volume" />
+                                        </Grid>
+                                        <ProgressBar Grid.RowSpan="2"
+                                                     Grid.Column="2"
+                                                     Style="{StaticResource VerticalMeter}"
+                                                     Value="{Binding SourceTrack.SignalLevel}"
+                                                     VerticalAlignment="Center"
+                                                     ToolTip="Channel level" />
                                     </Grid>
                                 </Border>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
+                    </DockPanel>
                 </Border>
-                <Border Width="154"
+                <Border x:Name="ArrangePatternDragHandle"
+                        Width="220"
                         Height="42"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Top"
                         Background="{StaticResource Paper}"
+                        Cursor="Hand"
+                        ToolTip="Drag the pattern into the left list to move it"
+                        AutomationProperties.Name="DRAG PATTERN"
+                        PreviewMouseLeftButtonDown="ArrangePatternDragHandle_PreviewMouseLeftButtonDown"
+                        PreviewMouseMove="ArrangePatternDragHandle_PreviewMouseMove"
+                        PreviewMouseLeftButtonUp="ArrangePatternDragHandle_PreviewMouseLeftButtonUp"
                         Panel.ZIndex="11">
                     <StackPanel Margin="5,2">
-                        <TextBlock Text="{Binding SelectedPattern.Name}" FontWeight="Bold" FontFamily="Consolas" />
-                        <TextBlock Text="{Binding SelectedPattern.Summary}" FontSize="9" FontFamily="Consolas" />
+                        <TextBlock Text="{Binding SelectedPattern.Name}" FontWeight="Bold" FontFamily="Consolas" Foreground="#E4ECF4" />
+                        <TextBlock Text="{Binding SelectedPattern.Summary}" FontSize="9" FontFamily="Consolas" Foreground="#8FA6BD" />
                     </StackPanel>
                 </Border>
                 <StackPanel Orientation="Horizontal"
@@ -1043,10 +1212,10 @@
                             TickFrequency="10"
                             IsSnapToTickEnabled="True"
                             Value="{Binding TimelineBarWidth, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                            ToolTip="Larghezza delle battute"
+                            ToolTip="Bar width"
                             AutomationProperties.Name="TIMELINE ZOOM" />
-                    <Button Content="−" AutomationProperties.Name="TIMELINE ZOOM OUT" Command="{Binding ZoomTimelineOutCommand}" Width="20" Height="18" Padding="0" ToolTip="Riduci larghezza battute" />
-                    <Button Content="+" AutomationProperties.Name="TIMELINE ZOOM IN" Command="{Binding ZoomTimelineInCommand}" Width="20" Height="18" Padding="0" ToolTip="Aumenta larghezza battute" />
+                    <Button Content="−" AutomationProperties.Name="TIMELINE ZOOM OUT" Command="{Binding ZoomTimelineOutCommand}" Width="20" Height="18" Padding="0" ToolTip="Reduce bar width" />
+                    <Button Content="+" AutomationProperties.Name="TIMELINE ZOOM IN" Command="{Binding ZoomTimelineInCommand}" Width="20" Height="18" Padding="0" ToolTip="Increase bar width" />
                 </StackPanel>
                 </Grid>
             </GroupBox>
@@ -1233,7 +1402,7 @@
                 <GroupBox Header="VST PLUG-IN" Grid.Row="1" Margin="0,4,0,0">
                     <DockPanel>
                         <StackPanel DockPanel.Dock="Top" Margin="0,0,0,4">
-                            <TextBlock Text="Cartella VST aggiuntiva (oltre a Program Files\Common Files\VST3)" FontSize="10" Margin="0,0,0,2" TextWrapping="Wrap" />
+                            <TextBlock Text="Additional VST folder (in addition to Program Files\Common Files\VST3)" FontSize="10" Margin="0,0,0,2" TextWrapping="Wrap" />
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
@@ -1245,14 +1414,14 @@
                                          Padding="2,1"
                                          VerticalContentAlignment="Center" />
                                 <Button Grid.Column="1"
-                                        Content="Sfoglia..."
+                                        Content="Browse..."
                                         Margin="4,0,0,0"
                                         Command="{Binding BrowseVstPluginsPathCommand}" />
                             </Grid>
                         </StackPanel>
 
                         <TextBlock DockPanel.Dock="Top"
-                                   Text="Nessun plug-in trovato. Seleziona una cartella VST."
+                                   Text="No plug-ins found. Select a VST folder."
                                    FontSize="10"
                                    TextWrapping="Wrap"
                                    Foreground="{StaticResource Ink}"

@@ -15,6 +15,8 @@ public sealed class PatternTrackViewModel : ViewModelBase
     private bool _isMuted;
     private bool _isSolo;
     private bool _isSelected;
+    private bool _isRecordArmed;
+    private double _volume;
     private double _signalLevel;
     private IReadOnlyList<MidiNoteEventViewModel> _midiNoteEvents;
 
@@ -27,7 +29,9 @@ public sealed class PatternTrackViewModel : ViewModelBase
         int programNumber = 0,
         IReadOnlyList<MidiNoteEventViewModel>? midiNoteEvents = null,
         PatternTrackType trackType = PatternTrackType.MidiChannel,
-        string? source = null)
+        string? source = null,
+        double volume = 1.0,
+        bool isRecordArmed = false)
     {
         _name = name;
         _instrument = instrument;
@@ -36,6 +40,8 @@ public sealed class PatternTrackViewModel : ViewModelBase
         _programNumber = programNumber;
         _trackType = trackType;
         _source = source ?? string.Empty;
+        _volume = Math.Clamp(volume, 0.0, 1.0);
+        _isRecordArmed = isRecordArmed;
         Steps = steps;
         _midiNoteEvents = midiNoteEvents ?? Array.Empty<MidiNoteEventViewModel>();
     }
@@ -139,6 +145,18 @@ public sealed class PatternTrackViewModel : ViewModelBase
     {
         get => _isSelected;
         set => SetProperty(ref _isSelected, value);
+    }
+
+    public double Volume
+    {
+        get => _volume;
+        set => SetProperty(ref _volume, Math.Clamp(value, 0.0, 1.0));
+    }
+
+    public bool IsRecordArmed
+    {
+        get => _isRecordArmed;
+        set => SetProperty(ref _isRecordArmed, value);
     }
 
     public double SignalLevel

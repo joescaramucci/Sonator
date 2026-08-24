@@ -21,7 +21,7 @@ public sealed class Vst3PluginHost : IVst3PluginHost
     {
         if (!IsNativeBridgeAvailable)
         {
-            error = "Il bridge nativo VstHostBridge.dll non è presente o non è compatibile. " +
+            error = "The native VstHostBridge.dll is missing or incompatible. " +
                     "Consulta docs/VST3_HOSTING.md per compilarlo e collegare l'SDK VST3 di Steinberg.";
             return null;
         }
@@ -175,7 +175,7 @@ public sealed class Vst3PluginHost : IVst3PluginHost
 
         if (handle.NativeHandle == IntPtr.Zero)
         {
-            error = "Modulo VST3 non caricato.";
+            error = "VST3 module not loaded.";
             return false;
         }
 
@@ -242,7 +242,7 @@ public sealed class Vst3PluginHost : IVst3PluginHost
 
         if (handle.NativeHandle == IntPtr.Zero)
         {
-            error = "Modulo VST3 non caricato.";
+            error = "VST3 module not loaded.";
             return false;
         }
 
@@ -322,12 +322,12 @@ public sealed class Vst3PluginHost : IVst3PluginHost
         {
             var pointer = Vst3HostInterop.VstHostBridge_GetLastError();
             return pointer == IntPtr.Zero
-                ? "Errore sconosciuto nel bridge VST3."
-                : Marshal.PtrToStringAnsi(pointer) ?? "Errore sconosciuto nel bridge VST3.";
+                ? "Unknown VST3 bridge error."
+                : Marshal.PtrToStringAnsi(pointer) ?? "Unknown VST3 bridge error.";
         }
         catch (Exception ex) when (IsBridgeUnavailableException(ex))
         {
-            return "Bridge nativo VST3 non disponibile.";
+            return "Native VST3 bridge unavailable.";
         }
     }
 

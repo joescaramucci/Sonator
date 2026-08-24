@@ -108,6 +108,7 @@ internal sealed class MidiFileImportService
                 for (var voiceIndex = 0; voiceIndex < voices.Count; voiceIndex++)
                 {
                     lanes.Add(new MidiImportLane(
+                        sourceTrack.Index,
                         BuildLaneName(sourceTrack, (int)channelNotes.Key + 1, voiceIndex, voices.Count),
                         channelNotes.Key + 1,
                         sourceTrack.ProgramNumbers.GetValueOrDefault((int)channelNotes.Key),
@@ -142,6 +143,11 @@ internal sealed record MidiImportDocument(
 
 internal sealed record MidiImportBar(int Number, IReadOnlyList<MidiImportLane> Lanes);
 
-internal sealed record MidiImportLane(string Name, int Channel, int ProgramNumber, IReadOnlyList<MidiImportNote> Notes);
+internal sealed record MidiImportLane(
+    int SourceTrackIndex,
+    string Name,
+    int Channel,
+    int ProgramNumber,
+    IReadOnlyList<MidiImportNote> Notes);
 
 internal sealed record MidiImportNote(int StepIndex, int DurationSteps, int NoteNumber, int Velocity);

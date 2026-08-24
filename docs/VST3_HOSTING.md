@@ -1,136 +1,116 @@
-# Integrazione SDK VST3 in Sonator — piano architetturale
+# VST3 integration in Sonator
 
-Questo documento descrive lo stato attuale e il piano per integrare il vero
-SDK VST3 di Steinberg in Sonator, così da poter caricare ed eseguire
-plug-in VST3 reali (non solo elencarli come file).
+This document describes Sonator's native VST3 hosting architecture.
 
-## Stato attuale (questa iterazione)
+## Current implementation
 
-Implementati tutti i punti della roadmap: **module loading reale** +
-**istanziazione reale IComponent/IEditController** + **lettura/scrittura dei
-parametri reali** + **GUI nativa (IPlugView) ospitata in una finestra WPF
-dedicata** + **motore audio in tempo reale (IAudioProcessor + WASAPI)**.
+The VST3 roadmap is implemented end to end:
 
-- `native/VstHostBridge/` — progetto C++ nativo (CMake). `VstHostBridge_LoadModule`
-  ora: risolve il binario reale dentro un bundle `.vst3`
-  (`Contents/x86_64-win/<nome>.vst3`), lo carica con `LoadLibraryW`, chiama
-  `GetPluginFactory()`, enumera le classi del factory per trovare la classe
-  "Audio Module Class" (il vero instrument/effect) e la istanzia come
-  `IComponent`. Ottiene poi l'`IEditController` corrispondente (stesso oggetto
-  via `queryInterface`, oppure oggetto separato via
-  `getControllerClassId`+`createInstance`), li collega con `IConnectionPoint`
-  e sincronizza lo stato (`getState`/`setComponentState`) — passaggio
-  necessario perché molti plugin costruiscono l'elenco parametri solo dopo
-  questo handshake (verificato: TAL-NoiseMaker riporta 0 parametri prima del
-  `connect()`, 2169 parametri reali dopo). Espone poi:
-  `VstHostBridge_GetPluginDisplayName`, `VstHostBridge_GetParameterCount`,
-  `VstHostBridge_GetParameterInfo` (id, titolo, unità, default, dal vero
-  `IEditController::getParameterInfo`), `VstHostBridge_GetParameterNormalized`
-  e `VstHostBridge_SetParameterNormalized` (lettura/scrittura in tempo reale
-  dei parametri del plugin).
-- Usa **solo** il modulo `pluginterfaces` della SDK VST3 di Steinberg
-  (vendorizzato, MIT, in `native/VstHostBridge/thirdparty/pluginterfaces/`):
-  sono dichiarazioni di interfacce astratte pure (nessuna implementazione,
-  nessun codice GPL/commerciale di `public.sdk`).
-- `Services/Vst3/Vst3HostInterop.cs` — dichiarazioni `[DllImport]` verso
-  `VstHostBridge.dll` (incluse le funzioni parametri).
-- `Services/Vst3/IVst3PluginHost.cs` / `Vst3PluginHost.cs` — layer C# con
-  `GetPluginDisplayName`, `GetParameters` (elenco reale con id/titolo/unità/
-  valore) e `SetParameterValue`, tutti con gestione difensiva delle eccezioni
-  se il bridge nativo non è disponibile.
-- `VstPluginEditorDialog` — al momento dell'apertura carica il modulo VST3
-  reale, mostra l'elenco reale dei parametri (con slider funzionanti che
-  scrivono davvero sul plugin tramite `setParamNormalized`) e, se il plugin
-  espone un `IAudioProcessor` con almeno un bus di output, avvia
-  automaticamente il motore audio in tempo reale (WASAPI). Il pulsante
-  "Apri editor nativo" apre `Vst3NativeEditorWindow`, una finestra WPF
-  dedicata che ospita l'`HWND` reale della GUI del plugin tramite
-  `Vst3EditorHost` (`HwndHost`), dimensionata correttamente in base al DPI
-  dello schermo.
-- **GUI nativa (`IPlugView`)**: il bridge crea una finestra Win32 "contenitore"
-  leggera (`SonatorVstEditorHostWindow`), ci "attacca" la view del plugin
-  (`IPlugView::attached`) e implementa `IPlugFrame::resizeView` lato host per
-  gestire il resize richiesto dal plugin. Il lato C# adotta questo HWND con un
-  `HwndHost` standard. Verificato dal vivo con TAL-NoiseMaker: la finestra si
-  apre alla dimensione corretta (bug di ridimensionamento all'80% dovuto al
-  DPI scaling, risolto dividendo le dimensioni per `DpiScaleX`/`DpiScaleY`).
-- **Motore audio in tempo reale**: un thread nativo dedicato inizializza COM,
-  apre il device di output WASAPI in modalità shared (formato IEEE float),
-  attiva il bus di output del plugin (`activateBus`/`setActive`), chiama
-  `setupProcessing`/`setProcessing` e poi cicla su `IAudioProcessor::process`
-  scrivendo i campioni nel buffer WASAPI, finché non viene fermato. Nessun
-  evento MIDI viene inoltrato dall'host (`inputEvents`/`inputParameterChanges`
-  a `nullptr`, consentito dalla spec VST3): la tastiera a schermo del plugin
-  gestisce da sola il proprio stato delle note. **Verificato dal vivo**:
-  cliccando i tasti della tastiera nella GUI nativa di TAL-NoiseMaker si sente
-  davvero il suono in tempo reale.
+- real module loading;
+- real `IComponent` and `IEditController` creation;
+- parameter reading and writing;
+- native `IPlugView` GUI hosting in WPF;
+- real-time `IAudioProcessor` output through WASAPI;
+- isolated native-editor thumbnail generation.
 
-**✅ Il bridge nativo è stato compilato e testato in questo ambiente** usando
-un toolchain MinGW-w64 (GCC 16.2.0) + CMake 4.4.2 installato appositamente
-(nessun Visual Studio richiesto). Test eseguito con successo contro il
-plugin VST3 reale `TAL-NoiseMaker.vst3` installato sulla macchina
-dell'utente (`C:\Program Files\Common Files\VST3\`): caricamento del bundle,
-istanziazione `IComponent`/`IEditController`, lettura di 2169 parametri
-reali (es. "Master Volume", "Filter Cutoff", "Filter Resonance", "Filter
-Attack/Decay/Sustain/Release", ...) con valori correnti e di default
-corretti, e scrittura di nuovi valori tramite `setParamNormalized` — tutto
-riuscito. Verificata anche la corretta gestione dell'errore su un percorso
-inesistente. La DLL compilata è inclusa nel repo in
-`native/VstHostBridge/prebuilt/VstHostBridge.dll` e viene copiata
-automaticamente accanto a `Sonator.exe` ad ogni build .NET (vedi
-`Sonator.csproj`). Se in futuro modifichi `VstHostBridge.cpp`, ricompila
-seguendo le istruzioni in `native/VstHostBridge/README.md`.
+### Native bridge
 
-## Perché non un hosting completo in un solo passaggio
+`native/VstHostBridge/` contains the C++ bridge built with CMake.
+`VstHostBridge_LoadModule` resolves the executable inside a `.vst3` bundle,
+loads it with `LoadLibraryW`, calls `GetPluginFactory`, finds the Audio Module
+Class, and creates its `IComponent`.
 
-Un host VST3 reale e funzionante richiede, in ordine:
+The bridge obtains the related `IEditController`, either through
+`queryInterface` or `getControllerClassId` plus `createInstance`. It connects
+the component and controller through `IConnectionPoint` and synchronizes their
+state. Some plug-ins create their parameter list only after this handshake.
+For example, TAL-NoiseMaker exposes 2,169 parameters after connection.
 
-1. ✅ **Caricamento modulo**: `LoadLibrary` del bundle `.vst3` + risoluzione di
-   `GetPluginFactory` (esportata dal plugin).
-2. ✅ **Enumerazione classi** tramite `IPluginFactory` (nome, categoria, UID).
-3. ✅ **Istanziazione** di `IComponent` (audio effect/instrument) e
-   `IEditController` (parametri/automazione), collegati con
-   `IConnectionPoint`.
-4. ✅ **Setup di processing**: bus arrangement, `setupProcessing`,
-   `IAudioProcessor::process` chiamato in tempo reale da un motore audio
-   dedicato (WASAPI shared mode, thread nativo separato).
-5. ✅ **GUI hosting**: `IPlugView` restituisce un `HWND` nativo, "adottato" da
-   un `HwndHost` WPF (`Vst3EditorHost`) dentro `Vst3NativeEditorWindow`.
+The exported ABI includes:
 
-Tutti i punti 1-5 sono completi e verificati dal vivo con TAL-NoiseMaker
-(caricamento, parametri, GUI nativa dimensionata correttamente, audio
-realtime udibile cliccando la tastiera a schermo).
+- `VstHostBridge_GetPluginDisplayName`;
+- `VstHostBridge_GetParameterCount`;
+- `VstHostBridge_GetParameterInfo`;
+- `VstHostBridge_GetParameterNormalized`;
+- `VstHostBridge_SetParameterNormalized`;
+- native editor attachment and sizing functions;
+- real-time audio start, stop, and status functions.
 
-## Roadmap (completata)
+The bridge vendors only Steinberg's MIT-licensed `pluginterfaces` module.
+It does not include the GPL or commercial `public.sdk` implementation.
 
-1. ✅ **Module loading reale**: `LoadLibraryW` + risoluzione bundle + verifica
-   dell'export `GetPluginFactory`.
-2. ✅ **IComponent/IEditController**: istanziazione reale, connessione via
-   `IConnectionPoint`, lettura/scrittura dei parametri reali esposti
-   dal plugin (elenco "PARAMETRI REALI" in `VstPluginEditorDialog`).
-3. ✅ **GUI hosting**: `IPlugView` + `HwndHost` per mostrare la GUI nativa del
-   plugin in una finestra WPF dedicata (`Vst3NativeEditorWindow`).
-4. ✅ **Motore audio**: motore realtime (WASAPI shared) che instrada davvero
-   l'audio dal plugin ospitato verso l'output della scheda audio, avviato
-   automaticamente all'apertura del pannello parametri.
+### Managed host
 
-Possibili estensioni future (non richieste finora): inoltro di eventi MIDI
-reali (`IEventList`/`NoteOnEvent`) dall'host verso il plugin (per pilotare i
-synth da una tastiera MIDI esterna o dal sequencer di Sonator, non solo dalla
-tastiera a schermo del plugin), supporto per plugin effetto con bus di input
-audio, selezione del device di output WASAPI.
+- `Services/Vst3/Vst3HostInterop.cs` declares the native ABI through P/Invoke.
+- `Services/Vst3/IVst3PluginHost.cs` defines the managed hosting contract.
+- `Services/Vst3/Vst3PluginHost.cs` owns module handles, parameters, editor
+  attachment, audio state, and controlled bridge error reporting.
+- `VstPluginEditorDialog` displays real parameters and writes changes through
+  `setParamNormalized`.
+- `Vst3NativeEditorWindow` hosts the plug-in's native editor.
+- `Vst3EditorHost` is the WPF `HwndHost` that adopts the native child window.
 
-## File coinvolti
+### Native GUI hosting
 
-| File | Ruolo |
+The bridge creates a lightweight Win32 container window, attaches the
+plug-in's `IPlugView`, and implements `IPlugFrame::resizeView`. The managed
+side adopts that HWND through `HwndHost`. Window dimensions are converted
+using the current WPF DPI scale.
+
+This path has been verified with TAL-NoiseMaker, including correct editor
+sizing on scaled displays.
+
+### Real-time audio
+
+A dedicated native thread initializes COM, opens the default WASAPI output in
+shared mode, activates the plug-in output bus, configures processing, and
+repeatedly calls `IAudioProcessor::process`.
+
+The generated floating-point samples are written to the WASAPI buffer until
+the host stops processing. Audio output has been verified with TAL-NoiseMaker.
+
+### Thumbnail isolation
+
+Native plug-ins can fail with process-level faults that managed exception
+handling cannot safely recover from. Sonator therefore generates each native
+editor thumbnail in `Sonator.VstThumbnailHost.exe`.
+
+A helper crash affects only that capture. Sonator uses a branded fallback
+thumbnail and continues scanning the remaining plug-ins.
+
+## Build status
+
+The bridge has been built and tested with MinGW-w64 and CMake. The repository
+contains a prebuilt DLL at:
+
+`native/VstHostBridge/prebuilt/VstHostBridge.dll`
+
+`Sonator.csproj` copies this DLL beside `Sonator.exe` during a normal .NET
+build. Rebuild the native bridge only when changing its C++ source; see
+`native/VstHostBridge/README.md`.
+
+## Future extensions
+
+Potential future work includes:
+
+- forwarding sequencer and external MIDI events to hosted instruments through
+  `IEventList`;
+- effect plug-ins with audio input buses;
+- selectable WASAPI output devices.
+
+## Related files
+
+| File | Purpose |
 |---|---|
-| `native/VstHostBridge/CMakeLists.txt` | Build del bridge nativo |
-| `native/VstHostBridge/include/VstHostBridge.h` | ABI C esportata (v3: parametri + GUI nativa + audio realtime) |
-| `native/VstHostBridge/src/VstHostBridge.cpp` | Implementazione (v3: IComponent/IEditController + IPlugView + IAudioProcessor/WASAPI) |
-| `native/VstHostBridge/thirdparty/pluginterfaces/` | Interfacce VST3 MIT (Steinberg) vendorizzate |
-| `Services/Vst3/Vst3HostInterop.cs` | Dichiarazioni P/Invoke |
-| `Services/Vst3/IVst3PluginHost.cs` | Interfaccia lato C# (parametri, GUI nativa, audio) |
-| `Services/Vst3/Vst3PluginHost.cs` | Implementazione con fallback controllato |
-| `Vst3EditorHost.cs` | `HwndHost` che adotta l'`HWND` della GUI nativa del plugin |
-| `Vst3NativeEditorWindow.xaml(.cs)` | Finestra WPF dedicata che ospita la GUI nativa (DPI-aware) |
-| `VstPluginEditorDialog.xaml(.cs)` | UI con parametri reali, avvio automatico dell'audio, pulsante GUI nativa |
+| `native/VstHostBridge/CMakeLists.txt` | Native bridge build |
+| `native/VstHostBridge/include/VstHostBridge.h` | Exported C ABI |
+| `native/VstHostBridge/src/VstHostBridge.cpp` | Component, GUI, and audio host |
+| `native/VstHostBridge/thirdparty/pluginterfaces/` | Vendored MIT VST3 interfaces |
+| `Services/Vst3/Vst3HostInterop.cs` | P/Invoke declarations |
+| `Services/Vst3/IVst3PluginHost.cs` | Managed host interface |
+| `Services/Vst3/Vst3PluginHost.cs` | Managed host implementation |
+| `Services/Vst3/Vst3ThumbnailService.cs` | Isolated thumbnail orchestration |
+| `tools/VstThumbnailHost/` | Out-of-process thumbnail helper |
+| `Vst3EditorHost.cs` | WPF native editor host |
+| `Vst3NativeEditorWindow.xaml(.cs)` | Native editor window |
+| `VstPluginEditorDialog.xaml(.cs)` | Parameter and audio UI |

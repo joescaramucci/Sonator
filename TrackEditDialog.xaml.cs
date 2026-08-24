@@ -32,7 +32,7 @@ public partial class TrackEditDialog : Window, INotifyPropertyChanged
         _noteNumberText = noteNumber.ToString();
         InitializeComponent();
         DataContext = this;
-        Title = isNewTrack ? "Nuova traccia" : "Modifica traccia";
+        Title = isNewTrack ? "New track" : "Edit track";
         Loaded += (_, _) => TrackNameTextBox.Focus();
     }
 
