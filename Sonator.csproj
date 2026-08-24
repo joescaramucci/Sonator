@@ -12,6 +12,11 @@
     <PackageReference Include="Melanchall.DryWetMidi" Version="8.0.3" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Remove="tools\VstThumbnailHost\**\*.cs" />
+    <ProjectReference Include="tools\VstThumbnailHost\VstThumbnailHost.csproj"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+  <ItemGroup>
     <!-- Prebuilt native VST3 hosting bridge (see native/VstHostBridge/README.md).
          Copied next to the app so P/Invoke calls in Services/Vst3 can find it. -->
     <None Include="native\VstHostBridge\prebuilt\VstHostBridge.dll" Condition="Exists('native\VstHostBridge\prebuilt\VstHostBridge.dll')">
@@ -19,4 +24,12 @@
       <Link>VstHostBridge.dll</Link>
     </None>
   </ItemGroup>
+  <Target Name="CopyVstThumbnailHost" AfterTargets="Build">
+    <ItemGroup>
+      <VstThumbnailHostFiles Include="$(MSBuildProjectDirectory)\tools\VstThumbnailHost\bin\$(Configuration)\net8.0-windows\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(VstThumbnailHostFiles)"
+          DestinationFiles="@(VstThumbnailHostFiles->'$(OutDir)VstThumbnailHost\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
 </Project>

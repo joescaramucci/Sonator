@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>Sonator.VstThumbnailHost</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\Services\Vst3\IVst3PluginHost.cs" Link="Vst3\IVst3PluginHost.cs" />
+    <Compile Include="..\..\Services\Vst3\Vst3HostInterop.cs" Link="Vst3\Vst3HostInterop.cs" />
+    <Compile Include="..\..\Services\Vst3\Vst3PluginHost.cs" Link="Vst3\Vst3PluginHost.cs" />
+    <Compile Include="..\..\Vst3EditorHost.cs" Link="Vst3EditorHost.cs" />
+    <None Include="..\..\native\VstHostBridge\prebuilt\VstHostBridge.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>VstHostBridge.dll</Link>
+    </None>
+  </ItemGroup>
+</Project>

@@ -13,18 +13,70 @@ namespace Sonator;
 /// </summary>
 public partial class Vst3NativeEditorWindow : Window
 {
+    private readonly IVst3PluginHost _vst3Host;
+    private readonly bool _ownsModule;
+    private Vst3ModuleHandle? _moduleHandle;
     private Vst3EditorHost? _editorHost;
 
     public Vst3NativeEditorWindow(IVst3PluginHost vst3Host, Vst3ModuleHandle moduleHandle, string pluginName)
     {
         InitializeComponent();
+        _vst3Host = vst3Host;
+        _moduleHandle = moduleHandle;
         Title = $"GUI nativa - {pluginName}";
 
-        _editorHost = new Vst3EditorHost(vst3Host, moduleHandle);
-        _editorHost.EditorAttached += EditorHost_EditorAttached;
-        EditorHostContainer.Content = _editorHost;
+        AttachEditor();
 
         Closed += Vst3NativeEditorWindow_Closed;
+    }
+
+    public Vst3NativeEditorWindow(string pluginName, string filePath)
+    {
+        InitializeComponent();
+        _vst3Host = new Vst3PluginHost();
+        _ownsModule = true;
+        Title = $"GUI nativa - {pluginName}";
+
+        _moduleHandle = _vst3Host.TryLoadModule(filePath, out var loadError);
+        if (_moduleHandle is null)
+        {
+            ShowFallback(loadError ?? "Impossibile caricare il modulo VST3.");
+        }
+        else if (!_vst3Host.HasNativeEditor(_moduleHandle))
+        {
+            ShowFallback("Questo plug-in non espone un editor nativo VST3 incorporabile.");
+        }
+        else
+        {
+            if (_vst3Host.HasAudioProcessor(_moduleHandle)
+                && !_vst3Host.TryStartAudio(_moduleHandle, out var audioError))
+            {
+                Title = $"GUI nativa - {pluginName} (audio non disponibile: {audioError})";
+            }
+
+            AttachEditor();
+        }
+
+        Closed += Vst3NativeEditorWindow_Closed;
+    }
+
+    private void AttachEditor()
+    {
+        if (_moduleHandle is null)
+        {
+            return;
+        }
+
+        _editorHost = new Vst3EditorHost(_vst3Host, _moduleHandle);
+        _editorHost.EditorAttached += EditorHost_EditorAttached;
+        EditorHostContainer.Content = _editorHost;
+    }
+
+    private void ShowFallback(string message)
+    {
+        EditorHostContainer.Visibility = Visibility.Collapsed;
+        FallbackText.Text = message;
+        FallbackText.Visibility = Visibility.Visible;
     }
 
     private void EditorHost_EditorAttached(object? sender, EventArgs e)
@@ -65,6 +117,13 @@ public partial class Vst3NativeEditorWindow : Window
             EditorHostContainer.Content = null;
             _editorHost.Dispose();
             _editorHost = null;
+        }
+
+        if (_ownsModule && _moduleHandle is not null)
+        {
+            _vst3Host.StopAudio(_moduleHandle);
+            _vst3Host.UnloadModule(_moduleHandle);
+            _moduleHandle = null;
         }
     }
 }

@@ -35,6 +35,8 @@ public sealed class Vst3EditorHost : HwndHost
     /// </summary>
     public int EditorHeight { get; private set; }
 
+    public IntPtr NativeHandle { get; private set; }
+
     /// <summary>
     /// Raised right after the native editor view is successfully attached,
     /// so the containing window can resize itself to fit.
@@ -56,12 +58,14 @@ public sealed class Vst3EditorHost : HwndHost
 
         EditorWidth = width;
         EditorHeight = height;
+        NativeHandle = childHwnd;
         EditorAttached?.Invoke(this, EventArgs.Empty);
         return new HandleRef(this, childHwnd);
     }
 
     protected override void DestroyWindowCore(HandleRef hwnd)
     {
+        NativeHandle = IntPtr.Zero;
         _vst3Host.CloseNativeEditor(_moduleHandle);
     }
 

@@ -4,10 +4,12 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Sonator"
+        xmlns:models="clr-namespace:Sonator.Models"
         mc:Ignorable="d"
         Title="{Binding WindowTitle}"
         Width="1400"
         Height="860"
+        WindowState="Maximized"
         
         Background="#DDE7F2"
         Foreground="#FF263241"
@@ -290,16 +292,48 @@
         <Border Grid.Row="1" Background="#2A3748" BorderBrush="#4C657F" BorderThickness="0,0,0,1" Padding="3">
             <UniformGrid Columns="9">
                 <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
-                    <StackPanel>
-                        <TextBlock Text="427086" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
-                        <TextBlock Text="FREE" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
-                    </StackPanel>
+                    <Button Command="{Binding ToggleLoopCommand}"
+                            AutomationProperties.Name="{Binding LoopModeText, StringFormat=LOOP {0}}"
+                            Padding="2,0">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                <Setter Property="Background" Value="#263545" />
+                                <Setter Property="BorderBrush" Value="#586E86" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsLoopEnabled}" Value="True">
+                                        <Setter Property="Background" Value="#2D745D" />
+                                        <Setter Property="BorderBrush" Value="#65C6A1" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <StackPanel>
+                            <TextBlock Text="{Binding LoopModeText}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#E4ECF4" />
+                            <TextBlock Text="LOOP" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                        </StackPanel>
+                    </Button>
                 </Border>
                 <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
-                    <StackPanel>
-                        <TextBlock Text="0 N" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
-                        <TextBlock Text="ARRANGE" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
-                    </StackPanel>
+                    <Button Command="{Binding ToggleArrangeModeCommand}"
+                            AutomationProperties.Name="{Binding ArrangeModeText, StringFormat=ARRANGE {0}}"
+                            Padding="2,0">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                <Setter Property="Background" Value="#263545" />
+                                <Setter Property="BorderBrush" Value="#586E86" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsArrangeMode}" Value="True">
+                                        <Setter Property="Background" Value="#2D745D" />
+                                        <Setter Property="BorderBrush" Value="#65C6A1" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <StackPanel>
+                            <TextBlock Text="{Binding ArrangeModeText}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#E4ECF4" />
+                            <TextBlock Text="ARRANGE" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                        </StackPanel>
+                    </Button>
                 </Border>
                 <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
                     <StackPanel>
@@ -348,13 +382,13 @@
 
         <Grid Grid.Row="2" Margin="2" Background="{StaticResource Paper}">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="1.05*" />
-                <ColumnDefinition Width="1*" />
-                <ColumnDefinition Width="0.52*" />
-                <ColumnDefinition Width="0.55*" />
+                <ColumnDefinition Width="300" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="250" />
             </Grid.ColumnDefinitions>
 
-            <GroupBox Header="ARRANGE" Grid.Column="0">
+            <GroupBox Header="PATTERN" Grid.Column="0">
                 <DockPanel>
                     <Grid DockPanel.Dock="Top" Visibility="Collapsed">
                         <Grid.ColumnDefinitions>
@@ -451,7 +485,8 @@
                                 <TextBlock Grid.Column="5" Text="d" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" Foreground="#C4CFDA" />
                             </Grid>
                             <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0">
-                            <ItemsControl ItemsSource="{Binding VisibleSongArrangeRows}">
+                            <ItemsControl x:Name="SongArrangeRowsItemsControl"
+                                          ItemsSource="{Binding VisibleSongArrangeRows}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <Grid Height="34"
@@ -479,6 +514,9 @@
                                                            </DataTrigger>
                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
                                                                <Setter Property="Background" Value="#4A6E97" />
+                                                           </DataTrigger>
+                                                           <DataTrigger Binding="{Binding IsPlaying}" Value="True">
+                                                               <Setter Property="Background" Value="#2D745D" />
                                                            </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
@@ -512,6 +550,9 @@
                                                            </DataTrigger>
                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
                                                                <Setter Property="Background" Value="#4A6E97" />
+                                                           </DataTrigger>
+                                                           <DataTrigger Binding="{Binding IsPlaying}" Value="True">
+                                                               <Setter Property="Background" Value="#2D745D" />
                                                            </DataTrigger>
                                                        </Style.Triggers>
                                                     </Style>
@@ -593,83 +634,343 @@
                 </DockPanel>
             </GroupBox>
 
-            <GroupBox Header="STATUS" Grid.Column="1">
+            <GroupBox Header="ARRANGE" Grid.Column="1">
+                <Grid>
+                <ScrollViewer x:Name="ArrangeTimelineScrollViewer"
+                              HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Disabled"
+                              ToolTip="Usa la rotellina per cambiare lo zoom della timeline"
+                              PreviewMouseWheel="Timeline_PreviewMouseWheel"
+                              SizeChanged="ArrangeTimelineScrollViewer_SizeChanged">
+                <Grid Width="{Binding TimelineWorkspaceWidth}">
                 <DockPanel>
-                    <StackPanel DockPanel.Dock="Top" Margin="0,0,0,4">
-                        <TextBlock Text="{Binding SelectedPattern.Name}" HorizontalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" FontSize="13" />
-                        <TextBlock Text="{Binding SelectedPattern.Summary}" HorizontalAlignment="Center" FontFamily="Consolas" FontSize="10" Margin="0,1,0,4" />
-                        <Grid Margin="0,2,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="52" />
-                                <ColumnDefinition Width="24" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="56" />
-                                <ColumnDefinition Width="82" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="M" HorizontalAlignment="Center" FontSize="9" />
-                            <TextBlock Grid.Column="1" Text="LVL" HorizontalAlignment="Center" FontSize="9" />
-                            <TextBlock Grid.Column="2" Text="STATUS" FontSize="9" FontWeight="Bold" />
-                            <TextBlock Grid.Column="3" Text="TYPE" HorizontalAlignment="Center" FontSize="9" Foreground="#C4CFDA" />
-                            <TextBlock Grid.Column="4" Text="ROUTE" HorizontalAlignment="Center" FontSize="9" Foreground="#C4CFDA" />
-                        </Grid>
-                    </StackPanel>
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <ListBox ItemsSource="{Binding Tracks}"
-                                 SelectedItem="{Binding SelectedTrack, Mode=TwoWay}"
-                                 MouseDoubleClick="TrackList_MouseDoubleClick"
-                                 Background="Transparent"
-                                 BorderThickness="0">
-                            <ListBox.ItemContainerStyle>
-                                <Style TargetType="ListBoxItem">
-                                    <Setter Property="Padding" Value="0" />
-                                    <Setter Property="Margin" Value="0,0,0,1" />
-                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="ListBoxItem">
-                                                <ContentPresenter />
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </ListBox.ItemContainerStyle>
-                            <ListBox.ItemTemplate>
+                    <Grid DockPanel.Dock="Top" Height="42" Margin="0,0,0,3">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="154" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Margin="5,2">
+                            <TextBlock Text="{Binding SelectedPattern.Name}" FontWeight="Bold" FontFamily="Consolas" />
+                            <TextBlock Text="{Binding SelectedPattern.Summary}" FontSize="9" FontFamily="Consolas" />
+                        </StackPanel>
+                        <ItemsControl Grid.Column="1"
+                                      Width="{Binding TimelineContentWidth}"
+                                      ItemsSource="{Binding TimelineBarNumbers}"
+                                      Cursor="SizeWE"
+                                      ToolTip="Trascina o usa la rotellina per cambiare lo zoom della timeline"
+                                      SnapsToDevicePixels="True"
+                                      UseLayoutRounding="True"
+                                      PreviewMouseWheel="Timeline_PreviewMouseWheel"
+                                      PreviewMouseLeftButtonDown="TimelineRuler_PreviewMouseLeftButtonDown"
+                                      PreviewMouseMove="TimelineRuler_PreviewMouseMove"
+                                      PreviewMouseLeftButtonUp="TimelineRuler_PreviewMouseLeftButtonUp">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Padding="1">
-                                        <Border.Style>
-                                            <Style TargetType="Border">
-                                                <Setter Property="Background" Value="{StaticResource Paper}" />
-                                                <Setter Property="BorderBrush" Value="{StaticResource Line}" />
-                                                <Setter Property="BorderThickness" Value="1" />
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                        <Setter Property="Background" Value="{StaticResource Ink}" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Border.Style>
+                                    <Grid Width="{Binding DataContext.TimelineBarWidth, RelativeSource={RelativeSource AncestorType=Window}}">
+                                        <TextBlock HorizontalAlignment="Left"
+                                                   Margin="5,0,0,0"
+                                                   FontSize="9"
+                                                   VerticalAlignment="Center"
+                                                   FontWeight="Bold">
+                                            <Run Text="BAR " />
+                                            <Run Text="{Binding Mode=OneWay}" />
+                                        </TextBlock>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
+                    <ListBox x:Name="TimelineBodyListBox"
+                             ItemsSource="{Binding TimelineTracks}"
+                             MouseDoubleClick="TrackList_MouseDoubleClick"
+                             Width="{Binding TimelineWorkspaceWidth}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ScrollViewer.VerticalScrollBarVisibility="Hidden"
+                             ScrollViewer.ScrollChanged="TimelineTrackList_ScrollChanged">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Padding" Value="0" />
+                                <Setter Property="Margin" Value="0,0,0,2" />
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Height="52">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="154" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Background="#263545" Padding="3">
                                         <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="48" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Top">
+                                                <Button Content="M"
+                                                        Width="22" Height="18" Padding="0"
+                                                        Command="{Binding DataContext.ToggleTrackMuteCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding SourceTrack}">
+                                                    <Button.Style>
+                                                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                            <Setter Property="Background" Value="#3E536B" />
+                                                            <Setter Property="BorderBrush" Value="#6F87A0" />
+                                                            <Setter Property="Foreground" Value="#BCC9D8" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding SourceTrack.IsMuted}" Value="True">
+                                                                    <Setter Property="Background" Value="#D94C4C" />
+                                                                    <Setter Property="Foreground" Value="#F2D9D9" />
+                                                                    <Setter Property="BorderBrush" Value="#A62B2B" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Button.Style>
+                                                </Button>
+                                                <Button Content="S"
+                                                        Width="22" Height="18" Padding="0"
+                                                        Command="{Binding DataContext.ToggleTrackSoloCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding SourceTrack}">
+                                                    <Button.Style>
+                                                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                            <Setter Property="Background" Value="#365864" />
+                                                            <Setter Property="BorderBrush" Value="#63808B" />
+                                                            <Setter Property="Foreground" Value="#BCC9D8" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding SourceTrack.IsSolo}" Value="True">
+                                                                    <Setter Property="Background" Value="#D94C4C" />
+                                                                    <Setter Property="Foreground" Value="#F2D9D9" />
+                                                                    <Setter Property="BorderBrush" Value="#A62B2B" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Button.Style>
+                                                </Button>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="{Binding Name}" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock FontSize="9" Foreground="#8FA6BD">
+                                                    <Run Text="{Binding DisplayTrackType, Mode=OneWay}" />
+                                                    <Run Text="  " />
+                                                    <Run Text="{Binding RoutingDisplay, Mode=OneWay}" />
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                    <Grid Grid.Column="1"
+                                          Width="{Binding DataContext.TimelineContentWidth, RelativeSource={RelativeSource AncestorType=Window}}"
+                                          Background="#17222D"
+                                          ClipToBounds="True">
+                                        <ItemsControl ItemsSource="{Binding DataContext.TimelineBarNumbers, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                      IsHitTestVisible="False"
+                                                      SnapsToDevicePixels="True"
+                                                      UseLayoutRounding="True">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Width="{Binding DataContext.TimelineBarWidth, RelativeSource={RelativeSource AncestorType=Window}}">
+                                                        <UniformGrid Columns="16">
+                                                            <Border BorderThickness="0" />
+                                                            <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
+                                                            <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
+                                                            <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
+                                                            <Border BorderBrush="#334A5F" BorderThickness="1,0,0,0" />
+                                                            <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
+                                                            <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
+                                                            <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
+                                                            <Border BorderBrush="#334A5F" BorderThickness="1,0,0,0" />
+                                                            <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
+                                                            <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
+                                                            <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
+                                                            <Border BorderBrush="#334A5F" BorderThickness="1,0,0,0" />
+                                                            <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
+                                                            <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
+                                                            <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
+                                                        </UniformGrid>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <ItemsControl ItemsSource="{Binding Steps}"
+                                                      Width="{Binding DataContext.TimelineContentWidth, RelativeSource={RelativeSource AncestorType=Window}}">
+                                            <ItemsControl.Style>
+                                                <Style TargetType="ItemsControl">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding TrackType}" Value="{x:Static models:PatternTrackType.AudioInput}">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ItemsControl.Style>
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Width="{Binding DataContext.TimelineSixteenthWidth, RelativeSource={RelativeSource AncestorType=Window}}">
+                                                    <Border Margin="1,8,1,8" CornerRadius="2">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Background" Value="Transparent" />
+                                                                <Setter Property="BorderBrush" Value="#7EAEDC" />
+                                                                <Setter Property="BorderThickness" Value="0" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                                        <Setter Property="Background" Value="#477CAC" />
+                                                                        <Setter Property="BorderThickness" Value="1" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        <TextBlock Text="{Binding MidiNoteLabel}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="8" Foreground="White">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Visible" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                    </Border>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <Viewbox Stretch="Fill" Margin="3,5">
+                                            <Viewbox.Style>
+                                                <Style TargetType="Viewbox">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding TrackType}" Value="{x:Static models:PatternTrackType.AudioInput}">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Viewbox.Style>
+                                            <Canvas Width="320" Height="42">
+                                                <Path Stroke="#62B7A4" StrokeThickness="2"
+                                                      Data="M 0,21 L 8,20 14,12 20,30 27,18 34,22 42,8 49,34 56,17 64,24 72,14 80,28 88,19 96,21 104,10 112,31 120,16 128,26 136,18 144,22 152,7 160,35 168,15 176,27 184,19 192,23 200,11 208,30 216,17 224,25 232,14 240,29 248,19 256,22 264,9 272,33 280,16 288,26 296,18 304,23 312,13 320,21" />
+                                            </Canvas>
+                                        </Viewbox>
+                                        <ItemsControl ItemsSource="{Binding Steps}"
+                                                      Width="{Binding DataContext.TimelineContentWidth, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                      IsHitTestVisible="False">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Width="{Binding DataContext.TimelineSixteenthWidth, RelativeSource={RelativeSource AncestorType=Window}}">
+                                                        <Line X1="0"
+                                                              X2="0"
+                                                              Y1="0"
+                                                              Y2="52"
+                                                              HorizontalAlignment="Left"
+                                                              Stroke="#D9E2EA"
+                                                              StrokeThickness="1"
+                                                              StrokeDashArray="1 2">
+                                                            <Line.Style>
+                                                                <Style TargetType="Line">
+                                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Visible" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Line.Style>
+                                                        </Line>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Grid>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+                <ItemsControl Margin="154,0,0,0"
+                              Width="{Binding TimelineContentWidth}"
+                              HorizontalAlignment="Left"
+                              ItemsSource="{Binding TimelineBarNumbers}"
+                              IsHitTestVisible="False"
+                              Panel.ZIndex="8"
+                              SnapsToDevicePixels="True"
+                              UseLayoutRounding="True">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Width="{Binding DataContext.TimelineBarWidth, RelativeSource={RelativeSource AncestorType=Window}}">
+                                <Border Width="0.5"
+                                        HorizontalAlignment="Left"
+                                        Background="#4F8F83" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                </Grid>
+                </ScrollViewer>
+                <Border Width="154"
+                        Margin="0,42,0,0"
+                        HorizontalAlignment="Left"
+                        Background="{StaticResource Paper}"
+                        Panel.ZIndex="10">
+                    <ListBox x:Name="FrozenTrackListBox"
+                             ItemsSource="{Binding TimelineTracks}"
+                             MouseDoubleClick="TrackList_MouseDoubleClick"
+                             Background="{StaticResource Paper}"
+                             BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ScrollViewer.VerticalScrollBarVisibility="Hidden"
+                             ScrollViewer.ScrollChanged="TimelineTrackList_ScrollChanged">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Padding" Value="0" />
+                                <Setter Property="Margin" Value="0,0,0,2" />
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Height="52"
+                                        BorderBrush="{StaticResource Line}"
+                                        BorderThickness="1"
+                                        Background="#263545"
+                                        Padding="3">
+                                    <Grid>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="52" />
-                                            <ColumnDefinition Width="24" />
+                                            <ColumnDefinition Width="48" />
                                             <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="56" />
-                                            <ColumnDefinition Width="82" />
                                         </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Top">
                                             <Button Content="M"
                                                     Width="22"
                                                     Height="18"
                                                     Padding="0"
                                                     Command="{Binding DataContext.ToggleTrackMuteCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                    CommandParameter="{Binding}">
+                                                    CommandParameter="{Binding SourceTrack}">
                                                 <Button.Style>
                                                     <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
                                                         <Setter Property="Background" Value="#3E536B" />
                                                         <Setter Property="BorderBrush" Value="#6F87A0" />
                                                         <Setter Property="Foreground" Value="#BCC9D8" />
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsMuted}" Value="True">
+                                                            <DataTrigger Binding="{Binding SourceTrack.IsMuted}" Value="True">
                                                                 <Setter Property="Background" Value="#D94C4C" />
                                                                 <Setter Property="Foreground" Value="#F2D9D9" />
                                                                 <Setter Property="BorderBrush" Value="#A62B2B" />
@@ -683,14 +984,14 @@
                                                     Height="18"
                                                     Padding="0"
                                                     Command="{Binding DataContext.ToggleTrackSoloCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                    CommandParameter="{Binding}">
+                                                    CommandParameter="{Binding SourceTrack}">
                                                 <Button.Style>
                                                     <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
                                                         <Setter Property="Background" Value="#365864" />
                                                         <Setter Property="BorderBrush" Value="#63808B" />
                                                         <Setter Property="Foreground" Value="#BCC9D8" />
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsSolo}" Value="True">
+                                                            <DataTrigger Binding="{Binding SourceTrack.IsSolo}" Value="True">
                                                                 <Setter Property="Background" Value="#D94C4C" />
                                                                 <Setter Property="Foreground" Value="#F2D9D9" />
                                                                 <Setter Property="BorderBrush" Value="#A62B2B" />
@@ -700,97 +1001,54 @@
                                                 </Button.Style>
                                             </Button>
                                         </StackPanel>
-                                        <Border Grid.Column="1"
-                                                Width="16"
-                                                Height="28"
-                                                VerticalAlignment="Center"
-                                                Background="#1B2633"
-                                                BorderBrush="#5F7288"
-                                                BorderThickness="1">
-                                            <Grid ClipToBounds="True">
-                                                <Grid Margin="3,2">
-                                                    <Grid.RowDefinitions>
-                                                        <RowDefinition Height="1*" />
-                                                        <RowDefinition Height="7*" />
-                                                    </Grid.RowDefinitions>
-                                                    <Border Background="#FFD9534F"
-                                                            BorderBrush="#FFAF302C"
-                                                            BorderThickness="0,0,0,1"
-                                                            Visibility="{Binding SignalLevel, Converter={StaticResource SignalPeakVisibilityConverter}}" />
-                                                    <ProgressBar Grid.Row="1"
-                                                                 Style="{StaticResource VerticalMeter}"
-                                                                 HorizontalAlignment="Center"
-                                                                 VerticalAlignment="Center"
-                                                                 Value="{Binding SignalLevel}" />
-                                                </Grid>
-                                                <UniformGrid Rows="8" IsHitTestVisible="False">
-                                                    <Border BorderBrush="#4B6278" BorderThickness="0,0,0,1" />
-                                                    <Border BorderBrush="#4B6278" BorderThickness="0,0,0,1" />
-                                                    <Border BorderBrush="#4B6278" BorderThickness="0,0,0,1" />
-                                                    <Border BorderBrush="#4B6278" BorderThickness="0,0,0,1" />
-                                                    <Border BorderBrush="#4B6278" BorderThickness="0,0,0,1" />
-                                                    <Border BorderBrush="#4B6278" BorderThickness="0,0,0,1" />
-                                                    <Border BorderBrush="#4B6278" BorderThickness="0,0,0,1" />
-                                                    <Border BorderBrush="#4B6278" BorderThickness="0,0,0,1" />
-                                                </UniformGrid>
-                                            </Grid>
-                                        </Border>
-                                        <Border Grid.Column="2" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="1">
-                                            <TextBlock Text="{Binding Name}" HorizontalAlignment="Left" Margin="3,0,0,0" FontFamily="Consolas">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="Foreground" Value="{StaticResource Ink}" />
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                                <Setter Property="Foreground" Value="{StaticResource Paper}" />
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock Text="{Binding Name}" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock FontSize="9" Foreground="#8FA6BD">
+                                                <Run Text="{Binding DisplayTrackType, Mode=OneWay}" />
+                                                <Run Text="  " />
+                                                <Run Text="{Binding RoutingDisplay, Mode=OneWay}" />
                                             </TextBlock>
-                                        </Border>
-                                        <TextBlock Grid.Column="3"
-                                                   Text="{Binding DisplayTrackType}"
-                                                   VerticalAlignment="Center"
-                                                   HorizontalAlignment="Center"
-                                                   FontFamily="Consolas"
-                                                   FontSize="10">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="{StaticResource Ink}" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                            <Setter Property="Foreground" Value="{StaticResource Paper}" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
-                                        <TextBlock Grid.Column="4"
-                                                   Text="{Binding RoutingDisplay}"
-                                                   VerticalAlignment="Center"
-                                                   HorizontalAlignment="Center"
-                                                   FontFamily="Consolas"
-                                                   FontSize="10"
-                                                   TextTrimming="CharacterEllipsis">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="{StaticResource Ink}" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                            <Setter Property="Foreground" Value="{StaticResource Paper}" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </ScrollViewer>
-                </DockPanel>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
+                <Border Width="154"
+                        Height="42"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Top"
+                        Background="{StaticResource Paper}"
+                        Panel.ZIndex="11">
+                    <StackPanel Margin="5,2">
+                        <TextBlock Text="{Binding SelectedPattern.Name}" FontWeight="Bold" FontFamily="Consolas" />
+                        <TextBlock Text="{Binding SelectedPattern.Summary}" FontSize="9" FontFamily="Consolas" />
+                    </StackPanel>
+                </Border>
+                <StackPanel Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Panel.ZIndex="12"
+                            Margin="0,1,3,0">
+                    <TextBlock Text="ZOOM"
+                               VerticalAlignment="Center"
+                               FontSize="8"
+                               Margin="0,0,4,0"
+                               Foreground="#BCC9D8" />
+                    <Slider Width="90"
+                            Height="18"
+                            Minimum="80"
+                            Maximum="480"
+                            TickFrequency="10"
+                            IsSnapToTickEnabled="True"
+                            Value="{Binding TimelineBarWidth, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                            ToolTip="Larghezza delle battute"
+                            AutomationProperties.Name="TIMELINE ZOOM" />
+                    <Button Content="−" AutomationProperties.Name="TIMELINE ZOOM OUT" Command="{Binding ZoomTimelineOutCommand}" Width="20" Height="18" Padding="0" ToolTip="Riduci larghezza battute" />
+                    <Button Content="+" AutomationProperties.Name="TIMELINE ZOOM IN" Command="{Binding ZoomTimelineInCommand}" Width="20" Height="18" Padding="0" ToolTip="Aumenta larghezza battute" />
+                </StackPanel>
+                </Grid>
             </GroupBox>
 
             <GroupBox Header="{Binding SelectedTrackHeader}" Grid.Column="2">
@@ -1011,47 +1269,57 @@
                             </TextBlock.Style>
                         </TextBlock>
 
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled">
                             <ItemsControl ItemsSource="{Binding VstPlugins}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
-                                        <WrapPanel Orientation="Horizontal" />
+                                        <UniformGrid Columns="2" />
                                     </ItemsPanelTemplate>
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Width="64"
-                                                Height="64"
-                                                Margin="3"
+                                        <Border Height="100"
+                                                Margin="2"
                                                 Background="{StaticResource Shade}"
                                                 BorderBrush="{StaticResource Line}"
                                                 BorderThickness="1"
                                                 Cursor="Hand"
                                                 ToolTip="{Binding FilePath}"
                                                 MouseLeftButtonDown="VstPluginThumbnail_MouseLeftButtonDown">
-                                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                                <Border Width="32"
-                                                        Height="32"
-                                                        CornerRadius="4"
-                                                        Background="{StaticResource AccentSoft}"
-                                                        BorderBrush="{StaticResource Accent}"
-                                                        BorderThickness="1"
-                                                        HorizontalAlignment="Center">
+                                            <Grid>
+                                                <Border Background="#1F2A39">
                                                     <TextBlock Text="{Binding Badge}"
-                                                               FontWeight="Bold"
-                                                               FontSize="11"
                                                                HorizontalAlignment="Center"
                                                                VerticalAlignment="Center"
-                                                               Foreground="{StaticResource Accent}" />
+                                                               FontSize="18"
+                                                               FontWeight="Bold"
+                                                               Foreground="#59B4FF" />
                                                 </Border>
-                                                <TextBlock Text="{Binding Name}"
-                                                           FontSize="9"
-                                                           TextTrimming="CharacterEllipsis"
-                                                           TextAlignment="Center"
-                                                           MaxWidth="60"
-                                                           Foreground="{StaticResource Ink}"
-                                                           Margin="0,3,0,0" />
-                                            </StackPanel>
+                                                <Image Source="{Binding Thumbnail}"
+                                                       Stretch="Uniform">
+                                                    <Image.Style>
+                                                        <Style TargetType="Image">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Thumbnail}" Value="{x:Null}">
+                                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Image.Style>
+                                                </Image>
+                                                <Border VerticalAlignment="Bottom"
+                                                        Background="#CC111820"
+                                                        Padding="4,2">
+                                                    <TextBlock Text="{Binding Name}"
+                                                               FontSize="10"
+                                                               FontWeight="SemiBold"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               TextAlignment="Center"
+                                                               Foreground="White" />
+                                                </Border>
+                                            </Grid>
                                         </Border>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>

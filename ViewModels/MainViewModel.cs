@@ -42,11 +42,18 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private string _timeSignature = "4/4";
     private bool _isPlaying;
     private bool _isRecording;
+    private bool _isArrangeMode;
+    private bool _isLoopEnabled;
+    private bool _isFollowingArrangePlayback;
     private bool _isRestoringState;
     private string _transportPosition = "00:00.00";
     private string _statusMessage = "Ready";
     private string? _currentProjectPath;
     private string? _vstPluginsPath;
+    private double _timelineBarWidth = 180;
+    private double _timelineViewportWidth;
+    private int _currentSongBarNumber = 1;
+    private SongArrangeRowViewModel? _currentPlayingArrangeRow;
 
     public MainViewModel()
         : this(null, null, null, null, null)
@@ -86,6 +93,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _vstPluginService = vstPluginService ?? new VstPluginService();
         _appSettingsService = appSettingsService ?? new AppSettingsService();
         _engine.StepChanged += OnStepChanged;
+        _engine.PatternChanged += OnPlaybackPatternChanged;
+        _engine.PlaybackCompleted += OnPlaybackCompleted;
+        _engine.PlaybackFaulted += OnPlaybackFaulted;
 
         Patterns = BuildDefaultPatterns();
         ArrangeBarNumbers = new ObservableCollection<int>();
@@ -94,6 +104,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         VisibleSongArrangeRows = new ObservableCollection<SongArrangeRowViewModel>();
         ArrangeBlocks = new ObservableCollection<SongArrangeBlockViewModel>();
         Tracks = new ObservableCollection<PatternTrackViewModel>();
+        TimelineTracks = new ObservableCollection<ArrangeTimelineTrackViewModel>();
+        TimelineBarNumbers = new ObservableCollection<int>();
         VstPlugins = new ObservableCollection<VstPluginViewModel>();
         MidiOutputDevices = new ObservableCollection<MidiOutputDeviceViewModel>(
             _midiOutputDeviceService.GetOutputDevices()
@@ -162,6 +174,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         QuantizeTrackCommand = quantizeTrackCommand;
         RefreshMidiDevicesCommand = refreshMidiDevicesCommand;
         BrowseVstPluginsPathCommand = browseVstPluginsPathCommand;
+        ToggleArrangeModeCommand = new RelayCommand(_ => IsArrangeMode = !IsArrangeMode);
+        ToggleLoopCommand = new RelayCommand(_ => IsLoopEnabled = !IsLoopEnabled);
+        ZoomTimelineInCommand = new RelayCommand(_ => TimelineBarWidth += 20);
+        ZoomTimelineOutCommand = new RelayCommand(_ => TimelineBarWidth -= 20);
 
         InitializeInitialSelection();
         InitializeVstPlugins();
@@ -364,6 +380,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public ObservableCollection<PatternTrackViewModel> Tracks { get; }
 
+    public ObservableCollection<ArrangeTimelineTrackViewModel> TimelineTracks { get; }
+
+    public ObservableCollection<int> TimelineBarNumbers { get; }
+
     public ObservableCollection<MidiOutputDeviceViewModel> MidiOutputDevices { get; }
 
     public ObservableCollection<VstPluginViewModel> VstPlugins { get; }
@@ -402,7 +422,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 RaisePropertyChanged(nameof(SelectedArrangePatternEnd));
                 RaisePropertyChanged(nameof(SelectedArrangePatternLengthDisplay));
                 RaisePropertyChanged(nameof(SelectedPatternTranspose));
-                _engine.LoadPattern(value);
+                if (!_isFollowingArrangePlayback)
+                {
+                    ConfigurePlaybackSource();
+                    RebuildTimeline();
+                }
                 UpdateSelectedArrangeBlockState();
                 ResetTrackMeters();
                 StatusMessage = value is null ? "No pattern selected" : $"Loaded pattern {value.Name}";
@@ -794,6 +818,126 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         set => SetProperty(ref _isRecording, value);
     }
 
+    public bool IsArrangeMode
+    {
+        get => _isArrangeMode;
+        set
+        {
+            if (!SetProperty(ref _isArrangeMode, value))
+            {
+                return;
+            }
+
+            if (IsPlaying)
+            {
+                StopPlayback();
+            }
+
+            if (value && _isLoopEnabled)
+            {
+                _isLoopEnabled = false;
+                RaisePropertyChanged(nameof(IsLoopEnabled));
+                RaisePropertyChanged(nameof(LoopModeText));
+            }
+
+            ConfigurePlaybackSource();
+            RebuildTimeline();
+            CurrentStepIndex = 0;
+            TransportPosition = "00:00.00";
+            RaisePropertyChanged(nameof(ArrangeModeText));
+            StatusMessage = value
+                ? "Arrange ON: riproduzione dell'intero brano."
+                : "Arrange OFF: riproduzione del pattern selezionato.";
+        }
+    }
+
+    public string ArrangeModeText => IsArrangeMode ? "ON" : "OFF";
+
+    public bool IsLoopEnabled
+    {
+        get => _isLoopEnabled;
+        set
+        {
+            if (!SetProperty(ref _isLoopEnabled, value))
+            {
+                return;
+            }
+
+            if (IsPlaying)
+            {
+                StopPlayback();
+            }
+
+            if (value && _isArrangeMode)
+            {
+                _isArrangeMode = false;
+                RaisePropertyChanged(nameof(IsArrangeMode));
+                RaisePropertyChanged(nameof(ArrangeModeText));
+            }
+
+            ConfigurePlaybackSource();
+            RebuildTimeline();
+            CurrentStepIndex = 0;
+            TransportPosition = "00:00.00";
+            RaisePropertyChanged(nameof(LoopModeText));
+            StatusMessage = value
+                ? "Loop ON: ripetizione del pattern selezionato."
+                : "Loop OFF: il pattern selezionato viene eseguito una volta.";
+        }
+    }
+
+    public string LoopModeText => IsLoopEnabled ? "ON" : "OFF";
+
+    public IReadOnlyList<int> SixteenthLabels { get; } = Enumerable.Range(1, 16).ToArray();
+
+    public double TimelineBarWidth
+    {
+        get => _timelineBarWidth;
+        set
+        {
+            var clamped = Math.Clamp(value, 80, 480);
+            if (SetProperty(ref _timelineBarWidth, clamped))
+            {
+                RaisePropertyChanged(nameof(TimelineContentWidth));
+                RaisePropertyChanged(nameof(TimelineWorkspaceWidth));
+                RaisePropertyChanged(nameof(TimelineSixteenthWidth));
+            }
+        }
+    }
+
+    public double TimelineSixteenthWidth => TimelineBarWidth / 16.0;
+
+    public double TimelineContentWidth => Math.Max(
+        TimelineBarWidth,
+        Math.Max(TimelineBarNumbers.Count * TimelineBarWidth, TimelineViewportWidth - 154));
+
+    public double TimelineWorkspaceWidth => 154 + TimelineContentWidth;
+
+    public double TimelineViewportWidth
+    {
+        get => _timelineViewportWidth;
+        set
+        {
+            if (SetProperty(ref _timelineViewportWidth, Math.Max(0, value)))
+            {
+                RaisePropertyChanged(nameof(TimelineContentWidth));
+                RaisePropertyChanged(nameof(TimelineWorkspaceWidth));
+            }
+        }
+    }
+
+    public int CurrentSongBarNumber
+    {
+        get => _currentSongBarNumber;
+        private set => SetProperty(ref _currentSongBarNumber, value);
+    }
+
+    public SongArrangeRowViewModel? CurrentPlayingArrangeRow
+    {
+        get => _currentPlayingArrangeRow;
+        private set => SetProperty(ref _currentPlayingArrangeRow, value);
+    }
+
     public string TransportPosition
     {
         get => _transportPosition;
@@ -887,8 +1031,20 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public RelayCommand BrowseVstPluginsPathCommand { get; }
 
+    public RelayCommand ToggleArrangeModeCommand { get; }
+
+    public RelayCommand ToggleLoopCommand { get; }
+
+    public RelayCommand ZoomTimelineInCommand { get; }
+
+    public RelayCommand ZoomTimelineOutCommand { get; }
+
     public void Dispose()
     {
+        _engine.StepChanged -= OnStepChanged;
+        _engine.PatternChanged -= OnPlaybackPatternChanged;
+        _engine.PlaybackCompleted -= OnPlaybackCompleted;
+        _engine.PlaybackFaulted -= OnPlaybackFaulted;
         _engine.Dispose();
     }
 
@@ -1274,11 +1430,148 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private void OnStepChanged(object? sender, int stepIndex)
     {
         CurrentStepIndex = stepIndex;
+        UpdateSongTimelinePosition(stepIndex);
         TransportPosition = TimeSpan
             .FromSeconds(stepIndex * 60.0 / Tempo / 4.0)
             .ToString(@"mm\:ss\.ff");
         UpdatePlayhead(stepIndex);
         UpdateTrackMeters(stepIndex);
+    }
+
+    private void OnPlaybackPatternChanged(object? sender, PatternViewModel pattern)
+    {
+        if (!IsArrangeMode || ReferenceEquals(SelectedPattern, pattern))
+        {
+            return;
+        }
+
+        _isFollowingArrangePlayback = true;
+        try
+        {
+            SelectedPattern = pattern;
+        }
+        finally
+        {
+            _isFollowingArrangePlayback = false;
+        }
+    }
+
+    private void OnPlaybackCompleted(object? sender, EventArgs e)
+    {
+        IsPlaying = false;
+        _engine.SetPlaybackPosition(0);
+        CurrentStepIndex = 0;
+        TransportPosition = "00:00.00";
+        StatusMessage = IsArrangeMode
+            ? "Riproduzione dell'arrange completata."
+            : "Riproduzione del pattern completata.";
+    }
+
+    private void OnPlaybackFaulted(object? sender, Exception exception)
+    {
+        IsPlaying = false;
+        StatusMessage = $"Errore playback: {exception.Message}";
+    }
+
+    private void ConfigurePlaybackSource()
+    {
+        if (IsArrangeMode && Patterns.Count > 0)
+        {
+            _engine.LoadSong(GetArrangePlaybackPatterns());
+            return;
+        }
+
+        _engine.LoadPattern(SelectedPattern, IsLoopEnabled);
+    }
+
+    private List<PatternViewModel> GetArrangePlaybackPatterns()
+    {
+        var sequence = new List<PatternViewModel>();
+        foreach (var row in SongArrangeRows)
+        {
+            var slot = row.Cells.FirstOrDefault(cell => !string.IsNullOrWhiteSpace(cell.Label))?.Label;
+            var pattern = Patterns.FirstOrDefault(candidate =>
+                string.Equals(candidate.Slot, slot, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(candidate.Name, slot, StringComparison.OrdinalIgnoreCase));
+            if (pattern is not null)
+            {
+                sequence.Add(pattern);
+            }
+        }
+
+        return sequence.Count > 0 ? sequence : Patterns.ToList();
+    }
+
+    private void RebuildTimeline()
+    {
+        var timelinePatterns = IsArrangeMode
+            ? GetArrangePlaybackPatterns()
+            : SelectedPattern is null ? new List<PatternViewModel>() : new List<PatternViewModel> { SelectedPattern };
+
+        TimelineTracks.Clear();
+        TimelineBarNumbers.Clear();
+        for (var bar = 1; bar <= timelinePatterns.Count; bar++)
+        {
+            TimelineBarNumbers.Add(bar);
+        }
+
+        var trackCount = timelinePatterns.Select(pattern => pattern.Tracks.Count).DefaultIfEmpty(0).Max();
+        for (var trackIndex = 0; trackIndex < trackCount; trackIndex++)
+        {
+            var sourceTrack = timelinePatterns
+                .Where(pattern => trackIndex < pattern.Tracks.Count)
+                .Select(pattern => pattern.Tracks[trackIndex])
+                .FirstOrDefault();
+            if (sourceTrack is null)
+            {
+                continue;
+            }
+
+            var timelineSteps = new ObservableCollection<ArrangeTimelineStepViewModel>();
+            var absoluteStep = 0;
+            foreach (var pattern in timelinePatterns)
+            {
+                var track = trackIndex < pattern.Tracks.Count ? pattern.Tracks[trackIndex] : null;
+                for (var stepIndex = 0; stepIndex < 16; stepIndex++)
+                {
+                    var sourceStep = track is not null && stepIndex < track.Steps.Count
+                        ? track.Steps[stepIndex]
+                        : null;
+                    timelineSteps.Add(new ArrangeTimelineStepViewModel(absoluteStep++, sourceStep));
+                }
+            }
+
+            TimelineTracks.Add(new ArrangeTimelineTrackViewModel(sourceTrack, timelineSteps));
+        }
+
+        RaisePropertyChanged(nameof(TimelineContentWidth));
+        RaisePropertyChanged(nameof(TimelineWorkspaceWidth));
+        UpdateSongTimelinePosition(CurrentStepIndex);
+    }
+
+    private void UpdateSongTimelinePosition(int absoluteStep)
+    {
+        foreach (var track in TimelineTracks)
+        {
+            foreach (var step in track.Steps)
+            {
+                step.IsCurrent = step.AbsoluteStepIndex == absoluteStep;
+            }
+        }
+
+        CurrentSongBarNumber = Math.Max(1, absoluteStep / 16 + 1);
+        var rowIndex = Math.Clamp(CurrentSongBarNumber - 1, 0, Math.Max(0, SongArrangeRows.Count - 1));
+        var playingRow = IsArrangeMode && SongArrangeRows.Count > 0
+            ? SongArrangeRows
+                .Take(rowIndex + 1)
+                .LastOrDefault(row => VisibleSongArrangeRows.Contains(row))
+            : null;
+        foreach (var row in SongArrangeRows)
+        {
+            row.IsPlaying = ReferenceEquals(row, playingRow);
+        }
+
+        CurrentPlayingArrangeRow = playingRow;
     }
 
     private void ToggleStep(object? parameter)
@@ -1759,9 +2052,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 continue;
             }
 
-            if (stepIndex >= 0 && stepIndex < track.Steps.Count && track.Steps[stepIndex].IsActive)
+            var localStep = track.Steps.Count == 0 ? -1 : stepIndex % track.Steps.Count;
+            if (localStep >= 0 && track.Steps[localStep].IsActive)
             {
-                var velocity = track.Steps[stepIndex].Velocity / 127.0;
+                var velocity = track.Steps[localStep].Velocity / 127.0;
                 track.SignalLevel = Math.Max(track.SignalLevel * 0.55, velocity);
             }
             else

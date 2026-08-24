@@ -55,4 +55,11 @@ public sealed class SongArrangeRowViewModel : ViewModelBase
     private string _displayPatternName = string.Empty;
     private bool _isSelected;
     private bool _isPointerOver;
+    private bool _isPlaying;
+
+    public bool IsPlaying
+    {
+        get => _isPlaying;
+        set => SetProperty(ref _isPlaying, value);
+    }
 }

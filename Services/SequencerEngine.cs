@@ -14,9 +14,9 @@ internal sealed class SequencerEngine : IDisposable
     private readonly List<PatternViewModel> _songPatterns = new();
     private PatternViewModel? _pattern;
     private int _currentStep;
-    private int _currentPatternIndex;
     private int _loopStartStep;
     private int _loopEndStep = DefaultStepsPerPattern - 1;
+    private bool _isPatternLoopEnabled;
     private double _tempoBpm = 116.5674;
     private CancellationTokenSource? _playbackCts;
     private Task? _playbackTask;
@@ -45,17 +45,23 @@ internal sealed class SequencerEngine : IDisposable
 
     public event EventHandler<int>? StepChanged;
 
+    public event EventHandler<PatternViewModel>? PatternChanged;
+
+    public event EventHandler? PlaybackCompleted;
+
+    public event EventHandler<Exception>? PlaybackFaulted;
+
     public uint? CurrentMidiOutputDeviceId => _midiOutputDeviceId;
 
-    public void LoadPattern(PatternViewModel? pattern)
+    public void LoadPattern(PatternViewModel? pattern, bool loopEnabled = false)
     {
         Stop();
         lock (_sync)
         {
             _pattern = pattern;
             _songPatterns.Clear();
-            _currentPatternIndex = 0;
-            _currentStep = _loopStartStep;
+            _isPatternLoopEnabled = loopEnabled;
+            _currentStep = 0;
             _activeNotes.Clear();
         }
 
@@ -75,7 +81,7 @@ internal sealed class SequencerEngine : IDisposable
         {
             _songPatterns.Clear();
             _songPatterns.AddRange(patterns);
-            _currentPatternIndex = 0;
+            _isPatternLoopEnabled = false;
             _pattern = _songPatterns[0];
             _currentStep = _loopStartStep;
             _activeNotes.Clear();
@@ -108,9 +114,12 @@ internal sealed class SequencerEngine : IDisposable
         int position;
         lock (_sync)
         {
-            position = Math.Clamp(stepIndex, 0, GetPatternStepCount() - 1);
+            var lastStep = _songPatterns.Count > 0
+                ? GetSongStepCount() - 1
+                : GetPatternStepCount() - 1;
+            position = Math.Clamp(stepIndex, 0, lastStep);
             _currentStep = position;
-            pattern = _pattern;
+            pattern = ResolveSongPosition(position).Pattern ?? _pattern;
         }
 
         if (pattern is null)
@@ -142,6 +151,12 @@ internal sealed class SequencerEngine : IDisposable
             ApplyProgramChanges(_pattern);
             _playbackCts = new CancellationTokenSource();
             _playbackTask = RunPlaybackLoopAsync(_playbackCts.Token);
+            _ = _playbackTask.ContinueWith(
+                task => _dispatcher.InvokeAsync(() =>
+                    PlaybackFaulted?.Invoke(this, task.Exception!.GetBaseException())),
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted,
+                TaskScheduler.Default);
         }
     }
 
@@ -219,7 +234,12 @@ internal sealed class SequencerEngine : IDisposable
 
                 lock (_sync)
                 {
-                    _currentStep = AdvanceStep(_currentStep);
+                    if (!AdvanceStep(_currentStep))
+                    {
+                        _dispatcher.InvokeAsync(() => PlaybackCompleted?.Invoke(this, EventArgs.Empty));
+                        break;
+                    }
+
                     stepDuration = GetInterval(TempoBpm);
                 }
             }
@@ -232,18 +252,30 @@ internal sealed class SequencerEngine : IDisposable
 
     private void ProcessStep(int stepIndex)
     {
-        var pattern = GetCurrentPattern();
+        var playbackPosition = ResolvePlaybackPosition(stepIndex);
+        var pattern = playbackPosition.Pattern;
         if (pattern is null)
         {
             return;
         }
 
+        if (!ReferenceEquals(GetCurrentPattern(), pattern))
+        {
+            lock (_sync)
+            {
+                _pattern = pattern;
+            }
+
+            ApplyProgramChanges(pattern);
+            _dispatcher.InvokeAsync(() => PatternChanged?.Invoke(this, pattern));
+        }
+
         TickActiveNotes();
-        PlayStepNotes(pattern, stepIndex);
+        PlayStepNotes(pattern, playbackPosition.LocalStep);
 
         _dispatcher.InvokeAsync(() =>
         {
-            HighlightStep(pattern, stepIndex);
+            HighlightPlaybackStep(pattern, playbackPosition.LocalStep);
             StepChanged?.Invoke(this, stepIndex);
         });
     }
@@ -272,22 +304,85 @@ internal sealed class SequencerEngine : IDisposable
             ?? DefaultStepsPerPattern);
     }
 
-    private int AdvanceStep(int currentStep)
+    private int GetSongStepCount()
+    {
+        return Math.Max(1, _songPatterns.Sum(GetPatternStepCount));
+    }
+
+    private static int GetPatternStepCount(PatternViewModel pattern)
+    {
+        return Math.Max(
+            1,
+            pattern.Tracks.Select(track => track.Steps.Count).DefaultIfEmpty(DefaultStepsPerPattern).Max());
+    }
+
+    private (PatternViewModel? Pattern, int LocalStep) ResolvePlaybackPosition(int absoluteStep)
     {
         lock (_sync)
         {
-            if (currentStep >= _loopEndStep)
+            if (_songPatterns.Count == 0)
             {
-                if (_songPatterns.Count > 0)
-                {
-                    _currentPatternIndex = (_currentPatternIndex + 1) % _songPatterns.Count;
-                    _pattern = _songPatterns[_currentPatternIndex];
-                }
-
-                return _loopStartStep;
+                return (_pattern, absoluteStep % GetPatternStepCount());
             }
 
-            return currentStep + 1;
+            return ResolveSongPosition(absoluteStep);
+        }
+    }
+
+    private (PatternViewModel? Pattern, int LocalStep) ResolveSongPosition(int absoluteStep)
+    {
+        var remaining = Math.Max(0, absoluteStep);
+        foreach (var pattern in _songPatterns)
+        {
+            var patternLength = GetPatternStepCount(pattern);
+            if (remaining < patternLength)
+            {
+                return (pattern, remaining);
+            }
+
+            remaining -= patternLength;
+        }
+
+        var lastPattern = _songPatterns.LastOrDefault();
+        return (lastPattern, lastPattern is null ? 0 : GetPatternStepCount(lastPattern) - 1);
+    }
+
+    private bool AdvanceStep(int currentStep)
+    {
+        if (_songPatterns.Count > 0 && currentStep + 1 >= GetSongStepCount())
+        {
+            return false;
+        }
+
+        if (_songPatterns.Count == 0 && currentStep + 1 >= GetPatternStepCount())
+        {
+            if (!_isPatternLoopEnabled)
+            {
+                return false;
+            }
+
+            _currentStep = 0;
+            return true;
+        }
+
+        _currentStep = currentStep + 1;
+        return true;
+    }
+
+    private void HighlightPlaybackStep(PatternViewModel activePattern, int activeStep)
+    {
+        var patterns = _songPatterns.Count > 0
+            ? _songPatterns
+            : new List<PatternViewModel> { activePattern };
+        foreach (var pattern in patterns)
+        {
+            foreach (var track in pattern.Tracks)
+            {
+                foreach (var step in track.Steps)
+                {
+                    step.IsCurrent = ReferenceEquals(pattern, activePattern) && step.Index == activeStep;
+                }
+            }
         }
     }
 

@@ -3,26 +3,255 @@ using System.Globalization;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.ComponentModel;
 using Sonator.Models;
+using Sonator.Services.Vst3;
 using Sonator.ViewModels;
 
 namespace Sonator;
 
 public partial class MainWindow : Window
 {
+    private readonly Vst3ThumbnailService _vst3ThumbnailService = new();
+    private readonly HashSet<string> _thumbnailRequests = new(StringComparer.OrdinalIgnoreCase);
+    private MainViewModel? _mainViewModel;
+    private bool _isSynchronizingTrackScroll;
+    private bool _isDraggingTimelineRuler;
+    private double _timelineRulerDragStartX;
+    private double _timelineRulerDragStartBarWidth;
+
     public MainWindow()
     {
         InitializeComponent();
-        DataContext = new MainViewModel();
+        _mainViewModel = new MainViewModel();
+        _mainViewModel.PropertyChanged += MainViewModel_PropertyChanged;
+        DataContext = _mainViewModel;
+        Loaded += MainWindow_Loaded;
         Closed += OnClosed;
+    }
+
+    private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        viewModel.VstPlugins.CollectionChanged += (_, args) =>
+        {
+            if (args.NewItems is null)
+            {
+                return;
+            }
+
+            foreach (var plugin in args.NewItems.OfType<VstPluginViewModel>())
+            {
+                _ = GenerateVstThumbnailAsync(plugin);
+            }
+        };
+
+        await Task.WhenAll(viewModel.VstPlugins.Select(GenerateVstThumbnailAsync));
+    }
+
+    private async Task GenerateVstThumbnailAsync(VstPluginViewModel plugin)
+    {
+        if (!_thumbnailRequests.Add(plugin.FilePath))
+        {
+            return;
+        }
+
+        try
+        {
+            plugin.Thumbnail = await _vst3ThumbnailService.GetOrCreateAsync(plugin);
+        }
+        finally
+        {
+            _thumbnailRequests.Remove(plugin.FilePath);
+        }
     }
 
     private void OnClosed(object? sender, EventArgs e)
     {
+        if (_mainViewModel is not null)
+        {
+            _mainViewModel.PropertyChanged -= MainViewModel_PropertyChanged;
+            _mainViewModel = null;
+        }
+
         if (DataContext is IDisposable disposable)
         {
             disposable.Dispose();
         }
+    }
+
+    private void MainViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (sender is not MainViewModel viewModel)
+            {
+                return;
+            }
+
+            if (e.PropertyName == nameof(MainViewModel.CurrentPlayingArrangeRow))
+            {
+                Dispatcher.BeginInvoke(() =>
+                {
+                    if (viewModel.CurrentPlayingArrangeRow is not null
+                        && SongArrangeRowsItemsControl.ItemContainerGenerator.ContainerFromItem(viewModel.CurrentPlayingArrangeRow) is FrameworkElement row)
+                    {
+                        row.BringIntoView();
+                    }
+                });
+            }
+
+            if (e.PropertyName is nameof(MainViewModel.CurrentSongBarNumber) or nameof(MainViewModel.TimelineBarWidth))
+            {
+                Dispatcher.BeginInvoke(() => ScrollTimelineToCurrentBar(viewModel));
+            }
+        }
+
+    private void ScrollTimelineToCurrentBar(MainViewModel viewModel)
+        {
+            var barStart = 154 + ((viewModel.CurrentSongBarNumber - 1) * viewModel.TimelineBarWidth);
+            var barEnd = barStart + viewModel.TimelineBarWidth;
+            var visibleStart = ArrangeTimelineScrollViewer.HorizontalOffset;
+            var visibleEnd = visibleStart + ArrangeTimelineScrollViewer.ViewportWidth;
+            if (barStart < visibleStart)
+            {
+                ArrangeTimelineScrollViewer.ScrollToHorizontalOffset(Math.Max(0, barStart - 154));
+            }
+            else if (barEnd > visibleEnd)
+            {
+                ArrangeTimelineScrollViewer.ScrollToHorizontalOffset(
+                    Math.Max(0, barEnd - ArrangeTimelineScrollViewer.ViewportWidth));
+            }
+    }
+
+    private void ArrangeTimelineScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+            if (DataContext is MainViewModel viewModel)
+            {
+                viewModel.TimelineViewportWidth = e.NewSize.Width;
+            }
+    }
+
+    private void TimelineTrackList_ScrollChanged(object sender, ScrollChangedEventArgs e)
+    {
+            if (_isSynchronizingTrackScroll || e.VerticalChange == 0 || e.OriginalSource is not ScrollViewer source)
+            {
+                return;
+            }
+
+            var targetList = ReferenceEquals(sender, FrozenTrackListBox)
+                ? TimelineBodyListBox
+                : FrozenTrackListBox;
+            var target = FindVisualChild<ScrollViewer>(targetList);
+            if (target is null)
+            {
+                return;
+            }
+
+            _isSynchronizingTrackScroll = true;
+            try
+            {
+                target.ScrollToVerticalOffset(source.VerticalOffset);
+            }
+            finally
+            {
+                _isSynchronizingTrackScroll = false;
+            }
+    }
+
+    private void TimelineRuler_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+            if (sender is not UIElement ruler)
+            {
+                return;
+            }
+
+            _isDraggingTimelineRuler = true;
+            _timelineRulerDragStartX = e.GetPosition(this).X;
+            _timelineRulerDragStartBarWidth = (DataContext as MainViewModel)?.TimelineBarWidth ?? 180;
+            ruler.CaptureMouse();
+            e.Handled = true;
+    }
+
+    private void TimelineRuler_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+            if (!_isDraggingTimelineRuler || e.LeftButton != MouseButtonState.Pressed)
+            {
+                return;
+            }
+
+            if (DataContext is not MainViewModel viewModel)
+            {
+                return;
+            }
+
+            var delta = e.GetPosition(this).X - _timelineRulerDragStartX;
+            viewModel.TimelineBarWidth = _timelineRulerDragStartBarWidth + delta;
+            e.Handled = true;
+    }
+
+    private void TimelineRuler_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+            if (!_isDraggingTimelineRuler)
+            {
+                return;
+            }
+
+            _isDraggingTimelineRuler = false;
+            if (sender is UIElement ruler)
+            {
+                ruler.ReleaseMouseCapture();
+            }
+
+            e.Handled = true;
+    }
+
+    private void Timeline_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+            if (DataContext is not MainViewModel viewModel)
+            {
+                return;
+            }
+
+            var pointerX = e.GetPosition(ArrangeTimelineScrollViewer).X;
+            var timelinePointerX = Math.Max(0, pointerX - 154);
+            var contentPosition = ArrangeTimelineScrollViewer.HorizontalOffset + timelinePointerX;
+            var oldWidth = viewModel.TimelineBarWidth;
+            var newWidth = Math.Clamp(oldWidth + (e.Delta > 0 ? 20 : -20), 80, 480);
+            if (Math.Abs(newWidth - oldWidth) < double.Epsilon)
+            {
+                e.Handled = true;
+                return;
+            }
+
+            viewModel.TimelineBarWidth = newWidth;
+            var anchoredOffset = (contentPosition * (newWidth / oldWidth)) - timelinePointerX;
+            Dispatcher.BeginInvoke(() =>
+                ArrangeTimelineScrollViewer.ScrollToHorizontalOffset(Math.Max(0, anchoredOffset)));
+            e.Handled = true;
+    }
+
+    private static T? FindVisualChild<T>(DependencyObject parent)
+            where T : DependencyObject
+    {
+            for (var index = 0; index < VisualTreeHelper.GetChildrenCount(parent); index++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, index);
+                if (child is T match)
+                {
+                    return match;
+                }
+
+                var descendant = FindVisualChild<T>(child);
+                if (descendant is not null)
+                {
+                    return descendant;
+                }
+            }
+
+            return null;
     }
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -310,7 +539,17 @@ public partial class MainWindow : Window
 
     private void TrackList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (DataContext is not MainViewModel viewModel || viewModel.SelectedTrack is null)
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        if (sender is ListBox { SelectedItem: ArrangeTimelineTrackViewModel timelineTrack })
+        {
+            viewModel.SelectedTrack = timelineTrack.SourceTrack;
+        }
+
+        if (viewModel.SelectedTrack is null)
         {
             return;
         }
@@ -320,21 +559,16 @@ public partial class MainWindow : Window
 
     private void VstPluginThumbnail_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (e.ClickCount != 2)
-        {
-            return;
-        }
-
         if (sender is not FrameworkElement element || element.DataContext is not VstPluginViewModel plugin)
         {
             return;
         }
 
-        var dialog = new VstPluginEditorDialog(plugin.Name, plugin.FilePath, plugin.Kind)
-        {
-            Owner = this
-        };
-        dialog.ShowDialog();
+        Window window = string.Equals(plugin.Kind, "VST3", StringComparison.OrdinalIgnoreCase)
+            ? new Vst3NativeEditorWindow(plugin.Name, plugin.FilePath)
+            : new VstPluginEditorDialog(plugin.Name, plugin.FilePath, plugin.Kind);
+        window.Owner = this;
+        window.Show();
         e.Handled = true;
     }
 
