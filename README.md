@@ -7,6 +7,13 @@ Built with .NET 8 and WPF, it combines MIDI composition, multitrack import,
 drag-and-drop song arrangement, per-track mixing controls, project management,
 and native VST3 instrument hosting in a single desktop application.
 
+## Screenshot
+
+![Sonator application overview](docs/images/sonator-overview.png)
+
+See the [Screenshot Gallery](docs/GALLERY.md) for detailed Arrange, mixer, and
+VST3 browser views.
+
 ## Features
 
 - Full-width, multibar Arrange timeline with pattern sequencing
