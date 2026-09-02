@@ -10,9 +10,10 @@ public sealed record ProjectDocument(
     int LoopStartStep,
         int LoopEndStep,
         List<PatternDocument> Patterns,
-    List<ArrangeRowDocument> ArrangeRows,
-    List<string[]> SongGrid,
-        List<SongArrangeBlockDocument>? ArrangeBlocks = null);
+        List<ArrangeRowDocument> ArrangeRows,
+        List<string[]> SongGrid,
+            List<SongArrangeBlockDocument>? ArrangeBlocks = null,
+        double MasterVolume = 0.75);
 
 public sealed record SongArrangeBlockDocument(
     int Row,
@@ -39,8 +40,9 @@ public sealed record TrackDocument(
     List<MidiNoteEventDocument>? MidiNoteEvents = null,
     PatternTrackType TrackType = PatternTrackType.MidiChannel,
     string? Source = null,
-    double Volume = 1.0,
-    bool IsRecordArmed = false);
+    double Volume = 0.75,
+    bool IsRecordArmed = false,
+    string? TrackColor = null);
 
 public sealed record StepDocument(
     int Index,

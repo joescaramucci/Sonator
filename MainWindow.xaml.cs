@@ -738,6 +738,28 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
+    private void TrackColorMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem menuItem || DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        if (menuItem.Parent is not ContextMenu contextMenu)
+        {
+            return;
+        }
+
+        if (contextMenu.PlacementTarget is not FrameworkElement placementTarget ||
+            placementTarget.DataContext is not ArrangeTimelineTrackViewModel timelineTrack)
+        {
+            return;
+        }
+
+        var colorHex = menuItem.Tag as string;
+        viewModel.SetTrackColor(timelineTrack.SourceTrack, colorHex);
+    }
+
     private void ShowAddTrackDialog(PatternTrackType trackType)
     {
         if (DataContext is not MainViewModel viewModel)

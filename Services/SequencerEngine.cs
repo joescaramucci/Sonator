@@ -18,6 +18,7 @@ internal sealed class SequencerEngine : IDisposable
     private int _loopEndStep = DefaultStepsPerPattern - 1;
     private bool _isPatternLoopEnabled;
     private double _tempoBpm = 116.5674;
+    private double _masterVolume = 0.75;
     private CancellationTokenSource? _playbackCts;
     private Task? _playbackTask;
     private uint? _midiOutputDeviceId;
@@ -44,6 +45,12 @@ internal sealed class SequencerEngine : IDisposable
     {
         get => _tempoBpm;
         set => _tempoBpm = !double.IsFinite(value) || value <= 0 ? 1 : value;
+    }
+
+    public double MasterVolume
+    {
+        get => _masterVolume;
+        set => _masterVolume = !double.IsFinite(value) ? 0.75 : Math.Clamp(value, 0.0, 1.0);
     }
 
     public event EventHandler<int>? StepChanged;
@@ -189,6 +196,11 @@ internal sealed class SequencerEngine : IDisposable
     public void UpdateTempo(double tempoBpm)
     {
         TempoBpm = tempoBpm;
+    }
+
+    public void UpdateMasterVolume(double masterVolume)
+    {
+        MasterVolume = masterVolume;
     }
 
     public bool TrySetMidiOutputDevice(uint? deviceId)
@@ -486,7 +498,7 @@ internal sealed class SequencerEngine : IDisposable
                         _midiOutput?.NoteOn(
                             track.Channel - 1,
                             noteEvent.NoteNumber,
-                            ApplyTrackVolume(noteEvent.Velocity, track.Volume));
+                            ApplyTrackVolume(noteEvent.Velocity, track.Volume * MasterVolume));
                         _activeNotes.Add(new ActiveNote(
                             track,
                             track.Channel - 1,
@@ -507,7 +519,7 @@ internal sealed class SequencerEngine : IDisposable
                 _midiOutput?.NoteOn(
                     track.Channel - 1,
                     noteNumber,
-                    ApplyTrackVolume(step.Velocity, track.Volume));
+                    ApplyTrackVolume(step.Velocity, track.Volume * MasterVolume));
                 _activeNotes.Add(new ActiveNote(track, track.Channel - 1, noteNumber, step.DurationSteps));
             }
 

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Windows.Media;
 using Sonator.Models;
 
 namespace Sonator.ViewModels;
@@ -18,6 +19,7 @@ public sealed class PatternTrackViewModel : ViewModelBase
     private bool _isRecordArmed;
     private double _volume;
     private double _signalLevel;
+    private SolidColorBrush _trackColorBrush;
     private IReadOnlyList<MidiNoteEventViewModel> _midiNoteEvents;
 
     public PatternTrackViewModel(
@@ -30,8 +32,9 @@ public sealed class PatternTrackViewModel : ViewModelBase
         IReadOnlyList<MidiNoteEventViewModel>? midiNoteEvents = null,
         PatternTrackType trackType = PatternTrackType.MidiChannel,
         string? source = null,
-        double volume = 1.0,
-        bool isRecordArmed = false)
+        double volume = 0.75,
+        bool isRecordArmed = false,
+        SolidColorBrush? trackColorBrush = null)
     {
         _name = name;
         _instrument = instrument;
@@ -42,6 +45,7 @@ public sealed class PatternTrackViewModel : ViewModelBase
         _source = source ?? string.Empty;
         _volume = Math.Clamp(volume, 0.0, 1.0);
         _isRecordArmed = isRecordArmed;
+        _trackColorBrush = trackColorBrush ?? new SolidColorBrush(Color.FromRgb(38, 53, 69));
         Steps = steps;
         _midiNoteEvents = midiNoteEvents ?? Array.Empty<MidiNoteEventViewModel>();
     }
@@ -163,5 +167,11 @@ public sealed class PatternTrackViewModel : ViewModelBase
     {
         get => _signalLevel;
         set => SetProperty(ref _signalLevel, Math.Clamp(value, 0.0, 1.0));
+    }
+
+    public SolidColorBrush TrackColorBrush
+    {
+        get => _trackColorBrush;
+        set => SetProperty(ref _trackColorBrush, value);
     }
 }

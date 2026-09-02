@@ -8,7 +8,7 @@ public sealed class SignalPeakVisibilityConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
-        return value is double signalLevel && signalLevel >= 0.875
+        return value is double signalLevel && signalLevel >= 0.55
             ? Visibility.Visible
             : Visibility.Collapsed;
     }

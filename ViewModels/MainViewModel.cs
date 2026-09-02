@@ -15,7 +15,7 @@ namespace Sonator.ViewModels;
 public sealed class MainViewModel : ViewModelBase, IDisposable
 {
     private const int ArrangementPatternLength = 8;
-    public const double TimelineTrackHeaderWidth = 220;
+    public const double TimelineTrackHeaderWidth = 260;
     private readonly SequencerEngine _engine;
     private readonly ProjectFileService _projectFileService;
     private readonly TrackClipboardService _trackClipboardService;
@@ -36,6 +36,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private ObservableCollection<PianoRollRowViewModel> _pianoRollRows = new();
     private double _pianoRollZoom = 1.0;
     private double _tempo = 116.5674;
+    private double _masterVolume = 0.75;
+    private double _masterSignalLevel;
     private int _barCount = 32;
     private int _currentStepIndex;
     private int _loopStartStep = 0;
@@ -686,6 +688,30 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
     }
 
+    public double MasterVolume
+    {
+        get => _masterVolume;
+        set
+        {
+            var clamped = Math.Clamp(value, 0.0, 1.0);
+            if (_masterVolume == clamped)
+            {
+                return;
+            }
+
+            if (SetProperty(ref _masterVolume, clamped))
+            {
+                _engine.UpdateMasterVolume(clamped);
+            }
+        }
+    }
+
+    public double MasterSignalLevel
+    {
+        get => _masterSignalLevel;
+        private set => SetProperty(ref _masterSignalLevel, Math.Clamp(value, 0.0, 1.0));
+    }
+
     public int BarCount
     {
         get => _barCount;
@@ -1123,6 +1149,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             SelectedArrangeCell = null;
             SelectedPattern = Patterns.FirstOrDefault();
             Tempo = 116.5674;
+            MasterVolume = 0.75;
             BarCount = 32;
             LoopStartStep = 0;
             LoopEndStep = 15;
@@ -2163,6 +2190,20 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         StatusMessage = track.IsSolo ? $"{track.Name} soloed" : $"{track.Name} solo disabled";
     }
 
+    public void SetTrackColor(PatternTrackViewModel track, string? colorHex)
+    {
+        if (track is null)
+        {
+            return;
+        }
+
+        CaptureUndoStateIfNeeded();
+        track.TrackColorBrush = CreateTrackColorBrush(colorHex);
+        StatusMessage = string.IsNullOrWhiteSpace(colorHex)
+            ? $"{track.Name} color reset"
+            : $"{track.Name} color updated";
+    }
+
     private void QuantizeSelectedTrack()
     {
         var track = SelectedTrack;
@@ -2206,10 +2247,14 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             track.SignalLevel = 0;
         }
+
+        MasterSignalLevel = 0;
     }
 
     private void UpdateTrackMeters(int stepIndex)
     {
+        var mixLevel = 0.0;
+        var activeTrackCount = 0;
         foreach (var track in Tracks)
         {
             if (track.IsMuted)
@@ -2228,7 +2273,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             {
                 track.SignalLevel = track.SignalLevel * 0.78;
             }
+
+            mixLevel += track.SignalLevel;
+            activeTrackCount++;
         }
+
+        var normalizedMix = activeTrackCount > 0 ? mixLevel / activeTrackCount : 0.0;
+        MasterSignalLevel = Math.Clamp(normalizedMix * MasterVolume * 3.2, 0.0, 1.0);
     }
 
     private static PatternViewModel CreatePattern(string name, string summary, string slot)
@@ -2256,6 +2307,22 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         return new PatternTrackViewModel(name, instrument, channel, noteNumber, stepItems);
+    }
+
+    private static SolidColorBrush CreateTrackColorBrush(string? colorHex)
+    {
+        if (string.IsNullOrWhiteSpace(colorHex))
+        {
+            return new SolidColorBrush(Color.FromRgb(38, 53, 69));
+        }
+
+        var color = (Color)ColorConverter.ConvertFromString(colorHex)!;
+        if (color.A == byte.MaxValue)
+        {
+            color.A = 0x88;
+        }
+
+        return new SolidColorBrush(color);
     }
 
     public bool TryGetNewTrackDefaults(
@@ -3085,7 +3152,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private ProjectDocument BuildProjectDocument()
     {
         return new ProjectDocument(
-            "1.2",
+            "1.4",
             Tempo,
             BarCount,
             TimeSignature,
@@ -3096,7 +3163,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             Patterns.Select(BuildPatternDocument).ToList(),
             ArrangeRows.Select(BuildArrangeRowDocument).ToList(),
             GetSongArrangeAssignments(),
-            GetSongArrangeBlocks());
+            GetSongArrangeBlocks(),
+            MasterVolume);
     }
 
     private static PatternDocument BuildPatternDocument(PatternViewModel pattern)
@@ -3123,7 +3191,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             track.TrackType,
             track.Source,
             track.Volume,
-            track.IsRecordArmed);
+            track.IsRecordArmed,
+            track.TrackColorBrush.Color.ToString());
     }
 
     private static void ApplyTrackDocumentToTrack(PatternTrackViewModel targetTrack, TrackDocument sourceTrack)
@@ -3137,6 +3206,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         targetTrack.Source = sourceTrack.Source ?? string.Empty;
         targetTrack.Volume = sourceTrack.Volume;
         targetTrack.IsRecordArmed = sourceTrack.IsRecordArmed;
+        targetTrack.TrackColorBrush = CreateTrackColorBrush(sourceTrack.TrackColor);
         targetTrack.MidiNoteEvents = sourceTrack.MidiNoteEvents is null
             ? Array.Empty<MidiNoteEventViewModel>()
             : sourceTrack.MidiNoteEvents
@@ -3176,6 +3246,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             Tempo = document.Tempo;
             BarCount = document.BarCount;
             TimeSignature = document.TimeSignature;
+            MasterVolume = document.MasterVolume;
 
             Patterns.Clear();
             foreach (var patternDocument in document.Patterns)
@@ -3271,7 +3342,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             trackDocument.TrackType,
             trackDocument.Source,
             trackDocument.Volume,
-            trackDocument.IsRecordArmed);
+            trackDocument.IsRecordArmed,
+            CreateTrackColorBrush(trackDocument.TrackColor));
     }
 
     private void MovePattern(object? parameter, int offset)

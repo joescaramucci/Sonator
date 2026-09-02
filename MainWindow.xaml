@@ -26,6 +26,7 @@
         <SolidColorBrush x:Key="AccentSoft" Color="#1F3D66" />
         <SolidColorBrush x:Key="Success" Color="#49B88D" />
         <local:SignalPeakVisibilityConverter x:Key="SignalPeakVisibilityConverter" />
+        <local:MeterSegmentBrushConverter x:Key="MeterSegmentBrushConverter" />
         <local:VolumePercentConverter x:Key="VolumePercentConverter" />
 
         <Style TargetType="MenuItem">
@@ -155,7 +156,7 @@
                                 BorderThickness="1"
                                 Background="{TemplateBinding Background}"
                                 CornerRadius="8">
-                            <Grid>
+                            <Grid Background="{Binding SourceTrack.TrackColorBrush}">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="*" />
@@ -168,6 +169,54 @@
                                     <ContentPresenter ContentSource="Header" RecognizesAccessKey="True" />
                                 </Border>
                                 <ContentPresenter Grid.Row="1" Margin="{TemplateBinding Padding}" />
+                            </Grid>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="MasterLevelMeterStyle" TargetType="ProgressBar">
+            <Setter Property="Width" Value="18" />
+            <Setter Property="Height" Value="132" />
+            <Setter Property="Minimum" Value="0" />
+            <Setter Property="Maximum" Value="1" />
+            <Setter Property="Background" Value="#111922" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ProgressBar">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="#2F3D4D"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Padding="2">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <Border Grid.Row="0" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MeterSegmentBrushConverter}, ConverterParameter=11}" />
+                                <Border Grid.Row="1" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MeterSegmentBrushConverter}, ConverterParameter=10}" />
+                                <Border Grid.Row="2" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MeterSegmentBrushConverter}, ConverterParameter=9}" />
+                                <Border Grid.Row="3" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MeterSegmentBrushConverter}, ConverterParameter=8}" />
+                                <Border Grid.Row="4" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MeterSegmentBrushConverter}, ConverterParameter=7}" />
+                                <Border Grid.Row="5" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MeterSegmentBrushConverter}, ConverterParameter=6}" />
+                                <Border Grid.Row="6" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MeterSegmentBrushConverter}, ConverterParameter=5}" />
+                                <Border Grid.Row="7" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MeterSegmentBrushConverter}, ConverterParameter=4}" />
+                                <Border Grid.Row="8" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MeterSegmentBrushConverter}, ConverterParameter=3}" />
+                                <Border Grid.Row="9" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MeterSegmentBrushConverter}, ConverterParameter=2}" />
+                                <Border Grid.Row="10" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MeterSegmentBrushConverter}, ConverterParameter=1}" />
+                                <Border Grid.Row="11" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MeterSegmentBrushConverter}, ConverterParameter=0}" />
                             </Grid>
                         </Border>
                     </ControlTemplate>
@@ -189,17 +238,77 @@
             </Setter>
         </Style>
 
-        <Style x:Key="SongTimelineRepeatButtonStyle" TargetType="RepeatButton">
+        <Style x:Key="MasterMixSliderStyle" TargetType="Slider">
             <Setter Property="Focusable" Value="False" />
-            <Setter Property="BorderBrush" Value="#FF8AAAC6" />
-            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Width" Value="22" />
+            <Setter Property="Height" Value="132" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="Template">
                 <Setter.Value>
-                    <ControlTemplate TargetType="RepeatButton">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6" />
+                    <ControlTemplate TargetType="Slider">
+                        <Border Background="#1F2933"
+                                BorderBrush="#667A8F"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Padding="2">
+                            <Grid>
+                                <Border Background="#151D26"
+                                        CornerRadius="2"
+                                        Margin="6,5,6,5" />
+                                <Track x:Name="PART_Track"
+                                       Orientation="Vertical">
+                                    <Track.DecreaseRepeatButton>
+                                        <RepeatButton Background="#3F9FD6"
+                                                      BorderBrush="#3F9FD6"
+                                                      BorderThickness="0">
+                                            <RepeatButton.Template>
+                                                <ControlTemplate TargetType="RepeatButton">
+                                                    <Border Background="{TemplateBinding Background}"
+                                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                                            CornerRadius="6" />
+                                                </ControlTemplate>
+                                            </RepeatButton.Template>
+                                        </RepeatButton>
+                                    </Track.DecreaseRepeatButton>
+                                    <Track.IncreaseRepeatButton>
+                                        <RepeatButton Background="#34414E"
+                                                      BorderBrush="#34414E"
+                                                      BorderThickness="0">
+                                            <RepeatButton.Template>
+                                                <ControlTemplate TargetType="RepeatButton">
+                                                    <Border Background="{TemplateBinding Background}"
+                                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                                            CornerRadius="6" />
+                                                </ControlTemplate>
+                                            </RepeatButton.Template>
+                                        </RepeatButton>
+                                    </Track.IncreaseRepeatButton>
+                                    <Track.Thumb>
+                                        <Thumb Width="18"
+                                               Height="12"
+                                               Cursor="Hand">
+                                            <Thumb.Template>
+                                                <ControlTemplate TargetType="Thumb">
+                                                    <Border BorderBrush="#8EA9C7"
+                                                            BorderThickness="1"
+                                                            CornerRadius="2">
+                                                        <Border.Background>
+                                                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                                <GradientStop Color="#F5F8FB" Offset="0" />
+                                                                <GradientStop Color="#C7D0DA" Offset="1" />
+                                                            </LinearGradientBrush>
+                                                        </Border.Background>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Thumb.Template>
+                                        </Thumb>
+                                    </Track.Thumb>
+                                </Track>
+                            </Grid>
+                        </Border>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -217,13 +326,35 @@
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 Padding="4,2">
-                            <Grid>
+                            <Grid Background="#1F2C3A">
                                 <Track x:Name="PART_Track">
                                     <Track.DecreaseRepeatButton>
-                                        <RepeatButton Style="{StaticResource SongTimelineRepeatButtonStyle}" Background="#41AF8B" />
+                                        <RepeatButton Background="#41AF8B"
+                                                      BorderBrush="#41AF8B"
+                                                      BorderThickness="0">
+                                            <RepeatButton.Template>
+                                                <ControlTemplate TargetType="RepeatButton">
+                                                    <Border Background="{TemplateBinding Background}"
+                                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                                            CornerRadius="6" />
+                                                </ControlTemplate>
+                                            </RepeatButton.Template>
+                                        </RepeatButton>
                                     </Track.DecreaseRepeatButton>
                                     <Track.IncreaseRepeatButton>
-                                        <RepeatButton Style="{StaticResource SongTimelineRepeatButtonStyle}" Background="#425A72" />
+                                        <RepeatButton Background="#425A72"
+                                                      BorderBrush="#425A72"
+                                                      BorderThickness="0">
+                                            <RepeatButton.Template>
+                                                <ControlTemplate TargetType="RepeatButton">
+                                                    <Border Background="{TemplateBinding Background}"
+                                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                                            CornerRadius="6" />
+                                                </ControlTemplate>
+                                            </RepeatButton.Template>
+                                        </RepeatButton>
                                     </Track.IncreaseRepeatButton>
                                     <Track.Thumb>
                                         <Thumb Width="12" Height="22" Cursor="Hand">
@@ -418,7 +549,7 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="300" />
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="220" />
+                <ColumnDefinition                 Width="260" />
                 <ColumnDefinition Width="250" />
             </Grid.ColumnDefinitions>
 
@@ -703,7 +834,7 @@
                 <DockPanel>
                     <Grid DockPanel.Dock="Top" Height="42" Margin="0,0,0,3">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="220" />
+                            <ColumnDefinition Width="260" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <StackPanel Margin="5,2">
@@ -762,14 +893,64 @@
                             <DataTemplate>
                                 <Grid Height="64">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="220" />
+                                        <ColumnDefinition Width="260" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Background="#263545" Padding="3">
+                                    <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Background="{Binding SourceTrack.TrackColorBrush}" Padding="3">
+                                        <Border.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="Default" Tag="" Click="TrackColorMenuItem_Click">
+                                                    <MenuItem.Icon>
+                                                        <Border Width="12" Height="12" Background="#263545" BorderBrush="#6F87A0" BorderThickness="1" />
+                                                    </MenuItem.Icon>
+                                                </MenuItem>
+                                                <MenuItem Header="Red" Tag="#FFD94C4C" Click="TrackColorMenuItem_Click">
+                                                    <MenuItem.Icon>
+                                                        <Border Width="12" Height="12" Background="#FFD94C4C" BorderBrush="#A62B2B" BorderThickness="1" />
+                                                    </MenuItem.Icon>
+                                                </MenuItem>
+                                                <MenuItem Header="Orange" Tag="#FFDE8A3B" Click="TrackColorMenuItem_Click">
+                                                    <MenuItem.Icon>
+                                                        <Border Width="12" Height="12" Background="#FFDE8A3B" BorderBrush="#A86425" BorderThickness="1" />
+                                                    </MenuItem.Icon>
+                                                </MenuItem>
+                                                <MenuItem Header="Yellow" Tag="#FFE6C45B" Click="TrackColorMenuItem_Click">
+                                                    <MenuItem.Icon>
+                                                        <Border Width="12" Height="12" Background="#FFE6C45B" BorderBrush="#AE8F2F" BorderThickness="1" />
+                                                    </MenuItem.Icon>
+                                                </MenuItem>
+                                                <MenuItem Header="Green" Tag="#FF5FB87B" Click="TrackColorMenuItem_Click">
+                                                    <MenuItem.Icon>
+                                                        <Border Width="12" Height="12" Background="#FF5FB87B" BorderBrush="#3F7D53" BorderThickness="1" />
+                                                    </MenuItem.Icon>
+                                                </MenuItem>
+                                                <MenuItem Header="Cyan" Tag="#FF5CAFD6" Click="TrackColorMenuItem_Click">
+                                                    <MenuItem.Icon>
+                                                        <Border Width="12" Height="12" Background="#FF5CAFD6" BorderBrush="#3D7A94" BorderThickness="1" />
+                                                    </MenuItem.Icon>
+                                                </MenuItem>
+                                                <MenuItem Header="Blue" Tag="#FF5F8FDE" Click="TrackColorMenuItem_Click">
+                                                    <MenuItem.Icon>
+                                                        <Border Width="12" Height="12" Background="#FF5F8FDE" BorderBrush="#3C6195" BorderThickness="1" />
+                                                    </MenuItem.Icon>
+                                                </MenuItem>
+                                                <MenuItem Header="Purple" Tag="#FF9C72D8" Click="TrackColorMenuItem_Click">
+                                                    <MenuItem.Icon>
+                                                        <Border Width="12" Height="12" Background="#FF9C72D8" BorderBrush="#6F4F9D" BorderThickness="1" />
+                                                    </MenuItem.Icon>
+                                                </MenuItem>
+                                                <MenuItem Header="Gray" Tag="#FF7D8B99" Click="TrackColorMenuItem_Click">
+                                                    <MenuItem.Icon>
+                                                        <Border Width="12" Height="12" Background="#FF7D8B99" BorderBrush="#5C6570" BorderThickness="1" />
+                                                    </MenuItem.Icon>
+                                                </MenuItem>
+                                            </ContextMenu>
+                                        </Border.ContextMenu>
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="48" />
                                                 <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="20" />
                                                 <ColumnDefinition Width="14" />
                                             </Grid.ColumnDefinitions>
                                             <Grid.RowDefinitions>
@@ -855,17 +1036,33 @@
                                                         Value="{Binding SourceTrack.Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource VolumePercentConverter}}"
                                                         ToolTip="Track volume" />
                                             </Grid>
-                                            <ProgressBar Grid.RowSpan="2"
-                                                         Grid.Column="2"
-                                                         Style="{StaticResource VerticalMeter}"
-                                                         Value="{Binding SourceTrack.SignalLevel}"
-                                                         VerticalAlignment="Center"
-                                                         ToolTip="Channel level" />
+                                           <Slider Grid.RowSpan="2"
+                                                   Grid.Column="2"
+                                                   Width="16"
+                                                   Height="44"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   Minimum="0"
+                                                   Maximum="100"
+                                                   Orientation="Vertical"
+                                                   IsDirectionReversed="False"
+                                                   AutoToolTipPlacement="TopLeft"
+                                                   AutoToolTipPrecision="0"
+                                                   Focusable="False"
+                                                   AutomationProperties.Name="TRACK VOLUME"
+                                                   Value="{Binding SourceTrack.Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource VolumePercentConverter}}"
+                                                   ToolTip="Track volume" />
+                                           <ProgressBar Grid.RowSpan="2"
+                                                        Grid.Column="3"
+                                                        Style="{StaticResource VerticalMeter}"
+                                                        Value="{Binding SourceTrack.SignalLevel}"
+                                                        VerticalAlignment="Center"
+                                                        ToolTip="Channel level" />
                                         </Grid>
                                     </Border>
                                     <Grid Grid.Column="1"
                                           Width="{Binding DataContext.TimelineContentWidth, RelativeSource={RelativeSource AncestorType=Window}}"
-                                          Background="#17222D"
+                                          Background="{Binding SourceTrack.TrackColorBrush}"
                                           ClipToBounds="True">
                                         <ItemsControl ItemsSource="{Binding DataContext.TimelineBarNumbers, RelativeSource={RelativeSource AncestorType=Window}}"
                                                       IsHitTestVisible="False"
@@ -916,16 +1113,17 @@
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
                                                     <Grid Width="{Binding DataContext.TimelineSixteenthWidth, RelativeSource={RelativeSource AncestorType=Window}}">
-                                                    <Border Margin="1,8,1,8" CornerRadius="2">
+                                                    <Border Margin="1,8,1,8"
+                                                            CornerRadius="2"
+                                                            Background="{Binding DataContext.SourceTrack.TrackColorBrush, RelativeSource={RelativeSource AncestorType=ListBoxItem}}">
                                                         <Border.Style>
                                                             <Style TargetType="Border">
-                                                                <Setter Property="Background" Value="Transparent" />
                                                                 <Setter Property="BorderBrush" Value="#7EAEDC" />
                                                                 <Setter Property="BorderThickness" Value="0" />
                                                                 <Style.Triggers>
                                                                     <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                                                        <Setter Property="Background" Value="#477CAC" />
                                                                         <Setter Property="BorderThickness" Value="1" />
+                                                                        <Setter Property="BorderBrush" Value="#EAF2FF" />
                                                                     </DataTrigger>
                                                                 </Style.Triggers>
                                                             </Style>
@@ -1001,7 +1199,7 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
                 </DockPanel>
-                <ItemsControl Margin="220,0,0,0"
+                <ItemsControl Margin="260,0,0,0"
                               Width="{Binding TimelineContentWidth}"
                               HorizontalAlignment="Left"
                               ItemsSource="{Binding TimelineBarNumbers}"
@@ -1026,7 +1224,7 @@
                 </ItemsControl>
                 </Grid>
                 </ScrollViewer>
-                <Border Width="220"
+                <Border Width="260"
                         Margin="0,42,0,0"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Top"
@@ -1069,12 +1267,62 @@
                                 <Border Height="64"
                                         BorderBrush="{StaticResource Line}"
                                         BorderThickness="1"
-                                        Background="#263545"
+                                        Background="{Binding SourceTrack.TrackColorBrush}"
                                         Padding="3">
+                                    <Border.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Default" Tag="" Click="TrackColorMenuItem_Click">
+                                                <MenuItem.Icon>
+                                                    <Border Width="12" Height="12" Background="#263545" BorderBrush="#6F87A0" BorderThickness="1" />
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                            <MenuItem Header="Red" Tag="#FFD94C4C" Click="TrackColorMenuItem_Click">
+                                                <MenuItem.Icon>
+                                                    <Border Width="12" Height="12" Background="#FFD94C4C" BorderBrush="#A62B2B" BorderThickness="1" />
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                            <MenuItem Header="Orange" Tag="#FFDE8A3B" Click="TrackColorMenuItem_Click">
+                                                <MenuItem.Icon>
+                                                    <Border Width="12" Height="12" Background="#FFDE8A3B" BorderBrush="#A86425" BorderThickness="1" />
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                            <MenuItem Header="Yellow" Tag="#FFE6C45B" Click="TrackColorMenuItem_Click">
+                                                <MenuItem.Icon>
+                                                    <Border Width="12" Height="12" Background="#FFE6C45B" BorderBrush="#AE8F2F" BorderThickness="1" />
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                            <MenuItem Header="Green" Tag="#FF5FB87B" Click="TrackColorMenuItem_Click">
+                                                <MenuItem.Icon>
+                                                    <Border Width="12" Height="12" Background="#FF5FB87B" BorderBrush="#3F7D53" BorderThickness="1" />
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                            <MenuItem Header="Cyan" Tag="#FF5CAFD6" Click="TrackColorMenuItem_Click">
+                                                <MenuItem.Icon>
+                                                    <Border Width="12" Height="12" Background="#FF5CAFD6" BorderBrush="#3D7A94" BorderThickness="1" />
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                            <MenuItem Header="Blue" Tag="#FF5F8FDE" Click="TrackColorMenuItem_Click">
+                                                <MenuItem.Icon>
+                                                    <Border Width="12" Height="12" Background="#FF5F8FDE" BorderBrush="#3C6195" BorderThickness="1" />
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                            <MenuItem Header="Purple" Tag="#FF9C72D8" Click="TrackColorMenuItem_Click">
+                                                <MenuItem.Icon>
+                                                    <Border Width="12" Height="12" Background="#FF9C72D8" BorderBrush="#6F4F9D" BorderThickness="1" />
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                            <MenuItem Header="Gray" Tag="#FF7D8B99" Click="TrackColorMenuItem_Click">
+                                                <MenuItem.Icon>
+                                                    <Border Width="12" Height="12" Background="#FF7D8B99" BorderBrush="#5C6570" BorderThickness="1" />
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                        </ContextMenu>
+                                    </Border.ContextMenu>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="48" />
                                             <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="20" />
                                             <ColumnDefinition Width="14" />
                                         </Grid.ColumnDefinitions>
                                         <Grid.RowDefinitions>
@@ -1152,24 +1400,35 @@
                                                           AutomationProperties.Name="RECORD ARM"
                                                           IsChecked="{Binding SourceTrack.IsRecordArmed, Mode=TwoWay}"
                                                           ToolTip="Arm track for recording" />
-                                            <Slider Grid.Column="1"
-                                                    Height="16"
-                                                    Margin="3,0,1,0"
-                                                    Minimum="0"
-                                                    Maximum="100"
-                                                    AutoToolTipPlacement="TopLeft"
-                                                    AutoToolTipPrecision="0"
-                                                    Focusable="False"
-                                                    AutomationProperties.Name="TRACK VOLUME"
-                                                    Value="{Binding SourceTrack.Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource VolumePercentConverter}}"
-                                                    ToolTip="Track volume" />
                                         </Grid>
-                                        <ProgressBar Grid.RowSpan="2"
-                                                     Grid.Column="2"
-                                                     Style="{StaticResource VerticalMeter}"
-                                                     Value="{Binding SourceTrack.SignalLevel}"
-                                                     VerticalAlignment="Center"
-                                                     ToolTip="Channel level" />
+                                        <Slider Grid.RowSpan="2"
+                                                Grid.Column="2"
+                                                Width="14"
+                                                Height="46"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                Minimum="0"
+                                                Maximum="100"
+                                                Orientation="Vertical"
+                                                IsDirectionReversed="False"
+                                                AutoToolTipPlacement="TopLeft"
+                                                AutoToolTipPrecision="0"
+                                                Focusable="False"
+                                                AutomationProperties.Name="TRACK VOLUME"
+                                                Style="{StaticResource MasterMixSliderStyle}"
+                                                Value="{Binding SourceTrack.Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource VolumePercentConverter}}"
+                                                ToolTip="Track volume" />
+                                        <Grid Grid.RowSpan="2"
+                                              Grid.Column="3"
+                                              Margin="0,8,0,8">
+                                            <ProgressBar Style="{StaticResource VerticalMeter}"
+                                                         Value="{Binding SourceTrack.SignalLevel}"
+                                                         VerticalAlignment="Center"
+                                                         ToolTip="Channel level" />
+                                            <Border Background="#FF4D4D"
+                                                    Opacity="0.85"
+                                                    Visibility="{Binding SourceTrack.SignalLevel, Converter={StaticResource SignalPeakVisibilityConverter}}" />
+                                        </Grid>
                                     </Grid>
                                 </Border>
                             </DataTemplate>
@@ -1178,7 +1437,7 @@
                     </DockPanel>
                 </Border>
                 <Border x:Name="ArrangePatternDragHandle"
-                        Width="220"
+                        Width="260"
                         Height="42"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Top"
@@ -1326,6 +1585,60 @@
                         <Button Content="HIDE" Width="50" />
                     </StackPanel>
                     <Button Content="DEFAULT" />
+                    <Border BorderBrush="{StaticResource Line}"
+                            BorderThickness="1"
+                            Background="#2A313A"
+                            CornerRadius="4"
+                            Padding="4"
+                            Margin="0,6,0,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Border Background="#333B46"
+                                    BorderBrush="{StaticResource Line}"
+                                    BorderThickness="0,0,0,1"
+                                    CornerRadius="3,3,0,0"
+                                    Padding="2,1"
+                                    Margin="0,0,0,4">
+                                <TextBlock Text="MASTER"
+                                           FontFamily="Consolas"
+                                           FontSize="9"
+                                           FontWeight="Bold"
+                                           Foreground="{StaticResource Ink}"
+                                           HorizontalAlignment="Center" />
+                            </Border>
+                            <Grid Grid.Row="1" Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="16" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <ProgressBar Style="{StaticResource MasterLevelMeterStyle}"
+                                             Value="{Binding MasterSignalLevel, Mode=OneWay}"
+                                             VerticalAlignment="Stretch"
+                                             ToolTip="Master level" />
+                                <Slider Grid.Column="1"
+                                        Style="{StaticResource MasterMixSliderStyle}"
+                                        Minimum="0"
+                                        Maximum="100"
+                                        Orientation="Vertical"
+                                        IsDirectionReversed="False"
+                                        AutoToolTipPlacement="TopLeft"
+                                        AutoToolTipPrecision="0"
+                                        Value="{Binding MasterVolume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource VolumePercentConverter}}"
+                                        ToolTip="Final mix volume" />
+                            </Grid>
+                            <TextBlock Grid.Row="2"
+                                       Text="{Binding MasterVolume, Converter={StaticResource VolumePercentConverter}, StringFormat={}{0:0}%}"
+                                       FontFamily="Consolas"
+                                       FontSize="9"
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource Ink}"
+                                       HorizontalAlignment="Center" />
+                        </Grid>
+                    </Border>
                 </StackPanel>
             </GroupBox>
 
