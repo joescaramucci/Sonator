@@ -38,6 +38,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private double _tempo = 116.5674;
     private double _masterVolume = 0.75;
     private double _masterSignalLevel;
+    private double _masterSignalLevelSmoothed;
     private int _barCount = 32;
     private int _currentStepIndex;
     private int _loopStartStep = 0;
@@ -2249,6 +2250,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         MasterSignalLevel = 0;
+        _masterSignalLevelSmoothed = 0;
     }
 
     private void UpdateTrackMeters(int stepIndex)
@@ -2279,7 +2281,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         var normalizedMix = activeTrackCount > 0 ? mixLevel / activeTrackCount : 0.0;
-        MasterSignalLevel = Math.Clamp(normalizedMix * MasterVolume * 3.2, 0.0, 1.0);
+        var targetLevel = Math.Clamp(normalizedMix * MasterVolume * 3.2, 0.0, 1.0);
+        _masterSignalLevelSmoothed = (_masterSignalLevelSmoothed * 0.72) + (targetLevel * 0.28);
+        MasterSignalLevel = _masterSignalLevelSmoothed;
     }
 
     private static PatternViewModel CreatePattern(string name, string summary, string slot)

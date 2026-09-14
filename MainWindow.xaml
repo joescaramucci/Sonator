@@ -27,6 +27,7 @@
         <SolidColorBrush x:Key="Success" Color="#49B88D" />
         <local:SignalPeakVisibilityConverter x:Key="SignalPeakVisibilityConverter" />
         <local:MeterSegmentBrushConverter x:Key="MeterSegmentBrushConverter" />
+        <local:MasterMeterSegmentBrushConverter x:Key="MasterMeterSegmentBrushConverter" />
         <local:VolumePercentConverter x:Key="VolumePercentConverter" />
 
         <Style TargetType="MenuItem">
@@ -205,18 +206,18 @@
                                     <RowDefinition Height="*" />
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
-                                <Border Grid.Row="0" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MeterSegmentBrushConverter}, ConverterParameter=11}" />
-                                <Border Grid.Row="1" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MeterSegmentBrushConverter}, ConverterParameter=10}" />
-                                <Border Grid.Row="2" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MeterSegmentBrushConverter}, ConverterParameter=9}" />
-                                <Border Grid.Row="3" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MeterSegmentBrushConverter}, ConverterParameter=8}" />
-                                <Border Grid.Row="4" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MeterSegmentBrushConverter}, ConverterParameter=7}" />
-                                <Border Grid.Row="5" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MeterSegmentBrushConverter}, ConverterParameter=6}" />
-                                <Border Grid.Row="6" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MeterSegmentBrushConverter}, ConverterParameter=5}" />
-                                <Border Grid.Row="7" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MeterSegmentBrushConverter}, ConverterParameter=4}" />
-                                <Border Grid.Row="8" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MeterSegmentBrushConverter}, ConverterParameter=3}" />
-                                <Border Grid.Row="9" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MeterSegmentBrushConverter}, ConverterParameter=2}" />
-                                <Border Grid.Row="10" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MeterSegmentBrushConverter}, ConverterParameter=1}" />
-                                <Border Grid.Row="11" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MeterSegmentBrushConverter}, ConverterParameter=0}" />
+                                <Border Grid.Row="0" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MasterMeterSegmentBrushConverter}, ConverterParameter=11}" />
+                                <Border Grid.Row="1" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MasterMeterSegmentBrushConverter}, ConverterParameter=10}" />
+                                <Border Grid.Row="2" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MasterMeterSegmentBrushConverter}, ConverterParameter=9}" />
+                                <Border Grid.Row="3" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MasterMeterSegmentBrushConverter}, ConverterParameter=8}" />
+                                <Border Grid.Row="4" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MasterMeterSegmentBrushConverter}, ConverterParameter=7}" />
+                                <Border Grid.Row="5" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MasterMeterSegmentBrushConverter}, ConverterParameter=6}" />
+                                <Border Grid.Row="6" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MasterMeterSegmentBrushConverter}, ConverterParameter=5}" />
+                                <Border Grid.Row="7" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MasterMeterSegmentBrushConverter}, ConverterParameter=4}" />
+                                <Border Grid.Row="8" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MasterMeterSegmentBrushConverter}, ConverterParameter=3}" />
+                                <Border Grid.Row="9" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MasterMeterSegmentBrushConverter}, ConverterParameter=2}" />
+                                <Border Grid.Row="10" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MasterMeterSegmentBrushConverter}, ConverterParameter=1}" />
+                                <Border Grid.Row="11" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MasterMeterSegmentBrushConverter}, ConverterParameter=0}" />
                             </Grid>
                         </Border>
                     </ControlTemplate>
@@ -1425,7 +1426,9 @@
                                                          Value="{Binding SourceTrack.SignalLevel}"
                                                          VerticalAlignment="Center"
                                                          ToolTip="Channel level" />
-                                            <Border Background="#FF4D4D"
+                                            <Border Height="8"
+                                                    VerticalAlignment="Top"
+                                                    Background="#FF4D4D"
                                                     Opacity="0.85"
                                                     Visibility="{Binding SourceTrack.SignalLevel, Converter={StaticResource SignalPeakVisibilityConverter}}" />
                                         </Grid>
