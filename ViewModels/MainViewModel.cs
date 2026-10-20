@@ -1365,9 +1365,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
         CurrentStepIndex = stepIndex;
         UpdateSongTimelinePosition(stepIndex);
-        TransportPosition = TimeSpan
-            .FromSeconds(stepIndex * 60.0 / Tempo / 4.0)
-            .ToString(@"mm\:ss\.ff");
+        TransportPosition = TransportClock.FormatPosition(stepIndex, Tempo);
         UpdatePlayhead(stepIndex);
         UpdateTrackMeters(stepIndex);
     }
@@ -1691,9 +1689,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _engine.SetPlaybackPosition(targetStep);
         CurrentStepIndex = targetStep;
         UpdatePlayhead(targetStep);
-        TransportPosition = TimeSpan
-            .FromSeconds(targetStep * 60.0 / Tempo / 4.0)
-            .ToString(@"mm\:ss\.ff");
+        TransportPosition = TransportClock.FormatPosition(targetStep, Tempo);
         StatusMessage = $"Position: bar {targetStep / 16 + 1}";
     }
 
