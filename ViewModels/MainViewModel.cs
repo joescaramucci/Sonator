@@ -1795,23 +1795,16 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        var insertionRow = insertAfter ? targetStartRow + targetLength : targetStartRow;
+        var requestedRow = insertAfter ? targetStartRow + targetLength : targetStartRow;
         var assignments = GetSongArrangeAssignments();
-        var movedRows = assignments.GetRange(sourceStartRow, sourceLength);
-        assignments.RemoveRange(sourceStartRow, sourceLength);
-        if (insertionRow > sourceStartRow)
-        {
-            insertionRow -= sourceLength;
-        }
-
-        insertionRow = Math.Clamp(insertionRow, 0, assignments.Count);
+        var insertionRow = SongArrangeLayout.ResolveMoveRow(sourceStartRow, sourceLength, requestedRow, assignments.Count);
         if (insertionRow == sourceStartRow)
         {
             return;
         }
 
         CaptureUndoStateIfNeeded();
-        assignments.InsertRange(insertionRow, movedRows);
+        SongArrangeLayout.MoveRows(assignments, sourceStartRow, sourceLength, insertionRow);
         RebuildSongArrangeRows(assignments);
         _selectedArrangePatternCell = SongArrangeRows[insertionRow].Cells[sourceColumn];
         SelectArrangeCell(_selectedArrangePatternCell);
@@ -1838,10 +1831,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
         CaptureUndoStateIfNeeded();
         var assignments = GetSongArrangeAssignments();
-        var movedRows = assignments.GetRange(sourceStartRow, sourceLength);
-        assignments.RemoveRange(sourceStartRow, sourceLength);
-        var insertionRow = assignments.Count;
-        assignments.InsertRange(insertionRow, movedRows);
+        var insertionRow = assignments.Count - sourceLength;
+        SongArrangeLayout.MoveRows(assignments, sourceStartRow, sourceLength, insertionRow);
         RebuildSongArrangeRows(assignments);
         _selectedArrangePatternCell = SongArrangeRows[insertionRow].Cells[sourceColumn];
         SelectArrangeCell(_selectedArrangePatternCell);
@@ -2778,29 +2769,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private bool TryGetArrangePatternRange(int row, int column, out int startRow, out int rangeColumn, out int length)
     {
-        startRow = -1;
         rangeColumn = column;
-        length = 0;
-        var label = SongArrangeRows[row].Cells[column].Label;
-        if (string.IsNullOrWhiteSpace(label))
-        {
-            return false;
-        }
-
-        startRow = row;
-        while (startRow > 0 && string.Equals(SongArrangeRows[startRow - 1].Cells[column].Label, label, StringComparison.OrdinalIgnoreCase))
-        {
-            startRow--;
-        }
-
-        var endRow = row;
-        while (endRow + 1 < SongArrangeRows.Count && string.Equals(SongArrangeRows[endRow + 1].Cells[column].Label, label, StringComparison.OrdinalIgnoreCase))
-        {
-            endRow++;
-        }
-
-        length = endRow - startRow + 1;
-        return true;
+        return SongArrangeLayout.TryFindPatternRange(
+            SongArrangeRows.Count,
+            candidateRow => SongArrangeRows[candidateRow].Cells[column].Label,
+            row,
+            out startRow,
+            out length);
     }
 
     private List<string[]> GetSongArrangeAssignments()
