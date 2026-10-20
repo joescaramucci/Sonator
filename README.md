@@ -88,3 +88,9 @@ when changing its C++ source.
 - DryWetMIDI
 - C++17 native VST3 bridge
 - WASAPI shared-mode audio output
+
+## License
+
+Sonator is free software, licensed under the GNU General Public License v3.0.
+See [LICENSE.txt](LICENSE.txt). Third-party components are listed in
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
