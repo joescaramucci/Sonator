@@ -117,6 +117,15 @@ VSTHOSTBRIDGE_API int VstHostBridge_StartAudioOnDevice(void* moduleHandle, const
 // failure (see VstHostBridge_GetLastError).
 VSTHOSTBRIDGE_API int VstHostBridge_ListAudioOutputs(wchar_t* buffer, int capacity);
 
+// Returns 1 if this build includes the ASIO backend (compiled against the
+// Steinberg ASIO SDK), 0 otherwise.
+VSTHOSTBRIDGE_API int VstHostBridge_IsAsioSupported(void);
+
+// Starts plug-in audio on the ASIO driver whose CLSID string is driverClsid
+// (for example "{...}", as stored under HKLM\SOFTWARE\ASIO). Returns 0 with an
+// error message if ASIO is not built in or the driver cannot be started.
+VSTHOSTBRIDGE_API int VstHostBridge_StartAudioAsio(void* moduleHandle, const wchar_t* driverClsid);
+
 // --- Native GUI hosting (IPlugView), Windows/HWND only -------------------
 
 // Returns 1 if the plugin exposes a native "editor" view that supports HWND

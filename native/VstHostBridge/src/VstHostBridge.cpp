@@ -1338,11 +1338,417 @@ int VstHostBridge_StartAudio(void* moduleHandle)
     return VstHostBridge_StartAudioOnDevice(moduleHandle, nullptr);
 }
 
-int VstHostBridge_StartAudioOnDevice(void* moduleHandle, const wchar_t* deviceId)
+#if SONATOR_WITH_ASIO
+// Windows hosts use the native IEEE 754 double layout for sample rates.
+#define IEEE754_64FLOAT 1
+#include "asio.h"
+#include "iasiodrv.h"
+// ASIO backend. Only the SDK's public headers are used (common/asio.h and
+// common/iasiodrv.h, from the Steinberg ASIO SDK, GPL-3.0 option). Drivers are
+// opened the same way the SDK's own host does it: CoCreateInstance on the
+// driver CLSID, with the CLSID also used as the requested interface ID.
+
+namespace
+{
+    // ASIO callbacks have no user-data argument, so the streaming session is
+    // reached through this pointer. Only one ASIO session runs at a time.
+    struct AsioSession;
+    std::atomic<AsioSession*> g_asioSession{nullptr};
+
+    struct AsioSession
+    {
+        AudioEngineState* engine = nullptr;
+        IASIO* driver = nullptr;
+        ASIOSampleType sampleType = ASIOSTFloat32LSB;
+        long bufferSize = 0;
+        bool postOutput = false;
+        int32 deviceChannels = 2; // driver output channels written, at most 2
+        int32 pluginChannels = 2; // channels produced by the plug-in output bus
+        std::vector<ASIOBufferInfo> bufferInfos;
+        std::vector<std::vector<float>> planar;
+        std::vector<float> silence;
+        std::vector<Sample32*> channelPointers;
+        AudioBusBuffers outputBus{};
+        ProcessData processData{};
+    };
+
+    float ClampUnit(float value)
+    {
+        return value < -1.0f ? -1.0f : (value > 1.0f ? 1.0f : value);
+    }
+
+    // Converts float samples to the driver's sample format and writes them to a driver buffer.
+    void WriteFloatSamples(const float* source, void* destination, long count, ASIOSampleType type)
+    {
+        switch (type)
+        {
+        case ASIOSTFloat32LSB:
+            std::memcpy(destination, source, sizeof(float) * static_cast<size_t>(count));
+            break;
+        case ASIOSTInt32LSB:
+        {
+            auto* out = static_cast<int32*>(destination);
+            for (long i = 0; i < count; ++i)
+            {
+                out[i] = static_cast<int32>(static_cast<double>(ClampUnit(source[i])) * 2147483647.0);
+            }
+            break;
+        }
+        case ASIOSTInt16LSB:
+        {
+            auto* out = static_cast<int16_t*>(destination);
+            for (long i = 0; i < count; ++i)
+            {
+                out[i] = static_cast<int16_t>(ClampUnit(source[i]) * 32767.0f);
+            }
+            break;
+        }
+        case ASIOSTInt24LSB:
+        {
+            auto* out = static_cast<uint8_t*>(destination);
+            for (long i = 0; i < count; ++i)
+            {
+                const auto value = static_cast<int32>(static_cast<double>(ClampUnit(source[i])) * 8388607.0);
+                out[i * 3] = static_cast<uint8_t>(value & 0xFF);
+                out[i * 3 + 1] = static_cast<uint8_t>((value >> 8) & 0xFF);
+                out[i * 3 + 2] = static_cast<uint8_t>((value >> 16) & 0xFF);
+            }
+            break;
+        }
+        default:
+            break;
+        }
+    }
+
+    // Runs on the driver's own thread: renders one block of the plug-in and writes it to the output buffers.
+    void AsioBufferSwitch(long doubleBufferIndex, ASIOBool /*directProcess*/)
+    {
+        AsioSession* session = g_asioSession.load();
+        if (session == nullptr || session->engine->processor == nullptr || session->engine->stopRequested.load())
+        {
+            return;
+        }
+
+        for (size_t ch = 0; ch < session->channelPointers.size(); ++ch)
+        {
+            session->channelPointers[ch] = session->planar[ch].data();
+        }
+        session->outputBus.channelBuffers32 = session->channelPointers.data();
+        session->processData.numSamples = session->bufferSize;
+        session->engine->processor->process(session->processData);
+
+        for (int32 devCh = 0; devCh < session->deviceChannels; ++devCh)
+        {
+            const float* source = devCh < session->pluginChannels
+                ? session->planar[static_cast<size_t>(devCh)].data()
+                : session->silence.data();
+            void* destination = session->bufferInfos[static_cast<size_t>(devCh)].buffers[doubleBufferIndex];
+            WriteFloatSamples(source, destination, session->bufferSize, session->sampleType);
+        }
+
+        if (session->postOutput)
+        {
+            session->driver->outputReady();
+        }
+    }
+
+    void AsioSampleRateChanged(ASIOSampleRate /*sampleRate*/)
+    {
+    }
+
+    long AsioMessage(long selector, long value, void* /*message*/, double* /*opt*/)
+    {
+        switch (selector)
+        {
+        case kAsioSelectorSupported:
+            return value == kAsioEngineVersion ? 1 : 0;
+        case kAsioEngineVersion:
+            return 2;
+        default:
+            // Time-info callbacks and driver resets are not handled: the host keeps using plain buffer switches.
+            return 0;
+        }
+    }
+
+    ASIOTime* AsioBufferSwitchTimeInfo(ASIOTime* /*params*/, long /*doubleBufferIndex*/, ASIOBool /*directProcess*/)
+    {
+        return nullptr;
+    }
+
+    // Reads the driver's channel count, buffer size, sample rate and sample format, and prepares the render buffers.
+    bool ConfigureAsioSession(AsioSession& session, BridgeModule* module, double& sampleRate, std::string& error)
+    {
+        long inputChannels = 0;
+        long outputChannels = 0;
+        if (session.driver->getChannels(&inputChannels, &outputChannels) != ASE_OK || outputChannels <= 0)
+        {
+            error = "Il driver ASIO non espone canali di uscita.";
+            return false;
+        }
+        session.deviceChannels = outputChannels < 2 ? outputChannels : 2;
+
+        long minSize = 0;
+        long maxSize = 0;
+        long preferredSize = 0;
+        long granularity = 0;
+        if (session.driver->getBufferSize(&minSize, &maxSize, &preferredSize, &granularity) != ASE_OK || preferredSize <= 0)
+        {
+            error = "Il driver ASIO non riporta una dimensione di buffer valida.";
+            return false;
+        }
+        session.bufferSize = preferredSize;
+
+        sampleRate = 0.0;
+        if (session.driver->getSampleRate(&sampleRate) != ASE_OK || sampleRate <= 0.0)
+        {
+            session.driver->setSampleRate(48000.0);
+            if (session.driver->getSampleRate(&sampleRate) != ASE_OK || sampleRate <= 0.0)
+            {
+                error = "Il driver ASIO non ha una frequenza di campionamento valida.";
+                return false;
+            }
+        }
+
+        ASIOChannelInfo channelInfo{};
+        channelInfo.channel = 0;
+        channelInfo.isInput = ASIOFalse;
+        if (session.driver->getChannelInfo(&channelInfo) != ASE_OK)
+        {
+            error = "Impossibile leggere il formato dei campioni del driver ASIO.";
+            return false;
+        }
+        switch (channelInfo.type)
+        {
+        case ASIOSTFloat32LSB:
+        case ASIOSTInt32LSB:
+        case ASIOSTInt16LSB:
+        case ASIOSTInt24LSB:
+            session.sampleType = channelInfo.type;
+            break;
+        default:
+            error = "Formato dei campioni del driver ASIO non supportato in questa versione.";
+            return false;
+        }
+
+        session.pluginChannels = 2;
+        BusInfo pluginBus{};
+        if (module->component->getBusInfo(kAudio, kOutput, 0, pluginBus) == kResultOk && pluginBus.channelCount > 0)
+        {
+            session.pluginChannels = pluginBus.channelCount;
+        }
+
+        const size_t frames = static_cast<size_t>(preferredSize);
+        session.planar.assign(static_cast<size_t>(session.pluginChannels), std::vector<float>(frames));
+        session.silence.assign(frames, 0.0f);
+        session.channelPointers.assign(static_cast<size_t>(session.pluginChannels), nullptr);
+        session.outputBus.numChannels = session.pluginChannels;
+        session.outputBus.silenceFlags = 0;
+        session.processData.processMode = kRealtime;
+        session.processData.symbolicSampleSize = kSample32;
+        session.processData.numInputs = 0;
+        session.processData.inputs = nullptr;
+        session.processData.numOutputs = 1;
+        session.processData.outputs = &session.outputBus;
+
+        session.postOutput = session.driver->outputReady() == ASE_OK;
+        return true;
+    }
+
+    void RunAsioEngineThread(AudioEngineState* engine)
+    {
+        const HRESULT comResult = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+        const bool comInitializedHere = SUCCEEDED(comResult);
+
+        AsioSession session;
+        session.engine = engine;
+        BridgeModule* module = engine->module;
+        bool activatedOutputBus = false;
+        bool activatedComponent = false;
+        bool startedProcessing = false;
+        bool buffersCreated = false;
+        bool driverStarted = false;
+
+        auto fail = [&](const std::string& message)
+        {
+            engine->SetInitError(message);
+            engine->initResult = -1;
+        };
+
+        CLSID driverClsid{};
+        IASIO* driver = nullptr;
+        HRESULT hr = CLSIDFromString(engine->deviceId.c_str(), &driverClsid);
+        if (FAILED(hr))
+        {
+            fail("Identificatore del driver ASIO non valido.");
+        }
+        else if (FAILED(hr = CoCreateInstance(driverClsid, nullptr, CLSCTX_INPROC_SERVER, driverClsid, reinterpret_cast<void**>(&driver))) || driver == nullptr)
+        {
+            fail("Impossibile aprire il driver ASIO: " + FormatWin32Error(static_cast<DWORD>(hr)));
+        }
+        else if (!driver->init(GetDesktopWindow()))
+        {
+            char message[256]{};
+            driver->getErrorMessage(message);
+            fail(std::string("Il driver ASIO non si è inizializzato: ") + message);
+        }
+        else
+        {
+            session.driver = driver;
+            double sampleRate = 0.0;
+            std::string error;
+            if (!ConfigureAsioSession(session, module, sampleRate, error))
+            {
+                fail(error);
+            }
+            else
+            {
+                if (module->component->activateBus(kAudio, kOutput, 0, 1) == kResultOk)
+                {
+                    activatedOutputBus = true;
+                }
+
+                ProcessSetup setup{};
+                setup.processMode = kRealtime;
+                setup.symbolicSampleSize = kSample32;
+                setup.maxSamplesPerBlock = session.bufferSize;
+                setup.sampleRate = sampleRate;
+                if (engine->processor->setupProcessing(setup) != kResultOk)
+                {
+                    fail("IAudioProcessor::setupProcessing() fallita.");
+                }
+                else if (module->component->setActive(1) != kResultOk)
+                {
+                    fail("IComponent::setActive(true) fallita.");
+                }
+                else
+                {
+                    activatedComponent = true;
+                    if (engine->processor->setProcessing(1) != kResultOk)
+                    {
+                        fail("IAudioProcessor::setProcessing(true) fallita.");
+                    }
+                    else
+                    {
+                        startedProcessing = true;
+
+                        ASIOCallbacks callbacks{};
+                        callbacks.bufferSwitch = AsioBufferSwitch;
+                        callbacks.sampleRateDidChange = AsioSampleRateChanged;
+                        callbacks.asioMessage = AsioMessage;
+                        callbacks.bufferSwitchTimeInfo = AsioBufferSwitchTimeInfo;
+
+                        session.bufferInfos.assign(static_cast<size_t>(session.deviceChannels), ASIOBufferInfo{});
+                        for (int32 ch = 0; ch < session.deviceChannels; ++ch)
+                        {
+                            session.bufferInfos[static_cast<size_t>(ch)].isInput = ASIOFalse;
+                            session.bufferInfos[static_cast<size_t>(ch)].channelNum = ch;
+                        }
+
+                        if (driver->createBuffers(session.bufferInfos.data(), session.deviceChannels, session.bufferSize, &callbacks) != ASE_OK)
+                        {
+                            fail("IASIO::createBuffers fallita.");
+                        }
+                        else
+                        {
+                            buffersCreated = true;
+                            g_asioSession.store(&session);
+                            if (driver->start() != ASE_OK)
+                            {
+                                fail("IASIO::start fallita.");
+                            }
+                            else
+                            {
+                                driverStarted = true;
+                                engine->initResult = 1; // signal success to VstHostBridge_StartAudio
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (engine->initResult.load() == 1)
+        {
+            while (!engine->stopRequested.load())
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+        }
+
+        if (driverStarted)
+        {
+            driver->stop();
+        }
+        g_asioSession.store(nullptr);
+        if (buffersCreated)
+        {
+            driver->disposeBuffers();
+        }
+        if (startedProcessing && engine->processor != nullptr)
+        {
+            engine->processor->setProcessing(0);
+        }
+        if (activatedComponent && module->component != nullptr)
+        {
+            module->component->setActive(0);
+        }
+        if (activatedOutputBus && module->component != nullptr)
+        {
+            module->component->activateBus(kAudio, kOutput, 0, 0);
+        }
+        if (driver != nullptr)
+        {
+            driver->Release();
+        }
+        if (engine->processor != nullptr)
+        {
+            engine->processor->release();
+            engine->processor = nullptr;
+        }
+        if (engine->initResult.load() == 0)
+        {
+            engine->initResult = -1;
+        }
+        if (comInitializedHere)
+        {
+            CoUninitialize();
+        }
+    }
+}
+
+bool AsioBuiltIn()
+{
+    return true;
+}
+#else
+namespace
+{
+    void RunAsioEngineThread(AudioEngineState* engine)
+    {
+        engine->SetInitError("Questa build di VstHostBridge non include il supporto ASIO.");
+        engine->initResult = -1;
+    }
+}
+
+bool AsioBuiltIn()
+{
+    return false;
+}
+#endif
+
+// Starts the audio engine on the WASAPI endpoint deviceId, or on the ASIO driver whose CLSID is
+// deviceId when useAsio is true. Both backends share the same start and stop path.
+static int StartAudioEngine(void* moduleHandle, const wchar_t* deviceId, bool useAsio)
 {
     if (moduleHandle == nullptr)
     {
         SetBridgeError("Handle del modulo non valido.");
+        return 0;
+    }
+
+    if (useAsio && !AsioBuiltIn())
+    {
+        SetBridgeError("Questa build di VstHostBridge non include il supporto ASIO.");
         return 0;
     }
 
@@ -1372,7 +1778,7 @@ int VstHostBridge_StartAudioOnDevice(void* moduleHandle, const wchar_t* deviceId
     engine->deviceId = deviceId != nullptr ? deviceId : L"";
 
     module->audioEngine = engine;
-    engine->thread = std::thread(RunAudioEngineThread, engine);
+    engine->thread = useAsio ? std::thread(RunAsioEngineThread, engine) : std::thread(RunAudioEngineThread, engine);
 
     // Wait (with a generous timeout) for the engine thread to finish its
     // startup sequence, so the caller gets an accurate success/failure
@@ -1488,6 +1894,21 @@ int VstHostBridge_ListAudioOutputs(wchar_t* buffer, int capacity)
         buffer[text.size()] = L'\0';
     }
     return required;
+}
+
+int VstHostBridge_StartAudioOnDevice(void* moduleHandle, const wchar_t* deviceId)
+{
+    return StartAudioEngine(moduleHandle, deviceId, false);
+}
+
+int VstHostBridge_StartAudioAsio(void* moduleHandle, const wchar_t* driverClsid)
+{
+    return StartAudioEngine(moduleHandle, driverClsid, true);
+}
+
+int VstHostBridge_IsAsioSupported(void)
+{
+    return AsioBuiltIn() ? 1 : 0;
 }
 
 void VstHostBridge_StopAudio(void* moduleHandle)

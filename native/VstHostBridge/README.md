@@ -70,6 +70,20 @@ After replacing the prebuilt DLL, run a normal Sonator build:
 dotnet build Sonator.csproj
 ```
 
+### ASIO backend (optional)
+
+The bridge can also play plug-in audio through ASIO drivers. This needs the
+Steinberg ASIO SDK, which is not part of this repository. Download it from
+Steinberg, extract it outside the repository, and point CMake at its folder:
+
+```powershell
+cmake -B build -A x64 -DSONATOR_ASIO_SDK_DIR="C:\SDK\ASIOSDK"
+```
+
+The folder must contain `common\asio.h`. Without it, the bridge builds with
+WASAPI only, and the ASIO option in Sonator is disabled. The SDK is available
+under a dual license (proprietary or GPL v3); the bridge only uses its headers.
+
 ## Verified capabilities
 
 - [x] Real VST3 bundle and module loading

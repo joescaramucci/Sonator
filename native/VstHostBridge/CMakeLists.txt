@@ -18,6 +18,19 @@ add_library(VstHostBridge SHARED
 
 target_include_directories(VstHostBridge PRIVATE include thirdparty)
 
+# Optional ASIO backend. Point this at the Steinberg ASIO SDK folder (the one that
+# contains common/asio.h). The SDK is not part of this repository. Leave it empty
+# to build without ASIO support.
+set(SONATOR_ASIO_SDK_DIR "" CACHE PATH "Steinberg ASIO SDK folder containing common/asio.h (optional)")
+if (SONATOR_ASIO_SDK_DIR AND EXISTS "${SONATOR_ASIO_SDK_DIR}/common/asio.h")
+    target_include_directories(VstHostBridge PRIVATE "${SONATOR_ASIO_SDK_DIR}/common")
+    target_compile_definitions(VstHostBridge PRIVATE SONATOR_WITH_ASIO=1)
+    message(STATUS "VstHostBridge: ASIO backend enabled (${SONATOR_ASIO_SDK_DIR})")
+else()
+    target_compile_definitions(VstHostBridge PRIVATE SONATOR_WITH_ASIO=0)
+    message(STATUS "VstHostBridge: ASIO backend disabled (set SONATOR_ASIO_SDK_DIR to enable)")
+endif()
+
 # The .NET side P/Invokes "VstHostBridge.dll" (no "lib" prefix). MSVC already
 # omits the prefix by default, but MinGW/GCC add "lib" unless told not to.
 set_target_properties(VstHostBridge PROPERTIES PREFIX "")
