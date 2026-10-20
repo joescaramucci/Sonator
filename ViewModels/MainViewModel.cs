@@ -2112,40 +2112,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return false;
         }
 
-        var nextIndex = pattern.Tracks
-            .Select(track => track.Name.StartsWith("Track ", StringComparison.OrdinalIgnoreCase) &&
-                             int.TryParse(track.Name["Track ".Length..], out var index)
-                ? index
-                : 0)
-            .DefaultIfEmpty(0)
-            .Max() + 1;
-        var highestChannel = pattern.Tracks
-            .Select(track => track.Channel)
-            .DefaultIfEmpty(0)
-            .Max();
-        channel = highestChannel < 16
-            ? highestChannel + 1
-            : Enumerable.Range(1, 16).FirstOrDefault(candidate =>
-                pattern.Tracks.All(track => track.Channel != candidate));
-        if (channel == 0)
-        {
-            channel = 16;
-        }
-
+        name = NewTrackDefaults.NextTrackName(pattern.Tracks.Select(track => track.Name));
+        channel = NewTrackDefaults.NextChannel(pattern.Tracks.Select(track => track.Channel));
         noteNumber = 36;
-        name = $"Track {nextIndex}";
-        instrument = trackType switch
-        {
-            PatternTrackType.VstInstrument => "VST Instrument",
-            PatternTrackType.AudioInput => "Audio Input",
-            _ => "MIDI Channel"
-        };
-        source = trackType switch
-        {
-            PatternTrackType.VstInstrument => "VSTi",
-            PatternTrackType.AudioInput => "Microphone / External",
-            _ => string.Empty
-        };
+        instrument = NewTrackDefaults.InstrumentName(trackType);
+        source = NewTrackDefaults.SourceName(trackType);
 
         return true;
     }
