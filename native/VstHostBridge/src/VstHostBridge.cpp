@@ -508,6 +508,14 @@ namespace
         // Endpoint ID of the output device to open. Empty means the default device.
         std::wstring deviceId;
 
+        // True when this engine drives an ASIO driver rather than WASAPI.
+        bool useAsio = false;
+
+        // ASIO timing, set once the driver's buffers exist and cleared when the engine stops.
+        std::atomic<long> asioBufferFrames{0};
+        std::atomic<long> asioOutputLatencyFrames{0};
+        std::atomic<double> asioSampleRate{0.0};
+
         std::thread thread;
         std::atomic<bool> stopRequested{false};
 
@@ -1657,6 +1665,14 @@ namespace
                         else
                         {
                             buffersCreated = true;
+                            long inputLatency = 0;
+                            long outputLatency = 0;
+                            if (driver->getLatencies(&inputLatency, &outputLatency) == ASE_OK)
+                            {
+                                engine->asioOutputLatencyFrames = outputLatency;
+                            }
+                            engine->asioBufferFrames = session.bufferSize;
+                            engine->asioSampleRate = sampleRate;
                             if (driver->start() != ASE_OK)
                             {
                                 fail("IASIO::start fallita.");
@@ -1687,6 +1703,9 @@ namespace
         // Clear the pointer only if this session still owns it.
         AsioSession* owned = &session;
         g_asioSession.compare_exchange_strong(owned, nullptr);
+        engine->asioBufferFrames = 0;
+        engine->asioOutputLatencyFrames = 0;
+        engine->asioSampleRate = 0.0;
         if (buffersCreated)
         {
             driver->disposeBuffers();
@@ -1783,6 +1802,7 @@ static int StartAudioEngine(void* moduleHandle, const wchar_t* deviceId, bool us
     engine->module = module;
     engine->processor = processor; // ownership transferred; released by the engine thread
     engine->deviceId = deviceId != nullptr ? deviceId : L"";
+    engine->useAsio = useAsio;
 
     module->audioEngine = engine;
     engine->thread = useAsio ? std::thread(RunAsioEngineThread, engine) : std::thread(RunAudioEngineThread, engine);
@@ -1911,6 +1931,25 @@ int VstHostBridge_StartAudioOnDevice(void* moduleHandle, const wchar_t* deviceId
 int VstHostBridge_StartAudioAsio(void* moduleHandle, const wchar_t* driverClsid)
 {
     return StartAudioEngine(moduleHandle, driverClsid, true);
+}
+
+int VstHostBridge_GetAsioTiming(void* moduleHandle, int32_t* outBufferFrames, int32_t* outOutputLatencyFrames, double* outSampleRate)
+{
+    if (moduleHandle == nullptr || outBufferFrames == nullptr || outOutputLatencyFrames == nullptr || outSampleRate == nullptr)
+    {
+        return 0;
+    }
+
+    auto* engine = static_cast<BridgeModule*>(moduleHandle)->audioEngine;
+    if (engine == nullptr || !engine->useAsio || engine->asioBufferFrames.load() == 0)
+    {
+        return 0;
+    }
+
+    *outBufferFrames = static_cast<int32_t>(engine->asioBufferFrames.load());
+    *outOutputLatencyFrames = static_cast<int32_t>(engine->asioOutputLatencyFrames.load());
+    *outSampleRate = engine->asioSampleRate.load();
+    return 1;
 }
 
 int VstHostBridge_IsAsioSupported(void)

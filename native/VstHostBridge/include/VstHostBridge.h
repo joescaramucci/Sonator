@@ -121,6 +121,12 @@ VSTHOSTBRIDGE_API int VstHostBridge_ListAudioOutputs(wchar_t* buffer, int capaci
 // Steinberg ASIO SDK), 0 otherwise.
 VSTHOSTBRIDGE_API int VstHostBridge_IsAsioSupported(void);
 
+// Reports the timing of a running ASIO session: the driver's buffer size in
+// frames, the output latency the driver declares in frames, and the sample
+// rate. Returns 1 when the values are valid, 0 if this module is not playing
+// through ASIO.
+VSTHOSTBRIDGE_API int VstHostBridge_GetAsioTiming(void* moduleHandle, int32_t* outBufferFrames, int32_t* outOutputLatencyFrames, double* outSampleRate);
+
 // Starts plug-in audio on the ASIO driver whose CLSID string is driverClsid
 // (for example "{...}", as stored under HKLM\SOFTWARE\ASIO). Returns 0 with an
 // error message if ASIO is not built in or the driver cannot be started.
