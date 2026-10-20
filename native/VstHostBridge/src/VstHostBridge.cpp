@@ -1644,14 +1644,19 @@ namespace
                             session.bufferInfos[static_cast<size_t>(ch)].channelNum = ch;
                         }
 
-                        if (driver->createBuffers(session.bufferInfos.data(), session.deviceChannels, session.bufferSize, &callbacks) != ASE_OK)
+                        // Only one ASIO session can own the callbacks. A second engine must not take them over.
+                        AsioSession* noSession = nullptr;
+                        if (!g_asioSession.compare_exchange_strong(noSession, &session))
+                        {
+                            fail("Un altro plug-in sta già usando un driver ASIO. Ferma prima l'audio di quel plug-in.");
+                        }
+                        else if (driver->createBuffers(session.bufferInfos.data(), session.deviceChannels, session.bufferSize, &callbacks) != ASE_OK)
                         {
                             fail("IASIO::createBuffers fallita.");
                         }
                         else
                         {
                             buffersCreated = true;
-                            g_asioSession.store(&session);
                             if (driver->start() != ASE_OK)
                             {
                                 fail("IASIO::start fallita.");
@@ -1679,7 +1684,9 @@ namespace
         {
             driver->stop();
         }
-        g_asioSession.store(nullptr);
+        // Clear the pointer only if this session still owns it.
+        AsioSession* owned = &session;
+        g_asioSession.compare_exchange_strong(owned, nullptr);
         if (buffersCreated)
         {
             driver->disposeBuffers();

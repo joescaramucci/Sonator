@@ -36,7 +36,8 @@ endif()
 set_target_properties(VstHostBridge PROPERTIES PREFIX "")
 
 if (MSVC)
-    target_compile_options(VstHostBridge PRIVATE /W4)
+    # /utf-8: source and runtime strings are UTF-8, matching the UTF-8 error text the managed side reads.
+    target_compile_options(VstHostBridge PRIVATE /W4 /utf-8)
 elseif (MINGW)
     target_link_options(VstHostBridge PRIVATE -static -static-libgcc -static-libstdc++)
 endif()
