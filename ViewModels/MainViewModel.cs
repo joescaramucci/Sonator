@@ -2513,21 +2513,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
         CaptureUndoStateIfNeeded();
         var assignments = GetSongArrangeAssignments();
-        var label = assignments[startRow][column];
-        if (requestedLength > currentLength)
-        {
-            for (var count = 0; count < requestedLength - currentLength; count++)
-            {
-                var insertedRow = new[] { string.Empty, string.Empty, string.Empty, string.Empty };
-                insertedRow[column] = label;
-                assignments.Insert(startRow + currentLength + count, insertedRow);
-            }
-        }
-        else
-        {
-            assignments.RemoveRange(startRow + requestedLength, currentLength - requestedLength);
-        }
-
+        SongArrangeLayout.ResizeRun(assignments, startRow, column, currentLength, requestedLength);
         RebuildSongArrangeRows(assignments);
         _selectedArrangePatternCell = SongArrangeRows[startRow].Cells[column];
         SelectedArrangeCell = _selectedArrangePatternCell;
@@ -2547,16 +2533,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        var components = value.Split(':', StringSplitOptions.TrimEntries);
-        if (components.Length != 4 ||
-            !int.TryParse(components[0], out var bars) ||
-            !int.TryParse(components[1], out var quarters) ||
-            !int.TryParse(components[2], out var eighths) ||
-            !int.TryParse(components[3], out var sixteenths) ||
-            bars < 1 ||
-            quarters != 0 ||
-            eighths != 0 ||
-            sixteenths != 0)
+        if (!SongArrangeLayout.TryParseWholeBars(value, out var bars))
         {
             StatusMessage = "LENGTH accepts whole bars only (for example 8:0:0:0)";
             RaisePropertyChanged(nameof(SelectedArrangePatternLengthDisplay));

@@ -52,6 +52,50 @@ internal static class SongArrangeLayout
         rows.InsertRange(finalRow, movedRows);
     }
 
+    // Grows or shrinks a run that starts at startRow. Growing copies the run's label into new rows
+    // placed after the run. Shrinking removes rows from the end of the run.
+    public static void ResizeRun(List<string[]> rows, int startRow, int column, int currentLength, int requestedLength)
+    {
+        if (requestedLength > currentLength)
+        {
+            var label = rows[startRow][column];
+            for (var count = 0; count < requestedLength - currentLength; count++)
+            {
+                var insertedRow = new string[rows[startRow].Length];
+                Array.Fill(insertedRow, string.Empty);
+                insertedRow[column] = label;
+                rows.Insert(startRow + currentLength + count, insertedRow);
+            }
+        }
+        else
+        {
+            rows.RemoveRange(startRow + requestedLength, currentLength - requestedLength);
+        }
+    }
+
+    // Accepts a length written as bars:quarters:eighths:sixteenths, where only whole bars are allowed.
+    public static bool TryParseWholeBars(string value, out int bars)
+    {
+        bars = 0;
+        var components = value.Split(':', StringSplitOptions.TrimEntries);
+        if (components.Length != 4 ||
+            !int.TryParse(components[0], out var parsedBars) ||
+            !int.TryParse(components[1], out var quarters) ||
+            !int.TryParse(components[2], out var eighths) ||
+            !int.TryParse(components[3], out var sixteenths))
+        {
+            return false;
+        }
+
+        if (parsedBars < 1 || quarters != 0 || eighths != 0 || sixteenths != 0)
+        {
+            return false;
+        }
+
+        bars = parsedBars;
+        return true;
+    }
+
     private static bool IsSameLabel(string candidate, string label)
     {
         return string.Equals(candidate, label, StringComparison.OrdinalIgnoreCase);
