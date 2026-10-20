@@ -12,6 +12,7 @@ using Sonator.Services;
 
 using static Sonator.ViewModels.MidiImportTrackBuilder;
 using static Sonator.ViewModels.PatternFactory;
+using static Sonator.ViewModels.TimelineFormatting;
 using static Sonator.ViewModels.ProjectDocumentMapper;
 
 namespace Sonator.ViewModels;
@@ -733,17 +734,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public string CurrentStepBar => FormatSubdivisionPosition(CurrentStepIndex);
 
-    private static string FormatSubdivisionPosition(int stepIndex)
-    {
-        var bar = stepIndex / 16;
-        var remainder = stepIndex % 16;
-        var quarter = remainder / 4;
-        var eighth = (remainder % 4) / 2;
-        var sixteenth = remainder % 2;
-
-        return $"{bar:D2} {quarter:D2} {eighth:D2} {sixteenth:D2}";
-    }
-
     private int GetSelectedPatternStepCount()
     {
         return Math.Max(
@@ -1459,7 +1449,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
             var repetitions = Math.Max(
                 1,
-                (int)Math.Ceiling(assignedBars / (double)GetPatternTimelineBarCount(pattern)));
+                (int)Math.Ceiling(assignedBars / (double)PatternBarCount(pattern)));
             sequence.AddRange(Enumerable.Repeat(pattern, repetitions));
             rowIndex += assignedBars;
         }
@@ -1476,7 +1466,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         TimelineTracks.Clear();
         TimelineBarNumbers.Clear();
         _previousTimelineStep = -1;
-        var timelineBarCount = timelinePatterns.Sum(GetPatternTimelineBarCount);
+        var timelineBarCount = timelinePatterns.Sum(PatternBarCount);
         for (var bar = 1; bar <= timelineBarCount; bar++)
         {
             TimelineBarNumbers.Add(bar);
@@ -1499,7 +1489,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             foreach (var pattern in timelinePatterns)
             {
                 var track = trackIndex < pattern.Tracks.Count ? pattern.Tracks[trackIndex] : null;
-                var timelineStepCount = GetPatternTimelineBarCount(pattern) * 16;
+                var timelineStepCount = PatternBarCount(pattern) * 16;
                 for (var stepIndex = 0; stepIndex < timelineStepCount; stepIndex++)
                 {
                     var sourceStep = track is not null && stepIndex < track.Steps.Count
@@ -1526,20 +1516,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
         var barCount = TryGetSelectedArrangePatternRange(out _, out _, out var length)
             ? length
-            : GetPatternTimelineBarCount(SelectedPattern);
+            : PatternBarCount(SelectedPattern);
         var repetitions = Math.Max(
             1,
-            (int)Math.Ceiling(barCount / (double)GetPatternTimelineBarCount(SelectedPattern)));
+            (int)Math.Ceiling(barCount / (double)PatternBarCount(SelectedPattern)));
         return Enumerable.Repeat(SelectedPattern, repetitions).ToList();
-    }
-
-    private static int GetPatternTimelineBarCount(PatternViewModel pattern)
-    {
-        var stepCount = pattern.Tracks
-            .Select(track => track.Steps.Count)
-            .DefaultIfEmpty(16)
-            .Max();
-        return Math.Max(1, (stepCount + 15) / 16);
     }
 
     private void UpdateSongTimelinePosition(int absoluteStep)
@@ -2185,7 +2166,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return false;
         }
 
-        if (!ValidateTrackDefinition(name, channel, noteNumber, out errorMessage))
+        if (!TrackDefinitionRules.Validate(name, channel, noteNumber, out errorMessage))
         {
             return false;
         }
@@ -2247,7 +2228,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         int noteNumber,
         out string errorMessage)
     {
-        if (!ValidateTrackDefinition(name, channel, noteNumber, out errorMessage))
+        if (!TrackDefinitionRules.Validate(name, channel, noteNumber, out errorMessage))
         {
             return false;
         }
@@ -2294,30 +2275,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         TryAddTrack(trackType, name, instrument, source, channel, noteNumber, out _);
-    }
-
-    private static bool ValidateTrackDefinition(string name, int channel, int noteNumber, out string errorMessage)
-    {
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            errorMessage = "Track name is required.";
-            return false;
-        }
-
-        if (channel < 1 || channel > 16)
-        {
-            errorMessage = "MIDI channel must be between 1 and 16.";
-            return false;
-        }
-
-        if (noteNumber < 0 || noteNumber > 127)
-        {
-            errorMessage = "Base note must be between 0 and 127.";
-            return false;
-        }
-
-        errorMessage = string.Empty;
-        return true;
     }
 
     private static ArrangeRowViewModel CreateArrangeRow(string track, string instrument, IReadOnlyList<string> labels)
