@@ -1870,22 +1870,14 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     {
         errorMessage = string.Empty;
 
-        var targetPatternName = patternName.Trim();
-        if (string.IsNullOrWhiteSpace(targetPatternName))
+        if (!ArrangePatternEditorRules.TryParseInput(
+                patternName,
+                assignmentNumber,
+                subChannelIndex,
+                out var targetPatternName,
+                out var newSlot,
+                out errorMessage))
         {
-            errorMessage = "Pattern name cannot be empty.";
-            return false;
-        }
-
-        if (!int.TryParse(assignmentNumber.Trim(), out var slotNumber) || slotNumber < 1 || slotNumber > 99)
-        {
-            errorMessage = "Assignment number must be between 1 and 99.";
-            return false;
-        }
-
-        if (subChannelIndex < 0 || subChannelIndex > 3)
-        {
-            errorMessage = "Sub channel must be a, b, c or d.";
             return false;
         }
 
@@ -1896,27 +1888,20 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         var selectedPattern = SelectedPattern;
-        var newSlot = slotNumber.ToString("00");
-        var slotConflict = Patterns.Any(pattern =>
-            !ReferenceEquals(pattern, selectedPattern) &&
-            string.Equals(pattern.Slot, newSlot, StringComparison.OrdinalIgnoreCase));
-        if (slotConflict)
+        var otherSlots = Patterns
+            .Where(pattern => !ReferenceEquals(pattern, selectedPattern))
+            .Select(pattern => pattern.Slot);
+        if (ArrangePatternEditorRules.IsSlotTaken(otherSlots, newSlot))
         {
             errorMessage = $"Assignment {newSlot} is already used by another pattern.";
             return false;
         }
 
-        if (subChannelIndex != currentColumn)
+        if (subChannelIndex != currentColumn &&
+            ArrangePatternEditorRules.IsSubChannelOccupied(startRow, length, row => SongArrangeRows[row].Cells[subChannelIndex].Label))
         {
-            for (var row = startRow; row < startRow + length; row++)
-            {
-                var targetLabel = SongArrangeRows[row].Cells[subChannelIndex].Label;
-                if (!string.IsNullOrWhiteSpace(targetLabel))
-                {
-                    errorMessage = $"Sub channel {(char)('a' + subChannelIndex)} is occupied in the selected bar range.";
-                    return false;
-                }
-            }
+            errorMessage = $"Sub channel {(char)('a' + subChannelIndex)} is occupied in the selected bar range.";
+            return false;
         }
 
         CaptureUndoStateIfNeeded();

@@ -3,7 +3,7 @@ namespace Sonator.ViewModels;
 // Naming and slot rules for patterns. Slots are two-digit identifiers from 01 to 99.
 internal static class PatternIdentifiers
 {
-    private const int MaxSlot = 99;
+    public const int MaxSlot = 99;
 
     public static string? NextAvailableSlot(IEnumerable<string> usedSlots)
     {
