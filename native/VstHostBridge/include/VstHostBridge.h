@@ -104,6 +104,19 @@ VSTHOSTBRIDGE_API void VstHostBridge_StopAudio(void* moduleHandle);
 // Returns 1 if audio is currently running for this module, 0 otherwise.
 VSTHOSTBRIDGE_API int VstHostBridge_IsAudioRunning(void* moduleHandle);
 
+// Same as VstHostBridge_StartAudio, but opens the audio output device with
+// the given endpoint ID (as returned by VstHostBridge_ListAudioOutputs). Pass
+// nullptr or an empty string to use the Windows default output device.
+// Returns 0 with an error message if no active device has that ID.
+VSTHOSTBRIDGE_API int VstHostBridge_StartAudioOnDevice(void* moduleHandle, const wchar_t* deviceId);
+
+// Lists the active audio render (output) devices. Each device is written as
+// one line "<endpoint id>\t<friendly name>\n" in UTF-16. Call with buffer ==
+// nullptr to get the required capacity in wchar_t (including the terminating
+// null), then call again with a buffer of at least that size. Returns -1 on
+// failure (see VstHostBridge_GetLastError).
+VSTHOSTBRIDGE_API int VstHostBridge_ListAudioOutputs(wchar_t* buffer, int capacity);
+
 // --- Native GUI hosting (IPlugView), Windows/HWND only -------------------
 
 // Returns 1 if the plugin exposes a native "editor" view that supports HWND

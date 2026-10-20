@@ -45,6 +45,8 @@
 
 #include <mmdeviceapi.h>
 #include <audioclient.h>
+#include <functiondiscoverykeys_devpkey.h>
+#include <propidl.h>
 
 #include <atomic>
 #include <chrono>
@@ -503,6 +505,9 @@ namespace
         BridgeModule* module = nullptr;
         IAudioProcessor* processor = nullptr; // addRef'd; released by the engine thread on stop
 
+        // Endpoint ID of the output device to open. Empty means the default device.
+        std::wstring deviceId;
+
         std::thread thread;
         std::atomic<bool> stopRequested{false};
 
@@ -559,9 +564,13 @@ namespace
         {
             fail("Impossibile creare l'enumeratore dei device audio (WASAPI).");
         }
-        else if (FAILED(hr = enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &device)))
+        else if (engine->deviceId.empty()
+            ? FAILED(hr = enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &device))
+            : FAILED(hr = enumerator->GetDevice(engine->deviceId.c_str(), &device)))
         {
-            fail("Nessun device audio di output predefinito trovato.");
+            fail(engine->deviceId.empty()
+                ? "Nessun device audio di output predefinito trovato."
+                : "Il device audio di output selezionato non è disponibile.");
         }
         else if (FAILED(hr = device->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, reinterpret_cast<void**>(&client))))
         {
@@ -1326,6 +1335,11 @@ int VstHostBridge_HasAudioProcessor(void* moduleHandle)
 
 int VstHostBridge_StartAudio(void* moduleHandle)
 {
+    return VstHostBridge_StartAudioOnDevice(moduleHandle, nullptr);
+}
+
+int VstHostBridge_StartAudioOnDevice(void* moduleHandle, const wchar_t* deviceId)
+{
     if (moduleHandle == nullptr)
     {
         SetBridgeError("Handle del modulo non valido.");
@@ -1355,6 +1369,7 @@ int VstHostBridge_StartAudio(void* moduleHandle)
     auto* engine = new AudioEngineState();
     engine->module = module;
     engine->processor = processor; // ownership transferred; released by the engine thread
+    engine->deviceId = deviceId != nullptr ? deviceId : L"";
 
     module->audioEngine = engine;
     engine->thread = std::thread(RunAudioEngineThread, engine);
@@ -1377,6 +1392,102 @@ int VstHostBridge_StartAudio(void* moduleHandle)
     }
 
     return 1;
+}
+
+// Builds the "<id>\t<name>\n" listing of active render endpoints.
+static bool BuildAudioOutputList(std::wstring& text)
+{
+    const HRESULT comResult = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    const bool comInitializedHere = SUCCEEDED(comResult);
+
+    IMMDeviceEnumerator* enumerator = nullptr;
+    IMMDeviceCollection* collection = nullptr;
+    HRESULT hr = CoCreateInstance(
+        __uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
+        __uuidof(IMMDeviceEnumerator), reinterpret_cast<void**>(&enumerator));
+    bool ok = SUCCEEDED(hr);
+    if (!ok)
+    {
+        SetBridgeError("Impossibile creare l'enumeratore dei device audio (WASAPI).");
+    }
+    else if (FAILED(hr = enumerator->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &collection)))
+    {
+        ok = false;
+        SetBridgeError("Impossibile elencare i device audio di output: " + FormatWin32Error(static_cast<DWORD>(hr)));
+    }
+    else
+    {
+        UINT count = 0;
+        collection->GetCount(&count);
+        for (UINT index = 0; index < count; index++)
+        {
+            IMMDevice* device = nullptr;
+            LPWSTR id = nullptr;
+            if (FAILED(collection->Item(index, &device)) || FAILED(device->GetId(&id)))
+            {
+                if (device != nullptr)
+                {
+                    device->Release();
+                }
+                continue;
+            }
+
+            std::wstring friendlyName = id;
+            IPropertyStore* properties = nullptr;
+            PROPVARIANT name;
+            PropVariantInit(&name);
+            if (SUCCEEDED(device->OpenPropertyStore(STGM_READ, &properties)) &&
+                SUCCEEDED(properties->GetValue(PKEY_Device_FriendlyName, &name)) &&
+                name.vt == VT_LPWSTR && name.pwszVal != nullptr)
+            {
+                friendlyName = name.pwszVal;
+            }
+
+            text += id;
+            text += L'\t';
+            text += friendlyName;
+            text += L'\n';
+
+            PropVariantClear(&name);
+            if (properties != nullptr)
+            {
+                properties->Release();
+            }
+            CoTaskMemFree(id);
+            device->Release();
+        }
+    }
+
+    if (collection != nullptr)
+    {
+        collection->Release();
+    }
+    if (enumerator != nullptr)
+    {
+        enumerator->Release();
+    }
+    if (comInitializedHere)
+    {
+        CoUninitialize();
+    }
+    return ok;
+}
+
+int VstHostBridge_ListAudioOutputs(wchar_t* buffer, int capacity)
+{
+    std::wstring text;
+    if (!BuildAudioOutputList(text))
+    {
+        return -1;
+    }
+
+    const int required = static_cast<int>(text.size()) + 1; // include the terminating null
+    if (buffer != nullptr && capacity >= required)
+    {
+        std::wmemcpy(buffer, text.c_str(), text.size());
+        buffer[text.size()] = L'\0';
+    }
+    return required;
 }
 
 void VstHostBridge_StopAudio(void* moduleHandle)
