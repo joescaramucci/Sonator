@@ -239,6 +239,7 @@ internal sealed class SequencerEngine : IDisposable
 
     private async Task RunPlaybackLoopAsync(CancellationToken token, int playbackGeneration)
     {
+        using var timerResolution = TimerResolution.Request();
         try
         {
             var stepDuration = GetInterval(TempoBpm);

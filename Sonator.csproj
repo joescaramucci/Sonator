@@ -13,6 +13,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="tools\VstThumbnailHost\**\*.cs" />
+    <Compile Remove="tests\**\*.cs" />
+    <InternalsVisibleTo Include="Sonator.Tests" />
     <ProjectReference Include="tools\VstThumbnailHost\VstThumbnailHost.csproj"
                       ReferenceOutputAssembly="false" />
   </ItemGroup>
