@@ -339,7 +339,7 @@ public sealed class Vst3PluginHost : IVst3PluginHost
             var pointer = Vst3HostInterop.VstHostBridge_GetLastError();
             return pointer == IntPtr.Zero
                 ? "Unknown VST3 bridge error."
-                : Marshal.PtrToStringAnsi(pointer) ?? "Unknown VST3 bridge error.";
+                : Marshal.PtrToStringUTF8(pointer) ?? "Unknown VST3 bridge error.";
         }
         catch (Exception ex) when (IsBridgeUnavailableException(ex))
         {
