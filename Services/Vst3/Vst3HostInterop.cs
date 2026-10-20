@@ -78,4 +78,10 @@ internal static class Vst3HostInterop
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int VstHostBridge_IsAudioRunning(IntPtr moduleHandle);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
+    internal static extern int VstHostBridge_StartAudioOnDevice(IntPtr moduleHandle, string? deviceId);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
+    internal static extern int VstHostBridge_ListAudioOutputs(StringBuilder? buffer, int capacity);
 }

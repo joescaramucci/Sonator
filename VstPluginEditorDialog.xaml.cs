@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using Sonator.Services.Vst3;
+using Sonator.Services;
 
 namespace Sonator;
 
@@ -75,8 +76,8 @@ public partial class VstPluginEditorDialog : Window
         var audioStatus = string.Empty;
         if (_vst3Host.HasAudioProcessor(handle))
         {
-            audioStatus = _vst3Host.TryStartAudio(handle, out var audioError)
-                ? " Real-time audio active (default Windows output)."
+            audioStatus = _vst3Host.TryStartAudio(handle, new AppSettingsService().Load().AudioOutputDeviceId, out var audioError)
+                ? " Real-time audio active."
                 : $" Audio did not start: {audioError}";
         }
 

@@ -118,11 +118,12 @@ public interface IVst3PluginHost
 
     /// <summary>
     /// Starts real-time audio processing and plays the plugin's output
-    /// through the default Windows audio device, so its own GUI (e.g. an
-    /// on-screen preview keyboard) can actually be heard. Returns true on
-    /// success; on failure <paramref name="error"/> explains why.
+    /// through the given Windows audio output device, so its own GUI (e.g. an
+    /// on-screen preview keyboard) can actually be heard. A null
+    /// <paramref name="audioOutputDeviceId"/> uses the default device. Returns
+    /// true on success; on failure <paramref name="error"/> explains why.
     /// </summary>
-    bool TryStartAudio(Vst3ModuleHandle handle, out string? error);
+    bool TryStartAudio(Vst3ModuleHandle handle, string? audioOutputDeviceId, out string? error);
 
     /// <summary>
     /// Stops real-time audio processing previously started with

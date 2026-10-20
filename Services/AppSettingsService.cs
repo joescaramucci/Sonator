@@ -6,6 +6,9 @@ namespace Sonator.Services;
 public sealed class AppSettings
 {
     public string? VstPluginsPath { get; set; }
+
+    // Endpoint ID of the audio output used by plug-in audio. Null means the Windows default device.
+    public string? AudioOutputDeviceId { get; set; }
 }
 
 public sealed class AppSettingsService

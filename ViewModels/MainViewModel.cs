@@ -28,6 +28,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly MidiFileImportService _midiFileImportService;
     private readonly VstPluginService _vstPluginService;
     private readonly VstPluginScanner _vstPluginScanner;
+    private readonly AudioOutputDeviceService _audioOutputDeviceService;
     private readonly AppSettingsService _appSettingsService;
     private readonly UndoHistory<ProjectDocument> _history = new();
     private PatternViewModel? _selectedPattern;
@@ -94,7 +95,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         MidiOutputDeviceService? midiOutputDeviceService,
         MidiFileImportService? midiFileImportService,
         VstPluginService? vstPluginService = null,
-        AppSettingsService? appSettingsService = null)
+        AppSettingsService? appSettingsService = null,
+        AudioOutputDeviceService? audioOutputDeviceService = null)
     {
         _engine = engine ?? new SequencerEngine();
         _projectFileService = projectFileService ?? new ProjectFileService();
@@ -104,6 +106,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _vstPluginService = vstPluginService ?? new VstPluginService();
         _vstPluginScanner = new VstPluginScanner(_vstPluginService.ScanDirectory, Directory.Exists);
         _appSettingsService = appSettingsService ?? new AppSettingsService();
+        _audioOutputDeviceService = audioOutputDeviceService ?? new AudioOutputDeviceService();
         _engine.StepChanged += OnStepChanged;
         _engine.PatternChanged += OnPlaybackPatternChanged;
         _engine.PlaybackCompleted += OnPlaybackCompleted;
@@ -119,6 +122,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         TimelineTracks = new ObservableCollection<ArrangeTimelineTrackViewModel>();
         TimelineBarNumbers = new ObservableCollection<int>();
         VstPlugins = new ObservableCollection<VstPluginViewModel>();
+        AudioOutputDevices = new ObservableCollection<AudioOutputDeviceViewModel>();
+        SelectAudioOutputCommand = new RelayCommand(parameter => SelectAudioOutputDevice(parameter as AudioOutputDeviceViewModel));
+        RefreshAudioOutputsCommand = new RelayCommand(_ => RefreshAudioOutputDevices());
         MidiOutputDevices = new ObservableCollection<MidiOutputDeviceViewModel>(
             _midiOutputDeviceService.GetOutputDevices()
                 .Select(device => new MidiOutputDeviceViewModel(device.DeviceId, device.DisplayName)));
@@ -196,6 +202,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
         InitializeInitialSelection();
         InitializeVstPlugins();
+        RefreshAudioOutputDevices();
     }
 
     private void InitializeCollections()
@@ -267,8 +274,51 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         VstPluginsPath = dialog.FolderName;
-        _appSettingsService.Save(new AppSettings { VstPluginsPath = VstPluginsPath });
+        var settings = _appSettingsService.Load();
+        settings.VstPluginsPath = VstPluginsPath;
+        _appSettingsService.Save(settings);
         RescanVstPlugins();
+    }
+
+    private void RefreshAudioOutputDevices()
+    {
+        var savedDeviceId = _appSettingsService.Load().AudioOutputDeviceId;
+        AudioOutputDevices.Clear();
+        AudioOutputDevices.Add(new AudioOutputDeviceViewModel(null, "System default"));
+        foreach (var device in _audioOutputDeviceService.GetOutputDevices())
+        {
+            AudioOutputDevices.Add(new AudioOutputDeviceViewModel(device.Id, device.Name));
+        }
+
+        // A saved device that is not connected stays selected, so it works again when it returns.
+        var savedDeviceFound = savedDeviceId is null || AudioOutputDevices.Any(device => device.DeviceId == savedDeviceId);
+        if (!savedDeviceFound)
+        {
+            AudioOutputDevices.Add(new AudioOutputDeviceViewModel(savedDeviceId, "Saved device (not connected)"));
+        }
+
+        foreach (var device in AudioOutputDevices)
+        {
+            device.IsSelected = device.DeviceId == savedDeviceId;
+        }
+    }
+
+    private void SelectAudioOutputDevice(AudioOutputDeviceViewModel? device)
+    {
+        if (device is null)
+        {
+            return;
+        }
+
+        foreach (var candidate in AudioOutputDevices)
+        {
+            candidate.IsSelected = ReferenceEquals(candidate, device);
+        }
+
+        var settings = _appSettingsService.Load();
+        settings.AudioOutputDeviceId = device.DeviceId;
+        _appSettingsService.Save(settings);
+        StatusMessage = $"Audio output: {device.DisplayName}. It applies the next time a plug-in starts audio.";
     }
 
     private void InitializeInitialSelection()
@@ -378,6 +428,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public ObservableCollection<int> TimelineBarNumbers { get; }
 
     public ObservableCollection<MidiOutputDeviceViewModel> MidiOutputDevices { get; }
+
+    public ObservableCollection<AudioOutputDeviceViewModel> AudioOutputDevices { get; }
 
     public ObservableCollection<VstPluginViewModel> VstPlugins { get; }
 
@@ -1037,6 +1089,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public RelayCommand QuantizeTrackCommand { get; }
 
     public RelayCommand RefreshMidiDevicesCommand { get; }
+
+    public RelayCommand SelectAudioOutputCommand { get; }
+
+    public RelayCommand RefreshAudioOutputsCommand { get; }
 
     public RelayCommand BrowseVstPluginsPathCommand { get; }
 

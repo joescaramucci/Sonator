@@ -442,6 +442,21 @@
                         <MenuItem Header="Import MIDI..." Command="{Binding ImportMidiCommand}" />
                         <MenuItem Header="Refresh devices" Command="{Binding RefreshMidiDevicesCommand}" />
                     </MenuItem>
+                    <MenuItem Header="_Audio">
+                        <MenuItem Header="Refresh audio devices" Command="{Binding RefreshAudioOutputsCommand}" />
+                        <Separator />
+                        <MenuItem Header="Output device" ItemsSource="{Binding AudioOutputDevices}">
+                            <MenuItem.ItemContainerStyle>
+                                <Style TargetType="MenuItem">
+                                    <Setter Property="Header" Value="{Binding DisplayName}" />
+                                    <Setter Property="IsCheckable" Value="True" />
+                                    <Setter Property="IsChecked" Value="{Binding IsSelected, Mode=OneWay}" />
+                                    <Setter Property="Command" Value="{Binding DataContext.SelectAudioOutputCommand, RelativeSource={RelativeSource AncestorType=Menu}}" />
+                                    <Setter Property="CommandParameter" Value="{Binding}" />
+                                </Style>
+                            </MenuItem.ItemContainerStyle>
+                        </MenuItem>
+                    </MenuItem>
                 </Menu>
 
                 <TextBlock Text="{Binding SongTitle, StringFormat='{}{0} — SONATOR 1.0'}"

@@ -236,7 +236,7 @@ public sealed class Vst3PluginHost : IVst3PluginHost
         }
     }
 
-    public bool TryStartAudio(Vst3ModuleHandle handle, out string? error)
+    public bool TryStartAudio(Vst3ModuleHandle handle, string? audioOutputDeviceId, out string? error)
     {
         ArgumentNullException.ThrowIfNull(handle);
 
@@ -248,7 +248,7 @@ public sealed class Vst3PluginHost : IVst3PluginHost
 
         try
         {
-            var ok = Vst3HostInterop.VstHostBridge_StartAudio(handle.NativeHandle);
+            var ok = Vst3HostInterop.VstHostBridge_StartAudioOnDevice(handle.NativeHandle, audioOutputDeviceId);
             if (ok == 0)
             {
                 error = ReadLastError();

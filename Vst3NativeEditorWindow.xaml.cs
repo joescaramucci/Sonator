@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Media;
 using Sonator.Services.Vst3;
+using Sonator.Services;
 
 namespace Sonator;
 
@@ -49,7 +50,7 @@ public partial class Vst3NativeEditorWindow : Window
         else
         {
             if (_vst3Host.HasAudioProcessor(_moduleHandle)
-                && !_vst3Host.TryStartAudio(_moduleHandle, out var audioError))
+                && !_vst3Host.TryStartAudio(_moduleHandle, new AppSettingsService().Load().AudioOutputDeviceId, out var audioError))
             {
                 Title = $"Native GUI - {pluginName} (audio unavailable: {audioError})";
             }
