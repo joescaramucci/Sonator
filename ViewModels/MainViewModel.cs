@@ -1990,24 +1990,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         CaptureUndoStateIfNeeded();
-        track.NoteNumber = Math.Clamp(track.NoteNumber + semitones, 0, 127);
-        foreach (var step in track.Steps)
-        {
-            if (!step.IsActive)
-            {
-                continue;
-            }
-
-            var note = step.MidiNoteNumber ?? track.NoteNumber;
-            step.MidiNoteNumber = Math.Clamp(note + semitones, 0, 127);
-        }
-
-        if (track.MidiNoteEvents.Count > 0)
-        {
-            track.MidiNoteEvents = track.MidiNoteEvents
-                .Select(e => e with { NoteNumber = Math.Clamp(e.NoteNumber + semitones, 0, 127) })
-                .ToList();
-        }
+        TrackEditOperations.Transpose(track, semitones);
 
         RefreshPianoRoll();
         StatusMessage = semitones > 0 ? "Track transposed up" : "Track transposed down";
@@ -2062,21 +2045,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         CaptureUndoStateIfNeeded();
-        foreach (var step in track.Steps)
-        {
-            if (!step.IsActive)
-            {
-                continue;
-            }
-
-            if (step.MidiNoteNumber is null)
-            {
-                step.MidiNoteNumber = track.NoteNumber;
-            }
-
-            step.DurationSteps = 1;
-            step.Velocity = 96;
-        }
+        TrackEditOperations.QuantizeActiveSteps(track);
 
         RefreshPianoRoll();
         StatusMessage = "Selected track quantized";
