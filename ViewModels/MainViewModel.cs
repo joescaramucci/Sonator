@@ -26,9 +26,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly MidiOutputDeviceService _midiOutputDeviceService;
     private readonly MidiFileImportService _midiFileImportService;
     private readonly VstPluginService _vstPluginService;
+    private readonly VstPluginScanner _vstPluginScanner;
     private readonly AppSettingsService _appSettingsService;
-    private readonly Stack<ProjectDocument> _undoStack = new();
-    private readonly Stack<ProjectDocument> _redoStack = new();
+    private readonly UndoHistory<ProjectDocument> _history = new();
     private PatternViewModel? _selectedPattern;
     private PatternTrackViewModel? _selectedTrack;
     private StepViewModel? _selectedStep;
@@ -101,6 +101,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _midiOutputDeviceService = midiOutputDeviceService ?? new MidiOutputDeviceService();
         _midiFileImportService = midiFileImportService ?? new MidiFileImportService();
         _vstPluginService = vstPluginService ?? new VstPluginService();
+        _vstPluginScanner = new VstPluginScanner(_vstPluginService.ScanDirectory, Directory.Exists);
         _appSettingsService = appSettingsService ?? new AppSettingsService();
         _engine.StepChanged += OnStepChanged;
         _engine.PatternChanged += OnPlaybackPatternChanged;
@@ -230,43 +231,17 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private void RescanVstPlugins()
     {
+        var scanResult = _vstPluginScanner.Scan(DefaultVstDirectory, _vstPluginsPath);
+
         VstPlugins.Clear();
-
-        var scannedFolders = new List<string>();
-        var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var plugins = new List<(string Name, string FilePath, string Kind)>();
-
-        if (Directory.Exists(DefaultVstDirectory))
-        {
-            scannedFolders.Add(DefaultVstDirectory);
-            foreach (var plugin in _vstPluginService.ScanDirectory(DefaultVstDirectory))
-            {
-                if (seenPaths.Add(plugin.FilePath))
-                {
-                    plugins.Add(plugin);
-                }
-            }
-        }
-
-        if (!string.IsNullOrWhiteSpace(_vstPluginsPath)
-            && !string.Equals(_vstPluginsPath, DefaultVstDirectory, StringComparison.OrdinalIgnoreCase))
-        {
-            scannedFolders.Add(_vstPluginsPath);
-            foreach (var plugin in _vstPluginService.ScanDirectory(_vstPluginsPath))
-            {
-                if (seenPaths.Add(plugin.FilePath))
-                {
-                    plugins.Add(plugin);
-                }
-            }
-        }
-
-        foreach (var plugin in plugins.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase))
+        foreach (var plugin in scanResult.Plugins)
         {
             VstPlugins.Add(new VstPluginViewModel(plugin.Name, plugin.FilePath, plugin.Kind));
         }
 
-        var scannedFoldersText = scannedFolders.Count > 0 ? string.Join(", ", scannedFolders) : "no folders";
+        var scannedFoldersText = scanResult.ScannedFolders.Count > 0
+            ? string.Join(", ", scanResult.ScannedFolders)
+            : "no folders";
         StatusMessage = VstPlugins.Count > 0
             ? $"Found {VstPlugins.Count} VST plug-ins ({scannedFoldersText})"
             : $"No VST plug-ins found ({scannedFoldersText})";
@@ -368,8 +343,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         deleteArrangePatternCommand = new RelayCommand(_ => DeleteSelectedArrangePattern(), _ => CanDeleteSelectedArrangePattern());
         createArrangePatternCommand = new RelayCommand(_ => CreateArrangePattern());
         copyArrangePatternCommand = new RelayCommand(_ => CopySelectedArrangePattern(), _ => CanCopySelectedArrangePattern());
-        undoCommand = new RelayCommand(_ => Undo(), _ => _undoStack.Count > 0);
-        redoCommand = new RelayCommand(_ => Redo(), _ => _redoStack.Count > 0);
+        undoCommand = new RelayCommand(_ => Undo(), _ => _history.CanUndo);
+        redoCommand = new RelayCommand(_ => Redo(), _ => _history.CanRedo);
         saveProjectCommand = new RelayCommand(_ => SaveProject(), _ => SelectedPattern is not null);
         saveProjectAsCommand = new RelayCommand(_ => SaveProjectAs(), _ => SelectedPattern is not null);
         loadProjectCommand = new RelayCommand(_ => LoadProject());
@@ -1099,8 +1074,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        _undoStack.Push(BuildProjectDocument());
-        _redoStack.Clear();
+        _history.RecordChange(BuildProjectDocument());
         RaiseHistoryStateChanged();
     }
 
@@ -1112,32 +1086,29 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private void Undo()
     {
-        if (_undoStack.Count == 0)
+        if (!_history.CanUndo)
         {
             return;
         }
 
-        _redoStack.Push(BuildProjectDocument());
-        RestoreProjectDocument(_undoStack.Pop());
+        RestoreProjectDocument(_history.Undo(BuildProjectDocument()));
         RaiseHistoryStateChanged();
     }
 
     private void Redo()
     {
-        if (_redoStack.Count == 0)
+        if (!_history.CanRedo)
         {
             return;
         }
 
-        _undoStack.Push(BuildProjectDocument());
-        RestoreProjectDocument(_redoStack.Pop());
+        RestoreProjectDocument(_history.Redo(BuildProjectDocument()));
         RaiseHistoryStateChanged();
     }
 
     private void CreateNewProject()
     {
-        _undoStack.Clear();
-        _redoStack.Clear();
+        _history.Clear();
         _isRestoringState = true;
         try
         {
@@ -1276,8 +1247,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         try
         {
             var document = _projectFileService.Load(dialog.FileName);
-            _undoStack.Clear();
-            _redoStack.Clear();
+            _history.Clear();
             RestoreProjectDocument(document);
             CurrentProjectPath = dialog.FileName;
             StatusMessage = $"Project loaded from {dialog.FileName}";
@@ -1367,8 +1337,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             SelectedPattern = songPattern;
             LoopEndStep = Math.Max(0, stepCount - 1);
             SelectedArrangeCell = _selectedArrangePatternCell;
-            _undoStack.Clear();
-            _redoStack.Clear();
+            _history.Clear();
         }
         finally
         {
