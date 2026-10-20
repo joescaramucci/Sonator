@@ -52,6 +52,18 @@ internal static class SongArrangeLayout
         rows.InsertRange(finalRow, movedRows);
     }
 
+    // Inserts count rows at insertRow. Each new row has the pattern slot in the given column.
+    public static void InsertPatternRows(List<string[]> rows, int insertRow, int count, int column, string slot)
+    {
+        for (var offset = 0; offset < count; offset++)
+        {
+            var insertedRow = new string[4];
+            Array.Fill(insertedRow, string.Empty);
+            insertedRow[column] = slot;
+            rows.Insert(insertRow + offset, insertedRow);
+        }
+    }
+
     // Grows or shrinks a run that starts at startRow. Growing copies the run's label into new rows
     // placed after the run. Shrinking removes rows from the end of the run.
     public static void ResizeRun(List<string[]> rows, int startRow, int column, int currentLength, int requestedLength)

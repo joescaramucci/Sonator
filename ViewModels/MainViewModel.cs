@@ -2578,8 +2578,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        CaptureUndoStateIfNeeded();
-        var insertPatternIndex = SelectedPattern is null ? Patterns.Count : Patterns.IndexOf(SelectedPattern) + 1;
         var patternSlot = GetNextAvailablePatternSlot();
         if (patternSlot is null)
         {
@@ -2587,6 +2585,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        CaptureUndoStateIfNeeded();
+        var insertPatternIndex = SelectedPattern is null ? Patterns.Count : Patterns.IndexOf(SelectedPattern) + 1;
         var pattern = CreatePattern(patternName, "New pattern", patternSlot);
         Patterns.Insert(insertPatternIndex, pattern);
 
@@ -2594,10 +2594,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         var insertBarIndex = TryGetSelectedArrangePatternRange(out var startRow, out _, out var length)
             ? startRow + length
             : assignments.Count;
-        for (var bar = 0; bar < ArrangementPatternLength; bar++)
-        {
-            assignments.Insert(insertBarIndex + bar, new[] { patternSlot, string.Empty, string.Empty, string.Empty });
-        }
+        SongArrangeLayout.InsertPatternRows(assignments, insertBarIndex, ArrangementPatternLength, column: 0, patternSlot);
 
         RebuildSongArrangeRows(assignments);
         _selectedArrangePatternCell = SongArrangeRows[insertBarIndex].Cells[0];
@@ -2625,12 +2622,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        CaptureUndoStateIfNeeded();
-        var copyName = CreateUniquePatternCopyName(sourcePattern.Name);
-        var patternCopy = ApplyPatternDocument(BuildPatternDocument(sourcePattern));
-        patternCopy.Name = copyName;
-        patternCopy.Transpose = sourcePattern.Transpose;
-        var insertPatternIndex = Patterns.IndexOf(sourcePattern) + 1;
         var patternSlot = GetNextAvailablePatternSlot();
         if (patternSlot is null)
         {
@@ -2638,17 +2629,18 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        CaptureUndoStateIfNeeded();
+        var copyName = CreateUniquePatternCopyName(sourcePattern.Name);
+        var patternCopy = ApplyPatternDocument(BuildPatternDocument(sourcePattern));
+        patternCopy.Name = copyName;
+        patternCopy.Transpose = sourcePattern.Transpose;
         patternCopy.Slot = patternSlot;
+        var insertPatternIndex = Patterns.IndexOf(sourcePattern) + 1;
         Patterns.Insert(insertPatternIndex, patternCopy);
 
         var assignments = GetSongArrangeAssignments();
         var insertBarIndex = startRow + length;
-        for (var bar = 0; bar < length; bar++)
-        {
-            var insertedRow = new[] { string.Empty, string.Empty, string.Empty, string.Empty };
-            insertedRow[column] = patternSlot;
-            assignments.Insert(insertBarIndex + bar, insertedRow);
-        }
+        SongArrangeLayout.InsertPatternRows(assignments, insertBarIndex, length, column, patternSlot);
 
         RebuildSongArrangeRows(assignments);
         _selectedArrangePatternCell = SongArrangeRows[insertBarIndex].Cells[column];
@@ -2668,30 +2660,12 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private string CreateUniquePatternCopyName(string sourceName)
     {
-        var copyNumber = 1;
-        var copyName = $"{sourceName} COPY";
-        while (Patterns.Any(pattern => string.Equals(pattern.Name, copyName, StringComparison.OrdinalIgnoreCase)))
-        {
-            copyNumber++;
-            copyName = $"{sourceName} COPY {copyNumber}";
-        }
-
-        return copyName;
+        return PatternIdentifiers.CreateUniqueCopyName(Patterns.Select(pattern => pattern.Name), sourceName);
     }
 
     private string? GetNextAvailablePatternSlot()
     {
-        var usedSlots = new HashSet<string>(Patterns.Select(pattern => pattern.Slot), StringComparer.OrdinalIgnoreCase);
-        for (var identifier = 1; identifier <= 99; identifier++)
-        {
-            var slot = identifier.ToString("00");
-            if (!usedSlots.Contains(slot))
-            {
-                return slot;
-            }
-        }
-
-        return null;
+        return PatternIdentifiers.NextAvailableSlot(Patterns.Select(pattern => pattern.Slot));
     }
 
     private bool CanDeleteSelectedArrangePattern()
