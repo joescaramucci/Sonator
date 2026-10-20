@@ -10,6 +10,9 @@ using Microsoft.VisualBasic;
 using Sonator.Models;
 using Sonator.Services;
 
+using static Sonator.ViewModels.PatternFactory;
+using static Sonator.ViewModels.ProjectDocumentMapper;
+
 namespace Sonator.ViewModels;
 
 public sealed class MainViewModel : ViewModelBase, IDisposable
@@ -38,7 +41,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private double _tempo = 116.5674;
     private double _masterVolume = 0.75;
     private double _masterSignalLevel;
-    private double _masterSignalLevelSmoothed;
+    private readonly TrackMeterCalculator _trackMeters = new();
     private int _barCount = 32;
     private int _currentStepIndex;
     private int _loopStartStep = 0;
@@ -2234,99 +2237,15 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         StatusMessage = "Selected track quantized";
     }
 
-    private static ObservableCollection<PatternViewModel> BuildDefaultPatterns()
-    {
-        return new ObservableCollection<PatternViewModel>
-        {
-            CreatePattern("Pattern 1", "Default pattern (8 MIDI channels)", "01")
-        };
-    }
-
     private void ResetTrackMeters()
     {
-        foreach (var track in Tracks)
-        {
-            track.SignalLevel = 0;
-        }
-
+        _trackMeters.Reset(Tracks);
         MasterSignalLevel = 0;
-        _masterSignalLevelSmoothed = 0;
     }
 
     private void UpdateTrackMeters(int stepIndex)
     {
-        var mixLevel = 0.0;
-        var activeTrackCount = 0;
-        foreach (var track in Tracks)
-        {
-            if (track.IsMuted)
-            {
-                track.SignalLevel = 0;
-                continue;
-            }
-
-            var localStep = track.Steps.Count == 0 ? -1 : stepIndex % track.Steps.Count;
-            if (localStep >= 0 && track.Steps[localStep].IsActive)
-            {
-                var velocity = track.Steps[localStep].Velocity / 127.0 * track.Volume;
-                track.SignalLevel = Math.Max(track.SignalLevel * 0.55, velocity);
-            }
-            else
-            {
-                track.SignalLevel = track.SignalLevel * 0.78;
-            }
-
-            mixLevel += track.SignalLevel;
-            activeTrackCount++;
-        }
-
-        var normalizedMix = activeTrackCount > 0 ? mixLevel / activeTrackCount : 0.0;
-        var targetLevel = Math.Clamp(normalizedMix * MasterVolume * 3.2, 0.0, 1.0);
-        _masterSignalLevelSmoothed = (_masterSignalLevelSmoothed * 0.72) + (targetLevel * 0.28);
-        MasterSignalLevel = _masterSignalLevelSmoothed;
-    }
-
-    private static PatternViewModel CreatePattern(string name, string summary, string slot)
-    {
-        var tracks = new ObservableCollection<PatternTrackViewModel>(
-            Enumerable.Range(1, 8).Select(channel => CreateTrack(
-                $"Track {channel}",
-                "MIDI Channel",
-                channel,
-                36,
-                Enumerable.Repeat(false, 16).ToArray())));
-
-        return new PatternViewModel(name, summary, slot, tracks);
-    }
-
-    private static PatternTrackViewModel CreateTrack(string name, string instrument, int channel, int noteNumber, IReadOnlyList<bool> steps)
-    {
-        var stepItems = new ObservableCollection<StepViewModel>();
-        for (var i = 0; i < steps.Count; i++)
-        {
-            stepItems.Add(new StepViewModel(i, steps[i])
-            {
-                MidiNoteNumber = steps[i] ? noteNumber : null
-            });
-        }
-
-        return new PatternTrackViewModel(name, instrument, channel, noteNumber, stepItems);
-    }
-
-    private static SolidColorBrush CreateTrackColorBrush(string? colorHex)
-    {
-        if (string.IsNullOrWhiteSpace(colorHex))
-        {
-            return new SolidColorBrush(Color.FromRgb(38, 53, 69));
-        }
-
-        var color = (Color)ColorConverter.ConvertFromString(colorHex)!;
-        if (color.A == byte.MaxValue)
-        {
-            color.A = 0x88;
-        }
-
-        return new SolidColorBrush(color);
+        MasterSignalLevel = _trackMeters.Update(Tracks, stepIndex, MasterVolume);
     }
 
     public bool TryGetNewTrackDefaults(
@@ -2535,17 +2454,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
         errorMessage = string.Empty;
         return true;
-    }
-
-    private static ObservableCollection<StepViewModel> BuildDefaultTrackSteps()
-    {
-        var steps = new ObservableCollection<StepViewModel>();
-        for (var i = 0; i < 16; i++)
-        {
-            steps.Add(new StepViewModel(i, false));
-        }
-
-        return steps;
     }
 
     private static ArrangeRowViewModel CreateArrangeRow(string track, string instrument, IReadOnlyList<string> labels)
@@ -3171,75 +3079,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             MasterVolume);
     }
 
-    private static PatternDocument BuildPatternDocument(PatternViewModel pattern)
-    {
-        return new PatternDocument(
-            pattern.Name,
-            pattern.Summary,
-            pattern.Slot,
-            pattern.Tracks.Select(BuildTrackDocument).ToList());
-    }
-
-    private static TrackDocument BuildTrackDocument(PatternTrackViewModel track)
-    {
-        return new TrackDocument(
-            track.Name,
-            track.Instrument,
-            track.Channel,
-            track.NoteNumber,
-            track.Steps.Select(step => new StepDocument(step.Index, step.IsActive, step.MidiNoteNumber, step.Velocity, step.DurationSteps)).ToList(),
-            track.ProgramNumber,
-            track.MidiNoteEvents
-                .Select(note => new MidiNoteEventDocument(note.StepIndex, note.DurationSteps, note.NoteNumber, note.Velocity))
-                .ToList(),
-            track.TrackType,
-            track.Source,
-            track.Volume,
-            track.IsRecordArmed,
-            track.TrackColorBrush.Color.ToString());
-    }
-
-    private static void ApplyTrackDocumentToTrack(PatternTrackViewModel targetTrack, TrackDocument sourceTrack)
-    {
-        targetTrack.Name = sourceTrack.Name;
-        targetTrack.Instrument = sourceTrack.Instrument;
-        targetTrack.Channel = sourceTrack.Channel;
-        targetTrack.NoteNumber = sourceTrack.NoteNumber;
-        targetTrack.ProgramNumber = sourceTrack.ProgramNumber;
-        targetTrack.TrackType = sourceTrack.TrackType;
-        targetTrack.Source = sourceTrack.Source ?? string.Empty;
-        targetTrack.Volume = sourceTrack.Volume;
-        targetTrack.IsRecordArmed = sourceTrack.IsRecordArmed;
-        targetTrack.TrackColorBrush = CreateTrackColorBrush(sourceTrack.TrackColor);
-        targetTrack.MidiNoteEvents = sourceTrack.MidiNoteEvents is null
-            ? Array.Empty<MidiNoteEventViewModel>()
-            : sourceTrack.MidiNoteEvents
-                .Select(note => new MidiNoteEventViewModel(note.StepIndex, note.DurationSteps, note.NoteNumber, note.Velocity))
-                .ToList();
-
-        var count = Math.Min(targetTrack.Steps.Count, sourceTrack.Steps.Count);
-        for (var i = 0; i < count; i++)
-        {
-            var targetStep = targetTrack.Steps[i];
-            var sourceStep = sourceTrack.Steps[i];
-            targetStep.IsActive = sourceStep.IsActive;
-            targetStep.MidiNoteNumber = sourceStep.MidiNoteNumber;
-            targetStep.Velocity = sourceStep.Velocity;
-            targetStep.DurationSteps = sourceStep.DurationSteps;
-        }
-    }
-
-    private static ArrangeRowDocument BuildArrangeRowDocument(ArrangeRowViewModel row)
-    {
-        return new ArrangeRowDocument(
-            row.TrackName,
-            row.Instrument,
-            row.Cells.Select(cell => new ArrangeCellDocument(
-                cell.Label,
-                cell.Detail,
-                ((SolidColorBrush)cell.Accent).Color.ToString())).ToList());
-    }
-
     private void RestoreProjectDocument(ProjectDocument document)
     {
         _isRestoringState = true;
@@ -3298,7 +3137,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             SelectedMidiOutputDevice = MidiOutputDevices.FirstOrDefault(device => device.DisplayName == document.SelectedMidiOutputDeviceName)
                 ?? MidiOutputDevices.FirstOrDefault();
             SaveProjectCommand?.RaiseCanExecuteChanged();
-        SaveProjectAsCommand?.RaiseCanExecuteChanged();
+            SaveProjectAsCommand?.RaiseCanExecuteChanged();
             PasteTrackCommand?.RaiseCanExecuteChanged();
             RaiseHistoryStateChanged();
         }
@@ -3306,48 +3145,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             _isRestoringState = false;
         }
-    }
-
-    private static bool IsLegacyProject(string version)
-    {
-        return version == "1.0" || version == "1.1";
-    }
-
-    private static PatternViewModel ApplyPatternDocument(PatternDocument patternDocument)
-    {
-        var tracks = new ObservableCollection<PatternTrackViewModel>(
-            patternDocument.Tracks.Select(trackDocument => ApplyTrackDocument(trackDocument)));
-        return new PatternViewModel(patternDocument.Name, patternDocument.Summary, patternDocument.Slot, tracks);
-    }
-
-    private static PatternTrackViewModel ApplyTrackDocument(TrackDocument trackDocument)
-    {
-        var steps = new ObservableCollection<StepViewModel>();
-        foreach (var stepDocument in trackDocument.Steps)
-        {
-            steps.Add(new StepViewModel(stepDocument.Index, stepDocument.IsActive)
-            {
-                MidiNoteNumber = stepDocument.MidiNoteNumber,
-                Velocity = stepDocument.Velocity,
-                DurationSteps = stepDocument.DurationSteps
-            });
-        }
-
-        return new PatternTrackViewModel(
-            trackDocument.Name,
-            trackDocument.Instrument,
-            trackDocument.Channel,
-            trackDocument.NoteNumber,
-            steps,
-            trackDocument.ProgramNumber,
-            trackDocument.MidiNoteEvents?
-                .Select(note => new MidiNoteEventViewModel(note.StepIndex, note.DurationSteps, note.NoteNumber, note.Velocity))
-                .ToList(),
-            trackDocument.TrackType,
-            trackDocument.Source,
-            trackDocument.Volume,
-            trackDocument.IsRecordArmed,
-            CreateTrackColorBrush(trackDocument.TrackColor));
     }
 
     private void MovePattern(object? parameter, int offset)
@@ -3372,17 +3169,5 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private bool CanMovePattern(object? parameter, int offset)
     {
         return parameter is PatternViewModel pattern && Patterns.IndexOf(pattern) + offset >= 0 && Patterns.IndexOf(pattern) + offset < Patterns.Count;
-    }
-
-    private static ArrangeRowViewModel ApplyArrangeRowDocument(ArrangeRowDocument arrangeDocument)
-    {
-        var cells = new ObservableCollection<ArrangeCellViewModel>(
-            arrangeDocument.Cells.Select((cellDocument, index) => new ArrangeCellViewModel(
-                index + 1,
-                cellDocument.Label,
-                cellDocument.Detail,
-                (SolidColorBrush)new BrushConverter().ConvertFromString(cellDocument.Accent)!)));
-
-        return new ArrangeRowViewModel(arrangeDocument.TrackName, arrangeDocument.Instrument, cells);
     }
 }
