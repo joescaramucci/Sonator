@@ -84,4 +84,10 @@ internal static class Vst3HostInterop
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
     internal static extern int VstHostBridge_ListAudioOutputs(StringBuilder? buffer, int capacity);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int VstHostBridge_IsAsioSupported();
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
+    internal static extern int VstHostBridge_StartAudioAsio(IntPtr moduleHandle, string driverClsid);
 }

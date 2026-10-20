@@ -445,13 +445,34 @@
                     <MenuItem Header="_Audio">
                         <MenuItem Header="Refresh audio devices" Command="{Binding RefreshAudioOutputsCommand}" />
                         <Separator />
-                        <MenuItem Header="Output device" ItemsSource="{Binding AudioOutputDevices}">
+                        <MenuItem Header="Backend">
+                            <MenuItem Header="WASAPI" IsCheckable="True"
+                                      IsChecked="{Binding IsWasapiBackend, Mode=OneWay}"
+                                      Command="{Binding SelectAudioBackendCommand}" CommandParameter="WASAPI" />
+                            <MenuItem Header="ASIO" IsCheckable="True"
+                                      IsChecked="{Binding IsAsioBackend, Mode=OneWay}"
+                                      IsEnabled="{Binding IsAsioSupported}"
+                                      Command="{Binding SelectAudioBackendCommand}" CommandParameter="ASIO" />
+                        </MenuItem>
+                        <Separator />
+                        <MenuItem Header="WASAPI output device" IsEnabled="{Binding IsWasapiBackend}" ItemsSource="{Binding AudioOutputDevices}">
                             <MenuItem.ItemContainerStyle>
                                 <Style TargetType="MenuItem">
                                     <Setter Property="Header" Value="{Binding DisplayName}" />
                                     <Setter Property="IsCheckable" Value="True" />
                                     <Setter Property="IsChecked" Value="{Binding IsSelected, Mode=OneWay}" />
                                     <Setter Property="Command" Value="{Binding DataContext.SelectAudioOutputCommand, RelativeSource={RelativeSource AncestorType=Menu}}" />
+                                    <Setter Property="CommandParameter" Value="{Binding}" />
+                                </Style>
+                            </MenuItem.ItemContainerStyle>
+                        </MenuItem>
+                        <MenuItem Header="ASIO driver" IsEnabled="{Binding IsAsioBackend}" ItemsSource="{Binding AsioDrivers}">
+                            <MenuItem.ItemContainerStyle>
+                                <Style TargetType="MenuItem">
+                                    <Setter Property="Header" Value="{Binding DisplayName}" />
+                                    <Setter Property="IsCheckable" Value="True" />
+                                    <Setter Property="IsChecked" Value="{Binding IsSelected, Mode=OneWay}" />
+                                    <Setter Property="Command" Value="{Binding DataContext.SelectAsioDriverCommand, RelativeSource={RelativeSource AncestorType=Menu}}" />
                                     <Setter Property="CommandParameter" Value="{Binding}" />
                                 </Style>
                             </MenuItem.ItemContainerStyle>

@@ -1,3 +1,4 @@
+using Sonator.Services;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -236,9 +237,10 @@ public sealed class Vst3PluginHost : IVst3PluginHost
         }
     }
 
-    public bool TryStartAudio(Vst3ModuleHandle handle, string? audioOutputDeviceId, out string? error)
+    public bool TryStartAudio(Vst3ModuleHandle handle, AudioOutputSelection selection, out string? error)
     {
         ArgumentNullException.ThrowIfNull(handle);
+        ArgumentNullException.ThrowIfNull(selection);
 
         if (handle.NativeHandle == IntPtr.Zero)
         {
@@ -246,9 +248,23 @@ public sealed class Vst3PluginHost : IVst3PluginHost
             return false;
         }
 
+        if (selection.UseAsio && selection.AsioDriverClsid is null)
+        {
+            error = "No ASIO driver is selected.";
+            return false;
+        }
+
         try
         {
-            var ok = Vst3HostInterop.VstHostBridge_StartAudioOnDevice(handle.NativeHandle, audioOutputDeviceId);
+            if (selection.UseAsio && Vst3HostInterop.VstHostBridge_IsAsioSupported() == 0)
+            {
+                error = "This build of the VST3 bridge does not include ASIO support.";
+                return false;
+            }
+
+            var ok = selection.UseAsio
+                ? Vst3HostInterop.VstHostBridge_StartAudioAsio(handle.NativeHandle, selection.AsioDriverClsid!)
+                : Vst3HostInterop.VstHostBridge_StartAudioOnDevice(handle.NativeHandle, selection.WasapiDeviceId);
             if (ok == 0)
             {
                 error = ReadLastError();

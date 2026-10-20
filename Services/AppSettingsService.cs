@@ -9,6 +9,12 @@ public sealed class AppSettings
 
     // Endpoint ID of the audio output used by plug-in audio. Null means the Windows default device.
     public string? AudioOutputDeviceId { get; set; }
+
+    // "ASIO" selects the ASIO driver below. Anything else, including null, uses WASAPI.
+    public string? AudioBackend { get; set; }
+
+    // CLSID of the ASIO driver, as listed under HKLM\SOFTWARE\ASIO.
+    public string? AsioDriverClsid { get; set; }
 }
 
 public sealed class AppSettingsService

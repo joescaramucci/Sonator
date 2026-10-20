@@ -9,6 +9,7 @@ using Microsoft.Win32;
 using Microsoft.VisualBasic;
 using Sonator.Models;
 using Sonator.Services;
+using Sonator.Services.Vst3;
 
 using static Sonator.ViewModels.MidiImportTrackBuilder;
 using static Sonator.ViewModels.PatternFactory;
@@ -29,6 +30,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly VstPluginService _vstPluginService;
     private readonly VstPluginScanner _vstPluginScanner;
     private readonly AudioOutputDeviceService _audioOutputDeviceService;
+    private readonly AsioDriverService _asioDriverService = new();
+    private bool _isAsioBackend;
     private readonly AppSettingsService _appSettingsService;
     private readonly UndoHistory<ProjectDocument> _history = new();
     private PatternViewModel? _selectedPattern;
@@ -123,6 +126,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         TimelineBarNumbers = new ObservableCollection<int>();
         VstPlugins = new ObservableCollection<VstPluginViewModel>();
         AudioOutputDevices = new ObservableCollection<AudioOutputDeviceViewModel>();
+        AsioDrivers = new ObservableCollection<AudioOutputDeviceViewModel>();
+        IsAsioSupported = DetectAsioSupport();
+        SelectAudioBackendCommand = new RelayCommand(parameter => SelectAudioBackend(parameter as string));
+        SelectAsioDriverCommand = new RelayCommand(parameter => SelectAsioDriver(parameter as AudioOutputDeviceViewModel));
         SelectAudioOutputCommand = new RelayCommand(parameter => SelectAudioOutputDevice(parameter as AudioOutputDeviceViewModel));
         RefreshAudioOutputsCommand = new RelayCommand(_ => RefreshAudioOutputDevices());
         MidiOutputDevices = new ObservableCollection<MidiOutputDeviceViewModel>(
@@ -282,7 +289,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private void RefreshAudioOutputDevices()
     {
-        var savedDeviceId = _appSettingsService.Load().AudioOutputDeviceId;
+        var settings = _appSettingsService.Load();
+        var savedDeviceId = settings.AudioOutputDeviceId;
         AudioOutputDevices.Clear();
         AudioOutputDevices.Add(new AudioOutputDeviceViewModel(null, "System default"));
         foreach (var device in _audioOutputDeviceService.GetOutputDevices())
@@ -301,6 +309,17 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             device.IsSelected = device.DeviceId == savedDeviceId;
         }
+
+        AsioDrivers.Clear();
+        foreach (var driver in _asioDriverService.GetInstalledDrivers())
+        {
+            AsioDrivers.Add(new AudioOutputDeviceViewModel(driver.Clsid, driver.Name)
+            {
+                IsSelected = driver.Clsid == settings.AsioDriverClsid
+            });
+        }
+
+        IsAsioBackend = IsAsioSupported && AudioOutputSelection.FromSettings(settings).UseAsio;
     }
 
     private void SelectAudioOutputDevice(AudioOutputDeviceViewModel? device)
@@ -319,6 +338,53 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         settings.AudioOutputDeviceId = device.DeviceId;
         _appSettingsService.Save(settings);
         StatusMessage = $"Audio output: {device.DisplayName}. It applies the next time a plug-in starts audio.";
+    }
+
+    private void SelectAudioBackend(string? backendName)
+    {
+        var useAsio = string.Equals(backendName, AudioOutputSelection.AsioBackendName, StringComparison.Ordinal);
+        if (useAsio && !IsAsioSupported)
+        {
+            StatusMessage = "ASIO is not included in this build of the VST3 bridge.";
+            return;
+        }
+
+        var settings = _appSettingsService.Load();
+        settings.AudioBackend = useAsio ? AudioOutputSelection.AsioBackendName : "WASAPI";
+        _appSettingsService.Save(settings);
+        IsAsioBackend = useAsio;
+        StatusMessage = $"Audio backend: {(useAsio ? "ASIO" : "WASAPI")}. It applies the next time a plug-in starts audio.";
+    }
+
+    private void SelectAsioDriver(AudioOutputDeviceViewModel? driver)
+    {
+        if (driver is null)
+        {
+            return;
+        }
+
+        foreach (var candidate in AsioDrivers)
+        {
+            candidate.IsSelected = ReferenceEquals(candidate, driver);
+        }
+
+        var settings = _appSettingsService.Load();
+        settings.AsioDriverClsid = driver.DeviceId;
+        _appSettingsService.Save(settings);
+        StatusMessage = $"ASIO driver: {driver.DisplayName}. It applies the next time a plug-in starts audio.";
+    }
+
+    private static bool DetectAsioSupport()
+    {
+        try
+        {
+            return Vst3HostInterop.VstHostBridge_IsAsioSupported() != 0;
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or BadImageFormatException)
+        {
+            // An older bridge without the ASIO exports: ASIO is simply not offered.
+            return false;
+        }
     }
 
     private void InitializeInitialSelection()
@@ -430,6 +496,24 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public ObservableCollection<MidiOutputDeviceViewModel> MidiOutputDevices { get; }
 
     public ObservableCollection<AudioOutputDeviceViewModel> AudioOutputDevices { get; }
+
+    public ObservableCollection<AudioOutputDeviceViewModel> AsioDrivers { get; }
+
+    public bool IsAsioSupported { get; }
+
+    public bool IsAsioBackend
+    {
+        get => _isAsioBackend;
+        private set
+        {
+            if (SetProperty(ref _isAsioBackend, value))
+            {
+                RaisePropertyChanged(nameof(IsWasapiBackend));
+            }
+        }
+    }
+
+    public bool IsWasapiBackend => !IsAsioBackend;
 
     public ObservableCollection<VstPluginViewModel> VstPlugins { get; }
 
@@ -1093,6 +1177,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public RelayCommand SelectAudioOutputCommand { get; }
 
     public RelayCommand RefreshAudioOutputsCommand { get; }
+
+    public RelayCommand SelectAudioBackendCommand { get; }
+
+    public RelayCommand SelectAsioDriverCommand { get; }
 
     public RelayCommand BrowseVstPluginsPathCommand { get; }
 

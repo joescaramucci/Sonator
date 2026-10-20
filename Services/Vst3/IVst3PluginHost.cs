@@ -1,3 +1,4 @@
+using Sonator.Services;
 namespace Sonator.Services.Vst3;
 
 /// <summary>
@@ -123,7 +124,7 @@ public interface IVst3PluginHost
     /// <paramref name="audioOutputDeviceId"/> uses the default device. Returns
     /// true on success; on failure <paramref name="error"/> explains why.
     /// </summary>
-    bool TryStartAudio(Vst3ModuleHandle handle, string? audioOutputDeviceId, out string? error);
+    bool TryStartAudio(Vst3ModuleHandle handle, AudioOutputSelection selection, out string? error);
 
     /// <summary>
     /// Stops real-time audio processing previously started with

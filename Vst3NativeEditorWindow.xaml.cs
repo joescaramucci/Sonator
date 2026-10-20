@@ -50,7 +50,7 @@ public partial class Vst3NativeEditorWindow : Window
         else
         {
             if (_vst3Host.HasAudioProcessor(_moduleHandle)
-                && !_vst3Host.TryStartAudio(_moduleHandle, new AppSettingsService().Load().AudioOutputDeviceId, out var audioError))
+                && !_vst3Host.TryStartAudio(_moduleHandle, AudioOutputSelection.FromSettings(new AppSettingsService().Load()), out var audioError))
             {
                 Title = $"Native GUI - {pluginName} (audio unavailable: {audioError})";
             }

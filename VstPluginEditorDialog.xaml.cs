@@ -76,7 +76,7 @@ public partial class VstPluginEditorDialog : Window
         var audioStatus = string.Empty;
         if (_vst3Host.HasAudioProcessor(handle))
         {
-            audioStatus = _vst3Host.TryStartAudio(handle, new AppSettingsService().Load().AudioOutputDeviceId, out var audioError)
+            audioStatus = _vst3Host.TryStartAudio(handle, AudioOutputSelection.FromSettings(new AppSettingsService().Load()), out var audioError)
                 ? " Real-time audio active."
                 : $" Audio did not start: {audioError}";
         }
