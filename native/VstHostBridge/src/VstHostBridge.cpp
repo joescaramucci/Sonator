@@ -2205,7 +2205,11 @@ int VstHostBridge_MeasureAsioLatency(void* moduleHandle, double* outMilliseconds
         return 0;
     }
 
-    *outMilliseconds = static_cast<double>(frames) * 1000.0 / engine->asioSampleRate.load();
+    // The callback labels blocks by when it runs, but the input block it reads was captured one buffer earlier,
+    // and the output block it writes plays one buffer later. The two labels are off by one buffer each in
+    // opposite directions, so the true round trip is the measured frames plus two buffers.
+    const long long roundTripFrames = frames + 2LL * engine->asioBufferFrames.load();
+    *outMilliseconds = static_cast<double>(roundTripFrames) * 1000.0 / engine->asioSampleRate.load();
     return 1;
 }
 
