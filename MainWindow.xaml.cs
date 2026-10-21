@@ -188,9 +188,14 @@ public partial class MainWindow : Window
 
     private static bool IsInsideNoteBlock(object? source)
     {
+        return IsInsideTagged(source, "NoteBlock");
+    }
+
+    private static bool IsInsideTagged(object? source, string tag)
+    {
         for (var element = source as DependencyObject; element is Visual; element = VisualTreeHelper.GetParent(element))
         {
-            if (element is Border { Tag: "NoteBlock" })
+            if (element is Border border && border.Tag as string == tag)
             {
                 return true;
             }
@@ -210,7 +215,7 @@ public partial class MainWindow : Window
         _blockBorder = block;
         _blockTimeline = timeline;
         _blockPressPoint = e.GetPosition(this);
-        _blockResizing = e.GetPosition(block).X >= block.ActualWidth - 8;
+        _blockResizing = IsInsideTagged(e.OriginalSource, "NoteBlockEdge");
         _blockMoveSteps = 0;
         block.CaptureMouse();
         if (DataContext is MainViewModel viewModel)

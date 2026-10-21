@@ -1499,6 +1499,11 @@
                                                     </Style.Triggers>
                                                 </Style>
                                             </Border.Style>
+                                            <Border HorizontalAlignment="Right"
+                                                    Width="10"
+                                                    Background="Transparent"
+                                                    Cursor="SizeWE"
+                                                    Tag="NoteBlockEdge" />
                                         </Border>
                                     </Grid>
                                 </Grid>
