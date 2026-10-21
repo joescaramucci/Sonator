@@ -21,6 +21,9 @@ internal sealed class SequencerEngine : IDisposable
 
     public bool IsMetronomeOn { get; set; }
 
+    // Steps between two clicks: 4 for quarter notes, 1 for sixteenths. Must divide 16.
+    public int ClickStepInterval { get; set; } = 4;
+
     // Offered each note of a track that has a plug-in. Returns true when the plug-in took the note, so the MIDI output is skipped.
     public Func<string?, int, int, int, bool, bool>? PluginNoteRouter { get; set; }
     private readonly List<PatternViewModel> _songPatterns = new();
@@ -196,15 +199,7 @@ internal sealed class SequencerEngine : IDisposable
 
         try
         {
-            using var timerResolution = TimerResolution.Request();
-            var beatTicks = (long)(60.0 / TempoBpm * Stopwatch.Frequency);
-            var nextBeatAt = Stopwatch.GetTimestamp();
-            for (var beat = 0; beat < bars * 4; beat++)
-            {
-                SendClick(beat % 4 == 0);
-                nextBeatAt += beatTicks;
-                await WaitUntilAsync(nextBeatAt, cts.Token).ConfigureAwait(false);
-            }
+            await RunClicksAsync(bars, cts.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -385,7 +380,7 @@ internal sealed class SequencerEngine : IDisposable
 
         TickActiveNotes();
         PlayStepNotes(pattern, playbackPosition.LocalStep);
-        if (IsMetronomeOn && playbackPosition.LocalStep % 4 == 0)
+        if (IsMetronomeOn && playbackPosition.LocalStep % ClickStepInterval == 0)
         {
             SendClick(playbackPosition.LocalStep % 16 == 0);
         }
@@ -524,6 +519,35 @@ internal sealed class SequencerEngine : IDisposable
 
         _highlightedPattern = activePattern;
         _highlightedStep = activeStep;
+    }
+
+    // Plays one bar of clicks at the current tempo and subdivision, whether or not the metronome is on.
+    public void PreviewClicks()
+    {
+        _ = RunClicksAsync(1, CancellationToken.None);
+    }
+
+    private async Task RunClicksAsync(int bars, CancellationToken token)
+    {
+        using var timerResolution = TimerResolution.Request();
+        var clicksPerBar = 16 / ClickStepInterval;
+        var clickTicks = (long)(60.0 / TempoBpm / 4.0 * ClickStepInterval * Stopwatch.Frequency);
+        var nextClickAt = Stopwatch.GetTimestamp();
+        for (var click = 0; click < bars * clicksPerBar; click++)
+        {
+            SendClick(click % clicksPerBar == 0);
+            nextClickAt += clickTicks;
+            await WaitUntilAsync(nextClickAt, token).ConfigureAwait(false);
+        }
+
+        lock (_sync)
+        {
+            if (_metronomeNoteOn >= 0)
+            {
+                _midiOutput?.NoteOff(MetronomeChannel, _metronomeNoteOn);
+                _metronomeNoteOn = -1;
+            }
+        }
     }
 
     private void SendClick(bool accent)

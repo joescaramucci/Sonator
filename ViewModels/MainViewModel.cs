@@ -21,6 +21,8 @@ namespace Sonator.ViewModels;
 
 public sealed record CountInOption(int Bars, string Label);
 
+public sealed record ClickOption(int StepsPerClick, string Label);
+
 public sealed class MainViewModel : ViewModelBase, IDisposable
 {
     private const int ArrangementPatternLength = 8;
@@ -37,6 +39,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly IVst3PluginHost _liveInstrumentHost = new Vst3PluginHost();
     private bool _isLiveKeyboardEnabled = true;
     private CountInOption _selectedCountIn = new(0, "No count-in");
+    private ClickOption _selectedClickOption = new(4, "Quarter notes");
     private Vst3ModuleHandle? _ownedInstrument;
     private readonly VstPluginService _vstPluginService;
     private readonly VstPluginScanner _vstPluginScanner;
@@ -155,6 +158,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _midiInput.NoteReceived += note => Application.Current?.Dispatcher.BeginInvoke(() => PlayLiveKeyboardNote(note));
         _midiInput.MessageReceived += packed => Application.Current?.Dispatcher.BeginInvoke(() => OnMidiMessageReceived(packed));
         _midiActivityTimer.Tick += (_, _) => IsMidiActivityVisible = false;
+        PreviewClickCommand = new RelayCommand(_ => _engine.PreviewClicks());
         SelectMidiInputCommand = new RelayCommand(parameter =>
         {
             if (parameter is MidiInputDeviceViewModel device)
@@ -1271,6 +1275,26 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             RaisePropertyChanged();
         }
     }
+
+    public IReadOnlyList<ClickOption> ClickOptions { get; } = new[]
+    {
+        new ClickOption(4, "Quarter notes"),
+        new ClickOption(1, "Sixteenths"),
+    };
+
+    public ClickOption SelectedClickOption
+    {
+        get => _selectedClickOption;
+        set
+        {
+            if (SetProperty(ref _selectedClickOption, value))
+            {
+                _engine.ClickStepInterval = value.StepsPerClick;
+            }
+        }
+    }
+
+    public RelayCommand PreviewClickCommand { get; }
 
     // Bars of clicks played before recording starts.
     public IReadOnlyList<CountInOption> CountInOptions { get; } = new[]

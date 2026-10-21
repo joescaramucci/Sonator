@@ -32,6 +32,36 @@
         <local:VolumePercentConverter x:Key="VolumePercentConverter" />
         <local:AudioClipWidthConverter x:Key="AudioClipWidthConverter" />
 
+        <Style x:Key="MetronomeToggleStyle" TargetType="ToggleButton">
+            <Setter Property="Background" Value="#2A3948" />
+            <Setter Property="Foreground" Value="#C4CFDA" />
+            <Setter Property="BorderBrush" Value="#5C7A99" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontFamily" Value="Consolas" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Body"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="5">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Body" Property="Background" Value="#49B88D" />
+                                <Setter Property="Foreground" Value="#0F1A14" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="BottomTabButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Width" Value="64" />
             <Setter Property="Height" Value="24" />
@@ -585,8 +615,26 @@
                 <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                            <ToggleButton Content="CLICK" Width="52" Height="20" IsChecked="{Binding IsMetronomeOn}" ToolTip="Click on every beat during playback" />
-                            <ComboBox Width="92" Height="20" Margin="4,0,0,0" ItemsSource="{Binding CountInOptions}" DisplayMemberPath="Label" SelectedItem="{Binding SelectedCountIn}" ToolTip="Clicks played before recording starts" />
+                            <ToggleButton Content="ON" Width="40" Height="22" Margin="1" Style="{StaticResource MetronomeToggleStyle}"
+                                          IsChecked="{Binding IsMetronomeOn}" ToolTip="Metronome on during playback" />
+                            <Button Content="CLICK" Width="60" Height="22" Margin="1" ToolTip="Hear one bar of clicks at this tempo"
+                                    Command="{Binding PreviewClickCommand}">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Content" Value="PLAY" />
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,2,0,0">
+                            <ComboBox Width="88" Height="20" Background="#2A3948" Foreground="#C4CFDA" FontFamily="Consolas" FontSize="10"
+                                      ItemsSource="{Binding ClickOptions}" DisplayMemberPath="Label" SelectedItem="{Binding SelectedClickOption}" ToolTip="Click on quarter notes or sixteenths" />
+                            <ComboBox Width="88" Height="20" Margin="2,0,0,0" Background="#2A3948" Foreground="#C4CFDA" FontFamily="Consolas" FontSize="10"
+                                      ItemsSource="{Binding CountInOptions}" DisplayMemberPath="Label" SelectedItem="{Binding SelectedCountIn}" ToolTip="Bars of clicks before recording starts" />
                         </StackPanel>
                         <TextBlock Text="METRONOME" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                     </StackPanel>
