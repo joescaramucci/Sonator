@@ -18,6 +18,7 @@ internal sealed class SequencerEngine : IDisposable
     private const int MetronomeLowNote = 76;
     private int _metronomeNoteOn = -1;
     private CancellationTokenSource? _countInCts;
+    private CancellationTokenSource? _clickLoopCts;
 
     public bool IsMetronomeOn { get; set; }
 
@@ -226,6 +227,7 @@ internal sealed class SequencerEngine : IDisposable
 
     public void Stop()
     {
+        StopClickLoop();
         CancellationTokenSource? cts;
         lock (_sync)
         {
@@ -382,7 +384,7 @@ internal sealed class SequencerEngine : IDisposable
         PlayStepNotes(pattern, playbackPosition.LocalStep);
         if (IsMetronomeOn && playbackPosition.LocalStep % ClickStepInterval == 0)
         {
-            SendClick(playbackPosition.LocalStep % 16 == 0);
+            SendClick(ClickLevelForStep(playbackPosition.LocalStep));
         }
 
         _dispatcher.InvokeAsync(
@@ -521,37 +523,80 @@ internal sealed class SequencerEngine : IDisposable
         _highlightedStep = activeStep;
     }
 
-    // Plays one bar of clicks at the current tempo and subdivision, whether or not the metronome is on.
-    public void PreviewClicks()
+    public bool IsClickLoopRunning => _clickLoopCts is not null;
+
+    // Starts one bar of clicks after another at the current tempo, until StopClickLoop or Stop.
+    // The metronome does not have to be on.
+    public void StartClickLoop()
     {
-        _ = RunClicksAsync(1, CancellationToken.None);
+        lock (_sync)
+        {
+            if (_clickLoopCts is not null)
+            {
+                return;
+            }
+
+            _clickLoopCts = new CancellationTokenSource();
+            _ = RunClicksAsync(null, _clickLoopCts.Token);
+        }
     }
 
-    private async Task RunClicksAsync(int bars, CancellationToken token)
+    public void StopClickLoop()
+    {
+        lock (_sync)
+        {
+            _clickLoopCts?.Cancel();
+            _clickLoopCts = null;
+        }
+    }
+
+    // Clicks for a number of bars, or forever when bars is null. Ends with the last click released.
+    private async Task RunClicksAsync(int? bars, CancellationToken token)
     {
         using var timerResolution = TimerResolution.Request();
         var clicksPerBar = 16 / ClickStepInterval;
         var clickTicks = (long)(60.0 / TempoBpm / 4.0 * ClickStepInterval * Stopwatch.Frequency);
         var nextClickAt = Stopwatch.GetTimestamp();
-        for (var click = 0; click < bars * clicksPerBar; click++)
+        try
         {
-            SendClick(click % clicksPerBar == 0);
-            nextClickAt += clickTicks;
-            await WaitUntilAsync(nextClickAt, token).ConfigureAwait(false);
-        }
-
-        lock (_sync)
-        {
-            if (_metronomeNoteOn >= 0)
+            for (var click = 0; bars is null || click < bars.Value * clicksPerBar; click++)
             {
-                _midiOutput?.NoteOff(MetronomeChannel, _metronomeNoteOn);
-                _metronomeNoteOn = -1;
+                SendClick(ClickLevelForStep(click * ClickStepInterval));
+                nextClickAt += clickTicks;
+                await WaitUntilAsync(nextClickAt, token).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The loop was stopped.
+        }
+        finally
+        {
+            lock (_sync)
+            {
+                if (_metronomeNoteOn >= 0)
+                {
+                    _midiOutput?.NoteOff(MetronomeChannel, _metronomeNoteOn);
+                    _metronomeNoteOn = -1;
+                }
             }
         }
     }
 
-    private void SendClick(bool accent)
+    // 0 on the first beat of a bar, 1 on the other quarter notes, 2 on the subdivisions between them.
+    private static int ClickLevelForStep(int step)
     {
+        return step % 16 == 0 ? 0 : step % 4 == 0 ? 1 : 2;
+    }
+
+    private void SendClick(int level)
+    {
+        var velocity = level switch
+        {
+            0 => 120,
+            1 => 60,
+            _ => 40,
+        };
         lock (_sync)
         {
             if (_metronomeNoteOn >= 0)
@@ -559,8 +604,8 @@ internal sealed class SequencerEngine : IDisposable
                 _midiOutput?.NoteOff(MetronomeChannel, _metronomeNoteOn);
             }
 
-            _metronomeNoteOn = accent ? MetronomeHighNote : MetronomeLowNote;
-            _midiOutput?.NoteOn(MetronomeChannel, _metronomeNoteOn, accent ? 120 : 90);
+            _metronomeNoteOn = level == 0 ? MetronomeHighNote : MetronomeLowNote;
+            _midiOutput?.NoteOn(MetronomeChannel, _metronomeNoteOn, velocity);
         }
     }
 

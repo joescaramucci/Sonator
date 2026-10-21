@@ -625,7 +625,9 @@
                                             <Trigger Property="IsMouseOver" Value="True">
                                                 <Setter Property="Content" Value="PLAY" />
                                             </Trigger>
-                                        </Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsClickLoopRunning}" Value="True">
+                                                <Setter Property="Content" Value="STOP" />
+                                            </DataTrigger>
                                     </Style>
                                 </Button.Style>
                             </Button>

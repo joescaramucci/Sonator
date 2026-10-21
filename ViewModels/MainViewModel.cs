@@ -158,7 +158,18 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _midiInput.NoteReceived += note => Application.Current?.Dispatcher.BeginInvoke(() => PlayLiveKeyboardNote(note));
         _midiInput.MessageReceived += packed => Application.Current?.Dispatcher.BeginInvoke(() => OnMidiMessageReceived(packed));
         _midiActivityTimer.Tick += (_, _) => IsMidiActivityVisible = false;
-        PreviewClickCommand = new RelayCommand(_ => _engine.PreviewClicks());
+        PreviewClickCommand = new RelayCommand(_ =>
+        {
+            if (_engine.IsClickLoopRunning)
+            {
+                _engine.StopClickLoop();
+            }
+            else
+            {
+                _engine.StartClickLoop();
+            }
+            RaisePropertyChanged(nameof(IsClickLoopRunning));
+        });
         CycleClickOptionCommand = new RelayCommand(_ => SelectedClickOption = NextOption(ClickOptions, SelectedClickOption));
         CycleCountInCommand = new RelayCommand(_ => SelectedCountIn = NextOption(CountInOptions, SelectedCountIn));
         SelectMidiInputCommand = new RelayCommand(parameter =>
@@ -1303,6 +1314,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public RelayCommand PreviewClickCommand { get; }
 
+    // True while the click plays on repeat from the CLICK button.
+    public bool IsClickLoopRunning => _engine.IsClickLoopRunning;
+
     // Bars of clicks played before recording starts.
     public IReadOnlyList<CountInOption> CountInOptions { get; } = new[]
     {
@@ -1942,6 +1956,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     {
         AudioTrackPlayback.Stop();
         _engine.Stop();
+        RaisePropertyChanged(nameof(IsClickLoopRunning));
         IsPlaying = false;
         StatusMessage = "Playback paused";
     }
