@@ -1397,6 +1397,7 @@ namespace
         long long clickFrame = -1;    // frame where the measurement click is written
         long long detectedFrame = -1; // frame where the click came back on input 0
         float inputPeak = 0.0f;       // largest input 0 level seen during the current measurement
+        double sampleRate = 48000.0;
     };
 
     float ClampUnit(float value)
@@ -1460,10 +1461,14 @@ namespace
     constexpr long long kMinimumEchoFrames = 64;
     constexpr float kClickThreshold = 0.05f;
 
-    // Writes the test click into the block that starts at frame session.frame, and looks for it on input 0.
+    constexpr double kBurstHz = 1000.0;
+    constexpr double kBurstSeconds = 0.01;
+
+    // Writes the test burst into the block that starts at frame session.frame, and looks for it on input 0.
     void MeasureClickBlock(AsioSession& session, long doubleBufferIndex)
     {
         const long count = session.bufferSize;
+        const long long burstFrames = static_cast<long long>(session.sampleRate * kBurstSeconds);
         if (session.clickFrame < 0)
         {
             session.clickFrame = session.frame + count; // the click goes out at the start of the next block
@@ -1476,9 +1481,16 @@ namespace
         for (long i = 0; i < count; ++i)
         {
             const long long absolute = session.frame + i;
-            if (absolute == session.clickFrame)
+            if (absolute >= session.clickFrame && absolute < session.clickFrame + burstFrames)
             {
-                session.planar[0][static_cast<size_t>(i)] = 1.0f;
+                // A short sine burst: a single full-scale sample carries too little energy to survive the converters.
+                // Written to every output so that the one wired to input 1 is found whatever its channel number.
+                const double t = static_cast<double>(absolute - session.clickFrame) / session.sampleRate;
+                const float sample = static_cast<float>(0.5 * std::sin(2.0 * 3.14159265358979323846 * kBurstHz * t));
+                for (auto& channel : session.planar)
+                {
+                    channel[static_cast<size_t>(i)] = sample;
+                }
             }
             const float level = std::fabs(session.inputScratch[static_cast<size_t>(i)]);
             if (absolute >= session.clickFrame && level > session.inputPeak)
@@ -1688,6 +1700,7 @@ namespace
         session.processData.outputs = &session.outputBus;
 
         session.postOutput = session.driver->outputReady() == ASE_OK;
+        session.sampleRate = sampleRate;
 
         // Input 0 is needed only for the loopback measurement. Drivers without it still stream normally.
         session.hasInput = false;
