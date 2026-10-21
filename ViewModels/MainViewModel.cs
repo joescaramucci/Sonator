@@ -152,8 +152,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         SelectAudioOutputCommand = new RelayCommand(parameter => SelectAudioOutputDevice(parameter as AudioOutputDeviceViewModel));
         RefreshAudioOutputsCommand = new RelayCommand(_ => RefreshAudioOutputDevices());
         MidiOutputDevices = new ObservableCollection<MidiOutputDeviceViewModel>(
-            _midiOutputDeviceService.GetOutputDevices()
-                .Select(device => new MidiOutputDeviceViewModel(device.DeviceId, device.DisplayName)));
+            new[] { new MidiOutputDeviceViewModel(null, "Off", isOff: true) }
+                .Concat(_midiOutputDeviceService.GetOutputDevices()
+                    .Select(device => new MidiOutputDeviceViewModel(device.DeviceId, device.DisplayName))));
         MidiInputDevices = new ObservableCollection<MidiInputDeviceViewModel>();
         ReloadMidiInputDevices();
         _engine.PluginNoteRouter = RouteSequencerNoteToPlugin;
@@ -449,7 +450,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private void InitializeInitialSelection()
     {
-        SelectedMidiOutputDevice = MidiOutputDevices.FirstOrDefault();
+        SelectedMidiOutputDevice = MidiOutputDevices.FirstOrDefault(device => device.IsOff) ?? MidiOutputDevices.FirstOrDefault();
         _engine.SetLoopRange(LoopStartStep, LoopEndStep);
 
         var initialArrangeCell = SongArrangeRows
@@ -1555,7 +1556,12 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        if (!_engine.TrySetMidiOutputDevice(device.DeviceId))
+        if (device.IsOff)
+        {
+            _engine.ClearMidiOutputDevice();
+            StatusMessage = "MIDI output off: tracks without a plug-in are silent";
+        }
+        else if (!_engine.TrySetMidiOutputDevice(device.DeviceId))
         {
             StatusMessage = $"Unable to open MIDI output device: {device.DisplayName}";
         }
@@ -1934,7 +1940,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         SelectedMidiOutputDevice = MidiOutputDevices.FirstOrDefault(device => device.DisplayName == selectedName)
-            ?? MidiOutputDevices.FirstOrDefault();
+            ?? MidiOutputDevices.FirstOrDefault(device => device.IsOff);
         StatusMessage = "MIDI output devices refreshed";
     }
 
@@ -3803,7 +3809,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             }
 
             SelectedMidiOutputDevice = MidiOutputDevices.FirstOrDefault(device => device.DisplayName == document.SelectedMidiOutputDeviceName)
-                ?? MidiOutputDevices.FirstOrDefault();
+                ?? MidiOutputDevices.FirstOrDefault(device => device.IsOff);
             SaveProjectCommand?.RaiseCanExecuteChanged();
             SaveProjectAsCommand?.RaiseCanExecuteChanged();
             PasteTrackCommand?.RaiseCanExecuteChanged();

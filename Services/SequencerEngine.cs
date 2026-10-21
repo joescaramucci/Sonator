@@ -260,6 +260,18 @@ internal sealed class SequencerEngine : IDisposable
         MasterVolume = masterVolume;
     }
 
+    // Stops sending to any MIDI output.
+    public void ClearMidiOutputDevice()
+    {
+        lock (_sync)
+        {
+            _activeNotes.Clear();
+            _midiOutput?.Dispose();
+            _midiOutput = null;
+            _midiOutputDeviceId = null;
+        }
+    }
+
     public bool TrySetMidiOutputDevice(uint? deviceId)
     {
         WindowsMidiOutput? newOutput = null;
