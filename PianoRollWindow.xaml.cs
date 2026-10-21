@@ -165,15 +165,19 @@ public partial class PianoRollWindow : Window
         for (var step = 0; step <= _stepCount; step++)
         {
             var x = KeyboardWidth + step * StepWidth;
+            // Bars are the strongest lines, quarter notes lighter, sixteenths faint.
             var barLine = step % StepsPerBar == 0;
+            var beatLine = step % 4 == 0;
             var line = new Line
             {
                 X1 = x,
                 X2 = x,
                 Y1 = 0,
                 Y2 = _gridHeight,
-                Stroke = new SolidColorBrush(barLine ? Color.FromRgb(96, 122, 150) : Color.FromRgb(44, 58, 75)),
-                StrokeThickness = barLine ? 1.2 : 0.6,
+                Stroke = new SolidColorBrush(barLine
+                    ? Color.FromRgb(96, 122, 150)
+                    : beatLine ? Color.FromRgb(66, 86, 108) : Color.FromRgb(44, 58, 75)),
+                StrokeThickness = barLine ? 1.2 : beatLine ? 0.9 : 0.6,
             };
             PianoRollCanvas.Children.Add(line);
         }
