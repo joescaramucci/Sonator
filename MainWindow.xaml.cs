@@ -731,6 +731,11 @@ public partial class MainWindow : Window
         new PianoRollWindow(viewModel, track) { Owner = this }.Show();
     }
 
+    private void WaveformEditorMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        new WaveformEditorWindow { Owner = this }.Show();
+    }
+
     private void MixerMenuItem_Click(object sender, RoutedEventArgs e)
     {
         if (DataContext is not MainViewModel viewModel)

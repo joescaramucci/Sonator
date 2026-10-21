@@ -482,6 +482,7 @@
                         <MenuItem Header="Driver settings..." Click="DriverSettingsMenuItem_Click" />
                         <MenuItem Header="Measure latency" Click="MeasureLatencyMenuItem_Click" />
                         <MenuItem Header="Mixer..." Click="MixerMenuItem_Click" />
+                        <MenuItem Header="Waveform editor..." Click="WaveformEditorMenuItem_Click" />
                     </MenuItem>
                 </Menu>
 
