@@ -1390,13 +1390,14 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             : $"Unable to open MIDI input device: {device.DisplayName}";
     }
 
-    // Shows the raw bytes of each message except clock and sensing, so it is visible what the keyboard sends.
+    // Shows the raw bytes of controller and other messages, so it is visible what the keyboard sends besides notes.
     private void OnMidiMessageReceived(int packed)
     {
         FlashMidiActivity();
 
+        // Notes write their own route message in the status line, so only the other messages show up here.
         var status = packed & 0xFF;
-        if (status >= 0xF8)
+        if (status >= 0xF8 || (status >= 0x80 && status < 0xB0))
         {
             return;
         }
