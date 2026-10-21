@@ -841,6 +841,16 @@ public partial class MainWindow : Window
         }
     }
 
+    private void EditSelectedTrackButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel || viewModel.SelectedTrack is not { } track)
+        {
+            return;
+        }
+
+        ShowEditTrackDialog(viewModel, track);
+    }
+
     private void ShowEditTrackDialog(MainViewModel viewModel, PatternTrackViewModel track)
     {
         var dialog = new TrackEditDialog(

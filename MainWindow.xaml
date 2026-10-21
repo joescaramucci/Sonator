@@ -542,26 +542,8 @@
                 </Border>
                 <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
                     <StackPanel>
-                        <TextBlock Text="00.0" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
-                        <TextBlock Text="SYNC DEL" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
-                    </StackPanel>
-                </Border>
-                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
-                    <StackPanel>
-                        <TextBlock Text="intero" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
-                        <TextBlock Text="SYNC" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
-                    </StackPanel>
-                </Border>
-                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
-                    <StackPanel>
-                        <TextBlock Text="{Binding Tempo, StringFormat=0.000}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                        <TextBox Text="{Binding Tempo, StringFormat=0.000, UpdateSourceTrigger=LostFocus}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA"  Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Center" ToolTip="Tempo in BPM (1 to 999). Press Tab or click away to apply." />
                         <TextBlock Text="TEMPO" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
-                    </StackPanel>
-                </Border>
-                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
-                    <StackPanel>
-                        <TextBlock Text="1/16" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
-                        <TextBlock Text="FORMAT" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                     </StackPanel>
                 </Border>
                 <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
@@ -1055,7 +1037,7 @@
                                                     <ColumnDefinition Width="24" />
                                                     <ColumnDefinition Width="*" />
                                                 </Grid.ColumnDefinitions>
-                                                <ToggleButton Content="R"
+                                                <ToggleButton Content="R" IsEnabled="False"
                                                               Width="22"
                                                               Height="18"
                                                               Padding="0"
@@ -1063,7 +1045,7 @@
                                                               Style="{StaticResource TrackRecordArmButton}"
                                                               AutomationProperties.Name="RECORD ARM"
                                                               IsChecked="{Binding SourceTrack.IsRecordArmed, Mode=TwoWay}"
-                                                              ToolTip="Arm track for recording" />
+                                                              ToolTip="Recording is not implemented yet" />
                                                 <Slider Grid.Column="1"
                                                         Height="16"
                                                         Margin="3,0,1,0"
@@ -1431,7 +1413,7 @@
                                                 <ColumnDefinition Width="24" />
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
-                                            <ToggleButton Content="R"
+                                            <ToggleButton Content="R" IsEnabled="False"
                                                           Width="22"
                                                           Height="18"
                                                           Padding="0"
@@ -1439,7 +1421,7 @@
                                                           Style="{StaticResource TrackRecordArmButton}"
                                                           AutomationProperties.Name="RECORD ARM"
                                                           IsChecked="{Binding SourceTrack.IsRecordArmed, Mode=TwoWay}"
-                                                          ToolTip="Arm track for recording" />
+                                                          ToolTip="Recording is not implemented yet" />
                                         </Grid>
                                         <Slider Grid.RowSpan="2"
                                                 Grid.Column="2"
@@ -1554,79 +1536,26 @@
                             <TextBlock Grid.Column="1" Text="{Binding SelectedTrack.RoutingDisplay}" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" />
                         </Grid>
                     </Border>
-
                     <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="4" Margin="0,0,0,4">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="52" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="QUANTIZE" />
-                            <TextBlock Grid.Column="1" Text="1536" HorizontalAlignment="Right" />
-                        </Grid>
-                    </Border>
-                    <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="4" Margin="0,0,0,4">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="52" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="GROOVE" />
-                            <TextBlock Grid.Column="1" Text="0" HorizontalAlignment="Right" />
-                        </Grid>
-                    </Border>
-                    <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="4" Margin="0,0,0,4">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="52" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="TRANSPOSE" />
-                            <TextBlock Grid.Column="1" Text="0" HorizontalAlignment="Right" />
-                        </Grid>
-                    </Border>
-                    <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="4" Margin="0,0,0,4">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="52" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="VELOCITY" />
-                            <TextBlock Grid.Column="1" Text="20" HorizontalAlignment="Right" />
-                        </Grid>
-                    </Border>
-                    <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="4" Margin="0,0,0,4">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="52" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="COMPRESS" />
-                            <TextBlock Grid.Column="1" Text="-1:2" HorizontalAlignment="Right" />
-                        </Grid>
-                    </Border>
-
-                    <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="4" Margin="0,0,0,4">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="52" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="DELAY" />
-                            <TextBlock Grid.Column="1" Text="00.0" HorizontalAlignment="Right" />
+                            <TextBlock Text="BASE NOTE" />
+                            <TextBlock Grid.Column="1" Text="{Binding SelectedTrack.NoteNumber}" HorizontalAlignment="Right" />
                         </Grid>
                     </Border>
 
                     <StackPanel Orientation="Horizontal" Margin="0,6,0,4">
-                        <Button Content="RMG" Width="50" />
-                        <Button Content="EDIT" Width="50" />
+                        <Button Content="EDIT" Width="50" Click="EditSelectedTrackButton_Click" />
                     </StackPanel>
                     <Button Content="DO QUANTIZE" Command="{Binding QuantizeTrackCommand}" />
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
-                        <Button Content="SOLO" Width="50" />
-                        <Button Content="HIDE" Width="50" />
+                        <Button Content="SOLO" Width="50" Command="{Binding ToggleTrackSoloCommand}" CommandParameter="{Binding SelectedTrack}" />
+                        <Button Content="HIDE" Width="50" IsEnabled="False" ToolTip="Hiding tracks is not implemented yet" />
                     </StackPanel>
-                    <Button Content="DEFAULT" />
+                    <Button Content="DEFAULT" Command="{Binding ResetTrackCommand}" />
                     <Border BorderBrush="{StaticResource Line}"
                             BorderThickness="1"
                             Background="#2A313A"
@@ -1743,7 +1672,7 @@
 
                     <UniformGrid Columns="2" Margin="0,0,0,4">
                         <Button Content="UNDO" Command="{Binding UndoCommand}" />
-                        <Button Content="RECORD" Command="{Binding ToggleRecordCommand}" />
+                        <Button Content="RECORD" IsEnabled="False" ToolTip="Recording is not implemented yet" Command="{Binding ToggleRecordCommand}" />
                     </UniformGrid>
                     <UniformGrid Columns="2" Margin="0,0,0,4">
                         <Button Content="STOP" Command="{Binding StopCommand}" />

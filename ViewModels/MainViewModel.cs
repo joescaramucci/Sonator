@@ -44,6 +44,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private TrackDocument? _copiedTrackDocument;
     private ObservableCollection<PianoRollRowViewModel> _pianoRollRows = new();
     private double _pianoRollZoom = 1.0;
+    private const double MinTempoBpm = 1;
+    private const double MaxTempoBpm = 999;
     private double _tempo = 116.5674;
     private double _masterVolume = 0.75;
     private double _masterSignalLevel;
@@ -207,6 +209,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             _ => DeleteSelectedTrack(),
             _ => SelectedPattern is not null && SelectedTrack is not null);
 
+        ResetTrackCommand = new RelayCommand(_ => ResetSelectedTrack(), _ => SelectedTrack is not null);
         InitializeInitialSelection();
         InitializeVstPlugins();
         RefreshAudioOutputDevices();
@@ -797,6 +800,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 return;
             }
 
+            if (!double.IsFinite(value) || value < MinTempoBpm || value > MaxTempoBpm)
+            {
+                StatusMessage = $"Tempo must be between {MinTempoBpm} and {MaxTempoBpm} BPM.";
+                RaisePropertyChanged();
+                return;
+            }
+
             CaptureUndoStateIfNeeded();
             if (SetProperty(ref _tempo, value))
             {
@@ -1171,6 +1181,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public RelayCommand TransposeDownCommand { get; }
 
     public RelayCommand QuantizeTrackCommand { get; }
+
+    public RelayCommand ResetTrackCommand { get; }
 
     public RelayCommand RefreshMidiDevicesCommand { get; }
 
@@ -2134,6 +2146,23 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
         RefreshPianoRoll();
         StatusMessage = semitones > 0 ? "Track transposed up" : "Track transposed down";
+    }
+
+    // Brings the selected track back to the settings it had when it was created.
+    private void ResetSelectedTrack()
+    {
+        var track = SelectedTrack;
+        if (track is null)
+        {
+            return;
+        }
+
+        CaptureUndoStateIfNeeded();
+        track.Volume = 0.75;
+        track.IsMuted = false;
+        track.IsSolo = false;
+        track.TrackColorBrush = CreateTrackColorBrush(null);
+        StatusMessage = $"{track.Name} reset to its default settings";
     }
 
     private void ToggleTrackMute(object? parameter)
