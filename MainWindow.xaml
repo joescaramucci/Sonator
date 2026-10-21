@@ -610,9 +610,10 @@
                         ToolTipService.InitialShowDelay="0"
                         ToolTipService.ShowDuration="30000"
                         ToolTip="TEMPO: double-click to type a value (1 to 999 BPM). Mouse wheel: 1 BPM per step, Shift for 0.1. Enter or click away applies it.">
-                    <Border Background="#263545" BorderBrush="#586E86" BorderThickness="1" CornerRadius="5" Padding="2">
+                    <Border BorderBrush="#586E86" BorderThickness="1" CornerRadius="5" Padding="2">
                         <Border.Style>
                             <Style TargetType="Border">
+                                <Setter Property="Background" Value="#263545" />
                                 <Style.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
                                         <Setter Property="Background" Value="#2F4A63" />
