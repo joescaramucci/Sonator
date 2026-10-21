@@ -227,6 +227,22 @@ internal sealed class SequencerEngine : IDisposable
         return true;
     }
 
+    // Sounds a note the player plays on a MIDI keyboard, on the given channel of the MIDI output.
+    public void PlayLiveNote(int channel, int noteNumber, int velocity, bool isOn)
+    {
+        lock (_sync)
+        {
+            if (isOn)
+            {
+                _midiOutput?.NoteOn(channel, noteNumber, velocity);
+            }
+            else
+            {
+                _midiOutput?.NoteOff(channel, noteNumber);
+            }
+        }
+    }
+
     public void Dispose()
     {
         Stop();

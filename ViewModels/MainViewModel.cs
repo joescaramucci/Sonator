@@ -27,6 +27,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly TrackClipboardService _trackClipboardService;
     private readonly MidiOutputDeviceService _midiOutputDeviceService;
     private readonly MidiFileImportService _midiFileImportService;
+    private readonly MidiInputService _midiInput = new();
+    private bool _isLiveKeyboardEnabled = true;
     private readonly VstPluginService _vstPluginService;
     private readonly VstPluginScanner _vstPluginScanner;
     private readonly AudioOutputDeviceService _audioOutputDeviceService;
@@ -138,6 +140,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         MidiOutputDevices = new ObservableCollection<MidiOutputDeviceViewModel>(
             _midiOutputDeviceService.GetOutputDevices()
                 .Select(device => new MidiOutputDeviceViewModel(device.DeviceId, device.DisplayName)));
+        MidiInputDevices = new ObservableCollection<MidiInputDeviceViewModel>();
+        ReloadMidiInputDevices();
+        _midiInput.NoteReceived += note => Application.Current?.Dispatcher.BeginInvoke(() => PlayLiveKeyboardNote(note));
+        SelectMidiInputCommand = new RelayCommand(parameter => SelectMidiInput(parameter as MidiInputDeviceViewModel));
 
         InitializeCollections();
         InitializeCommands(
@@ -475,7 +481,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         transposeUpCommand = new RelayCommand(_ => TransposeSelectedTrack(1), _ => SelectedTrack is not null);
         transposeDownCommand = new RelayCommand(_ => TransposeSelectedTrack(-1), _ => SelectedTrack is not null);
         quantizeTrackCommand = new RelayCommand(_ => QuantizeSelectedTrack(), _ => SelectedTrack is not null);
-        refreshMidiDevicesCommand = new RelayCommand(_ => ReloadMidiOutputDevices());
+        refreshMidiDevicesCommand = new RelayCommand(_ =>
+        {
+            ReloadMidiOutputDevices();
+            ReloadMidiInputDevices();
+        });
         browseVstPluginsPathCommand = new RelayCommand(_ => BrowseVstPluginsPath());
     }
 
@@ -1191,6 +1201,19 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public RelayCommand RefreshMidiDevicesCommand { get; }
 
+    public ObservableCollection<MidiInputDeviceViewModel> MidiInputDevices { get; }
+
+    public MidiInputDeviceViewModel? SelectedMidiInputDevice => MidiInputDevices.FirstOrDefault(device => device.IsSelected);
+
+    public RelayCommand SelectMidiInputCommand { get; }
+
+    // When on, notes played on the MIDI keyboard sound on the selected track's channel.
+    public bool IsLiveKeyboardEnabled
+    {
+        get => _isLiveKeyboardEnabled;
+        set => SetProperty(ref _isLiveKeyboardEnabled, value);
+    }
+
     public RelayCommand SelectAudioOutputCommand { get; }
 
     public RelayCommand RefreshAudioOutputsCommand { get; }
@@ -1215,6 +1238,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _engine.PatternChanged -= OnPlaybackPatternChanged;
         _engine.PlaybackCompleted -= OnPlaybackCompleted;
         _engine.PlaybackFaulted -= OnPlaybackFaulted;
+        _midiInput.Dispose();
         _engine.Dispose();
     }
 
@@ -1312,6 +1336,62 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         else
         {
             StatusMessage = $"MIDI output set to {device.DisplayName}";
+        }
+    }
+
+    private void ReloadMidiInputDevices()
+    {
+        var selectedName = SelectedMidiInputDevice?.DisplayName;
+        MidiInputDevices.Clear();
+        MidiInputDevices.Add(new MidiInputDeviceViewModel(null, "Off"));
+        foreach (var device in MidiInputService.GetInputDevices())
+        {
+            MidiInputDevices.Add(new MidiInputDeviceViewModel(device.DeviceId, device.DisplayName));
+        }
+
+        SelectMidiInput(MidiInputDevices.FirstOrDefault(device => device.DisplayName == selectedName) ?? MidiInputDevices[0]);
+    }
+
+    private void SelectMidiInput(MidiInputDeviceViewModel? device)
+    {
+        if (device is null)
+        {
+            return;
+        }
+
+        foreach (var item in MidiInputDevices)
+        {
+            item.IsSelected = ReferenceEquals(item, device);
+        }
+        RaisePropertyChanged(nameof(SelectedMidiInputDevice));
+
+        _midiInput.Close();
+        if (device.DeviceId is not { } deviceId)
+        {
+            StatusMessage = "MIDI input off";
+            return;
+        }
+
+        StatusMessage = _midiInput.Open(deviceId)
+            ? $"MIDI input set to {device.DisplayName}"
+            : $"Unable to open MIDI input device: {device.DisplayName}";
+    }
+
+    private void PlayLiveKeyboardNote(MidiNoteMessage note)
+    {
+        if (!IsLiveKeyboardEnabled)
+        {
+            return;
+        }
+
+        var channel = SelectedTrack is { } track ? track.Channel - 1 : 0;
+        try
+        {
+            _engine.PlayLiveNote(channel, note.NoteNumber, note.Velocity, note.IsOn);
+        }
+        catch (InvalidOperationException ex)
+        {
+            StatusMessage = ex.Message;
         }
     }
 

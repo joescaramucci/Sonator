@@ -454,6 +454,19 @@
                     </MenuItem>
                     <MenuItem Header="_MIDI">
                         <MenuItem Header="Import MIDI..." Command="{Binding ImportMidiCommand}" />
+                        <Separator />
+                        <MenuItem Header="Input device" ItemsSource="{Binding MidiInputDevices}">
+                            <MenuItem.ItemContainerStyle>
+                                <Style TargetType="MenuItem">
+                                    <Setter Property="Header" Value="{Binding DisplayName}" />
+                                    <Setter Property="IsCheckable" Value="True" />
+                                    <Setter Property="IsChecked" Value="{Binding IsSelected, Mode=OneWay}" />
+                                    <Setter Property="Command" Value="{Binding DataContext.SelectMidiInputCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+                                    <Setter Property="CommandParameter" Value="{Binding}" />
+                                </Style>
+                            </MenuItem.ItemContainerStyle>
+                        </MenuItem>
+                        <MenuItem Header="Play keyboard on selected track" IsCheckable="True" IsChecked="{Binding IsLiveKeyboardEnabled}" />
                         <MenuItem Header="Refresh devices" Command="{Binding RefreshMidiDevicesCommand}" />
                     </MenuItem>
                     <MenuItem Header="_Audio">
