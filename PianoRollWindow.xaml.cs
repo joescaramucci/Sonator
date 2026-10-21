@@ -43,6 +43,8 @@ public partial class PianoRollWindow : Window
 
         Loaded += (_, _) => Redraw();
         PreviewKeyDown += OnPreviewKeyDown;
+        viewModel.TrackNotesChanged += OnTrackNotesChanged;
+        Closed += (_, _) => viewModel.TrackNotesChanged -= OnTrackNotesChanged;
     }
 
     // Playback falls back to the step grid when a track has no recorded notes, so the roll starts from the same notes.
@@ -318,6 +320,20 @@ public partial class PianoRollWindow : Window
         {
             RemoveNote(hit);
         }
+    }
+
+    // Notes recorded or changed elsewhere appear in the open roll.
+    private void OnTrackNotesChanged(PatternTrackViewModel changed)
+    {
+        if (!ReferenceEquals(changed, _track) || _dragOriginal is not null)
+        {
+            return;
+        }
+
+        _notes.Clear();
+        _notes.AddRange(changed.MidiNoteEvents);
+        _selectedIndex = -1;
+        Redraw();
     }
 
     private void PlayButton_Click(object sender, RoutedEventArgs e)

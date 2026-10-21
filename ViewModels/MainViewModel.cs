@@ -1205,6 +1205,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public RelayCommand ToggleTrackRecordArmCommand { get; }
 
+    // Raised when a track's notes change, so an open piano roll can show them.
+    public event Action<PatternTrackViewModel>? TrackNotesChanged;
+
     public RelayCommand ToggleStepCommand { get; }
 
     public RelayCommand TogglePianoRollCellCommand { get; }
@@ -2121,6 +2124,24 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         return sequence.Count > 0 ? sequence : Patterns.ToList();
     }
 
+    // The step a timeline cell shows. A track with MIDI note events shows those notes, as playback does; otherwise its step grid.
+    private static StepViewModel? TimelineStepFor(PatternTrackViewModel? track, int stepIndex)
+    {
+        if (track is null)
+        {
+            return null;
+        }
+
+        if (track.MidiNoteEvents.Count > 0)
+        {
+            var note = track.MidiNoteEvents.FirstOrDefault(item =>
+                stepIndex >= item.StepIndex && stepIndex < item.StepIndex + Math.Max(1, item.DurationSteps));
+            return note is null ? null : new StepViewModel(stepIndex, true) { MidiNoteNumber = note.NoteNumber };
+        }
+
+        return stepIndex < track.Steps.Count ? track.Steps[stepIndex] : null;
+    }
+
     private void RebuildTimeline()
     {
         var timelinePatterns = IsArrangeMode
@@ -2156,9 +2177,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 var timelineStepCount = PatternBarCount(pattern) * 16;
                 for (var stepIndex = 0; stepIndex < timelineStepCount; stepIndex++)
                 {
-                    var sourceStep = track is not null && stepIndex < track.Steps.Count
-                        ? track.Steps[stepIndex]
-                        : null;
+                    var sourceStep = TimelineStepFor(track, stepIndex);
                     timelineSteps.Add(new ArrangeTimelineStepViewModel(absoluteStep++, sourceStep));
                 }
             }
@@ -2664,6 +2683,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         CaptureUndoStateIfNeeded();
         track.MidiNoteEvents = notes.ToList();
         StatusMessage = $"{track.Name}: {notes.Count} notes";
+        TrackNotesChanged?.Invoke(track);
+        RebuildTimeline();
     }
 
     // Brings the selected track back to the settings it had when it was created.
