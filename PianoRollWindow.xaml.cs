@@ -54,6 +54,7 @@ public partial class PianoRollWindow : Window
     public PianoRollWindow(MainViewModel viewModel, PatternTrackViewModel track)
     {
         InitializeComponent();
+        WindowFrame.UseDarkFrame(this);
         _viewModel = viewModel;
         _track = track;
         _notes = track.MidiNoteEvents.Count > 0 ? track.MidiNoteEvents.ToList() : NotesFromSteps(track);

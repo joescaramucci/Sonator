@@ -15,6 +15,7 @@ public partial class DriverSettingsDialog : Window
     public DriverSettingsDialog(string driverName, string driverClsid)
     {
         InitializeComponent();
+        WindowFrame.UseDarkFrame(this);
         _driverClsid = driverClsid;
         DriverNameText.Text = driverName;
         Loaded += (_, _) => LoadCapabilities();

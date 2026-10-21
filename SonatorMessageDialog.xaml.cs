@@ -9,6 +9,7 @@ public partial class SonatorMessageDialog : Window
         DialogTitle = title;
         Message = message;
         InitializeComponent();
+        WindowFrame.UseDarkFrame(this);
         DataContext = this;
     }
 

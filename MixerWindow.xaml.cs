@@ -18,6 +18,7 @@ public partial class MixerWindow : Window
     public MixerWindow(MainViewModel viewModel)
     {
         InitializeComponent();
+        WindowFrame.UseDarkFrame(this);
         _viewModel = viewModel;
         Loaded += (_, _) => BuildStrips();
         Closed += (_, _) => ReleaseModules();

@@ -14,6 +14,7 @@ public partial class MidiImportDialog : Window, INotifyPropertyChanged
     public MidiImportDialog()
     {
         InitializeComponent();
+        WindowFrame.UseDarkFrame(this);
         DataContext = this;
     }
 

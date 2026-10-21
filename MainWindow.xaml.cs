@@ -45,6 +45,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        WindowFrame.UseDarkFrame(this);
         _mainViewModel = new MainViewModel();
         _mainViewModel.PropertyChanged += MainViewModel_PropertyChanged;
         DataContext = _mainViewModel;

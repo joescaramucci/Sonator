@@ -22,6 +22,7 @@ public partial class VstPluginEditorDialog : Window
     public VstPluginEditorDialog(string name, string filePath, string kind, IVst3PluginHost? vst3Host = null)
     {
         InitializeComponent();
+        WindowFrame.UseDarkFrame(this);
         _vst3Host = vst3Host ?? new Vst3PluginHost();
         _filePath = filePath;
         PluginNameText.Text = name;

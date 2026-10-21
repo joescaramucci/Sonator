@@ -35,6 +35,7 @@ public partial class WaveformEditorWindow : Window
     public WaveformEditorWindow(string? path = null, double songTempo = 120, MainViewModel? viewModel = null)
     {
         InitializeComponent();
+        WindowFrame.UseDarkFrame(this);
         _songTempo = songTempo;
         _viewModel = viewModel;
         Closed += (_, _) => StopPlayback();

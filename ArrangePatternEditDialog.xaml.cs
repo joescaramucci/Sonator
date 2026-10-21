@@ -10,6 +10,7 @@ public partial class ArrangePatternEditDialog : Window
         AssignmentNumber = assignmentNumber;
         SubChannelIndex = subChannelIndex;
         InitializeComponent();
+        WindowFrame.UseDarkFrame(this);
         DataContext = this;
         Loaded += (_, _) => PatternNameTextBox.Focus();
     }

@@ -22,6 +22,7 @@ public partial class Vst3NativeEditorWindow : Window
     public Vst3NativeEditorWindow(IVst3PluginHost vst3Host, Vst3ModuleHandle moduleHandle, string pluginName)
     {
         InitializeComponent();
+        WindowFrame.UseDarkFrame(this);
         _vst3Host = vst3Host;
         _moduleHandle = moduleHandle;
         Title = $"Native GUI - {pluginName}";
@@ -34,6 +35,7 @@ public partial class Vst3NativeEditorWindow : Window
     public Vst3NativeEditorWindow(string pluginName, string filePath)
     {
         InitializeComponent();
+        WindowFrame.UseDarkFrame(this);
         _vst3Host = new Vst3PluginHost();
         _ownsModule = true;
         Title = $"Native GUI - {pluginName}";

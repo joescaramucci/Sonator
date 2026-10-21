@@ -31,6 +31,7 @@ public partial class TrackEditDialog : Window, INotifyPropertyChanged
         _channelText = channel.ToString();
         _noteNumberText = noteNumber.ToString();
         InitializeComponent();
+        WindowFrame.UseDarkFrame(this);
         DataContext = this;
         Title = isNewTrack ? "New track" : "Edit track";
         Loaded += (_, _) => TrackNameTextBox.Focus();
