@@ -30,14 +30,27 @@ internal sealed class SequencerEngine : IDisposable
     private long _liveStepStartTicks;
     private long _liveStepLengthTicks = Stopwatch.Frequency / 8;
 
+    // During a count-in the sequence has not started yet: positions count back from the step it will start on.
+    private int _countInActive;
+    private long _countInEndTicks;
+    private int _countInStartStep;
+
     // Where the sequencer is right now, in steps, including the fraction of the current step that has passed.
+    // During a count-in it is before the start step (it can be negative). Safe to read from any thread.
     public double LivePosition
     {
         get
         {
-            var length = Volatile.Read(ref _liveStepLengthTicks);
-            var elapsed = Stopwatch.GetTimestamp() - Volatile.Read(ref _liveStepStartTicks);
-            var fraction = Math.Clamp(elapsed / (double)Math.Max(1, length), 0.0, 0.999);
+            var length = Math.Max(1, Volatile.Read(ref _liveStepLengthTicks));
+            var now = Stopwatch.GetTimestamp();
+            if (Volatile.Read(ref _countInActive) == 1)
+            {
+                var stepsLeft = (Volatile.Read(ref _countInEndTicks) - now) / (double)length;
+                return Volatile.Read(ref _countInStartStep) - stepsLeft;
+            }
+
+            var elapsed = now - Volatile.Read(ref _liveStepStartTicks);
+            var fraction = Math.Clamp(elapsed / (double)length, 0.0, 0.999);
             return LiveStep + fraction;
         }
     }
@@ -221,13 +234,23 @@ internal sealed class SequencerEngine : IDisposable
             _countInCts = cts;
         }
 
+        // The count-in ends exactly where the sequence starts, so notes played during it land just before the start.
+        var stepTicks = (long)(GetInterval(TempoBpm).TotalSeconds * Stopwatch.Frequency);
+        var countInSteps = bars * 16;
+        Volatile.Write(ref _liveStepLengthTicks, stepTicks);
+        Volatile.Write(ref _countInStartStep, GetCurrentStep());
+        Volatile.Write(ref _countInEndTicks, Stopwatch.GetTimestamp() + countInSteps * stepTicks);
+        Volatile.Write(ref _countInActive, 1);
+
+        var cancelled = false;
         try
         {
             await RunClicksAsync(bars, cts.Token).ConfigureAwait(false);
+            cancelled = cts.IsCancellationRequested;
         }
         catch (OperationCanceledException)
         {
-            return;
+            cancelled = true;
         }
         finally
         {
@@ -241,11 +264,18 @@ internal sealed class SequencerEngine : IDisposable
             cts.Dispose();
         }
 
-        await _dispatcher.InvokeAsync(() =>
+        if (cancelled)
         {
-            Start();
-            onStarted?.Invoke();
-        });
+            Volatile.Write(ref _countInActive, 0);
+            return;
+        }
+
+        // Start here, on time, rather than after a trip through the UI thread.
+        Start();
+        if (onStarted is not null)
+        {
+            _ = _dispatcher.BeginInvoke(onStarted);
+        }
     }
 
     public void Stop()
@@ -392,6 +422,7 @@ internal sealed class SequencerEngine : IDisposable
         Volatile.Write(ref _liveStep, stepIndex);
         Volatile.Write(ref _liveStepLengthTicks, (long)(GetInterval(TempoBpm).TotalSeconds * Stopwatch.Frequency));
         Volatile.Write(ref _liveStepStartTicks, Stopwatch.GetTimestamp());
+        Volatile.Write(ref _countInActive, 0);
         var playbackPosition = ResolvePlaybackPosition(stepIndex);
         var pattern = playbackPosition.Pattern;
         if (pattern is null)

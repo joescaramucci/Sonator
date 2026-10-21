@@ -36,6 +36,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly MidiInputService _midiInput = new();
     private readonly MetronomeClickPlayer _clickPlayer = new();
     private readonly Dictionary<int, (double StartStep, int Velocity)> _recordingNotes = new();
+    private readonly DispatcherTimer _recordRefreshTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
+    private PatternTrackViewModel? _recordRefreshTrack;
+    private bool _recordTakeHasNotes;
+    private int _playbackStartStep;
 
     // Grid recorded notes snap to, in steps. Null means no quantization: notes keep the exact time they were played.
     public IReadOnlyList<RecordGrid> RecordGrids { get; } = new[]
@@ -199,6 +203,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _midiInput.NoteReceived += OnKeyboardNote;
         _midiInput.MessageReceived += packed => Application.Current?.Dispatcher.BeginInvoke(() => OnMidiMessageReceived(packed));
         _midiActivityTimer.Tick += (_, _) => IsMidiActivityVisible = false;
+        _recordRefreshTimer.Tick += (_, _) => RefreshRecordedTrack();
         PreviewClickCommand = new RelayCommand(_ =>
         {
             if (_engine.IsClickLoopRunning)
@@ -1851,43 +1856,86 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private int _keyboardNotesPlayed;
     private int _keyboardNotesRecorded;
 
-    private void RecordLiveNote(MidiNoteMessage note)
+    // The track recorded into: the first armed MIDI track, or the selected one.
+    private PatternTrackViewModel? RecordTarget =>
+        Tracks.FirstOrDefault(item => item.IsRecordArmed && item.SupportsMidiPlayback) ?? SelectedTrack;
+
+    // position is where the sequencer was when the key arrived, taken on the MIDI thread.
+    private void RecordLiveNote(MidiNoteMessage note, double position)
     {
-        var track = Tracks.FirstOrDefault(item => item.IsRecordArmed && item.SupportsMidiPlayback) ?? SelectedTrack;
-        if (!IsRecording || track is null || !track.SupportsMidiPlayback)
+        var track = RecordTarget;
+        if (!IsRecording || !IsPlaying || track is null || !track.SupportsMidiPlayback)
         {
             return;
         }
 
+        var at = Math.Max(0, SnapToRecordGrid(position) ?? position);
         if (note.IsOn)
         {
             _keyboardNotesPlayed++;
-            _recordingNotes[note.NoteNumber] = (SnapToRecordGrid(_engine.LivePosition) ?? _engine.LivePosition, note.Velocity);
+            _recordingNotes[note.NoteNumber] = (at, note.Velocity);
             return;
         }
 
-        if (!_recordingNotes.Remove(note.NoteNumber, out var started))
+        if (_recordingNotes.Remove(note.NoteNumber, out var started))
+        {
+            AddRecordedNote(track, note.NoteNumber, started.Velocity, started.StartStep, at);
+        }
+    }
+
+    private void AddRecordedNote(PatternTrackViewModel track, int noteNumber, int velocity, double start, double end)
+    {
+        // One undo step for the whole take, taken before its first note.
+        if (!_recordTakeHasNotes)
+        {
+            CaptureUndoStateIfNeeded();
+            _recordTakeHasNotes = true;
+        }
+
+        var stepStart = Math.Floor(start);
+        var length = Math.Max(RecordGrid.Steps ?? 0.05, end - start);
+        var wholeSteps = (int)Math.Floor(length);
+        var notes = track.MidiNoteEvents.ToList();
+        notes.Add(new MidiNoteEventViewModel((int)stepStart, wholeSteps, noteNumber, velocity, start - stepStart, length - wholeSteps));
+        track.MidiNoteEvents = notes;
+        _keyboardNotesRecorded++;
+        _recordRefreshTrack = track;
+        if (!_recordRefreshTimer.IsEnabled)
+        {
+            _recordRefreshTimer.Start();
+        }
+    }
+
+    // Redraws the timeline and the piano roll for the notes recorded since the last refresh.
+    private void RefreshRecordedTrack()
+    {
+        _recordRefreshTimer.Stop();
+        if (_recordRefreshTrack is not { } track)
         {
             return;
         }
 
-        _keyboardNotesRecorded++;
-
-        var endPosition = SnapToRecordGrid(_engine.LivePosition) ?? _engine.LivePosition;
-        var stepStart = Math.Floor(started.StartStep);
-        var length = Math.Max(RecordGrid.Steps ?? 0.05, endPosition - started.StartStep);
-        var wholeSteps = (int)Math.Floor(length);
-        var notes = track.MidiNoteEvents.ToList();
-        notes.Add(new MidiNoteEventViewModel(
-            (int)stepStart,
-            wholeSteps,
-            note.NoteNumber,
-            started.Velocity,
-            started.StartStep - stepStart,
-            length - wholeSteps));
-        ReplaceTrackNotes(track, notes);
+        _recordRefreshTrack = null;
+        RebuildTimeline();
+        TrackNotesChanged?.Invoke(track);
         SelectBlock(track);
-        StatusMessage += $" (timeline rebuilt in {_lastRebuildMs:0.0} ms; notes played {_keyboardNotesPlayed}, recorded {_keyboardNotesRecorded})";
+        StatusMessage = $"{track.Name}: {track.MidiNoteEvents.Count} notes (played {_keyboardNotesPlayed}, recorded {_keyboardNotesRecorded})";
+    }
+
+    // Keys still held when playback stops end where it stopped.
+    private void FinishRecordingTake(double stopPosition)
+    {
+        if (RecordTarget is { } track)
+        {
+            foreach (var (noteNumber, started) in _recordingNotes)
+            {
+                AddRecordedNote(track, noteNumber, started.Velocity, started.StartStep, Math.Max(started.StartStep, stopPosition));
+            }
+        }
+
+        _recordingNotes.Clear();
+        RefreshRecordedTrack();
+        _recordTakeHasNotes = false;
     }
 
     // Runs on the MIDI thread. A note for a running plug-in is sent at once, without waiting for the UI thread;
@@ -1917,6 +1965,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     // plug-in is not running yet is left to the UI thread, which starts it.
     private void OnKeyboardNote(MidiNoteMessage note)
     {
+        // Taken here, when the key arrives: by the time the UI thread handles the note the sequencer has moved on.
+        var position = _engine.LivePosition;
         var route = KeyboardRoute.None;
         if (IsLiveKeyboardEnabled)
         {
@@ -1941,12 +1991,12 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         _keyboardInputDelayMs = _midiInput.LastInputDelayMs;
-        Application.Current?.Dispatcher.BeginInvoke(() => PlayLiveKeyboardNote(note, route));
+        Application.Current?.Dispatcher.BeginInvoke(() => PlayLiveKeyboardNote(note, route, position));
     }
 
-    private void PlayLiveKeyboardNote(MidiNoteMessage note, KeyboardRoute route)
+    private void PlayLiveKeyboardNote(MidiNoteMessage note, KeyboardRoute route, double position)
     {
-        RecordLiveNote(note);
+        RecordLiveNote(note, position);
 
         if (route != KeyboardRoute.None)
         {
@@ -2314,6 +2364,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             EnsureInstrument(pluginTrack.PluginFilePath!, pluginTrack.Name);
         }
 
+        _playbackStartStep = CurrentStepIndex;
+        _recordingNotes.Clear();
         if (IsRecording && SelectedCountIn.Bars > 0)
         {
             IsPlaying = true;
@@ -2330,11 +2382,18 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private void StopPlayback()
     {
+        var stopPosition = _engine.LivePosition;
+        var recordedTake = _recordTakeHasNotes || _recordingNotes.Count > 0;
         AudioTrackPlayback.Stop();
         _engine.Stop();
         RaisePropertyChanged(nameof(IsClickLoopRunning));
         IsPlaying = false;
         StatusMessage = "Playback paused";
+        if (recordedTake)
+        {
+            FinishRecordingTake(stopPosition);
+            SeekToStep(_playbackStartStep); // back to where the take began, ready to listen to it
+        }
     }
 
     private void OnStepChanged(object? sender, int stepIndex)

@@ -130,9 +130,9 @@ public partial class PianoRollWindow : Window
         {
             var note = _notes[index];
             var selected = index == _selectedIndex;
-            var x = KeyboardWidth + note.StepIndex * StepWidth + 1;
+            var x = KeyboardWidth + (note.StepIndex + note.StartOffset) * StepWidth + 1;
             var y = (HighestNote - note.NoteNumber) * RowHeight + 1;
-            var noteWidth = Math.Max(StepWidth - 2, note.DurationSteps * StepWidth - 2);
+            var noteWidth = Math.Max(3, (note.DurationSteps + note.LengthFraction) * StepWidth - 2);
 
             AddRect(x, y, noteWidth, RowHeight - 2, selected ? "#F2C14E" : "#4FA3D9", "#0E1620");
 
