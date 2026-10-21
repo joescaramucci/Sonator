@@ -1459,7 +1459,7 @@ namespace
     // A click must return at least this many frames after it was written, so that
     // crosstalk or a late reflection in the converters is not taken for the echo.
     constexpr long long kMinimumEchoFrames = 64;
-    constexpr float kClickThreshold = 0.05f;
+    constexpr float kClickThreshold = 0.002f; // about -54 dBFS, well above the quiet input noise floor
 
     constexpr double kBurstHz = 1000.0;
     constexpr double kBurstSeconds = 0.01;
