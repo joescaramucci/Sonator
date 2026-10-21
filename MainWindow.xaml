@@ -1456,9 +1456,6 @@
                                                 PreviewMouseLeftButtonDown="NoteBlock_PreviewMouseLeftButtonDown"
                                                 PreviewMouseMove="NoteBlock_PreviewMouseMove"
                                                 PreviewMouseLeftButtonUp="NoteBlock_PreviewMouseLeftButtonUp">
-                                            <Border.RenderTransform>
-                                                <TranslateTransform />
-                                            </Border.RenderTransform>
                                             <Border.Margin>
                                                 <MultiBinding Converter="{StaticResource StepOffsetConverter}">
                                                     <Binding Path="BlockStartStep" />

@@ -219,10 +219,7 @@ public partial class MainWindow : Window
         if (!_blockResizing)
         {
             _blockMoveSteps = viewModel.SnapStep(_blockTimeline.BlockStartStep + steps) - _blockTimeline.BlockStartStep;
-            if (_blockBorder.RenderTransform is TranslateTransform preview)
-            {
-                preview.X = _blockMoveSteps * stepWidth;
-            }
+            _blockBorder.RenderTransform = new TranslateTransform(_blockMoveSteps * stepWidth, 0);
         }
 
         e.Handled = true;
@@ -245,10 +242,7 @@ public partial class MainWindow : Window
         _blockBorder = null;
         _blockTimeline = null;
         block.ReleaseMouseCapture();
-        if (block.RenderTransform is TranslateTransform preview)
-        {
-            preview.X = 0;
-        }
+        block.RenderTransform = Transform.Identity;
 
         if (resizing)
         {
