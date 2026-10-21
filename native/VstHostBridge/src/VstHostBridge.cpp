@@ -529,6 +529,7 @@ namespace
         std::atomic<bool> measureFinished{false};
         std::atomic<long long> measureResultFrames{-1};
         std::atomic<float> measurePeak{0.0f}; // largest input 1 level during the last measurement
+        std::atomic<long long> measurePeakFrames{0}; // frames from the click to that peak
 
         std::thread thread;
         std::atomic<bool> stopRequested{false};
@@ -1401,6 +1402,8 @@ namespace
         long long clickFrame = -1;    // frame where the measurement click is written
         long long detectedFrame = -1; // frame where the click came back on input 0
         float inputPeak = 0.0f;       // largest input 0 level seen during the current measurement
+        long long inputPeakFrame = 0; // absolute frame where that level was seen
+        float noisePeak = 0.0f;       // input 0 level just before the burst went out
         double sampleRate = 48000.0;
     };
 
@@ -1473,14 +1476,27 @@ namespace
     {
         const long count = session.bufferSize;
         const long long burstFrames = static_cast<long long>(session.sampleRate * kBurstSeconds);
-        if (session.clickFrame < 0)
+        const bool firstBlock = session.clickFrame < 0;
+        if (firstBlock)
         {
             session.clickFrame = session.frame + count; // the click goes out at the start of the next block
             session.inputPeak = 0.0f;
+            session.inputPeakFrame = 0;
         }
 
         ReadFloatSamples(session.bufferInfos[static_cast<size_t>(session.deviceChannels)].buffers[doubleBufferIndex],
             session.inputScratch.data(), count, session.inputSampleType);
+        if (firstBlock)
+        {
+            // This block was captured before the burst went out, so its level is the input's noise floor.
+            session.noisePeak = 0.0f;
+            for (long i = 0; i < count; ++i)
+            {
+                session.noisePeak = std::max(session.noisePeak, std::fabs(session.inputScratch[static_cast<size_t>(i)]));
+            }
+        }
+        // A burst counts only when it stands well above the noise floor, so a noisy input cannot fake an echo.
+        const float threshold = std::max(kClickThreshold, 4.0f * session.noisePeak);
 
         for (long i = 0; i < count; ++i)
         {
@@ -1500,13 +1516,15 @@ namespace
             if (absolute >= session.clickFrame && level > session.inputPeak)
             {
                 session.inputPeak = level;
+                session.inputPeakFrame = absolute;
             }
-            if (session.detectedFrame < 0 && absolute >= session.clickFrame + kMinimumEchoFrames && level > kClickThreshold)
+            if (session.detectedFrame < 0 && absolute >= session.clickFrame + kMinimumEchoFrames && level > threshold)
             {
                 session.detectedFrame = absolute;
             }
         }
         session.engine->measurePeak = session.inputPeak;
+        session.engine->measurePeakFrames = session.inputPeakFrame - session.clickFrame;
     }
 
     // Converts float samples to the driver's sample format and writes them to a driver buffer.
@@ -2183,6 +2201,7 @@ int VstHostBridge_MeasureAsioLatency(void* moduleHandle, double* outMilliseconds
 
     engine->measureResultFrames = -1;
     engine->measurePeak = 0.0f;
+    engine->measurePeakFrames = 0;
     engine->measureFinished = false;
     engine->measureRequested = true;
 
@@ -2199,8 +2218,9 @@ int VstHostBridge_MeasureAsioLatency(void* moduleHandle, double* outMilliseconds
         const float peak = engine->measurePeak.load();
         const double peakDb = peak > 0.0f ? 20.0 * std::log10(static_cast<double>(peak)) : -120.0;
         std::ostringstream message;
+        const double peakMs = static_cast<double>(engine->measurePeakFrames.load()) * 1000.0 / engine->asioSampleRate.load();
         message << "Nessun segnale rilevato sull'ingresso 1 (picco " << std::fixed << std::setprecision(1)
-                << peakDb << " dBFS). Collega l'uscita 1 all'ingresso 1 con un cavo di loopback e alza il gain dell'ingresso.";
+                << peakDb << " dBFS a " << peakMs << " ms dal click). Collega l'uscita 1 all'ingresso 1 con un cavo di loopback e alza il gain dell'ingresso.";
         SetBridgeError(message.str());
         return 0;
     }
