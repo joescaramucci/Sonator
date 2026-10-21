@@ -320,8 +320,25 @@ public partial class PianoRollWindow : Window
         }
     }
 
+    private void PlayButton_Click(object sender, RoutedEventArgs e)
+    {
+        _viewModel.PlayCommand.Execute(null);
+    }
+
+    private void StopButton_Click(object sender, RoutedEventArgs e)
+    {
+        _viewModel.StopCommand.Execute(null);
+    }
+
     private void OnPreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (e.Key == Key.Space)
+        {
+            _viewModel.TogglePlayback();
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key == Key.Delete && _selectedIndex >= 0 && _selectedIndex < _notes.Count)
         {
             RemoveNote(_selectedIndex);

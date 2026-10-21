@@ -1701,6 +1701,14 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         AudioTrackPlayback.Play(mixed);
     }
 
+    // Makes a track play through a plug-in, as when a plug-in is dropped on it from the plug-in list.
+    public void AssignPlugin(PatternTrackViewModel track, string pluginPath)
+    {
+        CaptureUndoStateIfNeeded();
+        track.PluginFilePath = pluginPath;
+        StatusMessage = $"{track.Name} now plays through {Path.GetFileNameWithoutExtension(pluginPath)}";
+    }
+
     // Puts a clip into an empty track and makes the track an audio track.
     public void AssignAudioClip(PatternTrackViewModel track, string clipPath)
     {

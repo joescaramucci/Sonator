@@ -16,6 +16,9 @@ public partial class MainWindow : Window
 {
     private const string ArrangePatternDragFormat = "Sonator.ArrangePatternRow";
     private static readonly string[] AudioFileExtensions = { ".wav", ".mp3" };
+    private const string VstPluginDragFormat = "Sonator.VstPluginPath";
+    private Point? _vstPluginDragStart;
+    private string? _vstPluginDragPath;
     private MixerWindow? _mixerWindow;
     private WaveformEditorWindow? _waveformEditorWindow;
     private readonly Vst3ThumbnailService _vst3ThumbnailService = new();
@@ -797,25 +800,48 @@ public partial class MainWindow : Window
     }
 
     // Audio files dropped on an empty track go straight into it.
+    // A track takes a plug-in dropped on it, or an audio file dropped on it when the track is empty.
     private void TimelineBodyListBox_DragOver(object sender, DragEventArgs e)
     {
-        e.Effects = GetDroppedAudioTrack(e) is { } track && MainViewModel.IsEmptyTrack(track)
-            ? DragDropEffects.Copy
-            : DragDropEffects.None;
+        e.Effects = GetDroppedPluginTrack(e) is not null
+            || (GetDroppedAudioTrack(e) is { } track && MainViewModel.IsEmptyTrack(track))
+                ? DragDropEffects.Copy
+                : DragDropEffects.None;
         e.Handled = true;
     }
 
     private void TimelineBodyListBox_Drop(object sender, DragEventArgs e)
     {
-        if (DataContext is not MainViewModel viewModel
-            || GetDroppedAudioTrack(e) is not { } track
-            || GetDroppedAudioFile(e) is not { } filePath)
+        if (DataContext is not MainViewModel viewModel)
         {
             return;
         }
 
-        viewModel.AssignAudioFile(track, filePath);
-        e.Handled = true;
+        if (GetDroppedPluginTrack(e) is { } pluginTrack && e.Data.GetData(VstPluginDragFormat) is string pluginPath)
+        {
+            viewModel.AssignPlugin(pluginTrack, pluginPath);
+            e.Handled = true;
+            return;
+        }
+
+        if (GetDroppedAudioTrack(e) is { } track && GetDroppedAudioFile(e) is { } filePath)
+        {
+            viewModel.AssignAudioFile(track, filePath);
+            e.Handled = true;
+        }
+    }
+
+    private static PatternTrackViewModel? GetDroppedPluginTrack(DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent(VstPluginDragFormat))
+        {
+            return null;
+        }
+
+        var item = FindVisualAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
+        return item?.DataContext is ArrangeTimelineTrackViewModel { SourceTrack.SupportsMidiPlayback: true } timelineTrack
+            ? timelineTrack.SourceTrack
+            : null;
     }
 
     private static string? GetDroppedAudioFile(DragEventArgs e)
@@ -902,9 +928,50 @@ public partial class MainWindow : Window
         ShowEditTrackDialog(viewModel, viewModel.SelectedTrack);
     }
 
+    // A press starts a drag; a release without a drag opens the plug-in editor, as a click always did.
     private void VstPluginThumbnail_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement element || element.DataContext is not VstPluginViewModel plugin)
+        {
+            return;
+        }
+
+        _vstPluginDragStart = e.GetPosition(element);
+        _vstPluginDragPath = plugin.FilePath;
+        e.Handled = true;
+    }
+
+    private void VstPluginThumbnail_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (_vstPluginDragStart is not { } start
+            || _vstPluginDragPath is null
+            || e.LeftButton != MouseButtonState.Pressed
+            || sender is not FrameworkElement element)
+        {
+            return;
+        }
+
+        var offset = e.GetPosition(element) - start;
+        if (Math.Abs(offset.X) < SystemParameters.MinimumHorizontalDragDistance
+            && Math.Abs(offset.Y) < SystemParameters.MinimumVerticalDragDistance)
+        {
+            return;
+        }
+
+        var path = _vstPluginDragPath;
+        _vstPluginDragStart = null;
+        _vstPluginDragPath = null;
+        var data = new DataObject(VstPluginDragFormat, path);
+        DragDrop.DoDragDrop(element, data, DragDropEffects.Copy);
+        e.Handled = true;
+    }
+
+    private void VstPluginThumbnail_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        var wasClick = _vstPluginDragStart is not null;
+        _vstPluginDragStart = null;
+        _vstPluginDragPath = null;
+        if (!wasClick || sender is not FrameworkElement element || element.DataContext is not VstPluginViewModel plugin)
         {
             return;
         }

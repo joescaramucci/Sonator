@@ -1788,7 +1788,9 @@
                                                 BorderThickness="1"
                                                 Cursor="Hand"
                                                 ToolTip="{Binding FilePath}"
-                                                MouseLeftButtonDown="VstPluginThumbnail_MouseLeftButtonDown">
+                                                MouseLeftButtonDown="VstPluginThumbnail_MouseLeftButtonDown"
+                                                MouseMove="VstPluginThumbnail_MouseMove"
+                                                MouseLeftButtonUp="VstPluginThumbnail_MouseLeftButtonUp">
                                             <Grid>
                                                 <Border Background="#1F2A39">
                                                     <TextBlock Text="{Binding Badge}"
