@@ -66,20 +66,24 @@ public partial class MixerWindow : Window
         buttons.Children.Add(solo);
         strip.Children.Add(buttons);
 
+        // The plug-in's parameters sit above the track's name and fader, as in a channel strip.
+        var pluginPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
         if (string.IsNullOrWhiteSpace(track.PluginFilePath))
         {
-            strip.Children.Add(new TextBlock { Text = "no plug-in", Margin = new Thickness(0, 8, 0, 0), Opacity = 0.7 });
-            return strip;
+            pluginPanel.Children.Add(new TextBlock { Text = "no plug-in", Opacity = 0.7 });
         }
-
-        strip.Children.Add(new TextBlock
+        else
         {
-            Text = Path.GetFileNameWithoutExtension(track.PluginFilePath),
-            FontSize = 10,
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 8, 0, 4),
-        });
-        AddParameterSliders(track.PluginFilePath, strip);
+            pluginPanel.Children.Add(new TextBlock
+            {
+                Text = Path.GetFileNameWithoutExtension(track.PluginFilePath),
+                FontSize = 10,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 4),
+            });
+            AddParameterSliders(track.PluginFilePath, pluginPanel);
+        }
+        strip.Children.Insert(0, pluginPanel);
         return strip;
     }
 
