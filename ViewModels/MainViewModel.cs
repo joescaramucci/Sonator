@@ -152,7 +152,14 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _midiInput.NoteReceived += note => Application.Current?.Dispatcher.BeginInvoke(() => PlayLiveKeyboardNote(note));
         _midiInput.MessageReceived += packed => Application.Current?.Dispatcher.BeginInvoke(() => OnMidiMessageReceived(packed));
         _midiActivityTimer.Tick += (_, _) => IsMidiActivityVisible = false;
-        SelectMidiInputCommand = new RelayCommand(parameter => SelectMidiInput(parameter as MidiInputDeviceViewModel));
+        SelectMidiInputCommand = new RelayCommand(parameter =>
+        {
+            if (parameter is MidiInputDeviceViewModel device)
+            {
+                SelectMidiInput(device);
+                SaveMidiInputChoice(device);
+            }
+        });
 
         InitializeCollections();
         InitializeCommands(
@@ -1366,7 +1373,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private void ReloadMidiInputDevices()
     {
-        var selectedName = SelectedMidiInputDevice?.DisplayName;
+        var selectedName = SelectedMidiInputDevice?.DisplayName ?? _appSettingsService.Load().MidiInputDeviceName;
         MidiInputDevices.Clear();
         MidiInputDevices.Add(new MidiInputDeviceViewModel(null, "Off"));
         foreach (var device in MidiInputService.GetInputDevices())
@@ -1374,7 +1381,23 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             MidiInputDevices.Add(new MidiInputDeviceViewModel(device.DeviceId, device.DisplayName));
         }
 
-        SelectMidiInput(MidiInputDevices.FirstOrDefault(device => device.DisplayName == selectedName) ?? MidiInputDevices[0]);
+        // Without a saved choice, the A-PRO 1 port of the keyboard is used when it is connected.
+        SelectMidiInput(MidiInputDevices.FirstOrDefault(device => device.DisplayName == selectedName)
+            ?? MidiInputDevices.FirstOrDefault(device => IsKeyboardMidiInput(device.DisplayName))
+            ?? MidiInputDevices[0]);
+    }
+
+    private static bool IsKeyboardMidiInput(string displayName)
+    {
+        var normalized = new string(displayName.Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
+        return normalized.EndsWith("APRO1", StringComparison.Ordinal);
+    }
+
+    private void SaveMidiInputChoice(MidiInputDeviceViewModel device)
+    {
+        var settings = _appSettingsService.Load();
+        settings.MidiInputDeviceName = device.DisplayName;
+        _appSettingsService.Save(settings);
     }
 
     private void SelectMidiInput(MidiInputDeviceViewModel? device)

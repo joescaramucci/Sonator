@@ -20,6 +20,9 @@ public sealed class AppSettings
     public int? AsioBufferFrames { get; set; }
 
     public double? AsioSampleRate { get; set; }
+
+    // Name of the MIDI input the player last chose, "Off" included. Null means no choice yet.
+    public string? MidiInputDeviceName { get; set; }
 }
 
 public sealed class AppSettingsService

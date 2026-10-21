@@ -820,6 +820,7 @@ public partial class MainWindow : Window
         if (GetDroppedPluginTrack(e) is { } pluginTrack && e.Data.GetData(VstPluginDragFormat) is string pluginPath)
         {
             viewModel.AssignPlugin(pluginTrack, pluginPath);
+            OpenPluginWindowFor(viewModel, pluginPath);
             e.Handled = true;
             return;
         }
@@ -999,6 +1000,11 @@ public partial class MainWindow : Window
             return;
         }
 
+        OpenPluginWindowFor(viewModel, filePath);
+    }
+
+    private void OpenPluginWindowFor(MainViewModel viewModel, string filePath)
+    {
         var plugin = viewModel.VstPlugins.FirstOrDefault(item => string.Equals(item.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
         var kind = plugin?.Kind ?? (string.Equals(Path.GetExtension(filePath), ".vst3", StringComparison.OrdinalIgnoreCase) ? "VST3" : "VST2");
         OpenPluginWindow(plugin?.Name ?? Path.GetFileNameWithoutExtension(filePath), filePath, kind);
