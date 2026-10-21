@@ -674,7 +674,7 @@
                                 </Style.Triggers>
                             </Style>
                         </Button.Style>
-                        <StackPanel>
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                             <TextBlock Text="{Binding LoopModeText}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#E4ECF4" />
                             <TextBlock Text="LOOP" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                         </StackPanel>
@@ -696,7 +696,7 @@
                                 </Style.Triggers>
                             </Style>
                         </Button.Style>
-                        <StackPanel>
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                             <TextBlock Text="{Binding ArrangeModeText}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#E4ECF4" />
                             <TextBlock Text="ARRANGE" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                         </StackPanel>
@@ -717,14 +717,14 @@
                                 </Style.Triggers>
                             </Style>
                         </Border.Style>
-                        <StackPanel>
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                             <TextBox Text="{Binding Tempo, StringFormat=0.000, UpdateSourceTrigger=LostFocus}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA"  Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Center" IsReadOnly="True" Cursor="Hand" MouseDoubleClick="Tempo_MouseDoubleClick" MouseWheel="Tempo_MouseWheel" LostFocus="Tempo_LostFocus" KeyDown="Tempo_KeyDown" />
                             <TextBlock Text="TEMPO" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                         </StackPanel>
                     </Border>
                 </Border>
                 <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
-                    <StackPanel>
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                             <ToggleButton Content="ON" Width="40" Height="22" Margin="1" Style="{StaticResource MetronomeToggleStyle}"
                                           IsChecked="{Binding IsMetronomeOn}" ToolTip="Metronome on during playback" />
@@ -759,21 +759,31 @@
                     </StackPanel>
                 </Border>
                 <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
-                    <StackPanel>
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                         <TextBlock Text="{Binding TimeSignature}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                         <TextBlock Text="SIGNATURE" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                     </StackPanel>
                 </Border>
                 <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
-                    <StackPanel>
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                         <TextBlock Text="{Binding TransportPosition}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                         <TextBlock Text="MIN:SEC.1/100" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                     </StackPanel>
                 </Border>
                 <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
-                    <StackPanel>
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                         <TextBlock Text="{Binding CurrentStepBar}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                         <TextBlock Text="BAR 4 8 16" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                    </StackPanel>
+                </Border>
+                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <Button Content="MIXER" Style="{StaticResource BottomTabButton}" Width="58" Margin="2,0"
+                                Click="ShowMixerButton_Click" AutomationProperties.Name="Open mixer" />
+                        <Button Content="WAVE" Style="{StaticResource BottomTabButton}" Width="58" Margin="2,0"
+                                Click="ShowWaveformButton_Click" AutomationProperties.Name="Open waveform editor" />
+                        <Button Content="SONG" Style="{StaticResource BottomTabButton}" Width="58" Margin="2,0"
+                                Click="ShowSongButton_Click" AutomationProperties.Name="Show song arrangement" />
                     </StackPanel>
                 </Border>
             </UniformGrid>
@@ -2088,20 +2098,6 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Orientation="Horizontal" Margin="0,0,8,0">
-                    <Button Content="MIXER"
-                            Style="{StaticResource BottomTabButton}"
-                            Click="ShowMixerButton_Click"
-                            AutomationProperties.Name="Open mixer" />
-                    <Button Content="WAVE"
-                            Style="{StaticResource BottomTabButton}"
-                            Click="ShowWaveformButton_Click"
-                            AutomationProperties.Name="Open waveform editor" />
-                    <Button Content="SONG"
-                            Style="{StaticResource BottomTabButton}"
-                            Click="ShowSongButton_Click"
-                            AutomationProperties.Name="Show song arrangement" />
-                </StackPanel>
 
                 <Slider Grid.Column="1"
                         Style="{StaticResource SongTimelineSliderStyle}"
