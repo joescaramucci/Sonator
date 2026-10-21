@@ -1452,6 +1452,7 @@
                                                 HorizontalAlignment="Left"
                                                 VerticalAlignment="Stretch"
                                                 Cursor="SizeAll"
+                                                Tag="NoteBlock"
                                                 ToolTip="Drag to move the block. Drag its right edge to change its length. SNAP sets the grid."
                                                 PreviewMouseLeftButtonDown="NoteBlock_PreviewMouseLeftButtonDown"
                                                 PreviewMouseMove="NoteBlock_PreviewMouseMove"

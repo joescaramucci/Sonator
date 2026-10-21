@@ -184,6 +184,19 @@ public partial class MainWindow : Window
             }
     }
 
+    private static bool IsInsideNoteBlock(object? source)
+    {
+        for (var element = source as DependencyObject; element is Visual; element = VisualTreeHelper.GetParent(element))
+        {
+            if (element is Border { Tag: "NoteBlock" })
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     // A block moves when grabbed, and changes length when its right edge is grabbed. Both snap to the SNAP grid.
     private void NoteBlock_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
@@ -267,6 +280,12 @@ public partial class MainWindow : Window
     private void ArrangeTimelineScrollViewer_PreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
         if (sender is not ScrollViewer viewer || e.ChangedButton is not (MouseButton.Left or MouseButton.Middle))
+        {
+            return;
+        }
+
+        // A press on a block belongs to the block: it moves or resizes it instead of scrolling.
+        if (e.ChangedButton == MouseButton.Left && IsInsideNoteBlock(e.OriginalSource))
         {
             return;
         }
