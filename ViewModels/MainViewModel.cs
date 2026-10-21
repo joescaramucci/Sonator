@@ -313,7 +313,19 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         InitializeInitialSelection();
         InitializeVstPlugins();
         RefreshAudioOutputDevices();
+        MarkProjectSaved();
     }
+
+    // The project as it was last saved, opened or created, to tell whether closing would lose changes.
+    private string? _savedProjectSnapshot;
+
+    public bool HasUnsavedChanges => ProjectSnapshot() != _savedProjectSnapshot;
+
+    private void MarkProjectSaved() => _savedProjectSnapshot = ProjectSnapshot();
+
+    // Which pattern is selected and the MIDI output are not edits to the song.
+    private string ProjectSnapshot() => System.Text.Json.JsonSerializer.Serialize(
+        BuildProjectDocument() with { SelectedPatternSlot = null, SelectedMidiOutputDeviceName = null });
 
     private void InitializeCollections()
     {
@@ -1589,6 +1601,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         RaiseHistoryStateChanged();
         ConfigurePlaybackSource();
         RebuildTimeline();
+        MarkProjectSaved();
     }
 
     private void ApplySelectedMidiOutputDevice()
@@ -2100,6 +2113,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             _projectFileService.Save(path, BuildProjectDocument());
             CurrentProjectPath = path;
             StatusMessage = $"Project saved to {path}";
+            MarkProjectSaved();
             return true;
         }
         catch (Exception ex)
@@ -2133,6 +2147,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             SaveProjectAsCommand?.RaiseCanExecuteChanged();
             PasteTrackCommand?.RaiseCanExecuteChanged();
             RaiseHistoryStateChanged();
+            MarkProjectSaved();
         }
         catch (Exception ex)
         {

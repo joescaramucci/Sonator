@@ -54,10 +54,10 @@ public partial class MainWindow : Window
         Closed += OnClosed;
     }
 
-    // Exit, the window's X and Alt+F4 all ask whether to save the project first.
+    // Exit, the window's X and Alt+F4 all ask whether to save the project first, when it has unsaved changes.
     private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
-        if (_mainViewModel is null)
+        if (_mainViewModel is null || !_mainViewModel.HasUnsavedChanges)
         {
             return;
         }
