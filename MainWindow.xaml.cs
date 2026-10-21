@@ -32,6 +32,7 @@ public partial class MainWindow : Window
     private ArrangeTimelineTrackViewModel? _blockTimeline;
     private Point _blockPressPoint;
     private bool _blockResizing;
+    private bool _blockResizingStart;
     private int _blockMoveSteps;
     private bool _timelinePanPending;
     private Point _timelinePanStart;
@@ -214,6 +215,7 @@ public partial class MainWindow : Window
         _blockTimeline = timeline;
         _blockPressPoint = e.GetPosition(this);
         _blockResizing = IsInsideTagged(e.OriginalSource, "NoteBlockEdge");
+        _blockResizingStart = IsInsideTagged(e.OriginalSource, "NoteBlockStartEdge");
         _blockMoveSteps = 0;
         block.CaptureMouse();
         if (DataContext is MainViewModel viewModel)
@@ -234,7 +236,7 @@ public partial class MainWindow : Window
 
         var stepWidth = viewModel.TimelineSixteenthWidth;
         var steps = (int)Math.Round((e.GetPosition(this).X - _blockPressPoint.X) / stepWidth);
-        if (!_blockResizing)
+        if (!_blockResizing && !_blockResizingStart)
         {
             _blockMoveSteps = viewModel.SnapStep(_blockTimeline.BlockStartStep + steps) - _blockTimeline.BlockStartStep;
             _blockBorder.RenderTransform = new TranslateTransform(_blockMoveSteps * stepWidth, 0);
@@ -255,6 +257,7 @@ public partial class MainWindow : Window
         var stepWidth = viewModel.TimelineSixteenthWidth;
         var steps = (int)Math.Round((e.GetPosition(this).X - _blockPressPoint.X) / stepWidth);
         var resizing = _blockResizing;
+        var resizingStart = _blockResizingStart;
         var moveSteps = _blockMoveSteps;
 
         _blockBorder = null;
@@ -262,7 +265,17 @@ public partial class MainWindow : Window
         block.ReleaseMouseCapture();
         block.RenderTransform = Transform.Identity;
 
-        if (resizing)
+        if (resizingStart)
+        {
+            var start = timeline.BlockStartStep;
+            var end = start + (int)timeline.BlockLengthSteps;
+            var newStart = viewModel.SnapStep(start + steps);
+            if (newStart != start && newStart < end)
+            {
+                viewModel.StretchBlock(timeline.SourceTrack, newStart, end);
+            }
+        }
+        else if (resizing)
         {
             var currentLength = (int)timeline.BlockLengthSteps;
             var newEnd = viewModel.SnapStep(timeline.BlockStartStep + currentLength + steps);

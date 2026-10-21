@@ -1158,6 +1158,32 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         ReplaceTrackNotes(track, notes);
     }
 
+    // Moves the start of a block to newStart, keeping its end: the notes stretch in proportion.
+    public void StretchBlock(PatternTrackViewModel track, int newStart, int end)
+    {
+        if (track.MidiNoteEvents.Count == 0 || newStart < 0 || newStart >= end)
+        {
+            return;
+        }
+
+        var start = track.MidiNoteEvents.Min(note => note.StepIndex);
+        var length = track.MidiNoteEvents.Max(note => note.StepIndex + Math.Max(1, note.DurationSteps)) - start;
+        if (length <= 0)
+        {
+            return;
+        }
+
+        var ratio = (end - newStart) / (double)length;
+        var notes = track.MidiNoteEvents
+            .Select(note => note with
+            {
+                StepIndex = newStart + (int)Math.Round((note.StepIndex - start) * ratio),
+                DurationSteps = Math.Max(1, (int)Math.Round(note.DurationSteps * ratio)),
+            })
+            .ToList();
+        ReplaceTrackNotes(track, notes);
+    }
+
     // Changes the length of a block by stretching its notes in proportion, keeping its start.
     public void ResizeBlock(PatternTrackViewModel track, int newLength)
     {

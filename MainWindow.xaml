@@ -1481,13 +1481,22 @@
                                                     </Style.Triggers>
                                                 </Style>
                                             </Border.Style>
-                                            <Border HorizontalAlignment="Right"
-                                                    Width="10"
-                                                    Background="Transparent"
-                                                    BorderBrush="#EAF2FF"
-                                                    BorderThickness="0,0,3,0"
-                                                    Cursor="SizeWE"
-                                                    Tag="NoteBlockEdge" />
+                                            <Grid>
+                                                <Border HorizontalAlignment="Left"
+                                                        Width="10"
+                                                        Background="Transparent"
+                                                        BorderBrush="#EAF2FF"
+                                                        BorderThickness="3,0,0,0"
+                                                        Cursor="SizeWE"
+                                                        Tag="NoteBlockStartEdge" />
+                                                <Border HorizontalAlignment="Right"
+                                                        Width="10"
+                                                        Background="Transparent"
+                                                        BorderBrush="#EAF2FF"
+                                                        BorderThickness="0,0,3,0"
+                                                        Cursor="SizeWE"
+                                                        Tag="NoteBlockEdge" />
+                                            </Grid>
                                         </Border>
                                     </Grid>
                                 </Grid>
