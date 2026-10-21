@@ -17,6 +17,7 @@ public sealed class MidiInputService : IDisposable
     // Kept as a field so the callback is not collected while WinMM still holds it.
     private readonly MidiInProc _callback;
     private IntPtr _handle = IntPtr.Zero;
+    private uint _startedAt; // timeGetTime when the device started; message stamps count from here
 
     public MidiInputService()
     {
@@ -59,6 +60,7 @@ public sealed class MidiInputService : IDisposable
         }
 
         midiInStart(_handle);
+        _startedAt = timeGetTime();
         return true;
     }
 
@@ -88,9 +90,9 @@ public sealed class MidiInputService : IDisposable
         }
 
         // Short messages are packed as status in the low byte, then the two data bytes.
-        // The device stamps each message with the time it arrived (param2), on the timeGetTime clock.
+        // The device stamps each message (param2) with milliseconds since the device started.
         var packed = param1.ToInt64();
-        LastInputDelayMs = unchecked((int)(timeGetTime() - (uint)param2.ToInt64()));
+        LastInputDelayMs = unchecked((int)(timeGetTime() - _startedAt - (uint)param2.ToInt64()));
         MessageReceived?.Invoke((int)packed);
 
         var status = (int)(packed & 0xFF);
