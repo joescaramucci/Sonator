@@ -699,7 +699,8 @@ internal sealed class SequencerEngine : IDisposable
         {
             foreach (var track in pattern.Tracks)
             {
-                if (!track.SupportsMidiPlayback || !IsTrackAudible(track) || stepIndex >= track.Steps.Count)
+                // Recorded notes play at any step of the pattern; the step grid only covers its own steps.
+                if (!track.SupportsMidiPlayback || !IsTrackAudible(track))
                 {
                     continue;
                 }
@@ -720,6 +721,11 @@ internal sealed class SequencerEngine : IDisposable
                             noteEvent.DurationSteps));
                     }
 
+                    continue;
+                }
+
+                if (stepIndex >= track.Steps.Count)
+                {
                     continue;
                 }
 
