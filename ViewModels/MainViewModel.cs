@@ -248,6 +248,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         ToggleLoopCommand = new RelayCommand(_ => IsLoopEnabled = !IsLoopEnabled);
         ZoomTimelineInCommand = new RelayCommand(_ => TimelineBarWidth += 20);
         ZoomTimelineOutCommand = new RelayCommand(_ => TimelineBarWidth -= 20);
+        ZoomToFitCommand = new RelayCommand(_ => ZoomToFit());
         DeleteTrackCommand = new RelayCommand(
             _ => DeleteSelectedTrack(),
             _ => SelectedPattern is not null && SelectedTrack is not null);
@@ -1119,6 +1120,18 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public double TimelineSixteenthWidth => TimelineBarWidth / 16.0;
 
+    // Sets the bar width so every bar of the timeline fits in the visible part of the track area.
+    public void ZoomToFit()
+    {
+        var available = TimelineViewportWidth - TimelineTrackHeaderWidth;
+        if (available <= 0 || TimelineBarNumbers.Count == 0)
+        {
+            return;
+        }
+
+        TimelineBarWidth = Math.Floor(available / TimelineBarNumbers.Count);
+    }
+
     public double TimelineContentWidth => Math.Max(
         TimelineBarWidth,
         Math.Max(TimelineBarNumbers.Count * TimelineBarWidth, TimelineViewportWidth - TimelineTrackHeaderWidth));
@@ -1335,6 +1348,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public RelayCommand ZoomTimelineInCommand { get; }
 
     public RelayCommand ZoomTimelineOutCommand { get; }
+
+    public RelayCommand ZoomToFitCommand { get; }
 
     public void Dispose()
     {

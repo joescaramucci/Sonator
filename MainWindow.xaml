@@ -1616,6 +1616,7 @@
                             AutomationProperties.Name="TIMELINE ZOOM" />
                     <Button Content="−" AutomationProperties.Name="TIMELINE ZOOM OUT" Command="{Binding ZoomTimelineOutCommand}" Width="20" Height="18" Padding="0" ToolTip="Reduce bar width" />
                     <Button Content="+" AutomationProperties.Name="TIMELINE ZOOM IN" Command="{Binding ZoomTimelineInCommand}" Width="20" Height="18" Padding="0" ToolTip="Increase bar width" />
+                    <Button Content="FIT" AutomationProperties.Name="TIMELINE ZOOM TO FIT" Command="{Binding ZoomToFitCommand}" Width="34" Height="18" Padding="0" ToolTip="Zoom so every bar of the pattern is visible" />
                 </StackPanel>
                 </Grid>
             </GroupBox>
