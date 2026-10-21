@@ -1820,7 +1820,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         if (note.IsOn)
         {
             _keyboardNotesPlayed++;
-            _recordingNotes[note.NoteNumber] = (CurrentStepIndex, note.Velocity);
+            _recordingNotes[note.NoteNumber] = (_engine.LiveStep, note.Velocity);
             return;
         }
 
@@ -1831,7 +1831,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
         _keyboardNotesRecorded++;
 
-        var duration = Math.Max(1, CurrentStepIndex - started.StartStep);
+        var duration = Math.Max(1, _engine.LiveStep - started.StartStep);
         var notes = track.MidiNoteEvents.ToList();
         notes.Add(new MidiNoteEventViewModel(started.StartStep, duration, note.NoteNumber, started.Velocity));
         ReplaceTrackNotes(track, notes);

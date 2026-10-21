@@ -22,6 +22,11 @@ internal sealed class SequencerEngine : IDisposable
 
     public bool IsMetronomeOn { get; set; } = true;
 
+    // The step the sequencer is on right now, read by recording. It does not wait for the UI thread.
+    private int _liveStep;
+
+    public int LiveStep => Volatile.Read(ref _liveStep);
+
     // Sounds a click of the given volume (0 to 1) through Sonator's own output, independent of any MIDI output.
     public Action<float>? ClickSound { get; set; }
 
@@ -369,6 +374,7 @@ internal sealed class SequencerEngine : IDisposable
 
     private void ProcessStep(int stepIndex, int playbackGeneration)
     {
+        Volatile.Write(ref _liveStep, stepIndex);
         var playbackPosition = ResolvePlaybackPosition(stepIndex);
         var pattern = playbackPosition.Pattern;
         if (pattern is null)
