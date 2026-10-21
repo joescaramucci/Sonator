@@ -584,6 +584,15 @@
                 </Border>
                 <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
                     <StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <ToggleButton Content="CLICK" Width="52" Height="20" IsChecked="{Binding IsMetronomeOn}" ToolTip="Click on every beat during playback" />
+                            <ComboBox Width="92" Height="20" Margin="4,0,0,0" ItemsSource="{Binding CountInOptions}" DisplayMemberPath="Label" SelectedItem="{Binding SelectedCountIn}" ToolTip="Clicks played before recording starts" />
+                        </StackPanel>
+                        <TextBlock Text="METRONOME" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                    </StackPanel>
+                </Border>
+                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
+                    <StackPanel>
                         <TextBlock Text="{Binding TimeSignature}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                         <TextBlock Text="SIGNATURE" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                     </StackPanel>
@@ -1730,10 +1739,6 @@
                     <UniformGrid Columns="2" Margin="0,0,0,4">
                         <Button Content="UNDO" Command="{Binding UndoCommand}" />
                         <Button Content="{Binding RecordButtonText}" ToolTip="While on, keys played on the MIDI keyboard are recorded into the selected track" Command="{Binding ToggleRecordCommand}" />
-                    </UniformGrid>
-                    <UniformGrid Columns="2" Margin="0,0,0,4">
-                        <ToggleButton Content="METRONOME" IsChecked="{Binding IsMetronomeOn}" ToolTip="Click on every beat during playback" />
-                        <ComboBox ItemsSource="{Binding CountInOptions}" DisplayMemberPath="Label" SelectedItem="{Binding SelectedCountIn}" ToolTip="Clicks played before recording starts" />
                     </UniformGrid>
                     <UniformGrid Columns="2" Margin="0,0,0,4">
                         <Button Content="STOP" Command="{Binding StopCommand}" />
