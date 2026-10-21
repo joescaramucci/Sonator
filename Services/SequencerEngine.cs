@@ -20,7 +20,10 @@ internal sealed class SequencerEngine : IDisposable
     private CancellationTokenSource? _countInCts;
     private CancellationTokenSource? _clickLoopCts;
 
-    public bool IsMetronomeOn { get; set; }
+    public bool IsMetronomeOn { get; set; } = true;
+
+    // Sounds a click of the given volume (0 to 1) through Sonator's own output, independent of any MIDI output.
+    public Action<float>? ClickSound { get; set; }
 
     // Steps between two clicks: 4 for quarter notes, 1 for sixteenths. Must divide 16.
     public int ClickStepInterval { get; set; } = 4;
@@ -603,6 +606,13 @@ internal sealed class SequencerEngine : IDisposable
 
     private void SendClick(int level)
     {
+        ClickSound?.Invoke(level switch
+        {
+            0 => 0.9f,
+            1 => 0.5f,
+            _ => 0.3f,
+        });
+
         var velocity = level switch
         {
             0 => 120,

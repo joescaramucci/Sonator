@@ -34,6 +34,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly MidiOutputDeviceService _midiOutputDeviceService;
     private readonly MidiFileImportService _midiFileImportService;
     private readonly MidiInputService _midiInput = new();
+    private readonly MetronomeClickPlayer _clickPlayer = new();
     private readonly Dictionary<int, (int StartStep, int Velocity)> _recordingNotes = new();
     private readonly DispatcherTimer _midiActivityTimer = new() { Interval = TimeSpan.FromMilliseconds(150) };
     private bool _isMidiActivityVisible;
@@ -158,6 +159,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         MidiInputDevices = new ObservableCollection<MidiInputDeviceViewModel>();
         ReloadMidiInputDevices();
         _engine.PluginNoteRouter = RouteSequencerNoteToPlugin;
+        _clickPlayer.Start();
+        _engine.ClickSound = _clickPlayer.Trigger;
         _midiInput.NoteReceived += OnKeyboardNote;
         _midiInput.MessageReceived += packed => Application.Current?.Dispatcher.BeginInvoke(() => OnMidiMessageReceived(packed));
         _midiActivityTimer.Tick += (_, _) => IsMidiActivityVisible = false;
@@ -1466,6 +1469,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _engine.PlaybackCompleted -= OnPlaybackCompleted;
         _engine.PlaybackFaulted -= OnPlaybackFaulted;
         _midiInput.Dispose();
+        _clickPlayer.Dispose();
         _engine.Dispose();
     }
 
