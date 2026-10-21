@@ -361,6 +361,20 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (e.Key == Key.C && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+        {
+            viewModel.CopySelectedNotes();
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.V && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+        {
+            viewModel.PasteNotes();
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key == Key.S && (Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) == (ModifierKeys.Control | ModifierKeys.Shift))
         {
             viewModel.SaveProjectAsCommand.Execute(null);
@@ -1050,7 +1064,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        ShowEditTrackDialog(viewModel, viewModel.SelectedTrack);
+        new PianoRollWindow(viewModel, viewModel.SelectedTrack) { Owner = this }.Show();
     }
 
     // A press starts a drag; a release without a drag opens the plug-in editor, as a click always did.

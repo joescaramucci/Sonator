@@ -1604,6 +1604,37 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _midiActivityTimer.Start();
     }
 
+    // The block of notes copied with Ctrl+C, with its first note at step 0.
+    private IReadOnlyList<MidiNoteEventViewModel>? _copiedNotes;
+
+    public void CopySelectedNotes()
+    {
+        var track = SelectedTrack;
+        if (track is null || track.MidiNoteEvents.Count == 0)
+        {
+            StatusMessage = "Nothing to copy: the selected track has no notes";
+            return;
+        }
+
+        var blockStart = track.MidiNoteEvents.Min(note => note.StepIndex);
+        _copiedNotes = track.MidiNoteEvents.Select(note => note with { StepIndex = note.StepIndex - blockStart }).ToList();
+        StatusMessage = $"Copied {_copiedNotes.Count} notes from {track.Name}";
+    }
+
+    // Pastes the copied block on the selected track, starting at the playhead.
+    public void PasteNotes()
+    {
+        var track = SelectedTrack;
+        if (track is null || _copiedNotes is null)
+        {
+            return;
+        }
+
+        var notes = track.MidiNoteEvents.ToList();
+        notes.AddRange(_copiedNotes.Select(note => note with { StepIndex = note.StepIndex + CurrentStepIndex }));
+        ReplaceTrackNotes(track, notes);
+    }
+
     // Arming a track turns recording on; recording stops when no track is armed.
     private void ToggleTrackRecordArm(PatternTrackViewModel? track)
     {
@@ -2134,9 +2165,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
         if (track.MidiNoteEvents.Count > 0)
         {
-            var note = track.MidiNoteEvents.FirstOrDefault(item =>
-                stepIndex >= item.StepIndex && stepIndex < item.StepIndex + Math.Max(1, item.DurationSteps));
-            return note is null ? null : new StepViewModel(stepIndex, true) { MidiNoteNumber = note.NoteNumber };
+            // The notes form one block, from the first note started to the last note released.
+            var blockStart = track.MidiNoteEvents.Min(item => item.StepIndex);
+            var blockEnd = track.MidiNoteEvents.Max(item => item.StepIndex + Math.Max(1, item.DurationSteps));
+            return stepIndex >= blockStart && stepIndex < blockEnd ? new StepViewModel(stepIndex, true) : null;
         }
 
         return stepIndex < track.Steps.Count ? track.Steps[stepIndex] : null;
@@ -2749,6 +2781,22 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         var track = SelectedTrack;
         if (track is null)
         {
+            return;
+        }
+
+        if (track.MidiNoteEvents.Count > 0)
+        {
+            // Notes snap to eighth notes: a grid of two sixteenth steps.
+            const int grid = 2;
+            var quantized = track.MidiNoteEvents
+                .Select(note => note with
+                {
+                    StepIndex = (int)Math.Round(note.StepIndex / (double)grid) * grid,
+                    DurationSteps = Math.Max(grid, (int)Math.Round(note.DurationSteps / (double)grid) * grid),
+                })
+                .ToList();
+            ReplaceTrackNotes(track, quantized);
+            StatusMessage = "Selected track's notes quantized to eighths";
             return;
         }
 
