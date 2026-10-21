@@ -29,6 +29,7 @@ public partial class MainWindow : Window
     private bool _isDraggingTimelineRuler;
     private bool _isPanningTimeline;
     private bool _isSelectingRange;
+    private bool _rangeMoved;
     private int _rangeAnchorStep;
     private Border? _blockBorder;
     private ArrangeTimelineTrackViewModel? _blockTimeline;
@@ -351,6 +352,7 @@ public partial class MainWindow : Window
 
         _rangeAnchorStep = StepAt(lane, e, viewModel);
         _isSelectingRange = true;
+        _rangeMoved = false;
         viewModel.SetRange(_rangeAnchorStep, 1);
         lane.CaptureMouse();
         e.Handled = true;
@@ -365,6 +367,7 @@ public partial class MainWindow : Window
         }
 
         var current = StepAt(lane, e, viewModel);
+        _rangeMoved |= current != _rangeAnchorStep;
         var from = Math.Min(_rangeAnchorStep, current);
         viewModel.SetRange(from, Math.Abs(current - _rangeAnchorStep) + 1);
         e.Handled = true;
@@ -379,6 +382,11 @@ public partial class MainWindow : Window
 
         _isSelectingRange = false;
         lane.ReleaseMouseCapture();
+        if (!_rangeMoved && DataContext is MainViewModel viewModel)
+        {
+            viewModel.ClearRange(); // a plain click selects nothing
+        }
+
         e.Handled = true;
     }
 

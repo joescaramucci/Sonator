@@ -1502,6 +1502,8 @@
                                             <Border HorizontalAlignment="Right"
                                                     Width="10"
                                                     Background="Transparent"
+                                                    BorderBrush="#EAF2FF"
+                                                    BorderThickness="0,0,3,0"
                                                     Cursor="SizeWE"
                                                     Tag="NoteBlockEdge" />
                                         </Border>
