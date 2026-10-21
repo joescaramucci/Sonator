@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -24,7 +25,15 @@ public partial class PianoRollWindow : Window
     private readonly PatternTrackViewModel _track;
     private readonly List<MidiNoteEventViewModel> _notes;
     private readonly double _gridHeight = (HighestNote - LowestNote + 1) * RowHeight;
-    private readonly int _stepCount;
+    private int _stepCount;
+
+    // The playback position, moved as the sequencer plays. The view pages along with it.
+    private readonly Line _playhead = new()
+    {
+        Stroke = new SolidColorBrush(Color.FromRgb(0xFF, 0xD2, 0x4C)),
+        StrokeThickness = 2,
+        IsHitTestVisible = false,
+    };
 
     private int _selectedIndex = -1;
     private int _dragIndex = -1;
@@ -38,13 +47,57 @@ public partial class PianoRollWindow : Window
         _viewModel = viewModel;
         _track = track;
         _notes = track.MidiNoteEvents.Count > 0 ? track.MidiNoteEvents.ToList() : NotesFromSteps(track);
-        _stepCount = Math.Max(StepsPerBar, track.Steps.Count);
+        var notesEnd = _notes.Count == 0
+            ? 0
+            : (int)Math.Ceiling(_notes.Max(note => note.StepIndex + note.StartOffset + note.DurationSteps + note.LengthFraction));
+        _stepCount = Math.Max(StepsPerBar, Math.Max(track.Steps.Count, notesEnd));
         Title = $"Piano roll - {track.Name}";
 
         Loaded += (_, _) => Redraw();
         PreviewKeyDown += OnPreviewKeyDown;
         viewModel.TrackNotesChanged += OnTrackNotesChanged;
-        Closed += (_, _) => viewModel.TrackNotesChanged -= OnTrackNotesChanged;
+        viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        Closed += (_, _) =>
+        {
+            viewModel.TrackNotesChanged -= OnTrackNotesChanged;
+            viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        };
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MainViewModel.CurrentStepIndex))
+        {
+            UpdatePlayhead();
+        }
+    }
+
+    // Moves the playhead to the current step. While playing, the view turns a page when the playhead nears its right
+    // edge, and goes back when the playhead jumps behind it (the loop starting again).
+    private void UpdatePlayhead()
+    {
+        if (_track.Steps.Count > _stepCount)
+        {
+            Redraw();
+            return;
+        }
+
+        var step = _viewModel.CurrentStepIndex % _stepCount;
+        var x = KeyboardWidth + step * StepWidth;
+        _playhead.X1 = x;
+        _playhead.X2 = x;
+
+        if (!_viewModel.IsPlaying || PianoRollScroller.ViewportWidth <= 0)
+        {
+            return;
+        }
+
+        var left = PianoRollScroller.HorizontalOffset;
+        var right = left + PianoRollScroller.ViewportWidth;
+        if (x > right - 4 * StepWidth || x < left + KeyboardWidth)
+        {
+            PianoRollScroller.ScrollToHorizontalOffset(Math.Max(0, x - KeyboardWidth - 2 * StepWidth));
+        }
     }
 
     // Playback falls back to the step grid when a track has no recorded notes, so the roll starts from the same notes.
@@ -64,6 +117,8 @@ public partial class PianoRollWindow : Window
 
     private void Redraw()
     {
+        // The track can grow after the roll is opened (playback lengthens a short pattern), so the roll follows it.
+        _stepCount = Math.Max(_stepCount, _track.Steps.Count);
         PianoRollCanvas.Children.Clear();
         var width = KeyboardWidth + _stepCount * StepWidth;
         PianoRollCanvas.Width = width;
@@ -73,6 +128,11 @@ public partial class PianoRollWindow : Window
         DrawGridLines();
         DrawVelocityLane(width);
         DrawNotes();
+
+        _playhead.Y1 = 0;
+        _playhead.Y2 = _gridHeight;
+        PianoRollCanvas.Children.Add(_playhead);
+        UpdatePlayhead();
     }
 
     private void DrawRowsAndKeys(double width)

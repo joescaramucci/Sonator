@@ -21,7 +21,7 @@
             <Button Content="STOP" Width="70" Click="StopButton_Click" />
             <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontSize="11" Opacity="0.85" Text="Space: play / stop" />
         </StackPanel>
-        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer x:Name="PianoRollScroller" Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
             <Canvas x:Name="PianoRollCanvas" Background="Transparent" HorizontalAlignment="Left" VerticalAlignment="Top"
                     MouseLeftButtonDown="OnCanvasMouseDown"
                     MouseMove="OnCanvasMouseMove"
