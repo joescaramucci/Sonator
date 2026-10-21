@@ -60,7 +60,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private double _pianoRollZoom = 1.0;
     private const double MinTempoBpm = 1;
     private const double MaxTempoBpm = 999;
-    private double _tempo = 116.5674;
+    private double _tempo = 120;
     private double _masterVolume = 0.75;
     private double _masterSignalLevel;
     private readonly TrackMeterCalculator _trackMeters = new();
@@ -1404,7 +1404,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             ResetArrangeBlocks();
             SelectedArrangeCell = null;
             SelectedPattern = Patterns.FirstOrDefault();
-            Tempo = 116.5674;
+            Tempo = 120;
             MasterVolume = 0.75;
             BarCount = 32;
             LoopStartStep = 0;
@@ -1931,8 +1931,36 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             && string.IsNullOrEmpty(track.AudioClipPath);
     }
 
+    // Gives the selected pattern as many bars as its arrangement block, so playback loops over the whole block.
+    private bool FitSelectedPatternToArrangeLength()
+    {
+        var bars = SelectedArrangePatternLength;
+        if (bars <= 0 || SelectedPattern is not { } pattern)
+        {
+            return false;
+        }
+
+        var added = false;
+        foreach (var track in pattern.Tracks)
+        {
+            while (track.Steps.Count < bars * 16)
+            {
+                track.Steps.Add(new StepViewModel(track.Steps.Count, false));
+                added = true;
+            }
+        }
+
+        return added;
+    }
+
     private void StartPlayback()
     {
+        if (FitSelectedPatternToArrangeLength())
+        {
+            ConfigurePlaybackSource();
+            RebuildTimeline();
+        }
+
         if (Tracks.FirstOrDefault(track => track.SupportsMidiPlayback && !string.IsNullOrEmpty(track.PluginFilePath)) is { } pluginTrack)
         {
             EnsureInstrument(pluginTrack.PluginFilePath!, pluginTrack.Name);

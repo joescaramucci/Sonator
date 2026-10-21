@@ -33,7 +33,7 @@ internal sealed class SequencerEngine : IDisposable
     private int _loopStartStep;
     private int _loopEndStep = DefaultStepsPerPattern - 1;
     private bool _isPatternLoopEnabled;
-    private double _tempoBpm = 116.5674;
+    private double _tempoBpm = 120;
     private double _masterVolume = 0.75;
     private CancellationTokenSource? _playbackCts;
     private Task? _playbackTask;

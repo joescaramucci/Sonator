@@ -617,17 +617,22 @@
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                             <ToggleButton Content="ON" Width="40" Height="22" Margin="1" Style="{StaticResource MetronomeToggleStyle}"
                                           IsChecked="{Binding IsMetronomeOn}" ToolTip="Metronome on during playback" />
-                            <Button Content="CLICK" Width="60" Height="22" Margin="1" ToolTip="Hear one bar of clicks at this tempo"
+                            <Button Width="60" Height="22" Margin="1" ToolTip="Click to start or stop the click loop"
                                     Command="{Binding PreviewClickCommand}">
                                 <Button.Style>
                                     <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                        <Setter Property="Content" Value="CLICK" />
                                         <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Content" Value="PLAY" />
-                                            </Trigger>
                                             <DataTrigger Binding="{Binding IsClickLoopRunning}" Value="True">
                                                 <Setter Property="Content" Value="STOP" />
                                             </DataTrigger>
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding IsClickLoopRunning}" Value="False" />
+                                                    <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource Self}}" Value="True" />
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter Property="Content" Value="PLAY" />
+                                            </MultiDataTrigger>
                                         </Style.Triggers>
                                     </Style>
                                 </Button.Style>
