@@ -286,12 +286,19 @@ public partial class MainWindow : Window
     // moves it left and right. A left click without movement still reaches the track under the mouse.
     private void ArrangeTimelineScrollViewer_PreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
-        if (sender is not ScrollViewer viewer || e.ChangedButton != MouseButton.Middle)
+        var shiftDrag = e.ChangedButton == MouseButton.Left && (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift;
+        if (sender is not ScrollViewer viewer || (e.ChangedButton != MouseButton.Middle && !shiftDrag))
         {
             return;
         }
 
         _timelinePanStart = e.GetPosition(viewer);
+        if (shiftDrag)
+        {
+            BeginTimelinePan(viewer);
+            e.Handled = true;
+            return;
+        }
         _timelinePanStartOffset = viewer.HorizontalOffset;
         _timelinePanPending = true;
         if (e.ChangedButton == MouseButton.Middle)
@@ -315,7 +322,7 @@ public partial class MainWindow : Window
 
     private void ArrangeTimelineScrollViewer_PreviewMouseUp(object sender, MouseButtonEventArgs e)
     {
-        if (sender is not ScrollViewer viewer || e.ChangedButton != MouseButton.Middle || !_isPanningTimeline)
+        if (sender is not ScrollViewer viewer || e.ChangedButton is not (MouseButton.Middle or MouseButton.Left) || !_isPanningTimeline)
         {
             return;
         }
@@ -336,7 +343,8 @@ public partial class MainWindow : Window
     // Pressing and dragging in a track lane selects a range of bars, shown as a tinted band.
     private void LaneGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (sender is not Grid lane || DataContext is not MainViewModel viewModel || IsInsideNoteBlock(e.OriginalSource))
+        if (sender is not Grid lane || DataContext is not MainViewModel viewModel || IsInsideNoteBlock(e.OriginalSource)
+            || (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift)
         {
             return;
         }
