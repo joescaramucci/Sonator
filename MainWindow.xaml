@@ -782,7 +782,7 @@
                                 Click="ShowMixerButton_Click" AutomationProperties.Name="Open mixer" />
                         <Button Content="WAVE" Style="{StaticResource BottomTabButton}" Width="58" Margin="2,0"
                                 Click="ShowWaveformButton_Click" AutomationProperties.Name="Open waveform editor" />
-                        <Button Content="SONG" Style="{StaticResource BottomTabButton}" Width="58" Margin="2,0"
+                        <Button Content="ARRANGE" Style="{StaticResource BottomTabButton}" Width="72" Margin="2,0"
                                 Click="ShowSongButton_Click" AutomationProperties.Name="Show song arrangement" />
                     </StackPanel>
                 </Border>
