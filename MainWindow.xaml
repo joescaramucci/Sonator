@@ -628,6 +628,7 @@
                                             <DataTrigger Binding="{Binding IsClickLoopRunning}" Value="True">
                                                 <Setter Property="Content" Value="STOP" />
                                             </DataTrigger>
+                                        </Style.Triggers>
                                     </Style>
                                 </Button.Style>
                             </Button>
