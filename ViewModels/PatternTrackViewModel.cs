@@ -100,6 +100,15 @@ public sealed class PatternTrackViewModel : ViewModelBase
         }
     }
 
+    private string? _pluginFilePath;
+
+    // The VST3 plug-in this track plays through. Null when the track has no plug-in assigned.
+    public string? PluginFilePath
+    {
+        get => _pluginFilePath;
+        set => SetProperty(ref _pluginFilePath, string.IsNullOrWhiteSpace(value) ? null : value);
+    }
+
     public string Source
     {
         get => _source;

@@ -34,7 +34,8 @@ internal static class ProjectDocumentMapper
             track.Source,
             track.Volume,
             track.IsRecordArmed,
-            track.TrackColorBrush.Color.ToString());
+            track.TrackColorBrush.Color.ToString(),
+            track.PluginFilePath);
     }
 
     internal static void ApplyTrackDocumentToTrack(PatternTrackViewModel targetTrack, TrackDocument sourceTrack)
@@ -48,6 +49,7 @@ internal static class ProjectDocumentMapper
         targetTrack.Source = sourceTrack.Source ?? string.Empty;
         targetTrack.Volume = sourceTrack.Volume;
         targetTrack.IsRecordArmed = sourceTrack.IsRecordArmed;
+        targetTrack.PluginFilePath = sourceTrack.PluginFilePath;
         targetTrack.TrackColorBrush = CreateTrackColorBrush(sourceTrack.TrackColor);
         targetTrack.MidiNoteEvents = sourceTrack.MidiNoteEvents is null
             ? Array.Empty<MidiNoteEventViewModel>()
@@ -117,7 +119,10 @@ internal static class ProjectDocumentMapper
             trackDocument.Source,
             trackDocument.Volume,
             trackDocument.IsRecordArmed,
-            CreateTrackColorBrush(trackDocument.TrackColor));
+            CreateTrackColorBrush(trackDocument.TrackColor))
+        {
+            PluginFilePath = trackDocument.PluginFilePath
+        };
     }
 
     internal static ArrangeRowViewModel ApplyArrangeRowDocument(ArrangeRowDocument arrangeDocument)

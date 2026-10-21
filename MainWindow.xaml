@@ -1547,6 +1547,9 @@
                         </Grid>
                     </Border>
 
+                    <TextBlock Text="PLUGIN" FontSize="10" Margin="0,6,0,2" />
+                    <ComboBox ItemsSource="{Binding VstPlugins}" DisplayMemberPath="Name" SelectedValuePath="FilePath"
+                              SelectedValue="{Binding SelectedTrack.PluginFilePath}" Margin="0,0,0,4" ToolTip="The VST3 plug-in this track plays through" />
                     <StackPanel Orientation="Horizontal" Margin="0,6,0,4">
                         <Button Content="EDIT" Width="50" Click="EditSelectedTrackButton_Click" />
                     </StackPanel>
