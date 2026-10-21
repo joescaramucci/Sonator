@@ -55,6 +55,14 @@ public sealed record AsioDriverCapabilities(
     }
 }
 
+// Latencies a driver declares for one buffer size and sample rate. Frames are at SampleRate.
+public sealed record AsioLatency(int InputFrames, int OutputFrames, double SampleRate)
+{
+    public double RoundTripMs => SampleRate > 0
+        ? (InputFrames + OutputFrames) * 1000.0 / SampleRate
+        : double.NaN;
+}
+
 public static class AsioDriverCapabilityReader
 {
     private const int RateCapacity = 16;
@@ -89,6 +97,21 @@ public static class AsioDriverCapabilityReader
             granularity,
             currentRate,
             rates.Take(rateCount).ToList());
+    }
+
+    // Reads the latencies the driver declares for a buffer size and rate, without starting audio.
+    // A buffer size or rate of 0 keeps the driver's own choice.
+    public static AsioLatency? TryReadLatency(string driverClsid, int bufferFrames, double sampleRate, out string? error)
+    {
+        var result = Vst3HostInterop.VstHostBridge_GetAsioLatency(driverClsid, bufferFrames, sampleRate, out var input, out var output);
+        if (result == 0)
+        {
+            error = ReadLastError();
+            return null;
+        }
+
+        error = null;
+        return new AsioLatency(input, output, sampleRate);
     }
 
     // Opens the driver's own configuration panel. Returns false and an error message on failure.

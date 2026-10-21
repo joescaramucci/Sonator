@@ -113,5 +113,8 @@ internal static class Vst3HostInterop
     internal static extern int VstHostBridge_StartAudioAsioWithFormat(IntPtr moduleHandle, string driverClsid, int bufferFrames, double sampleRate);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
+    internal static extern int VstHostBridge_GetAsioLatency(string driverClsid, int bufferFrames, double sampleRate, out int outInputLatency, out int outOutputLatency);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
     internal static extern int VstHostBridge_StartAudioAsio(IntPtr moduleHandle, string driverClsid);
 }

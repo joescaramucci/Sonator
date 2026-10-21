@@ -10,6 +10,7 @@ public partial class DriverSettingsDialog : Window
     private readonly string _driverClsid;
     private readonly AppSettingsService _settingsService = new();
     private AsioDriverCapabilities? _capabilities;
+    private string _summary = string.Empty;
 
     public DriverSettingsDialog(string driverName, string driverClsid)
     {
@@ -64,7 +65,31 @@ public partial class DriverSettingsDialog : Window
         }
         SelectByTag(RateCombo, saved.AsioSampleRate ?? 0.0);
 
-        StatusText.Text = $"Current: {_capabilities.CurrentSampleRate:F0} Hz, buffer {_capabilities.PreferredBuffer} samples (preferred).";
+        _summary = $"Current: {_capabilities.CurrentSampleRate:F0} Hz, buffer {_capabilities.PreferredBuffer} samples (preferred).";
+        BufferCombo.SelectionChanged += (_, _) => UpdateLatency();
+        RateCombo.SelectionChanged += (_, _) => UpdateLatency();
+        UpdateLatency();
+    }
+
+    // Shows the round trip the driver declares for the buffer size and rate currently selected.
+    private void UpdateLatency()
+    {
+        if (_capabilities is null || BufferCombo.SelectedItem is not ComboBoxItem bufferItem || RateCombo.SelectedItem is not ComboBoxItem rateItem)
+        {
+            return;
+        }
+
+        var bufferFrames = (int)bufferItem.Tag;
+        var sampleRate = (double)rateItem.Tag == 0.0 ? _capabilities.CurrentSampleRate : (double)rateItem.Tag;
+        var latency = AsioDriverCapabilityReader.TryReadLatency(_driverClsid, bufferFrames, sampleRate, out var error);
+        if (latency is null)
+        {
+            StatusText.Text = $"{_summary}\nDeclared latency unavailable: {error}";
+            return;
+        }
+
+        StatusText.Text = $"{_summary}\nDeclared round trip: {latency.RoundTripMs.ToString("F2", CultureInfo.InvariantCulture)} ms" +
+            $" (input {latency.InputFrames} + output {latency.OutputFrames} samples at {sampleRate:F0} Hz)";
     }
 
     private static void SelectByTag<T>(ComboBox combo, T value)
