@@ -127,6 +127,12 @@ VSTHOSTBRIDGE_API int VstHostBridge_IsAsioSupported(void);
 // through ASIO.
 VSTHOSTBRIDGE_API int VstHostBridge_GetAsioTiming(void* moduleHandle, int32_t* outBufferFrames, int32_t* outOutputLatencyFrames, double* outSampleRate);
 
+// Measures the loopback round trip on a running ASIO session: a click is
+// written to output 1 and timed when it returns on input 1. Needs a cable
+// from output 1 to input 1. Returns 1 and the round-trip time in milliseconds,
+// or 0 with an error message (no signal, not an ASIO session, no input).
+VSTHOSTBRIDGE_API int VstHostBridge_MeasureAsioLatency(void* moduleHandle, double* outMilliseconds);
+
 // Starts plug-in audio on the ASIO driver whose CLSID string is driverClsid
 // (for example "{...}", as stored under HKLM\SOFTWARE\ASIO). Returns 0 with an
 // error message if ASIO is not built in or the driver cannot be started.

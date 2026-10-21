@@ -48,6 +48,8 @@
 #include <functiondiscoverykeys_devpkey.h>
 #include <propidl.h>
 
+#include <algorithm>
+#include <cmath>
 #include <atomic>
 #include <chrono>
 #include <cstring>
@@ -515,6 +517,12 @@ namespace
         std::atomic<long> asioBufferFrames{0};
         std::atomic<long> asioOutputLatencyFrames{0};
         std::atomic<double> asioSampleRate{0.0};
+        std::atomic<bool> asioHasInput{false};
+
+        // Loopback measurement. The ASIO callback writes a click on output 1 and waits for it on input 1.
+        std::atomic<bool> measureRequested{false};
+        std::atomic<bool> measureFinished{false};
+        std::atomic<long long> measureResultFrames{-1};
 
         std::thread thread;
         std::atomic<bool> stopRequested{false};
@@ -1378,11 +1386,102 @@ namespace
         std::vector<Sample32*> channelPointers;
         AudioBusBuffers outputBus{};
         ProcessData processData{};
+
+        // Input channel 0, read for the loopback measurement only.
+        bool hasInput = false;
+        ASIOSampleType inputSampleType = ASIOSTFloat32LSB;
+        std::vector<float> inputScratch;
+        long long frame = 0;          // absolute frame of the first sample of the next block
+        long long clickFrame = -1;    // frame where the measurement click is written
+        long long detectedFrame = -1; // frame where the click came back on input 0
     };
 
     float ClampUnit(float value)
     {
         return value < -1.0f ? -1.0f : (value > 1.0f ? 1.0f : value);
+    }
+
+    bool IsSupportedSampleType(ASIOSampleType type)
+    {
+        return type == ASIOSTFloat32LSB || type == ASIOSTInt32LSB || type == ASIOSTInt16LSB || type == ASIOSTInt24LSB;
+    }
+
+    // Reads one block of driver samples into floats. This is the reverse of WriteFloatSamples.
+    void ReadFloatSamples(const void* source, float* destination, long count, ASIOSampleType type)
+    {
+        switch (type)
+        {
+        case ASIOSTFloat32LSB:
+            std::memcpy(destination, source, sizeof(float) * static_cast<size_t>(count));
+            break;
+        case ASIOSTInt32LSB:
+        {
+            const auto* in = static_cast<const int32*>(source);
+            for (long i = 0; i < count; ++i)
+            {
+                destination[i] = static_cast<float>(static_cast<double>(in[i]) / 2147483648.0);
+            }
+            break;
+        }
+        case ASIOSTInt16LSB:
+        {
+            const auto* in = static_cast<const int16_t*>(source);
+            for (long i = 0; i < count; ++i)
+            {
+                destination[i] = static_cast<float>(in[i]) / 32768.0f;
+            }
+            break;
+        }
+        case ASIOSTInt24LSB:
+        {
+            const auto* in = static_cast<const uint8_t*>(source);
+            for (long i = 0; i < count; ++i)
+            {
+                int32 value = static_cast<int32>(in[i * 3]) | (static_cast<int32>(in[i * 3 + 1]) << 8) | (static_cast<int32>(in[i * 3 + 2]) << 16);
+                if (value & 0x800000)
+                {
+                    value |= ~0xFFFFFF; // sign-extend the 24-bit value
+                }
+                destination[i] = static_cast<float>(static_cast<double>(value) / 8388608.0);
+            }
+            break;
+        }
+        default:
+            std::fill(destination, destination + count, 0.0f);
+            break;
+        }
+    }
+
+    // A click must return at least this many frames after it was written, so that
+    // crosstalk or a late reflection in the converters is not taken for the echo.
+    constexpr long long kMinimumEchoFrames = 64;
+    constexpr float kClickThreshold = 0.05f;
+
+    // Writes the test click into the block that starts at frame session.frame, and looks for it on input 0.
+    void MeasureClickBlock(AsioSession& session, long doubleBufferIndex)
+    {
+        const long count = session.bufferSize;
+        if (session.clickFrame < 0)
+        {
+            session.clickFrame = session.frame + count; // the click goes out at the start of the next block
+        }
+
+        ReadFloatSamples(session.bufferInfos[static_cast<size_t>(session.deviceChannels)].buffers[doubleBufferIndex],
+            session.inputScratch.data(), count, session.inputSampleType);
+
+        for (long i = 0; i < count; ++i)
+        {
+            const long long absolute = session.frame + i;
+            if (absolute == session.clickFrame)
+            {
+                session.planar[0][static_cast<size_t>(i)] = 1.0f;
+            }
+            if (session.detectedFrame < 0 && absolute >= session.clickFrame + kMinimumEchoFrames
+                && std::fabs(session.inputScratch[static_cast<size_t>(i)]) > kClickThreshold)
+            {
+                session.detectedFrame = absolute;
+            }
+        }
     }
 
     // Converts float samples to the driver's sample format and writes them to a driver buffer.
@@ -1445,6 +1544,26 @@ namespace
         session->processData.numSamples = session->bufferSize;
         session->engine->processor->process(session->processData);
 
+        if (session->hasInput)
+        {
+            if (session->engine->measureRequested.load() && !session->engine->measureFinished.load())
+            {
+                MeasureClickBlock(*session, doubleBufferIndex);
+                if (session->detectedFrame >= 0)
+                {
+                    session->engine->measureResultFrames = session->detectedFrame - session->clickFrame;
+                    session->engine->measureFinished = true;
+                    session->engine->measureRequested = false;
+                }
+            }
+            else if (session->clickFrame >= 0)
+            {
+                // The request ended without a result (timeout or cancel): the next measurement starts fresh.
+                session->clickFrame = -1;
+                session->detectedFrame = -1;
+            }
+        }
+
         for (int32 devCh = 0; devCh < session->deviceChannels; ++devCh)
         {
             const float* source = devCh < session->pluginChannels
@@ -1453,6 +1572,7 @@ namespace
             void* destination = session->bufferInfos[static_cast<size_t>(devCh)].buffers[doubleBufferIndex];
             WriteFloatSamples(source, destination, session->bufferSize, session->sampleType);
         }
+        session->frame += session->bufferSize;
 
         if (session->postOutput)
         {
@@ -1559,6 +1679,21 @@ namespace
         session.processData.outputs = &session.outputBus;
 
         session.postOutput = session.driver->outputReady() == ASE_OK;
+
+        // Input 0 is needed only for the loopback measurement. Drivers without it still stream normally.
+        session.hasInput = false;
+        if (inputChannels > 0)
+        {
+            ASIOChannelInfo inputInfo{};
+            inputInfo.channel = 0;
+            inputInfo.isInput = ASIOTrue;
+            if (session.driver->getChannelInfo(&inputInfo) == ASE_OK && IsSupportedSampleType(inputInfo.type))
+            {
+                session.hasInput = true;
+                session.inputSampleType = inputInfo.type;
+                session.inputScratch.assign(frames, 0.0f);
+            }
+        }
         return true;
     }
 
@@ -1645,12 +1780,21 @@ namespace
                         callbacks.asioMessage = AsioMessage;
                         callbacks.bufferSwitchTimeInfo = AsioBufferSwitchTimeInfo;
 
-                        session.bufferInfos.assign(static_cast<size_t>(session.deviceChannels), ASIOBufferInfo{});
-                        for (int32 ch = 0; ch < session.deviceChannels; ++ch)
+                        // Output buffers first, then input 0 when the driver has a usable input.
+                        auto prepareBufferInfos = [&session]()
                         {
-                            session.bufferInfos[static_cast<size_t>(ch)].isInput = ASIOFalse;
-                            session.bufferInfos[static_cast<size_t>(ch)].channelNum = ch;
-                        }
+                            session.bufferInfos.assign(static_cast<size_t>(session.deviceChannels) + (session.hasInput ? 1 : 0), ASIOBufferInfo{});
+                            for (int32 ch = 0; ch < session.deviceChannels; ++ch)
+                            {
+                                session.bufferInfos[static_cast<size_t>(ch)].isInput = ASIOFalse;
+                                session.bufferInfos[static_cast<size_t>(ch)].channelNum = ch;
+                            }
+                            if (session.hasInput)
+                            {
+                                session.bufferInfos[static_cast<size_t>(session.deviceChannels)].isInput = ASIOTrue;
+                                session.bufferInfos[static_cast<size_t>(session.deviceChannels)].channelNum = 0;
+                            }
+                        };
 
                         // Only one ASIO session can own the callbacks. A second engine must not take them over.
                         AsioSession* noSession = nullptr;
@@ -1658,12 +1802,26 @@ namespace
                         {
                             fail("Un altro plug-in sta già usando un driver ASIO. Ferma prima l'audio di quel plug-in.");
                         }
-                        else if (driver->createBuffers(session.bufferInfos.data(), session.deviceChannels, session.bufferSize, &callbacks) != ASE_OK)
-                        {
-                            fail("IASIO::createBuffers fallita.");
-                        }
                         else
                         {
+                            prepareBufferInfos();
+                            bool created = driver->createBuffers(session.bufferInfos.data(),
+                                static_cast<long>(session.bufferInfos.size()), session.bufferSize, &callbacks) == ASE_OK;
+                            if (!created && session.hasInput)
+                            {
+                                // Some drivers refuse the input channel: stream without it, so measurement is unavailable.
+                                session.hasInput = false;
+                                prepareBufferInfos();
+                                created = driver->createBuffers(session.bufferInfos.data(),
+                                    static_cast<long>(session.bufferInfos.size()), session.bufferSize, &callbacks) == ASE_OK;
+                            }
+
+                            if (!created)
+                            {
+                                fail("IASIO::createBuffers fallita.");
+                            }
+                            else
+                            {
                             buffersCreated = true;
                             long inputLatency = 0;
                             long outputLatency = 0;
@@ -1673,6 +1831,7 @@ namespace
                             }
                             engine->asioBufferFrames = session.bufferSize;
                             engine->asioSampleRate = sampleRate;
+                            engine->asioHasInput = session.hasInput;
                             if (driver->start() != ASE_OK)
                             {
                                 fail("IASIO::start fallita.");
@@ -1682,6 +1841,7 @@ namespace
                                 driverStarted = true;
                                 engine->initResult = 1; // signal success to VstHostBridge_StartAudio
                             }
+                        }
                         }
                     }
                 }
@@ -1949,6 +2109,49 @@ int VstHostBridge_GetAsioTiming(void* moduleHandle, int32_t* outBufferFrames, in
     *outBufferFrames = static_cast<int32_t>(engine->asioBufferFrames.load());
     *outOutputLatencyFrames = static_cast<int32_t>(engine->asioOutputLatencyFrames.load());
     *outSampleRate = engine->asioSampleRate.load();
+    return 1;
+}
+
+int VstHostBridge_MeasureAsioLatency(void* moduleHandle, double* outMilliseconds)
+{
+    if (moduleHandle == nullptr || outMilliseconds == nullptr)
+    {
+        SetBridgeError("Argomenti non validi.");
+        return 0;
+    }
+
+    auto* engine = static_cast<BridgeModule*>(moduleHandle)->audioEngine;
+    if (engine == nullptr || !engine->useAsio || engine->asioBufferFrames.load() == 0)
+    {
+        SetBridgeError("La misura richiede una sessione ASIO in corso.");
+        return 0;
+    }
+
+    if (!engine->asioHasInput.load())
+    {
+        SetBridgeError("Il driver non espone un ingresso utilizzabile per la misura.");
+        return 0;
+    }
+
+    engine->measureResultFrames = -1;
+    engine->measureFinished = false;
+    engine->measureRequested = true;
+
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+    while (!engine->measureFinished.load() && std::chrono::steady_clock::now() < deadline)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    engine->measureRequested = false;
+
+    const long long frames = engine->measureResultFrames.load();
+    if (!engine->measureFinished.load() || frames < 0)
+    {
+        SetBridgeError("Nessun segnale rilevato sull'ingresso 1. Collega l'uscita 1 all'ingresso 1 con un cavo di loopback.");
+        return 0;
+    }
+
+    *outMilliseconds = static_cast<double>(frames) * 1000.0 / engine->asioSampleRate.load();
     return 1;
 }
 
