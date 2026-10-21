@@ -39,6 +39,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly IVst3PluginHost _liveInstrumentHost = new Vst3PluginHost();
     private bool _isLiveKeyboardEnabled = true;
     private CountInOption _selectedCountIn = new(1, "1 bar");
+    private int _snapSteps = 16;
     private ClickOption _selectedClickOption = new(4, "Quarter");
     private Vst3ModuleHandle? _ownedInstrument;
     private readonly VstPluginService _vstPluginService;
@@ -250,6 +251,16 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         ZoomTimelineInCommand = new RelayCommand(_ => TimelineBarWidth += 20);
         ZoomTimelineOutCommand = new RelayCommand(_ => TimelineBarWidth -= 20);
         ZoomToFitCommand = new RelayCommand(_ => ZoomToFit());
+        CycleSnapCommand = new RelayCommand(_ =>
+        {
+            _snapSteps = _snapSteps switch
+            {
+                16 => 4,
+                4 => 1,
+                _ => 16,
+            };
+            RaisePropertyChanged(nameof(SnapText));
+        });
         DeleteTrackCommand = new RelayCommand(
             _ => DeleteSelectedTrack(),
             _ => SelectedPattern is not null && SelectedTrack is not null);
@@ -1121,6 +1132,53 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public double TimelineSixteenthWidth => TimelineBarWidth / 16.0;
 
+    // The nearest snap point to a step, never before the start of the pattern.
+    public int SnapStep(int step)
+    {
+        var rounded = (int)Math.Round(step / (double)_snapSteps) * _snapSteps;
+        return Math.Max(0, rounded);
+    }
+
+    // Moves the block of a track by a number of steps.
+    public void MoveBlock(PatternTrackViewModel track, int deltaSteps)
+    {
+        if (track.MidiNoteEvents.Count == 0 || deltaSteps == 0)
+        {
+            return;
+        }
+
+        var notes = track.MidiNoteEvents
+            .Select(note => note with { StepIndex = Math.Max(0, note.StepIndex + deltaSteps) })
+            .ToList();
+        ReplaceTrackNotes(track, notes);
+    }
+
+    // Changes the length of a block by stretching its notes in proportion, keeping its start.
+    public void ResizeBlock(PatternTrackViewModel track, int newLength)
+    {
+        if (track.MidiNoteEvents.Count == 0 || newLength <= 0)
+        {
+            return;
+        }
+
+        var start = track.MidiNoteEvents.Min(note => note.StepIndex);
+        var length = track.MidiNoteEvents.Max(note => note.StepIndex + Math.Max(1, note.DurationSteps)) - start;
+        if (length <= 0)
+        {
+            return;
+        }
+
+        var ratio = newLength / (double)length;
+        var notes = track.MidiNoteEvents
+            .Select(note => note with
+            {
+                StepIndex = start + (int)Math.Round((note.StepIndex - start) * ratio),
+                DurationSteps = Math.Max(1, (int)Math.Round(note.DurationSteps * ratio)),
+            })
+            .ToList();
+        ReplaceTrackNotes(track, notes);
+    }
+
     // Sets the bar width so every bar of the timeline fits in the visible part of the track area.
     public void ZoomToFit()
     {
@@ -1356,6 +1414,16 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public RelayCommand ZoomTimelineOutCommand { get; }
 
     public RelayCommand ZoomToFitCommand { get; }
+
+    // How blocks snap when moved or resized: 16 steps (bar), 4 (quarter note) or 1 (sixteenth). Shown on the SNAP button.
+    public RelayCommand CycleSnapCommand { get; }
+
+    public string SnapText => _snapSteps switch
+    {
+        16 => "SNAP BAR",
+        4 => "SNAP 1/4",
+        _ => "SNAP 1/16",
+    };
 
     public void Dispose()
     {

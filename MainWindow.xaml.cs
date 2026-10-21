@@ -28,6 +28,11 @@ public partial class MainWindow : Window
     private bool _isSynchronizingTrackScroll;
     private bool _isDraggingTimelineRuler;
     private bool _isPanningTimeline;
+    private Border? _blockBorder;
+    private ArrangeTimelineTrackViewModel? _blockTimeline;
+    private Point _blockPressPoint;
+    private bool _blockResizing;
+    private int _blockMoveSteps;
     private bool _timelinePanPending;
     private Point _timelinePanStart;
     private double _timelinePanStartOffset;
@@ -177,6 +182,90 @@ public partial class MainWindow : Window
             {
                 _isSynchronizingTrackScroll = false;
             }
+    }
+
+    // A block moves when grabbed, and changes length when its right edge is grabbed. Both snap to the SNAP grid.
+    private void NoteBlock_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not Border block || block.DataContext is not ArrangeTimelineTrackViewModel timeline)
+        {
+            return;
+        }
+
+        _blockBorder = block;
+        _blockTimeline = timeline;
+        _blockPressPoint = e.GetPosition(this);
+        _blockResizing = e.GetPosition(block).X >= block.ActualWidth - 8;
+        _blockMoveSteps = 0;
+        block.CaptureMouse();
+        if (DataContext is MainViewModel viewModel)
+        {
+            viewModel.SelectedTrack = timeline.SourceTrack;
+        }
+
+        e.Handled = true;
+    }
+
+    private void NoteBlock_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (_blockBorder is null || _blockTimeline is null || DataContext is not MainViewModel viewModel
+            || e.LeftButton != MouseButtonState.Pressed)
+        {
+            return;
+        }
+
+        var stepWidth = viewModel.TimelineSixteenthWidth;
+        var steps = (int)Math.Round((e.GetPosition(this).X - _blockPressPoint.X) / stepWidth);
+        if (!_blockResizing)
+        {
+            _blockMoveSteps = viewModel.SnapStep(_blockTimeline.BlockStartStep + steps) - _blockTimeline.BlockStartStep;
+            if (_blockBorder.RenderTransform is TranslateTransform preview)
+            {
+                preview.X = _blockMoveSteps * stepWidth;
+            }
+        }
+
+        e.Handled = true;
+    }
+
+    private void NoteBlock_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_blockBorder is null || _blockTimeline is null || DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        var block = _blockBorder;
+        var timeline = _blockTimeline;
+        var stepWidth = viewModel.TimelineSixteenthWidth;
+        var steps = (int)Math.Round((e.GetPosition(this).X - _blockPressPoint.X) / stepWidth);
+        var resizing = _blockResizing;
+        var moveSteps = _blockMoveSteps;
+
+        _blockBorder = null;
+        _blockTimeline = null;
+        block.ReleaseMouseCapture();
+        if (block.RenderTransform is TranslateTransform preview)
+        {
+            preview.X = 0;
+        }
+
+        if (resizing)
+        {
+            var currentLength = (int)timeline.BlockLengthSteps;
+            var newEnd = viewModel.SnapStep(timeline.BlockStartStep + currentLength + steps);
+            var newLength = newEnd - timeline.BlockStartStep;
+            if (newLength > 0 && newLength != currentLength)
+            {
+                viewModel.ResizeBlock(timeline.SourceTrack, newLength);
+            }
+        }
+        else
+        {
+            viewModel.MoveBlock(timeline.SourceTrack, moveSteps);
+        }
+
+        e.Handled = true;
     }
 
     // Dragging the timeline with the middle button, or with the left button after a few pixels of movement,

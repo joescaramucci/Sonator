@@ -35,6 +35,17 @@ public sealed class ArrangeTimelineTrackViewModel
 
     public string AudioPathData => AudioWaveform?.PathData ?? string.Empty;
 
+    // The recorded notes of the track as one block, in sixteenth steps from the start of the pattern.
+    public bool HasBlock => BlockLengthSteps > 0;
+
+    public int BlockStartStep => SourceTrack.MidiNoteEvents.Count == 0
+        ? 0
+        : SourceTrack.MidiNoteEvents.Min(note => note.StepIndex);
+
+    public double BlockLengthSteps => SourceTrack.MidiNoteEvents.Count == 0
+        ? 0
+        : SourceTrack.MidiNoteEvents.Max(note => note.StepIndex + Math.Max(1, note.DurationSteps)) - BlockStartStep;
+
     // The clip's length in sixteenth-note steps at the song tempo.
     public double AudioLengthSteps { get; }
 }

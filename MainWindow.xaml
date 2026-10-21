@@ -31,6 +31,7 @@
         <local:MasterMeterSegmentBrushConverter x:Key="MasterMeterSegmentBrushConverter" />
         <local:VolumePercentConverter x:Key="VolumePercentConverter" />
         <local:AudioClipWidthConverter x:Key="AudioClipWidthConverter" />
+        <local:StepOffsetConverter x:Key="StepOffsetConverter" />
 
         <Style TargetType="ComboBox">
             <Setter Property="Background" Value="#263545" />
@@ -1444,6 +1445,42 @@
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
+                                        <Border Background="{Binding SourceTrack.TrackColorBrush}"
+                                                BorderBrush="#EAF2FF"
+                                                BorderThickness="1"
+                                                CornerRadius="3"
+                                                HorizontalAlignment="Left"
+                                                VerticalAlignment="Stretch"
+                                                Cursor="SizeAll"
+                                                ToolTip="Drag to move the block. Drag its right edge to change its length. SNAP sets the grid."
+                                                PreviewMouseLeftButtonDown="NoteBlock_PreviewMouseLeftButtonDown"
+                                                PreviewMouseMove="NoteBlock_PreviewMouseMove"
+                                                PreviewMouseLeftButtonUp="NoteBlock_PreviewMouseLeftButtonUp">
+                                            <Border.RenderTransform>
+                                                <TranslateTransform />
+                                            </Border.RenderTransform>
+                                            <Border.Margin>
+                                                <MultiBinding Converter="{StaticResource StepOffsetConverter}">
+                                                    <Binding Path="BlockStartStep" />
+                                                    <Binding Path="DataContext.TimelineSixteenthWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                </MultiBinding>
+                                            </Border.Margin>
+                                            <Border.Width>
+                                                <MultiBinding Converter="{StaticResource AudioClipWidthConverter}">
+                                                    <Binding Path="BlockLengthSteps" />
+                                                    <Binding Path="DataContext.TimelineSixteenthWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                </MultiBinding>
+                                            </Border.Width>
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding HasBlock}" Value="False">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                        </Border>
                                     </Grid>
                                 </Grid>
                             </DataTemplate>
@@ -1729,6 +1766,7 @@
                     <Button Content="−" AutomationProperties.Name="TIMELINE ZOOM OUT" Command="{Binding ZoomTimelineOutCommand}" Width="20" Height="18" Padding="0" ToolTip="Reduce bar width" />
                     <Button Content="+" AutomationProperties.Name="TIMELINE ZOOM IN" Command="{Binding ZoomTimelineInCommand}" Width="20" Height="18" Padding="0" ToolTip="Increase bar width" />
                     <Button Content="FIT" AutomationProperties.Name="TIMELINE ZOOM TO FIT" Command="{Binding ZoomToFitCommand}" Width="34" Height="18" Padding="0" ToolTip="Zoom so every bar of the pattern is visible" />
+                    <Button Content="{Binding SnapText}" AutomationProperties.Name="TIMELINE SNAP" Command="{Binding CycleSnapCommand}" Width="74" Height="18" Padding="0" ToolTip="Snap the blocks to bars, quarter notes or sixteenths. Press to change." />
                 </StackPanel>
                 </Grid>
             </GroupBox>
