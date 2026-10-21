@@ -608,7 +608,7 @@
                 </Border>
                 <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
                     <StackPanel>
-                        <TextBox Text="{Binding Tempo, StringFormat=0.000, UpdateSourceTrigger=LostFocus}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA"  Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Center" IsReadOnly="True" Cursor="Hand" MouseDoubleClick="Tempo_MouseDoubleClick" LostFocus="Tempo_LostFocus" KeyDown="Tempo_KeyDown" ToolTip="Double-click to type the tempo in BPM (1 to 999). Enter or click away to apply." />
+                        <TextBox Text="{Binding Tempo, StringFormat=0.000, UpdateSourceTrigger=LostFocus}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA"  Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Center" IsReadOnly="True" Cursor="Hand" MouseDoubleClick="Tempo_MouseDoubleClick" MouseWheel="Tempo_MouseWheel" LostFocus="Tempo_LostFocus" KeyDown="Tempo_KeyDown" ToolTip="Double-click to type the tempo in BPM (1 to 999). Mouse wheel changes it by 1 BPM (Shift: 0.1). Enter or click away to apply." />
                         <TextBlock Text="TEMPO" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                     </StackPanel>
                 </Border>

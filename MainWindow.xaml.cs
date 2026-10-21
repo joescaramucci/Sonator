@@ -742,6 +742,19 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
+    // The mouse wheel over the tempo steps it by 1 BPM, or 0.1 BPM with Shift.
+    private void Tempo_MouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        var step = (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift ? 0.1 : 1.0;
+        viewModel.Tempo = Math.Round(viewModel.Tempo + (e.Delta > 0 ? step : -step), 1);
+        e.Handled = true;
+    }
+
     private void Tempo_LostFocus(object sender, RoutedEventArgs e)
     {
         if (sender is TextBox box)
