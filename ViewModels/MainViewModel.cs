@@ -1405,9 +1405,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         // A plug-in whose editor has audio running hears the keyboard directly; otherwise the note goes to the MIDI output.
-        if (LiveInstrumentRegistry.Current is { } instrument
-            && _liveInstrumentHost.TrySendNote(instrument, note.Channel, note.NoteNumber, note.Velocity, note.IsOn))
+        var instrument = LiveInstrumentRegistry.Current;
+        if (instrument is not null && _liveInstrumentHost.TrySendNote(instrument, note.Channel, note.NoteNumber, note.Velocity, note.IsOn))
         {
+            if (note.IsOn)
+            {
+                StatusMessage = $"Keyboard note {note.NoteNumber} sent to the plug-in";
+            }
             return;
         }
 
@@ -1415,6 +1419,12 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         try
         {
             _engine.PlayLiveNote(channel, note.NoteNumber, note.Velocity, note.IsOn);
+            if (note.IsOn)
+            {
+                StatusMessage = instrument is null
+                    ? $"Keyboard note {note.NoteNumber} sent to the MIDI output (no plug-in audio running)"
+                    : $"Keyboard note {note.NoteNumber} sent to the MIDI output (plug-in did not accept it)";
+            }
         }
         catch (InvalidOperationException ex)
         {
