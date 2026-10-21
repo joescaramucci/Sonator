@@ -28,6 +28,7 @@ public partial class MainWindow : Window
     private bool _isSynchronizingTrackScroll;
     private bool _isDraggingTimelineRuler;
     private bool _isPanningTimeline;
+    private bool _timelinePanPending;
     private Point _timelinePanStart;
     private double _timelinePanStartOffset;
     private double _timelineRulerDragStartX;
@@ -178,37 +179,63 @@ public partial class MainWindow : Window
             }
     }
 
-    // Dragging with the middle button moves the timeline left and right, so every bar can be reached.
+    // Dragging the timeline with the middle button, or with the left button after a few pixels of movement,
+    // moves it left and right. A left click without movement still reaches the track under the mouse.
     private void ArrangeTimelineScrollViewer_PreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
-        if (e.ChangedButton != MouseButton.Middle || sender is not ScrollViewer viewer)
+        if (sender is not ScrollViewer viewer || e.ChangedButton is not (MouseButton.Left or MouseButton.Middle))
         {
             return;
         }
 
-        _isPanningTimeline = true;
         _timelinePanStart = e.GetPosition(viewer);
         _timelinePanStartOffset = viewer.HorizontalOffset;
-        viewer.CaptureMouse();
-        viewer.Cursor = Cursors.SizeWE;
-        e.Handled = true;
+        _timelinePanPending = true;
+        if (e.ChangedButton == MouseButton.Middle)
+        {
+            BeginTimelinePan(viewer);
+            e.Handled = true;
+        }
     }
 
     private void ArrangeTimelineScrollViewer_PreviewMouseMove(object sender, MouseEventArgs e)
     {
-        if (!_isPanningTimeline || sender is not ScrollViewer viewer)
+        if (sender is not ScrollViewer viewer || !_timelinePanPending)
         {
             return;
         }
 
         var dx = e.GetPosition(viewer).X - _timelinePanStart.X;
+        if (!_isPanningTimeline)
+        {
+            if (Math.Abs(dx) < SystemParameters.MinimumHorizontalDragDistance)
+            {
+                return;
+            }
+
+            if (e.LeftButton != MouseButtonState.Pressed)
+            {
+                _timelinePanPending = false;
+                return;
+            }
+
+            BeginTimelinePan(viewer);
+        }
+
         viewer.ScrollToHorizontalOffset(Math.Max(0, _timelinePanStartOffset - dx));
         e.Handled = true;
     }
 
     private void ArrangeTimelineScrollViewer_PreviewMouseUp(object sender, MouseButtonEventArgs e)
     {
-        if (e.ChangedButton != MouseButton.Middle || sender is not ScrollViewer viewer)
+        if (sender is not ScrollViewer viewer || e.ChangedButton is not (MouseButton.Left or MouseButton.Middle))
+        {
+            return;
+        }
+
+        var wasPanning = _isPanningTimeline;
+        _timelinePanPending = false;
+        if (!wasPanning)
         {
             return;
         }
@@ -217,6 +244,13 @@ public partial class MainWindow : Window
         viewer.ReleaseMouseCapture();
         viewer.Cursor = null;
         e.Handled = true;
+    }
+
+    private void BeginTimelinePan(ScrollViewer viewer)
+    {
+        _isPanningTimeline = true;
+        viewer.CaptureMouse();
+        viewer.Cursor = Cursors.SizeWE;
     }
 
     private void TimelineRuler_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
