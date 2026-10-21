@@ -1785,14 +1785,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         SelectBlock(track);
     }
 
-    // Recording needs the playhead to move, so turning it on from a stop starts playback, with the pre-roll if set.
+    // Recording is turned on and off here; playback is started by the transport (space bar or START).
     private void SetRecording(bool recording)
     {
         IsRecording = recording;
-        if (recording && !IsPlaying)
-        {
-            StartPlayback();
-        }
     }
 
     // Arming a track turns recording on; recording stops when no track is armed.
