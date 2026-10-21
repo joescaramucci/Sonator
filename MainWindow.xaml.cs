@@ -27,6 +27,9 @@ public partial class MainWindow : Window
     private MainViewModel? _mainViewModel;
     private bool _isSynchronizingTrackScroll;
     private bool _isDraggingTimelineRuler;
+    private bool _isPanningTimeline;
+    private Point _timelinePanStart;
+    private double _timelinePanStartOffset;
     private double _timelineRulerDragStartX;
     private double _timelineRulerDragStartBarWidth;
     private Point? _arrangePatternDragStart;
@@ -173,6 +176,47 @@ public partial class MainWindow : Window
             {
                 _isSynchronizingTrackScroll = false;
             }
+    }
+
+    // Dragging with the middle button moves the timeline left and right, so every bar can be reached.
+    private void ArrangeTimelineScrollViewer_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton != MouseButton.Middle || sender is not ScrollViewer viewer)
+        {
+            return;
+        }
+
+        _isPanningTimeline = true;
+        _timelinePanStart = e.GetPosition(viewer);
+        _timelinePanStartOffset = viewer.HorizontalOffset;
+        viewer.CaptureMouse();
+        viewer.Cursor = Cursors.SizeWE;
+        e.Handled = true;
+    }
+
+    private void ArrangeTimelineScrollViewer_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_isPanningTimeline || sender is not ScrollViewer viewer)
+        {
+            return;
+        }
+
+        var dx = e.GetPosition(viewer).X - _timelinePanStart.X;
+        viewer.ScrollToHorizontalOffset(Math.Max(0, _timelinePanStartOffset - dx));
+        e.Handled = true;
+    }
+
+    private void ArrangeTimelineScrollViewer_PreviewMouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton != MouseButton.Middle || sender is not ScrollViewer viewer)
+        {
+            return;
+        }
+
+        _isPanningTimeline = false;
+        viewer.ReleaseMouseCapture();
+        viewer.Cursor = null;
+        e.Handled = true;
     }
 
     private void TimelineRuler_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
