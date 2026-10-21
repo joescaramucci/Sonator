@@ -507,7 +507,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         stopCommand = new RelayCommand(_ => StopPlayback(), _ => IsPlaying);
         toggleRecordCommand = new RelayCommand(_ =>
         {
-            IsRecording = !IsRecording;
+            SetRecording(!IsRecording);
             StatusMessage = IsRecording ? "Recording armed" : "Recording disarmed";
         });
         toggleStepCommand = new RelayCommand(parameter => ToggleStep(parameter), parameter => parameter is StepViewModel);
@@ -1785,6 +1785,16 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         SelectBlock(track);
     }
 
+    // Recording needs the playhead to move, so turning it on from a stop starts playback, with the pre-roll if set.
+    private void SetRecording(bool recording)
+    {
+        IsRecording = recording;
+        if (recording && !IsPlaying)
+        {
+            StartPlayback();
+        }
+    }
+
     // Arming a track turns recording on; recording stops when no track is armed.
     private void ToggleTrackRecordArm(PatternTrackViewModel? track)
     {
@@ -1795,7 +1805,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         track.IsRecordArmed = !track.IsRecordArmed;
-        IsRecording = Tracks.Any(item => item.IsRecordArmed);
+        SetRecording(Tracks.Any(item => item.IsRecordArmed));
         StatusMessage = track.IsRecordArmed ? $"{track.Name} armed for recording" : $"{track.Name} disarmed";
     }
 
