@@ -40,8 +40,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private bool _isLiveKeyboardEnabled = true;
     private CountInOption _selectedCountIn = new(1, "1 bar");
     private int _snapSteps = 16;
-    private int _rangeStartStep;
-    private double _rangeLengthSteps;
     private ClickOption _selectedClickOption = new(4, "Quarter");
     private Vst3ModuleHandle? _ownedInstrument;
     private readonly VstPluginService _vstPluginService;
@@ -1133,51 +1131,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     }
 
     public double TimelineSixteenthWidth => TimelineBarWidth / 16.0;
-
-    // The range of steps selected by dragging in a track lane. Length 0 means no range.
-    public int RangeStartStep
-    {
-        get => _rangeStartStep;
-        private set => SetProperty(ref _rangeStartStep, value);
-    }
-
-    public double RangeLengthSteps
-    {
-        get => _rangeLengthSteps;
-        private set => SetProperty(ref _rangeLengthSteps, value);
-    }
-
-    public void SetRange(int startStep, int lengthSteps)
-    {
-        RangeStartStep = Math.Max(0, startStep);
-        RangeLengthSteps = Math.Max(0, lengthSteps);
-    }
-
-    public void ClearRange()
-    {
-        SetRange(0, 0);
-    }
-
-    // Removes the notes of the selected track that start inside the selected range.
-    public void DeleteRange()
-    {
-        var track = SelectedTrack;
-        if (track is null || RangeLengthSteps <= 0 || track.MidiNoteEvents.Count == 0)
-        {
-            return;
-        }
-
-        var from = RangeStartStep;
-        var to = from + (int)RangeLengthSteps;
-        var kept = track.MidiNoteEvents.Where(note => note.StepIndex < from || note.StepIndex >= to).ToList();
-        if (kept.Count == track.MidiNoteEvents.Count)
-        {
-            return;
-        }
-
-        ReplaceTrackNotes(track, kept);
-        ClearRange();
-    }
 
     // The nearest snap point to a step, never before the start of the pattern.
     public int SnapStep(int step)

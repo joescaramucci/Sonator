@@ -1302,10 +1302,7 @@
                                     <Grid Grid.Column="1"
                                           Width="{Binding DataContext.TimelineContentWidth, RelativeSource={RelativeSource AncestorType=Window}}"
                                           Background="{Binding SourceTrack.TrackColorBrush}"
-                                          ClipToBounds="True"
-                                          PreviewMouseLeftButtonDown="LaneGrid_PreviewMouseLeftButtonDown"
-                                          PreviewMouseMove="LaneGrid_PreviewMouseMove"
-                                          PreviewMouseLeftButtonUp="LaneGrid_PreviewMouseLeftButtonUp">
+                                          ClipToBounds="True">
                                         <ItemsControl ItemsSource="{Binding DataContext.TimelineBarNumbers, RelativeSource={RelativeSource AncestorType=Window}}"
                                                       IsHitTestVisible="False"
                                                       SnapsToDevicePixels="True"
@@ -1448,25 +1445,6 @@
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
-                                        <Border Background="#26FFFFFF"
-                                                BorderBrush="#EAF2FF"
-                                                BorderThickness="1,0"
-                                                HorizontalAlignment="Left"
-                                                VerticalAlignment="Stretch"
-                                                IsHitTestVisible="False">
-                                            <Border.Margin>
-                                                <MultiBinding Converter="{StaticResource StepOffsetConverter}">
-                                                    <Binding Path="DataContext.RangeStartStep" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                    <Binding Path="DataContext.TimelineSixteenthWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                </MultiBinding>
-                                            </Border.Margin>
-                                            <Border.Width>
-                                                <MultiBinding Converter="{StaticResource AudioClipWidthConverter}">
-                                                    <Binding Path="DataContext.RangeLengthSteps" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                    <Binding Path="DataContext.TimelineSixteenthWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                </MultiBinding>
-                                            </Border.Width>
-                                        </Border>
                                         <Border Background="{Binding SourceTrack.TrackColorBrush}"
                                                 BorderBrush="#EAF2FF"
                                                 BorderThickness="1"

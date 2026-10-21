@@ -28,9 +28,6 @@ public partial class MainWindow : Window
     private bool _isSynchronizingTrackScroll;
     private bool _isDraggingTimelineRuler;
     private bool _isPanningTimeline;
-    private bool _isSelectingRange;
-    private bool _rangeMoved;
-    private int _rangeAnchorStep;
     private Border? _blockBorder;
     private ArrangeTimelineTrackViewModel? _blockTimeline;
     private Point _blockPressPoint;
@@ -215,11 +212,6 @@ public partial class MainWindow : Window
 
         _blockBorder = block;
         _blockTimeline = timeline;
-        if (DataContext is MainViewModel rangeOwner)
-        {
-            rangeOwner.ClearRange(); // grabbing a block clears any bar selection
-        }
-
         _blockPressPoint = e.GetPosition(this);
         _blockResizing = IsInsideTagged(e.OriginalSource, "NoteBlockEdge");
         _blockMoveSteps = 0;
@@ -292,18 +284,24 @@ public partial class MainWindow : Window
     // moves it left and right. A left click without movement still reaches the track under the mouse.
     private void ArrangeTimelineScrollViewer_PreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
-        var shiftDrag = e.ChangedButton == MouseButton.Left && (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift;
-        if (sender is not ScrollViewer viewer || (e.ChangedButton != MouseButton.Middle && !shiftDrag))
+        if (sender is not ScrollViewer viewer || e.ChangedButton is not (MouseButton.Left or MouseButton.Middle))
+        {
+            return;
+        }
+
+        // A press on a block belongs to the block: it moves or resizes it instead of scrolling.
+        if (e.ChangedButton == MouseButton.Left && IsInsideNoteBlock(e.OriginalSource))
         {
             return;
         }
 
         _timelinePanStart = e.GetPosition(viewer);
-        if (shiftDrag)
+        _timelinePanStartOffset = viewer.HorizontalOffset;
+        _timelinePanPending = true;
+        if (e.ChangedButton == MouseButton.Middle)
         {
             BeginTimelinePan(viewer);
             e.Handled = true;
-            return;
         }
         _timelinePanStartOffset = viewer.HorizontalOffset;
         _timelinePanPending = true;
@@ -316,19 +314,41 @@ public partial class MainWindow : Window
 
     private void ArrangeTimelineScrollViewer_PreviewMouseMove(object sender, MouseEventArgs e)
     {
-        if (sender is not ScrollViewer viewer || !_isPanningTimeline)
+        if (sender is not ScrollViewer viewer || !_timelinePanPending)
         {
             return;
         }
 
         var dx = e.GetPosition(viewer).X - _timelinePanStart.X;
+        if (!_isPanningTimeline)
+        {
+            if (Math.Abs(dx) < SystemParameters.MinimumHorizontalDragDistance)
+            {
+                return;
+            }
+
+            if (e.LeftButton != MouseButtonState.Pressed)
+            {
+                _timelinePanPending = false;
+                return;
+            }
+
+            BeginTimelinePan(viewer);
+        }
+
         viewer.ScrollToHorizontalOffset(Math.Max(0, _timelinePanStartOffset - dx));
         e.Handled = true;
     }
 
     private void ArrangeTimelineScrollViewer_PreviewMouseUp(object sender, MouseButtonEventArgs e)
     {
-        if (sender is not ScrollViewer viewer || e.ChangedButton is not (MouseButton.Middle or MouseButton.Left) || !_isPanningTimeline)
+        if (sender is not ScrollViewer viewer || e.ChangedButton is not (MouseButton.Middle or MouseButton.Left))
+        {
+            return;
+        }
+
+        _timelinePanPending = false;
+        if (!_isPanningTimeline)
         {
             return;
         }
@@ -344,61 +364,6 @@ public partial class MainWindow : Window
         _isPanningTimeline = true;
         viewer.CaptureMouse();
         viewer.Cursor = Cursors.SizeWE;
-    }
-
-    // Pressing and dragging in a track lane selects a range of bars, shown as a tinted band.
-    private void LaneGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        if (sender is not Grid lane || DataContext is not MainViewModel viewModel || IsInsideNoteBlock(e.OriginalSource)
-            || (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift)
-        {
-            return;
-        }
-
-        _rangeAnchorStep = StepAt(lane, e, viewModel);
-        _isSelectingRange = true;
-        _rangeMoved = false;
-        viewModel.SetRange(_rangeAnchorStep, 1);
-        lane.CaptureMouse();
-        e.Handled = true;
-    }
-
-    private void LaneGrid_PreviewMouseMove(object sender, MouseEventArgs e)
-    {
-        if (!_isSelectingRange || sender is not Grid lane || DataContext is not MainViewModel viewModel
-            || e.LeftButton != MouseButtonState.Pressed)
-        {
-            return;
-        }
-
-        var current = StepAt(lane, e, viewModel);
-        _rangeMoved |= current != _rangeAnchorStep;
-        var from = Math.Min(_rangeAnchorStep, current);
-        viewModel.SetRange(from, Math.Abs(current - _rangeAnchorStep) + 1);
-        e.Handled = true;
-    }
-
-    private void LaneGrid_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-    {
-        if (!_isSelectingRange || sender is not Grid lane)
-        {
-            return;
-        }
-
-        _isSelectingRange = false;
-        lane.ReleaseMouseCapture();
-        if (!_rangeMoved && DataContext is MainViewModel viewModel)
-        {
-            viewModel.ClearRange(); // a plain click selects nothing
-        }
-
-        e.Handled = true;
-    }
-
-    private static int StepAt(Grid lane, MouseEventArgs e, MainViewModel viewModel)
-    {
-        var x = e.GetPosition(lane).X;
-        return Math.Max(0, (int)Math.Floor(x / viewModel.TimelineSixteenthWidth));
     }
 
     private void TimelineRuler_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -506,13 +471,6 @@ public partial class MainWindow : Window
 
         if (DataContext is not MainViewModel viewModel)
         {
-            return;
-        }
-
-        if (e.Key == Key.Delete && viewModel.RangeLengthSteps > 0 && Keyboard.FocusedElement is not TextBox)
-        {
-            viewModel.DeleteRange();
-            e.Handled = true;
             return;
         }
 
