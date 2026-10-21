@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private Point _timelinePanStart;
     private double _timelinePanStartOffset;
     private double _timelineRulerDragStartX;
-    private double _timelineRulerDragStartBarWidth;
+    private double _timelineRulerDragStartOffset;
     private Point? _arrangePatternDragStart;
     private SongArrangeRowViewModel? _draggedArrangePattern;
 
@@ -228,7 +228,7 @@ public partial class MainWindow : Window
 
             _isDraggingTimelineRuler = true;
             _timelineRulerDragStartX = e.GetPosition(this).X;
-            _timelineRulerDragStartBarWidth = (DataContext as MainViewModel)?.TimelineBarWidth ?? 180;
+            _timelineRulerDragStartOffset = ArrangeTimelineScrollViewer.HorizontalOffset;
             ruler.CaptureMouse();
             e.Handled = true;
     }
@@ -240,13 +240,9 @@ public partial class MainWindow : Window
                 return;
             }
 
-            if (DataContext is not MainViewModel viewModel)
-            {
-                return;
-            }
-
+            // Dragging the bar numbers moves the timeline; the mouse wheel still zooms.
             var delta = e.GetPosition(this).X - _timelineRulerDragStartX;
-            viewModel.TimelineBarWidth = _timelineRulerDragStartBarWidth + delta;
+            ArrangeTimelineScrollViewer.ScrollToHorizontalOffset(Math.Max(0, _timelineRulerDragStartOffset - delta));
             e.Handled = true;
     }
 
