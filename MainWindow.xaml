@@ -606,11 +606,11 @@
                         </StackPanel>
                     </Button>
                 </Border>
-                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2"
+                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2" Cursor="Hand"
                         ToolTipService.InitialShowDelay="0"
                         ToolTipService.ShowDuration="30000"
                         ToolTip="TEMPO: double-click to type a value (1 to 999 BPM). Mouse wheel: 1 BPM per step, Shift for 0.1. Enter or click away applies it.">
-                    <Border BorderBrush="#586E86" BorderThickness="1" CornerRadius="5" Padding="2">
+                    <Border BorderBrush="#586E86" BorderThickness="1" CornerRadius="5" Padding="2" Cursor="Hand">
                         <Border.Style>
                             <Style TargetType="Border">
                                 <Setter Property="Background" Value="#263545" />
