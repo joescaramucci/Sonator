@@ -287,6 +287,18 @@ public sealed class Vst3PluginHost : IVst3PluginHost
         }
     }
 
+    public bool TrySendNote(Vst3ModuleHandle handle, int channel, int noteNumber, int velocity, bool isOn)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+
+        if (handle.NativeHandle == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        return Vst3HostInterop.VstHostBridge_SendNoteEvent(handle.NativeHandle, channel, noteNumber, velocity, isOn ? 1 : 0) != 0;
+    }
+
     public void StopAudio(Vst3ModuleHandle handle)
     {
         ArgumentNullException.ThrowIfNull(handle);

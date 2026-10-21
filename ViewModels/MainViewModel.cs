@@ -28,6 +28,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly MidiOutputDeviceService _midiOutputDeviceService;
     private readonly MidiFileImportService _midiFileImportService;
     private readonly MidiInputService _midiInput = new();
+    private readonly IVst3PluginHost _liveInstrumentHost = new Vst3PluginHost();
     private bool _isLiveKeyboardEnabled = true;
     private readonly VstPluginService _vstPluginService;
     private readonly VstPluginScanner _vstPluginScanner;
@@ -1380,6 +1381,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private void PlayLiveKeyboardNote(MidiNoteMessage note)
     {
         if (!IsLiveKeyboardEnabled)
+        {
+            return;
+        }
+
+        // A plug-in whose editor has audio running hears the keyboard directly; otherwise the note goes to the MIDI output.
+        if (LiveInstrumentRegistry.Current is { } instrument
+            && _liveInstrumentHost.TrySendNote(instrument, note.Channel, note.NoteNumber, note.Velocity, note.IsOn))
         {
             return;
         }

@@ -101,6 +101,10 @@ VSTHOSTBRIDGE_API int VstHostBridge_StartAudio(void* moduleHandle);
 // VstHostBridge_UnloadModule if the caller forgot to stop it first.
 VSTHOSTBRIDGE_API void VstHostBridge_StopAudio(void* moduleHandle);
 
+// Queues a note for the plug-in of a running module. The plug-in hears it in the next block.
+// isOn 0, or velocity 0, releases the note. Returns 1 if queued, 0 if audio is not running.
+VSTHOSTBRIDGE_API int VstHostBridge_SendNoteEvent(void* moduleHandle, int32_t channel, int32_t pitch, int32_t velocity, int32_t isOn);
+
 // Returns 1 if audio is currently running for this module, 0 otherwise.
 VSTHOSTBRIDGE_API int VstHostBridge_IsAudioRunning(void* moduleHandle);
 

@@ -43,6 +43,7 @@ public partial class VstPluginEditorDialog : Window
     {
         if (_moduleHandle is not null)
         {
+            LiveInstrumentRegistry.Clear(_moduleHandle);
             _vst3Host.StopAudio(_moduleHandle);
             _vst3Host.UnloadModule(_moduleHandle);
             _moduleHandle = null;
@@ -80,6 +81,10 @@ public partial class VstPluginEditorDialog : Window
         {
             var selection = AudioOutputSelection.FromSettings(new AppSettingsService().Load());
             var started = _vst3Host.TryStartAudio(handle, selection, out var audioError);
+            if (started)
+            {
+                LiveInstrumentRegistry.Set(handle);
+            }
             asioAudioStarted = started && selection.UseAsio;
             audioStatus = started
                 ? " Real-time audio active."

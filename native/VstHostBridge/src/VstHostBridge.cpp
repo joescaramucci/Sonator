@@ -40,6 +40,7 @@
 #include "pluginterfaces/vst/ivsthostapplication.h"
 #include "pluginterfaces/vst/ivstmessage.h"
 #include "pluginterfaces/vst/ivstaudioprocessor.h"
+#include "pluginterfaces/vst/ivstevents.h"
 #include "pluginterfaces/vst/vstspeaker.h"
 #include "pluginterfaces/gui/iplugview.h"
 
@@ -503,9 +504,63 @@ namespace
     // have to worry about apartment/marshaling mismatches with whichever
     // thread called VstHostBridge_StartAudio (typically the WPF UI thread,
     // which already runs its own STA COM apartment).
+    // The note events handed to the plug-in with one block. The audio thread owns it; the host fills it per block.
+    class BlockEventList final : public IEventList
+    {
+    public:
+        tresult PLUGIN_API queryInterface(const TUID iid, void** obj) override
+        {
+            if (obj == nullptr)
+            {
+                return kInvalidArgument;
+            }
+
+            if (TuidEquals(iid, FUnknown_iid) || TuidEquals(iid, IEventList_iid))
+            {
+                *obj = static_cast<IEventList*>(this);
+                return kResultOk;
+            }
+
+            *obj = nullptr;
+            return kNoInterface;
+        }
+
+        // Lifetime is the audio engine's, not reference counted.
+        uint32 PLUGIN_API addRef() override { return 1; }
+        uint32 PLUGIN_API release() override { return 1; }
+
+        int32 PLUGIN_API getEventCount() override
+        {
+            return static_cast<int32>(events.size());
+        }
+
+        tresult PLUGIN_API getEvent(int32 index, Event& event) override
+        {
+            if (index < 0 || index >= static_cast<int32>(events.size()))
+            {
+                return kInvalidArgument;
+            }
+
+            event = events[static_cast<size_t>(index)];
+            return kResultOk;
+        }
+
+        tresult PLUGIN_API addEvent(Event& /*event*/) override
+        {
+            return kResultFalse; // the plug-in does not write events back to the host yet
+        }
+
+        std::vector<Event> events;
+    };
+
     struct AudioEngineState
     {
         BridgeModule* module = nullptr;
+
+        // Note events queued by VstHostBridge_SendNoteEvent. The next block the audio thread processes takes them.
+        std::mutex midiMutex;
+        std::vector<Event> pendingMidi;
+        BlockEventList blockEvents;
         IAudioProcessor* processor = nullptr; // addRef'd; released by the engine thread on stop
 
         // Endpoint ID of the output device to open. Empty means the default device.
@@ -533,6 +588,17 @@ namespace
 
         std::thread thread;
         std::atomic<bool> stopRequested{false};
+
+        // Hands the notes queued since the last block to the plug-in. Called on the audio thread before process().
+        void PrepareEvents(ProcessData& data)
+        {
+            {
+                std::lock_guard<std::mutex> lock(midiMutex);
+                blockEvents.events.swap(pendingMidi);
+                pendingMidi.clear();
+            }
+            data.inputEvents = &blockEvents;
+        }
 
         // 0 = still starting up, 1 = started OK, -1 = failed to start.
         std::atomic<int> initResult{0};
@@ -656,6 +722,12 @@ namespace
                 engine->activatedOutputBus = true;
             }
 
+            // Instruments take note events on their event input bus.
+            if (module->component->getBusCount(kEvent, kInput) > 0)
+            {
+                module->component->activateBus(kEvent, kInput, 0, 1);
+            }
+
             ProcessSetup setup{};
             setup.processMode = kRealtime;
             setup.symbolicSampleSize = kSample32;
@@ -746,6 +818,7 @@ namespace
                 }
                 outputBus.channelBuffers32 = channelPointers.data();
                 processData.numSamples = samplesThisBlock;
+                engine->PrepareEvents(processData);
 
                 engine->processor->process(processData);
 
@@ -1585,6 +1658,7 @@ namespace
         }
         session->outputBus.channelBuffers32 = session->channelPointers.data();
         session->processData.numSamples = session->bufferSize;
+        session->engine->PrepareEvents(session->processData);
         session->engine->processor->process(session->processData);
 
         if (session->hasInput)
@@ -1812,6 +1886,11 @@ namespace
                 if (module->component->activateBus(kAudio, kOutput, 0, 1) == kResultOk)
                 {
                     activatedOutputBus = true;
+                }
+
+                if (module->component->getBusCount(kEvent, kInput) > 0)
+                {
+                    module->component->activateBus(kEvent, kInput, 0, 1);
                 }
 
                 ProcessSetup setup{};
@@ -2548,6 +2627,46 @@ void VstHostBridge_StopAudio(void* moduleHandle)
     }
 
     StopAudioInternal(static_cast<BridgeModule*>(moduleHandle));
+}
+
+int VstHostBridge_SendNoteEvent(void* moduleHandle, int32_t channel, int32_t pitch, int32_t velocity, int32_t isOn)
+{
+    if (moduleHandle == nullptr)
+    {
+        return 0;
+    }
+
+    auto* module = static_cast<BridgeModule*>(moduleHandle);
+    if (module->audioEngine == nullptr || module->audioEngine->initResult.load() != 1)
+    {
+        return 0;
+    }
+
+    Event event{};
+    event.busIndex = 0;
+    event.sampleOffset = 0;
+    event.flags = Event::kIsLive;
+    if (isOn != 0 && velocity > 0)
+    {
+        event.type = Event::kNoteOnEvent;
+        event.noteOn.channel = channel;
+        event.noteOn.pitch = static_cast<int16>(pitch);
+        event.noteOn.velocity = static_cast<float>(velocity) / 127.0f;
+        event.noteOn.noteId = -1;
+    }
+    else
+    {
+        event.type = Event::kNoteOffEvent;
+        event.noteOff.channel = channel;
+        event.noteOff.pitch = static_cast<int16>(pitch);
+        event.noteOff.velocity = 0.0f;
+        event.noteOff.noteId = -1;
+    }
+
+    auto* engine = module->audioEngine;
+    std::lock_guard<std::mutex> lock(engine->midiMutex);
+    engine->pendingMidi.push_back(event);
+    return 1;
 }
 
 int VstHostBridge_IsAudioRunning(void* moduleHandle)

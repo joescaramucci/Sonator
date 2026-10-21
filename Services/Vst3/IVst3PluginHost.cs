@@ -133,6 +133,12 @@ public interface IVst3PluginHost
     void StopAudio(Vst3ModuleHandle handle);
 
     /// <summary>
+    /// Queues a note for a module whose real-time audio is running, so the plug-in plays it.
+    /// Channel is 0-based. Returns false if the module is not running.
+    /// </summary>
+    bool TrySendNote(Vst3ModuleHandle handle, int channel, int noteNumber, int velocity, bool isOn);
+
+    /// <summary>
     /// True if real-time audio is currently running for this module.
     /// </summary>
     bool IsAudioRunning(Vst3ModuleHandle handle);
