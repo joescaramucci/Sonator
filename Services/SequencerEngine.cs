@@ -11,6 +11,9 @@ internal sealed class SequencerEngine : IDisposable
     private readonly Dispatcher _dispatcher = Dispatcher.CurrentDispatcher;
     private WindowsMidiOutput? _midiOutput;
     private readonly List<ActiveNote> _activeNotes = new();
+
+    // Offered each note of a track that has a plug-in. Returns true when the plug-in took the note, so the MIDI output is skipped.
+    public Func<string?, int, int, int, bool, bool>? PluginNoteRouter { get; set; }
     private readonly List<PatternViewModel> _songPatterns = new();
     private PatternViewModel? _pattern;
     private int _currentStep;
@@ -462,6 +465,27 @@ internal sealed class SequencerEngine : IDisposable
         _highlightedStep = activeStep;
     }
 
+    // A track with a plug-in plays through it when the router takes the note; otherwise the note goes to the MIDI output.
+    private void SendNoteOn(PatternTrackViewModel track, int channel, int noteNumber, int velocity)
+    {
+        if (PluginNoteRouter?.Invoke(track.PluginFilePath, channel, noteNumber, velocity, true) == true)
+        {
+            return;
+        }
+
+        _midiOutput?.NoteOn(channel, noteNumber, velocity);
+    }
+
+    private void SendNoteOff(PatternTrackViewModel track, int channel, int noteNumber)
+    {
+        if (PluginNoteRouter?.Invoke(track.PluginFilePath, channel, noteNumber, 0, false) == true)
+        {
+            return;
+        }
+
+        _midiOutput?.NoteOff(channel, noteNumber);
+    }
+
     private void TickActiveNotes()
     {
         lock (_sync)
@@ -472,7 +496,7 @@ internal sealed class SequencerEngine : IDisposable
                 activeNote.RemainingSteps -= 1;
                 if (!IsTrackAudible(activeNote.Track) || activeNote.RemainingSteps <= 0)
                 {
-                    _midiOutput?.NoteOff(activeNote.Channel, activeNote.NoteNumber);
+                    SendNoteOff(activeNote.Track, activeNote.Channel, activeNote.NoteNumber);
                     _activeNotes.RemoveAt(i);
                 }
             }
@@ -512,7 +536,8 @@ internal sealed class SequencerEngine : IDisposable
                 {
                     foreach (var noteEvent in track.MidiNoteEvents.Where(note => note.StepIndex == stepIndex))
                     {
-                        _midiOutput?.NoteOn(
+                        SendNoteOn(
+                            track,
                             track.Channel - 1,
                             noteEvent.NoteNumber,
                             ApplyTrackVolume(noteEvent.Velocity, track.Volume * MasterVolume));
@@ -533,7 +558,8 @@ internal sealed class SequencerEngine : IDisposable
                 }
 
                 var noteNumber = step.MidiNoteNumber ?? track.NoteNumber;
-                _midiOutput?.NoteOn(
+                SendNoteOn(
+                    track,
                     track.Channel - 1,
                     noteNumber,
                     ApplyTrackVolume(step.Velocity, track.Volume * MasterVolume));
@@ -580,6 +606,11 @@ internal sealed class SequencerEngine : IDisposable
     {
         lock (_sync)
         {
+            foreach (var activeNote in _activeNotes)
+            {
+                SendNoteOff(activeNote.Track, activeNote.Channel, activeNote.NoteNumber);
+            }
+
             var patterns = _songPatterns.Count > 0
                 ? _songPatterns
                 : _pattern is null ? Enumerable.Empty<PatternViewModel>() : new[] { _pattern };

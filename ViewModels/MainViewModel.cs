@@ -146,6 +146,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 .Select(device => new MidiOutputDeviceViewModel(device.DeviceId, device.DisplayName)));
         MidiInputDevices = new ObservableCollection<MidiInputDeviceViewModel>();
         ReloadMidiInputDevices();
+        _engine.PluginNoteRouter = RouteSequencerNoteToPlugin;
         _midiInput.NoteReceived += note => Application.Current?.Dispatcher.BeginInvoke(() => PlayLiveKeyboardNote(note));
         _midiInput.MessageReceived += packed => Application.Current?.Dispatcher.BeginInvoke(() => OnMidiMessageReceived(packed));
         _midiActivityTimer.Tick += (_, _) => IsMidiActivityVisible = false;
@@ -1403,6 +1404,19 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         StatusMessage = $"MIDI in: {status:X2} {(packed >> 8) & 0xFF:X2} {(packed >> 16) & 0xFF:X2}";
+    }
+
+    // Plays a sequencer note through the plug-in running for the track's plug-in file, if there is one.
+    private bool RouteSequencerNoteToPlugin(string? pluginPath, int channel, int noteNumber, int velocity, bool isOn)
+    {
+        if (string.IsNullOrEmpty(pluginPath)
+            || LiveInstrumentRegistry.Current is not { } instrument
+            || !string.Equals(instrument.FilePath, pluginPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return _liveInstrumentHost.TrySendNote(instrument, channel, noteNumber, velocity, isOn);
     }
 
     private void FlashMidiActivity()
