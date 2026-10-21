@@ -514,6 +514,10 @@ namespace
         // True when this engine drives an ASIO driver rather than WASAPI.
         bool useAsio = false;
 
+        // ASIO format chosen by the user. 0 means the driver's own choice.
+        int32 requestedBufferFrames = 0;
+        double requestedSampleRate = 0.0;
+
         // ASIO timing, set once the driver's buffers exist and cleared when the engine stops.
         std::atomic<long> asioBufferFrames{0};
         std::atomic<long> asioOutputLatencyFrames{0};
@@ -1645,9 +1649,29 @@ namespace
             error = "Il driver ASIO non riporta una dimensione di buffer valida.";
             return false;
         }
+        // The user's buffer size is used when it lies within the driver's range, otherwise the driver's preferred size.
         session.bufferSize = preferredSize;
+        if (session.engine->requestedBufferFrames > 0)
+        {
+            const long requested = session.engine->requestedBufferFrames;
+            if (requested < minSize || requested > maxSize)
+            {
+                error = "La dimensione del buffer scelta non rientra nei limiti del driver (" + std::to_string(minSize) + " - " + std::to_string(maxSize) + " campioni).";
+                return false;
+            }
+            session.bufferSize = requested;
+        }
 
         sampleRate = 0.0;
+        if (session.engine->requestedSampleRate > 0.0)
+        {
+            if (session.driver->canSampleRate(session.engine->requestedSampleRate) != ASE_OK
+                || session.driver->setSampleRate(session.engine->requestedSampleRate) != ASE_OK)
+            {
+                error = "Il driver ASIO non accetta la frequenza di campionamento scelta.";
+                return false;
+            }
+        }
         if (session.driver->getSampleRate(&sampleRate) != ASE_OK || sampleRate <= 0.0)
         {
             session.driver->setSampleRate(48000.0);
@@ -1686,7 +1710,7 @@ namespace
             session.pluginChannels = pluginBus.channelCount;
         }
 
-        const size_t frames = static_cast<size_t>(preferredSize);
+        const size_t frames = static_cast<size_t>(session.bufferSize);
         session.planar.assign(static_cast<size_t>(session.pluginChannels), std::vector<float>(frames));
         session.silence.assign(frames, 0.0f);
         session.channelPointers.assign(static_cast<size_t>(session.pluginChannels), nullptr);
@@ -1946,7 +1970,7 @@ bool AsioBuiltIn()
 
 // Starts the audio engine on the WASAPI endpoint deviceId, or on the ASIO driver whose CLSID is
 // deviceId when useAsio is true. Both backends share the same start and stop path.
-static int StartAudioEngine(void* moduleHandle, const wchar_t* deviceId, bool useAsio)
+static int StartAudioEngine(void* moduleHandle, const wchar_t* deviceId, bool useAsio, int32 bufferFrames, double sampleRate)
 {
     if (moduleHandle == nullptr)
     {
@@ -1985,6 +2009,8 @@ static int StartAudioEngine(void* moduleHandle, const wchar_t* deviceId, bool us
     engine->processor = processor; // ownership transferred; released by the engine thread
     engine->deviceId = deviceId != nullptr ? deviceId : L"";
     engine->useAsio = useAsio;
+    engine->requestedBufferFrames = bufferFrames;
+    engine->requestedSampleRate = sampleRate;
 
     module->audioEngine = engine;
     engine->thread = useAsio ? std::thread(RunAsioEngineThread, engine) : std::thread(RunAudioEngineThread, engine);
@@ -2107,12 +2133,12 @@ int VstHostBridge_ListAudioOutputs(wchar_t* buffer, int capacity)
 
 int VstHostBridge_StartAudioOnDevice(void* moduleHandle, const wchar_t* deviceId)
 {
-    return StartAudioEngine(moduleHandle, deviceId, false);
+    return StartAudioEngine(moduleHandle, deviceId, false, 0, 0.0);
 }
 
 int VstHostBridge_StartAudioAsio(void* moduleHandle, const wchar_t* driverClsid)
 {
-    return StartAudioEngine(moduleHandle, driverClsid, true);
+    return StartAudioEngine(moduleHandle, driverClsid, true, 0, 0.0);
 }
 
 int VstHostBridge_GetAsioTiming(void* moduleHandle, int32_t* outBufferFrames, int32_t* outOutputLatencyFrames, double* outSampleRate)
@@ -2182,6 +2208,159 @@ int VstHostBridge_MeasureAsioLatency(void* moduleHandle, double* outMilliseconds
     *outMilliseconds = static_cast<double>(frames) * 1000.0 / engine->asioSampleRate.load();
     return 1;
 }
+
+#if SONATOR_WITH_ASIO
+namespace
+{
+    struct AsioDriverProbe
+    {
+        bool ok = false;
+        std::string error;
+        long minSize = 0;
+        long maxSize = 0;
+        long preferredSize = 0;
+        long granularity = 0;
+        double currentRate = 0.0;
+        std::vector<double> rates;
+    };
+
+    // Sample rates checked against the driver. Only rates the driver accepts are reported.
+    constexpr double kStandardRates[] = { 8000.0, 11025.0, 16000.0, 22050.0, 32000.0, 44100.0, 48000.0, 88200.0, 96000.0, 176400.0, 192000.0 };
+
+    // Opens the driver on its own STA thread, so the call works from any thread of the host.
+    void RunAsioProbe(const std::wstring& clsidText, bool openControlPanel, AsioDriverProbe& probe)
+    {
+        std::thread worker([&clsidText, openControlPanel, &probe]()
+        {
+            const HRESULT comResult = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+            const bool comInitializedHere = SUCCEEDED(comResult);
+
+            CLSID clsid{};
+            IASIO* driver = nullptr;
+            HRESULT hr = CLSIDFromString(clsidText.c_str(), &clsid);
+            if (FAILED(hr))
+            {
+                probe.error = "Identificatore del driver ASIO non valido.";
+            }
+            else if (FAILED(hr = CoCreateInstance(clsid, nullptr, CLSCTX_INPROC_SERVER, clsid, reinterpret_cast<void**>(&driver))) || driver == nullptr)
+            {
+                probe.error = "Impossibile aprire il driver ASIO: " + FormatWin32Error(static_cast<DWORD>(hr));
+            }
+            else if (!driver->init(GetDesktopWindow()))
+            {
+                char message[256]{};
+                driver->getErrorMessage(message);
+                probe.error = std::string("Il driver ASIO non si è inizializzato: ") + message;
+            }
+            else if (openControlPanel)
+            {
+                driver->controlPanel();
+                probe.ok = true;
+            }
+            else if (driver->getBufferSize(&probe.minSize, &probe.maxSize, &probe.preferredSize, &probe.granularity) != ASE_OK)
+            {
+                probe.error = "Il driver ASIO non riporta i limiti del buffer.";
+            }
+            else
+            {
+                driver->getSampleRate(&probe.currentRate);
+                for (double rate : kStandardRates)
+                {
+                    if (driver->canSampleRate(rate) == ASE_OK)
+                    {
+                        probe.rates.push_back(rate);
+                    }
+                }
+                probe.ok = true;
+            }
+
+            if (driver != nullptr)
+            {
+                driver->Release();
+            }
+            if (comInitializedHere)
+            {
+                CoUninitialize();
+            }
+        });
+        worker.join();
+    }
+}
+
+int VstHostBridge_GetAsioCapabilities(const wchar_t* driverClsid, int32_t* outMinBuffer, int32_t* outMaxBuffer,
+    int32_t* outPreferredBuffer, int32_t* outGranularity, double* outCurrentRate, double* outRates,
+    int32_t rateCapacity, int32_t* outRateCount)
+{
+    if (driverClsid == nullptr || outMinBuffer == nullptr || outMaxBuffer == nullptr || outPreferredBuffer == nullptr
+        || outGranularity == nullptr || outCurrentRate == nullptr || outRateCount == nullptr || (outRates == nullptr && rateCapacity > 0))
+    {
+        SetBridgeError("Argomenti non validi.");
+        return 0;
+    }
+
+    AsioDriverProbe probe;
+    RunAsioProbe(driverClsid, false, probe);
+    if (!probe.ok)
+    {
+        SetBridgeError(probe.error);
+        return 0;
+    }
+
+    *outMinBuffer = static_cast<int32_t>(probe.minSize);
+    *outMaxBuffer = static_cast<int32_t>(probe.maxSize);
+    *outPreferredBuffer = static_cast<int32_t>(probe.preferredSize);
+    *outGranularity = static_cast<int32_t>(probe.granularity);
+    *outCurrentRate = probe.currentRate;
+
+    const int32_t count = (std::min)(rateCapacity, static_cast<int32_t>(probe.rates.size()));
+    for (int32_t i = 0; i < count; ++i)
+    {
+        outRates[i] = probe.rates[static_cast<size_t>(i)];
+    }
+    *outRateCount = count;
+    return 1;
+}
+
+int VstHostBridge_OpenAsioControlPanel(const wchar_t* driverClsid)
+{
+    if (driverClsid == nullptr)
+    {
+        SetBridgeError("Argomenti non validi.");
+        return 0;
+    }
+
+    AsioDriverProbe probe;
+    RunAsioProbe(driverClsid, true, probe);
+    if (!probe.ok)
+    {
+        SetBridgeError(probe.error);
+        return 0;
+    }
+    return 1;
+}
+
+int VstHostBridge_StartAudioAsioWithFormat(void* moduleHandle, const wchar_t* driverClsid, int32_t bufferFrames, double sampleRate)
+{
+    return StartAudioEngine(moduleHandle, driverClsid, true, bufferFrames, sampleRate);
+}
+#else
+int VstHostBridge_GetAsioCapabilities(const wchar_t*, int32_t*, int32_t*, int32_t*, int32_t*, double*, double*, int32_t, int32_t*)
+{
+    SetBridgeError("Questa build di VstHostBridge non include il supporto ASIO.");
+    return 0;
+}
+
+int VstHostBridge_OpenAsioControlPanel(const wchar_t*)
+{
+    SetBridgeError("Questa build di VstHostBridge non include il supporto ASIO.");
+    return 0;
+}
+
+int VstHostBridge_StartAudioAsioWithFormat(void* moduleHandle, const wchar_t* driverClsid, int32_t bufferFrames, double sampleRate)
+{
+    return StartAudioEngine(moduleHandle, driverClsid, true, bufferFrames, sampleRate);
+}
+#endif
 
 int VstHostBridge_IsAsioSupported(void)
 {

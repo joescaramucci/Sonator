@@ -133,6 +133,21 @@ VSTHOSTBRIDGE_API int VstHostBridge_GetAsioTiming(void* moduleHandle, int32_t* o
 // or 0 with an error message (no signal, not an ASIO session, no input).
 VSTHOSTBRIDGE_API int VstHostBridge_MeasureAsioLatency(void* moduleHandle, double* outMilliseconds);
 
+// Reads what an ASIO driver supports: the buffer size range (min, max,
+// preferred, granularity), the current sample rate, and the sample rates it
+// accepts from a standard list (written to outRates, at most rateCapacity).
+// The driver is opened briefly, so this fails while an ASIO session holds it.
+VSTHOSTBRIDGE_API int VstHostBridge_GetAsioCapabilities(const wchar_t* driverClsid, int32_t* outMinBuffer, int32_t* outMaxBuffer,
+    int32_t* outPreferredBuffer, int32_t* outGranularity, double* outCurrentRate, double* outRates,
+    int32_t rateCapacity, int32_t* outRateCount);
+
+// Opens the driver's own configuration panel (for example the SSL control panel).
+VSTHOSTBRIDGE_API int VstHostBridge_OpenAsioControlPanel(const wchar_t* driverClsid);
+
+// Like VstHostBridge_StartAudioAsio, with the buffer size in frames and the
+// sample rate chosen by the user. 0 for either keeps the driver's own choice.
+VSTHOSTBRIDGE_API int VstHostBridge_StartAudioAsioWithFormat(void* moduleHandle, const wchar_t* driverClsid, int32_t bufferFrames, double sampleRate);
+
 // Starts plug-in audio on the ASIO driver whose CLSID string is driverClsid
 // (for example "{...}", as stored under HKLM\SOFTWARE\ASIO). Returns 0 with an
 // error message if ASIO is not built in or the driver cannot be started.
