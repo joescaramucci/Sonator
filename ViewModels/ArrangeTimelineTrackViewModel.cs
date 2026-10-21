@@ -4,7 +4,7 @@ using Sonator.Services;
 
 namespace Sonator.ViewModels;
 
-public sealed class ArrangeTimelineTrackViewModel
+public sealed class ArrangeTimelineTrackViewModel : ViewModelBase
 {
     public ArrangeTimelineTrackViewModel(
         PatternTrackViewModel sourceTrack,
@@ -37,6 +37,15 @@ public sealed class ArrangeTimelineTrackViewModel
 
     // The recorded notes of the track as one block, in sixteenth steps from the start of the pattern.
     public bool HasBlock => BlockLengthSteps > 0;
+
+    // True while this track's block is the one being worked on: it is drawn highlighted.
+    private bool _isBlockSelected;
+
+    public bool IsBlockSelected
+    {
+        get => _isBlockSelected;
+        set => SetProperty(ref _isBlockSelected, value);
+    }
 
     public int BlockStartStep => SourceTrack.MidiNoteEvents.Count == 0
         ? 0

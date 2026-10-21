@@ -1445,10 +1445,7 @@
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
-                                        <Border Background="{Binding SourceTrack.TrackColorBrush}"
-                                                BorderBrush="#EAF2FF"
-                                                BorderThickness="1"
-                                                CornerRadius="3"
+                                        <Border CornerRadius="3"
                                                 HorizontalAlignment="Left"
                                                 VerticalAlignment="Stretch"
                                                 Tag="NoteBlock"
@@ -1470,9 +1467,16 @@
                                             </Border.Width>
                                             <Border.Style>
                                                 <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="{Binding SourceTrack.TrackColorBrush}" />
+                                                    <Setter Property="BorderBrush" Value="#EAF2FF" />
+                                                    <Setter Property="BorderThickness" Value="1" />
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding HasBlock}" Value="False">
                                                             <Setter Property="Visibility" Value="Collapsed" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding IsBlockSelected}" Value="True">
+                                                            <Setter Property="BorderBrush" Value="#FFD24C" />
+                                                            <Setter Property="BorderThickness" Value="2" />
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>

@@ -640,6 +640,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         get => _selectedTrack;
         set
         {
+            if (!ReferenceEquals(value, _selectedBlockTrack))
+            {
+                ClearBlockSelection();
+            }
+
             if (SetProperty(ref _selectedTrack, value))
             {
                 foreach (var track in Tracks)
@@ -1675,9 +1680,48 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     // The block of notes copied with Ctrl+C, with its first note at step 0.
     private IReadOnlyList<MidiNoteEventViewModel>? _copiedNotes;
 
+    // The block the player has clicked. It is highlighted, and copy, cut and the block handles act on it.
+    private PatternTrackViewModel? _selectedBlockTrack;
+
+    public void SelectBlock(PatternTrackViewModel? track)
+    {
+        _selectedBlockTrack = track;
+        foreach (var lane in TimelineTracks)
+        {
+            lane.IsBlockSelected = track is not null && ReferenceEquals(lane.SourceTrack, track);
+        }
+
+        if (track is not null)
+        {
+            SelectedTrack = track;
+        }
+    }
+
+    private void ClearBlockSelection()
+    {
+        _selectedBlockTrack = null;
+        foreach (var lane in TimelineTracks)
+        {
+            lane.IsBlockSelected = false;
+        }
+    }
+
+    public void CutSelectedNotes()
+    {
+        CopySelectedNotes();
+        var track = _selectedBlockTrack ?? SelectedTrack;
+        if (track is null || track.MidiNoteEvents.Count == 0 || _copiedNotes is null)
+        {
+            return;
+        }
+
+        ReplaceTrackNotes(track, Array.Empty<MidiNoteEventViewModel>());
+        StatusMessage = $"Cut the block from {track.Name}";
+    }
+
     public void CopySelectedNotes()
     {
-        var track = SelectedTrack;
+        var track = _selectedBlockTrack ?? SelectedTrack;
         if (track is null || track.MidiNoteEvents.Count == 0)
         {
             StatusMessage = "Nothing to copy: the selected track has no notes";
@@ -1701,6 +1745,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         var notes = track.MidiNoteEvents.ToList();
         notes.AddRange(_copiedNotes.Select(note => note with { StepIndex = note.StepIndex + CurrentStepIndex }));
         ReplaceTrackNotes(track, notes);
+        SelectBlock(track);
     }
 
     // Arming a track turns recording on; recording stops when no track is armed.
@@ -1741,6 +1786,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         var notes = track.MidiNoteEvents.ToList();
         notes.Add(new MidiNoteEventViewModel(started.StartStep, duration, note.NoteNumber, started.Velocity));
         ReplaceTrackNotes(track, notes);
+        SelectBlock(track);
     }
 
     private void PlayLiveKeyboardNote(MidiNoteMessage note)
@@ -2288,6 +2334,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         RaisePropertyChanged(nameof(TimelineContentWidth));
         RaisePropertyChanged(nameof(TimelineWorkspaceWidth));
         UpdateSongTimelinePosition(CurrentStepIndex);
+        foreach (var lane in TimelineTracks)
+        {
+            lane.IsBlockSelected = ReferenceEquals(lane.SourceTrack, _selectedBlockTrack);
+        }
     }
 
     private List<PatternViewModel> GetSelectedPatternTimelinePatterns()

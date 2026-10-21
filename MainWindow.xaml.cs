@@ -218,7 +218,7 @@ public partial class MainWindow : Window
         block.CaptureMouse();
         if (DataContext is MainViewModel viewModel)
         {
-            viewModel.SelectedTrack = timeline.SourceTrack;
+            viewModel.SelectBlock(timeline.SourceTrack);
         }
 
         e.Handled = true;
@@ -477,6 +477,13 @@ public partial class MainWindow : Window
         if (e.Key == Key.C && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
         {
             viewModel.CopySelectedNotes();
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.X && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+        {
+            viewModel.CutSelectedNotes();
             e.Handled = true;
             return;
         }
