@@ -217,6 +217,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         PlayCommand = playCommand;
         StopCommand = stopCommand;
         ToggleRecordCommand = toggleRecordCommand;
+        ToggleTrackRecordArmCommand = new RelayCommand(parameter => ToggleTrackRecordArm(parameter as PatternTrackViewModel));
         ToggleStepCommand = toggleStepCommand;
         TogglePianoRollCellCommand = togglePianoRollCellCommand;
         CopyTrackCommand = copyTrackCommand;
@@ -1202,6 +1203,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public RelayCommand ToggleRecordCommand { get; }
 
+    public RelayCommand ToggleTrackRecordArmCommand { get; }
+
     public RelayCommand ToggleStepCommand { get; }
 
     public RelayCommand TogglePianoRollCellCommand { get; }
@@ -1598,10 +1601,25 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _midiActivityTimer.Start();
     }
 
+    // Arming a track turns recording on; recording stops when no track is armed.
+    private void ToggleTrackRecordArm(PatternTrackViewModel? track)
+    {
+        if (track is null || !track.SupportsMidiPlayback)
+        {
+            StatusMessage = "Only MIDI tracks can be armed for recording.";
+            return;
+        }
+
+        track.IsRecordArmed = !track.IsRecordArmed;
+        IsRecording = Tracks.Any(item => item.IsRecordArmed);
+        StatusMessage = track.IsRecordArmed ? $"{track.Name} armed for recording" : $"{track.Name} disarmed";
+    }
+
     // While recording, a key played becomes a note of the selected track: it starts at the playhead and lasts until it is released.
     private void RecordLiveNote(MidiNoteMessage note)
     {
-        if (!IsRecording || SelectedTrack is not { } track || !track.SupportsMidiPlayback)
+        var track = Tracks.FirstOrDefault(item => item.IsRecordArmed && item.SupportsMidiPlayback) ?? SelectedTrack;
+        if (!IsRecording || track is null || !track.SupportsMidiPlayback)
         {
             return;
         }
