@@ -50,6 +50,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iomanip>
 #include <atomic>
 #include <chrono>
 #include <cstring>
@@ -523,6 +524,7 @@ namespace
         std::atomic<bool> measureRequested{false};
         std::atomic<bool> measureFinished{false};
         std::atomic<long long> measureResultFrames{-1};
+        std::atomic<float> measurePeak{0.0f}; // largest input 1 level during the last measurement
 
         std::thread thread;
         std::atomic<bool> stopRequested{false};
@@ -1394,6 +1396,7 @@ namespace
         long long frame = 0;          // absolute frame of the first sample of the next block
         long long clickFrame = -1;    // frame where the measurement click is written
         long long detectedFrame = -1; // frame where the click came back on input 0
+        float inputPeak = 0.0f;       // largest input 0 level seen during the current measurement
     };
 
     float ClampUnit(float value)
@@ -1464,6 +1467,7 @@ namespace
         if (session.clickFrame < 0)
         {
             session.clickFrame = session.frame + count; // the click goes out at the start of the next block
+            session.inputPeak = 0.0f;
         }
 
         ReadFloatSamples(session.bufferInfos[static_cast<size_t>(session.deviceChannels)].buffers[doubleBufferIndex],
@@ -1476,12 +1480,17 @@ namespace
             {
                 session.planar[0][static_cast<size_t>(i)] = 1.0f;
             }
-            if (session.detectedFrame < 0 && absolute >= session.clickFrame + kMinimumEchoFrames
-                && std::fabs(session.inputScratch[static_cast<size_t>(i)]) > kClickThreshold)
+            const float level = std::fabs(session.inputScratch[static_cast<size_t>(i)]);
+            if (absolute >= session.clickFrame && level > session.inputPeak)
+            {
+                session.inputPeak = level;
+            }
+            if (session.detectedFrame < 0 && absolute >= session.clickFrame + kMinimumEchoFrames && level > kClickThreshold)
             {
                 session.detectedFrame = absolute;
             }
         }
+        session.engine->measurePeak = session.inputPeak;
     }
 
     // Converts float samples to the driver's sample format and writes them to a driver buffer.
@@ -2134,6 +2143,7 @@ int VstHostBridge_MeasureAsioLatency(void* moduleHandle, double* outMilliseconds
     }
 
     engine->measureResultFrames = -1;
+    engine->measurePeak = 0.0f;
     engine->measureFinished = false;
     engine->measureRequested = true;
 
@@ -2147,7 +2157,12 @@ int VstHostBridge_MeasureAsioLatency(void* moduleHandle, double* outMilliseconds
     const long long frames = engine->measureResultFrames.load();
     if (!engine->measureFinished.load() || frames < 0)
     {
-        SetBridgeError("Nessun segnale rilevato sull'ingresso 1. Collega l'uscita 1 all'ingresso 1 con un cavo di loopback.");
+        const float peak = engine->measurePeak.load();
+        const double peakDb = peak > 0.0f ? 20.0 * std::log10(static_cast<double>(peak)) : -120.0;
+        std::ostringstream message;
+        message << "Nessun segnale rilevato sull'ingresso 1 (picco " << std::fixed << std::setprecision(1)
+                << peakDb << " dBFS). Collega l'uscita 1 all'ingresso 1 con un cavo di loopback e alza il gain dell'ingresso.";
+        SetBridgeError(message.str());
         return 0;
     }
 
