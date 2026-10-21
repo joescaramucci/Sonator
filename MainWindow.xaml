@@ -1840,6 +1840,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Orientation="Horizontal" Margin="0,0,8,0">
@@ -1868,6 +1869,28 @@
                         IsSnapToTickEnabled="True"
                         IsMoveToPointEnabled="True"
                         Height="26" />
+
+                <Border Grid.Column="2"
+                        Width="12"
+                        Height="12"
+                        Margin="10,0,0,0"
+                        CornerRadius="6"
+                        BorderBrush="#1B2330"
+                        BorderThickness="1"
+                        VerticalAlignment="Center"
+                        ToolTip="Lights up when the MIDI keyboard sends data"
+                        AutomationProperties.Name="MIDI input activity">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="#2E3A2E" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsMidiActivityVisible}" Value="True">
+                                    <Setter Property="Background" Value="#49F07A" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                </Border>
             </Grid>
         </Border>
     </Grid>

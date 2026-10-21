@@ -5,6 +5,7 @@ using System.Linq;
 using Melanchall.DryWetMidi.Standards;
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using Microsoft.VisualBasic;
 using Sonator.Models;
@@ -28,6 +29,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly MidiOutputDeviceService _midiOutputDeviceService;
     private readonly MidiFileImportService _midiFileImportService;
     private readonly MidiInputService _midiInput = new();
+    private readonly DispatcherTimer _midiActivityTimer = new() { Interval = TimeSpan.FromMilliseconds(150) };
+    private bool _isMidiActivityVisible;
     private readonly IVst3PluginHost _liveInstrumentHost = new Vst3PluginHost();
     private bool _isLiveKeyboardEnabled = true;
     private readonly VstPluginService _vstPluginService;
@@ -144,6 +147,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         MidiInputDevices = new ObservableCollection<MidiInputDeviceViewModel>();
         ReloadMidiInputDevices();
         _midiInput.NoteReceived += note => Application.Current?.Dispatcher.BeginInvoke(() => PlayLiveKeyboardNote(note));
+        _midiInput.MessageReceived += () => Application.Current?.Dispatcher.BeginInvoke(FlashMidiActivity);
+        _midiActivityTimer.Tick += (_, _) => IsMidiActivityVisible = false;
         SelectMidiInputCommand = new RelayCommand(parameter => SelectMidiInput(parameter as MidiInputDeviceViewModel));
 
         InitializeCollections();
@@ -1204,6 +1209,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public ObservableCollection<MidiInputDeviceViewModel> MidiInputDevices { get; }
 
+    // Lit briefly each time the MIDI input device sends a message.
+    public bool IsMidiActivityVisible
+    {
+        get => _isMidiActivityVisible;
+        private set => SetProperty(ref _isMidiActivityVisible, value);
+    }
+
     public MidiInputDeviceViewModel? SelectedMidiInputDevice => MidiInputDevices.FirstOrDefault(device => device.IsSelected);
 
     public RelayCommand SelectMidiInputCommand { get; }
@@ -1376,6 +1388,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         StatusMessage = _midiInput.Open(deviceId)
             ? $"MIDI input set to {device.DisplayName}"
             : $"Unable to open MIDI input device: {device.DisplayName}";
+    }
+
+    private void FlashMidiActivity()
+    {
+        IsMidiActivityVisible = true;
+        _midiActivityTimer.Stop();
+        _midiActivityTimer.Start();
     }
 
     private void PlayLiveKeyboardNote(MidiNoteMessage note)

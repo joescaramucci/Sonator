@@ -25,6 +25,9 @@ public sealed class MidiInputService : IDisposable
 
     public event Action<MidiNoteMessage>? NoteReceived;
 
+    // Raised for every short message from the device, notes or not.
+    public event Action? MessageReceived;
+
     public bool IsOpen => _handle != IntPtr.Zero;
 
     public static IReadOnlyList<(uint DeviceId, string DisplayName)> GetInputDevices()
@@ -80,6 +83,8 @@ public sealed class MidiInputService : IDisposable
         {
             return;
         }
+
+        MessageReceived?.Invoke();
 
         // Short messages are packed as status in the low byte, then the two data bytes.
         var packed = param1.ToInt64();
