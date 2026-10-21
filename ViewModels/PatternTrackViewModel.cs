@@ -106,8 +106,22 @@ public sealed class PatternTrackViewModel : ViewModelBase
     public string? PluginFilePath
     {
         get => _pluginFilePath;
-        set => SetProperty(ref _pluginFilePath, string.IsNullOrWhiteSpace(value) ? null : value);
+        set
+        {
+            if (SetProperty(ref _pluginFilePath, string.IsNullOrWhiteSpace(value) ? null : value))
+            {
+                RaisePropertyChanged(nameof(PluginName));
+                RaisePropertyChanged(nameof(HasPlugin));
+            }
+        }
     }
+
+    public bool HasPlugin => PluginFilePath is not null;
+
+    // The plug-in's name as shown on the track: its file or bundle name without the extension.
+    public string? PluginName => PluginFilePath is null
+        ? null
+        : System.IO.Path.GetFileNameWithoutExtension(PluginFilePath.TrimEnd('\\', '/'));
 
     // A WAV file with the audio clip this track plays, when it was filled from the waveform editor.
     public string? AudioClipPath { get; set; }

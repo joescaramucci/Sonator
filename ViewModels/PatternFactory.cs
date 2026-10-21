@@ -15,15 +15,33 @@ internal static class PatternFactory
         };
     }
 
+    // The colours offered in a track's menu, in menu order. New patterns give one to each track.
+    internal static readonly string[] TrackPalette =
+    {
+        "#FFD94C4C", // red
+        "#FFDE8A3B", // orange
+        "#FFE6C45B", // yellow
+        "#FF5FB87B", // green
+        "#FF5CAFD6", // cyan
+        "#FF5F8FDE", // blue
+        "#FF9C72D8", // purple
+        "#FF7D8B99", // gray
+    };
+
     internal static PatternViewModel CreatePattern(string name, string summary, string slot)
     {
         var tracks = new ObservableCollection<PatternTrackViewModel>(
-            Enumerable.Range(1, 8).Select(channel => CreateTrack(
-                $"Track {channel}",
-                "MIDI Channel",
-                channel,
-                36,
-                Enumerable.Repeat(false, 16).ToArray())));
+            Enumerable.Range(1, 8).Select(channel =>
+            {
+                var track = CreateTrack(
+                    $"Track {channel}",
+                    "MIDI Channel",
+                    channel,
+                    36,
+                    Enumerable.Repeat(false, 16).ToArray());
+                track.TrackColorBrush = CreateTrackColorBrush(TrackPalette[(channel - 1) % TrackPalette.Length]);
+                return track;
+            }));
 
         return new PatternViewModel(name, summary, slot, tracks);
     }

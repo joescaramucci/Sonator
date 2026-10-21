@@ -1253,11 +1253,40 @@
                                                            Foreground="#E4ECF4"
                                                            TextTrimming="CharacterEllipsis" />
                                                 <TextBlock FontSize="9" Foreground="#8FA6BD">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding SourceTrack.HasPlugin}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
                                                     <Run Text="{Binding SourceTrack.Instrument, Mode=OneWay}" />
                                                     <Run Text="  ·  " />
                                                     <Run Text="{Binding SourceTrack.DisplayTrackType, Mode=OneWay}" />
                                                     <Run Text="  " />
                                                     <Run Text="{Binding SourceTrack.RoutingDisplay, Mode=OneWay}" />
+                                                </TextBlock>
+                                                <TextBlock Text="{Binding SourceTrack.PluginName}"
+                                                           FontSize="11"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="#9FD3F2"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Cursor="Hand"
+                                                           Tag="PluginName"
+                                                           ToolTip="Double-click to open the plug-in window"
+                                                           MouseLeftButtonDown="TrackPluginName_MouseLeftButtonDown">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding SourceTrack.HasPlugin}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
                                                 </TextBlock>
                                             </StackPanel>
                                             <Grid Grid.Row="1" Grid.ColumnSpan="2">
@@ -1312,8 +1341,9 @@
                                     </Border>
                                     <Grid Grid.Column="1"
                                           Width="{Binding DataContext.TimelineContentWidth, RelativeSource={RelativeSource AncestorType=Window}}"
-                                          Background="{Binding SourceTrack.TrackColorBrush}"
+                                          Background="Transparent"
                                           ClipToBounds="True">
+                                        <Rectangle Fill="{Binding SourceTrack.TrackColorBrush}" Opacity="0.35" IsHitTestVisible="False" />
                                         <ItemsControl ItemsSource="{Binding DataContext.TimelineBarNumbers, RelativeSource={RelativeSource AncestorType=Window}}"
                                                       IsHitTestVisible="False"
                                                       SnapsToDevicePixels="True"
@@ -1364,14 +1394,15 @@
                                                 <DataTemplate>
                                                     <Grid Width="{Binding DataContext.TimelineSixteenthWidth, RelativeSource={RelativeSource AncestorType=Window}}">
                                                     <Border Margin="1,8,1,8"
-                                                            CornerRadius="2"
-                                                            Background="{Binding DataContext.SourceTrack.TrackColorBrush, RelativeSource={RelativeSource AncestorType=ListBoxItem}}">
+                                                            CornerRadius="2">
                                                         <Border.Style>
                                                             <Style TargetType="Border">
+                                                                <Setter Property="Background" Value="Transparent" />
                                                                 <Setter Property="BorderBrush" Value="#7EAEDC" />
                                                                 <Setter Property="BorderThickness" Value="0" />
                                                                 <Style.Triggers>
                                                                     <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                                        <Setter Property="Background" Value="{Binding DataContext.SourceTrack.TrackColorBrush, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" />
                                                                         <Setter Property="BorderThickness" Value="1" />
                                                                         <Setter Property="BorderBrush" Value="#EAF2FF" />
                                                                     </DataTrigger>
@@ -1695,11 +1726,40 @@
                                                        Foreground="#E4ECF4"
                                                        TextTrimming="CharacterEllipsis" />
                                             <TextBlock FontSize="9" Foreground="#8FA6BD">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding SourceTrack.HasPlugin}" Value="True">
+                                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
                                                 <Run Text="{Binding SourceTrack.Instrument, Mode=OneWay}" />
                                                 <Run Text="  ·  " />
                                                 <Run Text="{Binding SourceTrack.DisplayTrackType, Mode=OneWay}" />
                                                 <Run Text="  " />
                                                 <Run Text="{Binding SourceTrack.RoutingDisplay, Mode=OneWay}" />
+                                            </TextBlock>
+                                            <TextBlock Text="{Binding SourceTrack.PluginName}"
+                                                       FontSize="11"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#9FD3F2"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Cursor="Hand"
+                                                       Tag="PluginName"
+                                                       ToolTip="Double-click to open the plug-in window"
+                                                       MouseLeftButtonDown="TrackPluginName_MouseLeftButtonDown">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding SourceTrack.HasPlugin}" Value="True">
+                                                                <Setter Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
                                             </TextBlock>
                                         </StackPanel>
                                         <Grid Grid.Row="1" Grid.ColumnSpan="2">

@@ -194,7 +194,7 @@ public partial class MainWindow : Window
     {
         for (var element = source as DependencyObject; element is Visual; element = VisualTreeHelper.GetParent(element))
         {
-            if (element is Border border && border.Tag as string == tag)
+            if (element is FrameworkElement { Tag: string elementTag } && elementTag == tag)
             {
                 return true;
             }
@@ -1180,9 +1180,25 @@ public partial class MainWindow : Window
         ShowAddTrackDialog(PatternTrackType.AudioInput);
     }
 
+    // Double-clicking the plug-in name under a track opens that plug-in's window.
+    private void TrackPluginName_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount != 2
+            || DataContext is not MainViewModel viewModel
+            || sender is not FrameworkElement { DataContext: ArrangeTimelineTrackViewModel timelineTrack }
+            || timelineTrack.SourceTrack.PluginFilePath is not { } pluginPath)
+        {
+            return;
+        }
+
+        OpenPluginWindowFor(viewModel, timelineTrack.SourceTrack, pluginPath);
+        e.Handled = true;
+    }
+
     private void TrackList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (DataContext is not MainViewModel viewModel)
+        // The plug-in name has its own double-click.
+        if (DataContext is not MainViewModel viewModel || IsInsideTagged(e.OriginalSource, "PluginName"))
         {
             return;
         }
