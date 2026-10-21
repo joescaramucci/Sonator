@@ -1902,8 +1902,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             if (note.IsOn)
             {
                 StatusMessage = route == KeyboardRoute.Plugin
-                    ? $"Keyboard note {note.NoteNumber} sent to the plug-in (input delay {_keyboardInputDelayMs} ms{DescribeAudioBuffer()}, step {CurrentStepIndex}, recording {IsRecording}, playing {IsPlaying})"
-                    : $"Keyboard note {note.NoteNumber} sent to the MIDI output (input delay {_keyboardInputDelayMs} ms, step {CurrentStepIndex}, recording {IsRecording})";
+                    ? $"Keyboard note {note.NoteNumber} sent to the plug-in (input delay {_keyboardInputDelayMs} ms{DescribeAudioBuffer()}, step {CurrentStepIndex}, recording {IsRecording}, playing {IsPlaying}, notes played {_keyboardNotesPlayed}, recorded {_keyboardNotesRecorded})"
+                    : $"Keyboard note {note.NoteNumber} sent to the MIDI output (input delay {_keyboardInputDelayMs} ms, step {CurrentStepIndex}, recording {IsRecording}, notes played {_keyboardNotesPlayed}, recorded {_keyboardNotesRecorded})";
             }
             return;
         }
