@@ -1598,6 +1598,7 @@
                     <StackPanel Orientation="Horizontal" Margin="0,6,0,4">
                         <Button Content="EDIT" Width="50" Click="EditSelectedTrackButton_Click" />
                         <Button Content="PIANO ROLL" Margin="6,0,0,0" Click="PianoRollMenuItem_Click" />
+                        <Button Content="PLUGIN WINDOW" Margin="6,0,0,0" Click="PluginWindowButton_Click" />
                     </StackPanel>
                     <Button Content="DO QUANTIZE" Command="{Binding QuantizeTrackCommand}" />
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,4">

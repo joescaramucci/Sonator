@@ -976,12 +976,32 @@ public partial class MainWindow : Window
             return;
         }
 
-        Window window = string.Equals(plugin.Kind, "VST3", StringComparison.OrdinalIgnoreCase)
-            ? new Vst3NativeEditorWindow(plugin.Name, plugin.FilePath)
-            : new VstPluginEditorDialog(plugin.Name, plugin.FilePath, plugin.Kind);
+        OpenPluginWindow(plugin.Name, plugin.FilePath, plugin.Kind);
+        e.Handled = true;
+    }
+
+    // Opens the plug-in's own window: the native GUI for VST3, otherwise the parameter dialog.
+    private void OpenPluginWindow(string name, string filePath, string kind)
+    {
+        Window window = string.Equals(kind, "VST3", StringComparison.OrdinalIgnoreCase)
+            ? new Vst3NativeEditorWindow(name, filePath)
+            : new VstPluginEditorDialog(name, filePath, kind);
         window.Owner = this;
         window.Show();
-        e.Handled = true;
+    }
+
+    // Opens the window of the plug-in the selected track plays through.
+    private void PluginWindowButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel || viewModel.SelectedTrack?.PluginFilePath is not { Length: > 0 } filePath)
+        {
+            MessageBox.Show(this, "Choose a plug-in for the selected track first.", "Plug-in", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var plugin = viewModel.VstPlugins.FirstOrDefault(item => string.Equals(item.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
+        var kind = plugin?.Kind ?? (string.Equals(Path.GetExtension(filePath), ".vst3", StringComparison.OrdinalIgnoreCase) ? "VST3" : "VST2");
+        OpenPluginWindow(plugin?.Name ?? Path.GetFileNameWithoutExtension(filePath), filePath, kind);
     }
 
     private void TrackColorMenuItem_Click(object sender, RoutedEventArgs e)
