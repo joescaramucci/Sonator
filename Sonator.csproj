@@ -7,7 +7,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Sonator</RootNamespace>
     <AssemblyName>Sonator</AssemblyName>
+    <ApplicationIcon>Assets\sonator.ico</ApplicationIcon>
   </PropertyGroup>
+  <ItemGroup>
+    <Resource Include="Assets\sonator.ico" />
+    <Resource Include="Assets\sonator-logo-22.png" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Melanchall.DryWetMidi" Version="8.0.3" />
     <PackageReference Include="NAudio" Version="2.2.1" />

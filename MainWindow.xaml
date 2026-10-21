@@ -7,6 +7,7 @@
         xmlns:models="clr-namespace:Sonator.Models"
         mc:Ignorable="d"
         Title="{Binding WindowTitle}"
+        Icon="pack://application:,,,/Assets/sonator.ico"
         Width="1400"
         Height="860"
         WindowState="Maximized"
@@ -401,7 +402,13 @@
 
         <Border Grid.Row="0" Background="#34475C" BorderBrush="#5D7A98" BorderThickness="0,0,0,1" Padding="5,4" MinHeight="42">
             <Grid>
-                <Menu HorizontalAlignment="Left"
+                <Image Source="pack://application:,,,/Assets/sonator-logo-22.png"
+                       Width="22" Height="22"
+                       HorizontalAlignment="Left"
+                       VerticalAlignment="Top"
+                       Margin="0,4,0,0"
+                       ToolTip="Sonator" />
+                <Menu Margin="30,0,0,0" HorizontalAlignment="Left"
                       VerticalAlignment="Top"
                       Background="#2A3948"
                       Foreground="#C4CFDA"
