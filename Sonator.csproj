@@ -10,13 +10,13 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Melanchall.DryWetMidi" Version="8.0.3" />
+    <PackageReference Include="NAudio" Version="2.2.1" />
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="tools\VstThumbnailHost\**\*.cs" />
     <Compile Remove="tests\**\*.cs" />
     <InternalsVisibleTo Include="Sonator.Tests" />
-    <ProjectReference Include="tools\VstThumbnailHost\VstThumbnailHost.csproj"
-                      ReferenceOutputAssembly="false" />
+    <ProjectReference Include="tools\VstThumbnailHost\VstThumbnailHost.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
   <ItemGroup>
     <!-- Prebuilt native VST3 hosting bridge (see native/VstHostBridge/README.md).
@@ -30,8 +30,6 @@
     <ItemGroup>
       <VstThumbnailHostFiles Include="$(MSBuildProjectDirectory)\tools\VstThumbnailHost\bin\$(Configuration)\net8.0-windows\**\*" />
     </ItemGroup>
-    <Copy SourceFiles="@(VstThumbnailHostFiles)"
-          DestinationFiles="@(VstThumbnailHostFiles->'$(OutDir)VstThumbnailHost\%(RecursiveDir)%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(VstThumbnailHostFiles)" DestinationFiles="@(VstThumbnailHostFiles->'$(OutDir)VstThumbnailHost\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
   </Target>
 </Project>
