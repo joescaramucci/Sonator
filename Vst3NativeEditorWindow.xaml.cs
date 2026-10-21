@@ -49,10 +49,17 @@ public partial class Vst3NativeEditorWindow : Window
         }
         else
         {
-            if (_vst3Host.HasAudioProcessor(_moduleHandle)
-                && !_vst3Host.TryStartAudio(_moduleHandle, AudioOutputSelection.FromSettings(new AppSettingsService().Load()), out var audioError))
+            if (_vst3Host.HasAudioProcessor(_moduleHandle))
             {
-                Title = $"Native GUI - {pluginName} (audio unavailable: {audioError})";
+                var selection = AudioOutputSelection.FromSettings(new AppSettingsService().Load());
+                if (_vst3Host.TryStartAudio(_moduleHandle, selection, out var audioError))
+                {
+                    LiveInstrumentRegistry.Set(_moduleHandle);
+                }
+                else
+                {
+                    Title = $"Native GUI - {pluginName} (audio unavailable: {audioError})";
+                }
             }
 
             AttachEditor();
@@ -118,6 +125,11 @@ public partial class Vst3NativeEditorWindow : Window
             EditorHostContainer.Content = null;
             _editorHost.Dispose();
             _editorHost = null;
+        }
+
+        if (_moduleHandle is not null)
+        {
+            LiveInstrumentRegistry.Clear(_moduleHandle);
         }
 
         if (_ownsModule && _moduleHandle is not null)
