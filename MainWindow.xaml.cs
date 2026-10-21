@@ -50,7 +50,25 @@ public partial class MainWindow : Window
         _mainViewModel.PropertyChanged += MainViewModel_PropertyChanged;
         DataContext = _mainViewModel;
         Loaded += MainWindow_Loaded;
+        Closing += MainWindow_Closing;
         Closed += OnClosed;
+    }
+
+    // Exit, the window's X and Alt+F4 all ask whether to save the project first.
+    private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (_mainViewModel is null)
+        {
+            return;
+        }
+
+        var choice = SonatorMessageDialog.AskToSave(this, "Exit Sonator", "Do you want to save the project before closing?");
+        e.Cancel = choice switch
+        {
+            SaveChoice.Save => !_mainViewModel.SaveProject(),
+            SaveChoice.DontSave => false,
+            _ => true,
+        };
     }
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)

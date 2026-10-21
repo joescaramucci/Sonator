@@ -2053,7 +2053,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         StatusMessage = "MIDI output devices refreshed";
     }
 
-    private void SaveProject()
+    // Saves to the current file, or asks for one. False when the user cancels or the save fails.
+    public bool SaveProject()
     {
         var path = CurrentProjectPath;
         if (string.IsNullOrWhiteSpace(path))
@@ -2061,11 +2062,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             path = PromptForSavePath();
             if (path is null)
             {
-                return;
+                return false;
             }
         }
 
-        SaveProjectToPath(path);
+        return SaveProjectToPath(path);
     }
 
     private void SaveProjectAs()
@@ -2092,18 +2093,20 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         return dialog.ShowDialog() == true ? dialog.FileName : null;
     }
 
-    private void SaveProjectToPath(string path)
+    private bool SaveProjectToPath(string path)
     {
         try
         {
             _projectFileService.Save(path, BuildProjectDocument());
             CurrentProjectPath = path;
             StatusMessage = $"Project saved to {path}";
+            return true;
         }
         catch (Exception ex)
         {
             MessageBox.Show(ex.Message, "Save project failed", MessageBoxButton.OK, MessageBoxImage.Error);
             StatusMessage = "Save failed";
+            return false;
         }
     }
 

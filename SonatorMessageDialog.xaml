@@ -67,7 +67,8 @@
                        TextWrapping="Wrap" />
         </Border>
 
-        <Button Grid.Row="2"
+        <Button x:Name="OkButton"
+                Grid.Row="2"
                 Content="OK"
                 Width="92"
                 HorizontalAlignment="Right"
@@ -75,5 +76,16 @@
                 IsDefault="True"
                 IsCancel="True"
                 Click="OkButton_Click" />
+
+        <StackPanel x:Name="SaveChoicePanel"
+                    Grid.Row="2"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Margin="0,10,0,0"
+                    Visibility="Collapsed">
+            <Button Content="SAVE" Width="92" Margin="0,0,8,0" IsDefault="True" Click="SaveButton_Click" />
+            <Button Content="DON'T SAVE" Width="104" Margin="0,0,8,0" Click="DontSaveButton_Click" />
+            <Button Content="CANCEL" Width="92" IsCancel="True" />
+        </StackPanel>
     </Grid>
 </Window>
