@@ -728,6 +728,42 @@ public partial class MainWindow : Window
         MessageBox.Show(this, text, "Measure latency", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
+    // The tempo box is read-only until it is double-clicked, so it looks like a label.
+    private void Tempo_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not TextBox box)
+        {
+            return;
+        }
+
+        box.IsReadOnly = false;
+        box.Focus();
+        box.SelectAll();
+        e.Handled = true;
+    }
+
+    private void Tempo_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (sender is TextBox box)
+        {
+            box.IsReadOnly = true;
+        }
+    }
+
+    private void Tempo_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (sender is not TextBox box || box.IsReadOnly)
+        {
+            return;
+        }
+
+        if (e.Key == Key.Enter)
+        {
+            box.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
+            e.Handled = true;
+        }
+    }
+
     private void PianoRollMenuItem_Click(object sender, RoutedEventArgs e)
     {
         if (DataContext is not MainViewModel viewModel || viewModel.SelectedTrack is not { } track)
