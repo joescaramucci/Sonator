@@ -1,4 +1,5 @@
-﻿using System.Collections.ObjectModel;
+﻿using System.Diagnostics;
+using System.Collections.ObjectModel;
 using System.IO;
 
 using System.Linq;
@@ -1813,6 +1814,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         notes.Add(new MidiNoteEventViewModel(started.StartStep, duration, note.NoteNumber, started.Velocity));
         ReplaceTrackNotes(track, notes);
         SelectBlock(track);
+        StatusMessage += $" (timeline rebuilt in {_lastRebuildMs:0.0} ms)";
     }
 
     // Runs on the MIDI thread. A note for a running plug-in is sent at once, without waiting for the UI thread;
@@ -2379,8 +2381,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         return stepIndex < track.Steps.Count ? track.Steps[stepIndex] : null;
     }
 
+    private double _lastRebuildMs;
+
     private void RebuildTimeline()
     {
+        var rebuildStart = Stopwatch.GetTimestamp();
         var timelinePatterns = IsArrangeMode
             ? GetArrangePlaybackPatterns()
             : GetSelectedPatternTimelinePatterns();
@@ -2429,6 +2434,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             lane.IsBlockSelected = ReferenceEquals(lane.SourceTrack, _selectedBlockTrack);
         }
+
+        _lastRebuildMs = Stopwatch.GetElapsedTime(rebuildStart).TotalMilliseconds;
     }
 
     private List<PatternViewModel> GetSelectedPatternTimelinePatterns()
