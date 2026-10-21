@@ -148,6 +148,12 @@ VSTHOSTBRIDGE_API int VstHostBridge_OpenAsioControlPanel(const wchar_t* driverCl
 // sample rate chosen by the user. 0 for either keeps the driver's own choice.
 VSTHOSTBRIDGE_API int VstHostBridge_StartAudioAsioWithFormat(void* moduleHandle, const wchar_t* driverClsid, int32_t bufferFrames, double sampleRate);
 
+// Reports the latencies the driver declares for a buffer size and sample rate,
+// without starting audio: buffers are created briefly and released again. A
+// buffer size of 0 uses the driver's preferred size; a rate of 0 keeps the current rate.
+// Fails while an ASIO session holds the driver.
+VSTHOSTBRIDGE_API int VstHostBridge_GetAsioLatency(const wchar_t* driverClsid, int32_t bufferFrames, double sampleRate, int32_t* outInputLatency, int32_t* outOutputLatency);
+
 // Starts plug-in audio on the ASIO driver whose CLSID string is driverClsid
 // (for example "{...}", as stored under HKLM\SOFTWARE\ASIO). Returns 0 with an
 // error message if ASIO is not built in or the driver cannot be started.
