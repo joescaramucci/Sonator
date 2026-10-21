@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using Path = System.IO.Path;
 using System.Windows;
@@ -27,10 +28,12 @@ public partial class WaveformEditorWindow : Window
     private int _selectionStart = -1;
     private int _selectionEnd = -1;
     private WaveOutEvent? _output;
+    private readonly double _songTempo;
 
-    public WaveformEditorWindow(string? path = null)
+    public WaveformEditorWindow(string? path = null, double songTempo = 120)
     {
         InitializeComponent();
+        _songTempo = songTempo;
         Closed += (_, _) => StopPlayback();
         if (path is not null)
         {
@@ -129,8 +132,15 @@ public partial class WaveformEditorWindow : Window
         {
             return;
         }
-        var (start, end) = RangeOrWhole();
-        Apply(AudioEdits.Silence(_clip.Samples, _clip.Channels, start, end), "Delete (silence)");
+        if (!TryGetRange(out var start, out var end))
+        {
+            Info("Select a part of the clip to delete.");
+            return;
+        }
+
+        // The rest closes up over the removed part, so the two sides join.
+        Apply(AudioEdits.Cut(_clip.Samples, _clip.Channels, start, end), $"Deleted {end - start} frames; the rest is joined");
+        ClearSelection();
     }
 
     private void NormalizeButton_Click(object sender, RoutedEventArgs e)
@@ -160,6 +170,23 @@ public partial class WaveformEditorWindow : Window
         }
         var (start, end) = RangeOrWhole();
         Apply(AudioEdits.FadeOut(_clip.Samples, _clip.Channels, start, end), "Fade out");
+    }
+
+    private void StretchButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_clip is null)
+        {
+            return;
+        }
+        if (!double.TryParse(ClipBpmBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var clipBpm) || clipBpm <= 0)
+        {
+            Info("Enter the tempo of the clip in BPM.");
+            return;
+        }
+
+        // Output length over input length: a clip recorded at a faster tempo than the song gets longer.
+        var ratio = clipBpm / _songTempo;
+        Apply(TimeStretcher.Stretch(_clip.Samples, _clip.Channels, ratio), $"Stretched from {clipBpm:F1} to {_songTempo:F1} BPM");
     }
 
     private void UndoButton_Click(object sender, RoutedEventArgs e)

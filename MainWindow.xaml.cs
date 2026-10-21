@@ -733,7 +733,7 @@ public partial class MainWindow : Window
 
     private void WaveformEditorMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        new WaveformEditorWindow { Owner = this }.Show();
+        new WaveformEditorWindow(null, DataContext is MainViewModel viewModel ? viewModel.Tempo : 120) { Owner = this }.Show();
     }
 
     private void MixerMenuItem_Click(object sender, RoutedEventArgs e)
