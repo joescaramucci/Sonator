@@ -1819,6 +1819,18 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     // recording and the status line are handled on the UI thread.
     private int _keyboardInputDelayMs;
 
+    // The ASIO buffer and output latency the running plug-in is using, for the status line.
+    private string DescribeAudioBuffer()
+    {
+        if (LiveInstrumentRegistry.Current is not { } running
+            || !_liveInstrumentHost.TryGetAsioTiming(running, out var bufferFrames, out var outputLatency, out _))
+        {
+            return string.Empty;
+        }
+
+        return $", ASIO buffer {bufferFrames} samples, output latency {outputLatency}";
+    }
+
     private enum KeyboardRoute
     {
         None,
@@ -1866,7 +1878,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             if (note.IsOn)
             {
                 StatusMessage = route == KeyboardRoute.Plugin
-                    ? $"Keyboard note {note.NoteNumber} sent to the plug-in (input delay {_keyboardInputDelayMs} ms)"
+                    ? $"Keyboard note {note.NoteNumber} sent to the plug-in (input delay {_keyboardInputDelayMs} ms{DescribeAudioBuffer()})"
                     : $"Keyboard note {note.NoteNumber} sent to the MIDI output (input delay {_keyboardInputDelayMs} ms)";
             }
             return;
