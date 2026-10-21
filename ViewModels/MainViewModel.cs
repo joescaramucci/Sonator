@@ -39,7 +39,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly IVst3PluginHost _liveInstrumentHost = new Vst3PluginHost();
     private bool _isLiveKeyboardEnabled = true;
     private CountInOption _selectedCountIn = new(0, "No count-in");
-    private ClickOption _selectedClickOption = new(4, "Quarter notes");
+    private ClickOption _selectedClickOption = new(4, "Quarter");
     private Vst3ModuleHandle? _ownedInstrument;
     private readonly VstPluginService _vstPluginService;
     private readonly VstPluginScanner _vstPluginScanner;
@@ -159,6 +159,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _midiInput.MessageReceived += packed => Application.Current?.Dispatcher.BeginInvoke(() => OnMidiMessageReceived(packed));
         _midiActivityTimer.Tick += (_, _) => IsMidiActivityVisible = false;
         PreviewClickCommand = new RelayCommand(_ => _engine.PreviewClicks());
+        CycleClickOptionCommand = new RelayCommand(_ => SelectedClickOption = NextOption(ClickOptions, SelectedClickOption));
+        CycleCountInCommand = new RelayCommand(_ => SelectedCountIn = NextOption(CountInOptions, SelectedCountIn));
         SelectMidiInputCommand = new RelayCommand(parameter =>
         {
             if (parameter is MidiInputDeviceViewModel device)
@@ -1278,9 +1280,14 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public IReadOnlyList<ClickOption> ClickOptions { get; } = new[]
     {
-        new ClickOption(4, "Quarter notes"),
-        new ClickOption(1, "Sixteenths"),
+        new ClickOption(4, "Quarter"),
+        new ClickOption(2, "Eighth"),
     };
+
+    // The click and count-in choices are cycled by a button, so they keep the look of the other buttons.
+    public RelayCommand CycleClickOptionCommand { get; }
+
+    public RelayCommand CycleCountInCommand { get; }
 
     public ClickOption SelectedClickOption
     {
@@ -1421,6 +1428,12 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             StatusMessage = $"MIDI output set to {device.DisplayName}";
         }
+    }
+
+    private static T NextOption<T>(IReadOnlyList<T> options, T current)
+    {
+        var index = options.ToList().IndexOf(current);
+        return options[(index + 1) % options.Count];
     }
 
     private void ReloadMidiInputDevices()

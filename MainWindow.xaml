@@ -631,10 +631,10 @@
                             </Button>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,2,0,0">
-                            <ComboBox Width="88" Height="20" Background="#2A3948" Foreground="#C4CFDA" FontFamily="Consolas" FontSize="10"
-                                      ItemsSource="{Binding ClickOptions}" DisplayMemberPath="Label" SelectedItem="{Binding SelectedClickOption}" ToolTip="Click on quarter notes or sixteenths" />
-                            <ComboBox Width="88" Height="20" Margin="2,0,0,0" Background="#2A3948" Foreground="#C4CFDA" FontFamily="Consolas" FontSize="10"
-                                      ItemsSource="{Binding CountInOptions}" DisplayMemberPath="Label" SelectedItem="{Binding SelectedCountIn}" ToolTip="Bars of clicks before recording starts" />
+                            <Button Width="88" Height="20" FontSize="10" Content="{Binding SelectedClickOption.Label}"
+                                    Command="{Binding CycleClickOptionCommand}" ToolTip="Click on quarter notes or eighths. Press to change." />
+                            <Button Width="88" Height="20" Margin="2,0,0,0" FontSize="10" Content="{Binding SelectedCountIn.Label}"
+                                    Command="{Binding CycleCountInCommand}" ToolTip="Bars of clicks before recording starts. Press to change." />
                         </StackPanel>
                         <TextBlock Text="METRONOME" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                     </StackPanel>
