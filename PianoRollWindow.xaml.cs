@@ -70,7 +70,11 @@ public partial class PianoRollWindow : Window
         QuantizeSwingBox.ItemsSource = NoteQuantizer.Swings;
         QuantizeSwingBox.SelectedIndex = 0;
 
-        Loaded += (_, _) => Redraw();
+        Loaded += (_, _) =>
+        {
+            Redraw();
+            FitHeightToRoll();
+        };
         PreviewKeyDown += OnPreviewKeyDown;
         viewModel.TrackNotesChanged += OnTrackNotesChanged;
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
@@ -206,6 +210,29 @@ public partial class PianoRollWindow : Window
     private void DrawVelocityLane(double width)
     {
         AddRect(KeyboardWidth, _gridHeight + 8, width - KeyboardWidth, VelocityLaneHeight, "#152029", "#2C3A4B");
+
+        // Named beside the lane, under the keyboard, so it is clear what the bars are.
+        var label = new TextBlock
+        {
+            Text = "VELOCITY",
+            FontSize = 9,
+            FontWeight = FontWeights.Bold,
+            Foreground = new SolidColorBrush(Color.FromRgb(0x8F, 0xA6, 0xBD)),
+            LayoutTransform = new RotateTransform(-90),
+        };
+        Canvas.SetLeft(label, KeyboardWidth / 2 - 6);
+        Canvas.SetTop(label, _gridHeight + 20);
+        PianoRollCanvas.Children.Add(label);
+    }
+
+    // Makes the window tall enough to show the whole keyboard and the velocity lane, within the screen.
+    private void FitHeightToRoll()
+    {
+        UpdateLayout();
+        var chrome = ActualHeight - PianoRollScroller.ViewportHeight;
+        var workArea = SystemParameters.WorkArea;
+        Height = Math.Min(PianoRollCanvas.Height + chrome + 2, workArea.Height);
+        Top = workArea.Top + Math.Max(0, (workArea.Height - Height) / 2);
     }
 
     private void DrawNotes()
