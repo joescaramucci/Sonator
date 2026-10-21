@@ -419,7 +419,7 @@
                     <MenuItem Header="_Functions">
                         <MenuItem Header="_Start" Command="{Binding PlayCommand}" />
                         <MenuItem Header="S_top" Command="{Binding StopCommand}" />
-                        <MenuItem Header="_Record arm" Command="{Binding ToggleRecordCommand}" />
+                        <MenuItem Header="_Record arm" IsEnabled="False" ToolTip="Recording is not implemented yet" Command="{Binding ToggleRecordCommand}" />
                     </MenuItem>
                     <MenuItem Header="_Arrange">
                         <MenuItem Header="Create arrange pattern" Command="{Binding CreateArrangePatternCommand}" />
