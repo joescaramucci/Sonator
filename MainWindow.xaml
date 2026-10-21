@@ -430,6 +430,7 @@
                         <MenuItem Header="Delete arrange pattern" Command="{Binding DeleteArrangePatternCommand}" />
                     </MenuItem>
                     <MenuItem Header="_Track">
+                        <MenuItem Header="Piano roll..." Click="PianoRollMenuItem_Click" />
                         <MenuItem Header="New MIDI channel track" Click="AddMidiTrackMenuItem_Click" />
                         <MenuItem Header="New VST track" Click="AddVstTrackMenuItem_Click" />
                         <MenuItem Header="New audio input track" Click="AddAudioTrackMenuItem_Click" />

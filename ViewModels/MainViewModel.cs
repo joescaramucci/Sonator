@@ -2148,6 +2148,14 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         StatusMessage = semitones > 0 ? "Track transposed up" : "Track transposed down";
     }
 
+    // Replaces the track's recorded notes from the piano roll. One call is one undo step.
+    public void ReplaceTrackNotes(PatternTrackViewModel track, IReadOnlyList<MidiNoteEventViewModel> notes)
+    {
+        CaptureUndoStateIfNeeded();
+        track.MidiNoteEvents = notes.ToList();
+        StatusMessage = $"{track.Name}: {notes.Count} notes";
+    }
+
     // Brings the selected track back to the settings it had when it was created.
     private void ResetSelectedTrack()
     {

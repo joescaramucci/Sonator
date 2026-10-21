@@ -720,6 +720,17 @@ public partial class MainWindow : Window
         MessageBox.Show(this, text, "Measure latency", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
+    private void PianoRollMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel || viewModel.SelectedTrack is not { } track)
+        {
+            MessageBox.Show(this, "Select a track first.", "Piano roll", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        new PianoRollWindow(viewModel, track) { Owner = this }.Show();
+    }
+
     private void MixerMenuItem_Click(object sender, RoutedEventArgs e)
     {
         if (DataContext is not MainViewModel viewModel)
