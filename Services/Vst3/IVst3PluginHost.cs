@@ -136,4 +136,15 @@ public interface IVst3PluginHost
     /// True if real-time audio is currently running for this module.
     /// </summary>
     bool IsAudioRunning(Vst3ModuleHandle handle);
+
+    /// <summary>
+    /// Measures the loopback round trip of a running ASIO session (output 1 to input 1).
+    /// Returns the time in milliseconds, or false with <paramref name="error"/> explaining why.
+    /// </summary>
+    bool TryMeasureAsioLatency(Vst3ModuleHandle handle, out double milliseconds, out string? error);
+
+    /// <summary>
+    /// Reads the buffer size and declared output latency of a running ASIO session.
+    /// </summary>
+    bool TryGetAsioTiming(Vst3ModuleHandle handle, out int bufferFrames, out int outputLatencyFrames, out double sampleRate);
 }

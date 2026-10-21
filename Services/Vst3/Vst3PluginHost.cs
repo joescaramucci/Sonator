@@ -320,6 +320,57 @@ public sealed class Vst3PluginHost : IVst3PluginHost
         }
     }
 
+    public bool TryMeasureAsioLatency(Vst3ModuleHandle handle, out double milliseconds, out string? error)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+
+        milliseconds = 0;
+        if (handle.NativeHandle == IntPtr.Zero)
+        {
+            error = "VST3 module not loaded.";
+            return false;
+        }
+
+        try
+        {
+            if (Vst3HostInterop.VstHostBridge_MeasureAsioLatency(handle.NativeHandle, out milliseconds) != 0)
+            {
+                error = null;
+                return true;
+            }
+
+            error = ReadLastError();
+            return false;
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            error = $"Bridge nativo VST3 non utilizzabile: {ex.Message}";
+            return false;
+        }
+    }
+
+    public bool TryGetAsioTiming(Vst3ModuleHandle handle, out int bufferFrames, out int outputLatencyFrames, out double sampleRate)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+
+        bufferFrames = 0;
+        outputLatencyFrames = 0;
+        sampleRate = 0;
+        if (handle.NativeHandle == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        try
+        {
+            return Vst3HostInterop.VstHostBridge_GetAsioTiming(handle.NativeHandle, out bufferFrames, out outputLatencyFrames, out sampleRate) != 0;
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            return false;
+        }
+    }
+
     private static bool ProbeNativeBridge()
     {
         try

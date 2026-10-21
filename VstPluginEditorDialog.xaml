@@ -143,6 +143,12 @@
                     Margin="0,0,8,0"
                     IsEnabled="False"
                     Click="OpenNativeEditorButton_Click" />
+            <Button x:Name="MeasureLatencyButton"
+                    Content="Measure latency"
+                    Width="160"
+                    Margin="0,0,8,0"
+                    IsEnabled="False"
+                    Click="MeasureLatencyButton_Click" />
             <Button Content="Close" Width="90" IsCancel="True" IsDefault="True" />
         </StackPanel>
     </Grid>

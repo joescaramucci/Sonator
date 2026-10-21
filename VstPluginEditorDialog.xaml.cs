@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using Sonator.Services.Vst3;
@@ -74,12 +75,19 @@ public partial class VstPluginEditorDialog : Window
         // that clicking on-screen preview keys in the native editor - or
         // moving the parameter sliders below - can actually be heard.
         var audioStatus = string.Empty;
+        var asioAudioStarted = false;
         if (_vst3Host.HasAudioProcessor(handle))
         {
-            audioStatus = _vst3Host.TryStartAudio(handle, AudioOutputSelection.FromSettings(new AppSettingsService().Load()), out var audioError)
+            var selection = AudioOutputSelection.FromSettings(new AppSettingsService().Load());
+            var started = _vst3Host.TryStartAudio(handle, selection, out var audioError);
+            asioAudioStarted = started && selection.UseAsio;
+            audioStatus = started
                 ? " Real-time audio active."
                 : $" Audio did not start: {audioError}";
         }
+
+        // Latency can be measured only through an ASIO session, where the output and input are known to the bridge.
+        MeasureLatencyButton.IsEnabled = asioAudioStarted;
 
         var parameters = _vst3Host.GetParameters(handle);
         if (parameters.Count == 0)
@@ -97,6 +105,40 @@ public partial class VstPluginEditorDialog : Window
         {
             ParametersPanel.Children.Add(BuildParameterRow(parameter));
         }
+    }
+
+    private async void MeasureLatencyButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_moduleHandle is null)
+        {
+            return;
+        }
+
+        var handle = _moduleHandle;
+        MeasureLatencyButton.IsEnabled = false;
+        StatusText.Text = "Measuring latency: a short 1 kHz burst is sent to output 1. Keep the monitor volume low.";
+
+        var result = await Task.Run(() =>
+        {
+            var measured = _vst3Host.TryMeasureAsioLatency(handle, out var milliseconds, out var error);
+            var timing = _vst3Host.TryGetAsioTiming(handle, out var bufferFrames, out var outputLatency, out var sampleRate);
+            return (measured, milliseconds, error, timing, bufferFrames, outputLatency, sampleRate);
+        });
+
+        if (result.measured)
+        {
+            StatusText.Text = $"Measured round trip: {result.milliseconds.ToString("F2", CultureInfo.InvariantCulture)} ms.";
+            if (result.timing)
+            {
+                StatusText.Text += $" Buffer {result.bufferFrames} samples; the driver declares {result.outputLatency} samples of output latency.";
+            }
+        }
+        else
+        {
+            StatusText.Text = $"Latency not measured: {result.error}";
+        }
+
+        MeasureLatencyButton.IsEnabled = true;
     }
 
     private static FrameworkElement BuildParameterRow(Vst3ParameterInfo parameter)
