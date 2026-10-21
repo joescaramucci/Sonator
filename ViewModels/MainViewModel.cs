@@ -256,7 +256,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             out var addTrackCommand,
             out var transposeUpCommand,
             out var transposeDownCommand,
-            out var quantizeTrackCommand,
             out var refreshMidiDevicesCommand,
             out var browseVstPluginsPathCommand);
 
@@ -289,7 +288,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         AddTrackCommand = addTrackCommand;
         TransposeUpCommand = transposeUpCommand;
         TransposeDownCommand = transposeDownCommand;
-        QuantizeTrackCommand = quantizeTrackCommand;
         RefreshMidiDevicesCommand = refreshMidiDevicesCommand;
         BrowseVstPluginsPathCommand = browseVstPluginsPathCommand;
         ToggleArrangeModeCommand = new RelayCommand(_ => IsArrangeMode = !IsArrangeMode);
@@ -540,7 +538,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         out RelayCommand addTrackCommand,
         out RelayCommand transposeUpCommand,
         out RelayCommand transposeDownCommand,
-        out RelayCommand quantizeTrackCommand,
         out RelayCommand refreshMidiDevicesCommand,
         out RelayCommand browseVstPluginsPathCommand)
     {
@@ -575,7 +572,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         addTrackCommand = new RelayCommand(parameter => AddTrack(parameter), _ => SelectedPattern is not null);
         transposeUpCommand = new RelayCommand(_ => TransposeSelectedTrack(1), _ => SelectedTrack is not null);
         transposeDownCommand = new RelayCommand(_ => TransposeSelectedTrack(-1), _ => SelectedTrack is not null);
-        quantizeTrackCommand = new RelayCommand(_ => QuantizeSelectedTrack(), _ => SelectedTrack is not null);
         refreshMidiDevicesCommand = new RelayCommand(_ =>
         {
             ReloadMidiOutputDevices();
@@ -672,7 +668,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 StopCommand?.RaiseCanExecuteChanged();
                 SaveProjectCommand?.RaiseCanExecuteChanged();
                 SaveProjectAsCommand?.RaiseCanExecuteChanged();
-                QuantizeTrackCommand?.RaiseCanExecuteChanged();
                 MovePatternUpCommand?.RaiseCanExecuteChanged();
                 MovePatternDownCommand?.RaiseCanExecuteChanged();
                 AddTrackCommand?.RaiseCanExecuteChanged();
@@ -704,7 +699,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 RefreshPianoRoll();
                 TransposeUpCommand?.RaiseCanExecuteChanged();
                 TransposeDownCommand?.RaiseCanExecuteChanged();
-                QuantizeTrackCommand?.RaiseCanExecuteChanged();
                 CopyTrackCommand?.RaiseCanExecuteChanged();
                 PasteTrackCommand?.RaiseCanExecuteChanged();
                 DeleteTrackCommand?.RaiseCanExecuteChanged();
@@ -1398,8 +1392,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public RelayCommand TransposeUpCommand { get; }
 
     public RelayCommand TransposeDownCommand { get; }
-
-    public RelayCommand QuantizeTrackCommand { get; }
 
     public RelayCommand ResetTrackCommand { get; }
 
@@ -3125,40 +3117,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             : $"{track.Name} color updated";
     }
 
-    private void QuantizeSelectedTrack()
-    {
-        var track = SelectedTrack;
-        if (track is null)
-        {
-            return;
-        }
-
-        if (track.MidiNoteEvents.Count > 0)
-        {
-            // The button snaps to the recording grid, or to sixteenths when that is off.
-            var grid = RecordGrid.Steps ?? 1.0;
-            var quantized = track.MidiNoteEvents
-                .Select(note =>
-                {
-                    var start = Math.Round((note.StepIndex + note.StartOffset) / grid) * grid;
-                    var end = Math.Max(start + grid, Math.Round((note.StepIndex + note.StartOffset + note.DurationSteps + note.LengthFraction) / grid) * grid);
-                    var whole = Math.Floor(start);
-                    var length = end - start;
-                    var wholeLength = Math.Floor(length);
-                    return new MidiNoteEventViewModel((int)whole, (int)wholeLength, note.NoteNumber, note.Velocity, start - whole, length - wholeLength);
-                })
-                .ToList();
-            ReplaceTrackNotes(track, quantized);
-            StatusMessage = $"Selected track's notes quantized to {RecordGrid.Label}";
-            return;
-        }
-
-        CaptureUndoStateIfNeeded();
-        TrackEditOperations.QuantizeActiveSteps(track);
-
-        RefreshPianoRoll();
-        StatusMessage = "Selected track quantized";
-    }
 
     private void ResetTrackMeters()
     {

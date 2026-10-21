@@ -584,7 +584,6 @@
                         <Separator />
                         <MenuItem Header="Transpose +1" Command="{Binding TransposeUpCommand}" />
                         <MenuItem Header="Transpose -1" Command="{Binding TransposeDownCommand}" />
-                        <MenuItem Header="_Do Quantize" Command="{Binding QuantizeTrackCommand}" />
                     </MenuItem>
                     <MenuItem Header="_MIDI">
                         <MenuItem Header="Import MIDI..." Command="{Binding ImportMidiCommand}" />
@@ -1843,7 +1842,6 @@
                         <Button Content="PIANO ROLL" Margin="6,0,0,0" Click="PianoRollMenuItem_Click" />
                         <Button Content="PLUGIN WINDOW" Margin="6,0,0,0" Click="PluginWindowButton_Click" />
                     </StackPanel>
-                    <Button Content="DO QUANTIZE" Command="{Binding QuantizeTrackCommand}" />
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
                         <Button Content="SOLO" Width="50" Command="{Binding ToggleTrackSoloCommand}" CommandParameter="{Binding SelectedTrack}" />
                         <Button Content="HIDE" Width="50" IsEnabled="False" ToolTip="Hiding tracks is not implemented yet" />
