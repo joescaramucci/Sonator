@@ -35,7 +35,42 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly MidiFileImportService _midiFileImportService;
     private readonly MidiInputService _midiInput = new();
     private readonly MetronomeClickPlayer _clickPlayer = new();
-    private readonly Dictionary<int, (int StartStep, int Velocity)> _recordingNotes = new();
+    private readonly Dictionary<int, (double StartStep, int Velocity)> _recordingNotes = new();
+
+    // Grid recorded notes snap to, in steps. Null means no quantization: notes keep the exact time they were played.
+    public IReadOnlyList<RecordGrid> RecordGrids { get; } = new[]
+    {
+        new RecordGrid(null, "Off"),
+        new RecordGrid(1.0, "1/16"),
+        new RecordGrid(2.0 / 3.0, "1/16T"),
+        new RecordGrid(0.5, "1/32"),
+        new RecordGrid(4.0 / 3.0, "1/8T"),
+        new RecordGrid(2.0, "1/8"),
+        new RecordGrid(4.0, "1/4"),
+    };
+
+    private RecordGrid _recordGrid = new(null, "Off");
+
+    public RecordGrid RecordGrid
+    {
+        get => _recordGrid;
+        set
+        {
+            if (SetProperty(ref _recordGrid, value))
+            {
+                RaisePropertyChanged(nameof(RecordGridText));
+            }
+        }
+    }
+
+    public string RecordGridText => $"QUANT {RecordGrid.Label}";
+
+    public RelayCommand CycleRecordGridCommand { get; }
+
+    private double? SnapToRecordGrid(double position)
+    {
+        return RecordGrid.Steps is { } grid ? Math.Round(position / grid) * grid : null;
+    }
     private readonly DispatcherTimer _midiActivityTimer = new() { Interval = TimeSpan.FromMilliseconds(150) };
     private bool _isMidiActivityVisible;
     private readonly IVst3PluginHost _liveInstrumentHost = new Vst3PluginHost();
@@ -223,6 +258,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         PlayCommand = playCommand;
         StopCommand = stopCommand;
         ToggleRecordCommand = toggleRecordCommand;
+        CycleRecordGridCommand = new RelayCommand(_ => RecordGrid = NextRecordGrid());
         ToggleTrackRecordArmCommand = new RelayCommand(parameter => ToggleTrackRecordArm(parameter as PatternTrackViewModel));
         ToggleStepCommand = toggleStepCommand;
         TogglePianoRollCellCommand = togglePianoRollCellCommand;
@@ -1299,6 +1335,12 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public RelayCommand ToggleTrackRecordArmCommand { get; }
 
+    private RecordGrid NextRecordGrid()
+    {
+        var index = RecordGrids.ToList().FindIndex(grid => grid.Label == RecordGrid.Label);
+        return RecordGrids[(index + 1) % RecordGrids.Count];
+    }
+
     // Raised when a track's notes change, so an open piano roll can show them.
     public event Action<PatternTrackViewModel>? TrackNotesChanged;
 
@@ -1820,7 +1862,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         if (note.IsOn)
         {
             _keyboardNotesPlayed++;
-            _recordingNotes[note.NoteNumber] = (_engine.LiveStep, note.Velocity);
+            _recordingNotes[note.NoteNumber] = (SnapToRecordGrid(_engine.LivePosition) ?? _engine.LivePosition, note.Velocity);
             return;
         }
 
@@ -1831,9 +1873,18 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
         _keyboardNotesRecorded++;
 
-        var duration = Math.Max(1, _engine.LiveStep - started.StartStep);
+        var endPosition = SnapToRecordGrid(_engine.LivePosition) ?? _engine.LivePosition;
+        var stepStart = Math.Floor(started.StartStep);
+        var length = Math.Max(RecordGrid.Steps ?? 0.05, endPosition - started.StartStep);
+        var wholeSteps = (int)Math.Floor(length);
         var notes = track.MidiNoteEvents.ToList();
-        notes.Add(new MidiNoteEventViewModel(started.StartStep, duration, note.NoteNumber, started.Velocity));
+        notes.Add(new MidiNoteEventViewModel(
+            (int)stepStart,
+            wholeSteps,
+            note.NoteNumber,
+            started.Velocity,
+            started.StartStep - stepStart,
+            length - wholeSteps));
         ReplaceTrackNotes(track, notes);
         SelectBlock(track);
         StatusMessage += $" (timeline rebuilt in {_lastRebuildMs:0.0} ms; notes played {_keyboardNotesPlayed}, recorded {_keyboardNotesRecorded})";
@@ -3025,17 +3076,21 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
         if (track.MidiNoteEvents.Count > 0)
         {
-            // Notes snap to eighth notes: a grid of two sixteenth steps.
-            const int grid = 2;
+            // The button snaps to the recording grid, or to sixteenths when that is off.
+            var grid = RecordGrid.Steps ?? 1.0;
             var quantized = track.MidiNoteEvents
-                .Select(note => note with
+                .Select(note =>
                 {
-                    StepIndex = (int)Math.Round(note.StepIndex / (double)grid) * grid,
-                    DurationSteps = Math.Max(grid, (int)Math.Round(note.DurationSteps / (double)grid) * grid),
+                    var start = Math.Round((note.StepIndex + note.StartOffset) / grid) * grid;
+                    var end = Math.Max(start + grid, Math.Round((note.StepIndex + note.StartOffset + note.DurationSteps + note.LengthFraction) / grid) * grid);
+                    var whole = Math.Floor(start);
+                    var length = end - start;
+                    var wholeLength = Math.Floor(length);
+                    return new MidiNoteEventViewModel((int)whole, (int)wholeLength, note.NoteNumber, note.Velocity, start - whole, length - wholeLength);
                 })
                 .ToList();
             ReplaceTrackNotes(track, quantized);
-            StatusMessage = "Selected track's notes quantized to eighths";
+            StatusMessage = $"Selected track's notes quantized to {RecordGrid.Label}";
             return;
         }
 

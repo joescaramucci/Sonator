@@ -27,6 +27,21 @@ internal sealed class SequencerEngine : IDisposable
 
     public int LiveStep => Volatile.Read(ref _liveStep);
 
+    private long _liveStepStartTicks;
+    private long _liveStepLengthTicks = Stopwatch.Frequency / 8;
+
+    // Where the sequencer is right now, in steps, including the fraction of the current step that has passed.
+    public double LivePosition
+    {
+        get
+        {
+            var length = Volatile.Read(ref _liveStepLengthTicks);
+            var elapsed = Stopwatch.GetTimestamp() - Volatile.Read(ref _liveStepStartTicks);
+            var fraction = Math.Clamp(elapsed / (double)Math.Max(1, length), 0.0, 0.999);
+            return LiveStep + fraction;
+        }
+    }
+
     // Sounds a click of the given volume (0 to 1) through Sonator's own output, independent of any MIDI output.
     public Action<float>? ClickSound { get; set; }
 
@@ -375,6 +390,8 @@ internal sealed class SequencerEngine : IDisposable
     private void ProcessStep(int stepIndex, int playbackGeneration)
     {
         Volatile.Write(ref _liveStep, stepIndex);
+        Volatile.Write(ref _liveStepLengthTicks, (long)(GetInterval(TempoBpm).TotalSeconds * Stopwatch.Frequency));
+        Volatile.Write(ref _liveStepStartTicks, Stopwatch.GetTimestamp());
         var playbackPosition = ResolvePlaybackPosition(stepIndex);
         var pattern = playbackPosition.Pattern;
         if (pattern is null)
@@ -638,6 +655,45 @@ internal sealed class SequencerEngine : IDisposable
     }
 
     // A track with a plug-in plays through it when the router takes the note; otherwise the note goes to the MIDI output.
+    // Plays a recorded note at its exact start within the step, for its exact length, and releases it even if playback stops.
+    private void ScheduleNote(PatternTrackViewModel track, int channel, int noteNumber, int velocity, double startOffset, double lengthSteps)
+    {
+        var token = _playbackCts?.Token ?? CancellationToken.None;
+        var stepSeconds = GetInterval(TempoBpm).TotalSeconds;
+        _ = PlayScheduledNoteAsync(track, channel, noteNumber, velocity, startOffset * stepSeconds, Math.Max(0.05, lengthSteps) * stepSeconds, token);
+    }
+
+    private async Task PlayScheduledNoteAsync(PatternTrackViewModel track, int channel, int noteNumber, int velocity, double startSeconds, double lengthSeconds, CancellationToken token)
+    {
+        var sounding = false;
+        try
+        {
+            var start = Stopwatch.GetTimestamp() + (long)(startSeconds * Stopwatch.Frequency);
+            await WaitUntilAsync(start, token).ConfigureAwait(false);
+            lock (_sync)
+            {
+                SendNoteOn(track, channel, noteNumber, velocity);
+            }
+
+            sounding = true;
+            await WaitUntilAsync(start + (long)(lengthSeconds * Stopwatch.Frequency), token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // Playback stopped: the note is released below.
+        }
+        finally
+        {
+            if (sounding)
+            {
+                lock (_sync)
+                {
+                    SendNoteOff(track, channel, noteNumber);
+                }
+            }
+        }
+    }
+
     private void SendNoteOn(PatternTrackViewModel track, int channel, int noteNumber, int velocity)
     {
         if (PluginNoteRouter?.Invoke(track.PluginFilePath, channel, noteNumber, velocity, true) == true)
@@ -709,16 +765,13 @@ internal sealed class SequencerEngine : IDisposable
                 {
                     foreach (var noteEvent in track.MidiNoteEvents.Where(note => note.StepIndex == stepIndex))
                     {
-                        SendNoteOn(
+                        ScheduleNote(
                             track,
                             track.Channel - 1,
                             noteEvent.NoteNumber,
-                            ApplyTrackVolume(noteEvent.Velocity, track.Volume * MasterVolume));
-                        _activeNotes.Add(new ActiveNote(
-                            track,
-                            track.Channel - 1,
-                            noteEvent.NoteNumber,
-                            noteEvent.DurationSteps));
+                            ApplyTrackVolume(noteEvent.Velocity, track.Volume * MasterVolume),
+                            noteEvent.StartOffset,
+                            noteEvent.DurationSteps + noteEvent.LengthFraction);
                     }
 
                     continue;

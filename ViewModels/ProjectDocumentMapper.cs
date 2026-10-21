@@ -28,7 +28,7 @@ internal static class ProjectDocumentMapper
             track.Steps.Select(step => new StepDocument(step.Index, step.IsActive, step.MidiNoteNumber, step.Velocity, step.DurationSteps)).ToList(),
             track.ProgramNumber,
             track.MidiNoteEvents
-                .Select(note => new MidiNoteEventDocument(note.StepIndex, note.DurationSteps, note.NoteNumber, note.Velocity))
+                .Select(note => new MidiNoteEventDocument(note.StepIndex, note.DurationSteps, note.NoteNumber, note.Velocity, note.StartOffset, note.LengthFraction))
                 .ToList(),
             track.TrackType,
             track.Source,
@@ -56,7 +56,7 @@ internal static class ProjectDocumentMapper
         targetTrack.MidiNoteEvents = sourceTrack.MidiNoteEvents is null
             ? Array.Empty<MidiNoteEventViewModel>()
             : sourceTrack.MidiNoteEvents
-                .Select(note => new MidiNoteEventViewModel(note.StepIndex, note.DurationSteps, note.NoteNumber, note.Velocity))
+                .Select(note => new MidiNoteEventViewModel(note.StepIndex, note.DurationSteps, note.NoteNumber, note.Velocity, note.StartOffset, note.LengthFraction))
                 .ToList();
 
         var count = Math.Min(targetTrack.Steps.Count, sourceTrack.Steps.Count);
@@ -115,7 +115,7 @@ internal static class ProjectDocumentMapper
             steps,
             trackDocument.ProgramNumber,
             trackDocument.MidiNoteEvents?
-                .Select(note => new MidiNoteEventViewModel(note.StepIndex, note.DurationSteps, note.NoteNumber, note.Velocity))
+                .Select(note => new MidiNoteEventViewModel(note.StepIndex, note.DurationSteps, note.NoteNumber, note.Velocity, note.StartOffset, note.LengthFraction))
                 .ToList(),
             trackDocument.TrackType,
             trackDocument.Source,

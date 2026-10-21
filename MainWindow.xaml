@@ -1783,6 +1783,7 @@
                     <Button Content="−" AutomationProperties.Name="TIMELINE ZOOM OUT" Command="{Binding ZoomTimelineOutCommand}" Width="20" Height="18" Padding="0" ToolTip="Reduce bar width" />
                     <Button Content="+" AutomationProperties.Name="TIMELINE ZOOM IN" Command="{Binding ZoomTimelineInCommand}" Width="20" Height="18" Padding="0" ToolTip="Increase bar width" />
                     <Button Content="FIT" AutomationProperties.Name="TIMELINE ZOOM TO FIT" Command="{Binding ZoomToFitCommand}" Width="34" Height="18" Padding="0" ToolTip="Zoom so every bar of the pattern is visible" />
+                    <Button Content="{Binding RecordGridText}" AutomationProperties.Name="RECORD QUANTIZE" Command="{Binding CycleRecordGridCommand}" Width="78" Height="18" Padding="0" ToolTip="Grid recorded notes snap to. Off records the exact timing. Press to change." />
                     <Button Content="{Binding SnapText}" AutomationProperties.Name="TIMELINE SNAP" Command="{Binding CycleSnapCommand}" Width="74" Height="18" Padding="0" ToolTip="Snap the blocks to bars, quarter notes or sixteenths. Press to change." />
                 </StackPanel>
                 </Grid>

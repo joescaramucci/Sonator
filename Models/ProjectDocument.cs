@@ -57,7 +57,9 @@ public sealed record MidiNoteEventDocument(
     int StepIndex,
     int DurationSteps,
     int NoteNumber,
-    int Velocity);
+    int Velocity,
+    double StartOffset = 0,
+    double LengthFraction = 0);
 
 public sealed record ArrangeRowDocument(
     string TrackName,
