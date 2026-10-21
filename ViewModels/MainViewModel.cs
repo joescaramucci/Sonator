@@ -29,6 +29,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly MidiOutputDeviceService _midiOutputDeviceService;
     private readonly MidiFileImportService _midiFileImportService;
     private readonly MidiInputService _midiInput = new();
+    private readonly Dictionary<int, (int StartStep, int Velocity)> _recordingNotes = new();
     private readonly DispatcherTimer _midiActivityTimer = new() { Interval = TimeSpan.FromMilliseconds(150) };
     private bool _isMidiActivityVisible;
     private readonly IVst3PluginHost _liveInstrumentHost = new Vst3PluginHost();
@@ -990,8 +991,16 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public bool IsRecording
     {
         get => _isRecording;
-        set => SetProperty(ref _isRecording, value);
+        set
+        {
+            if (SetProperty(ref _isRecording, value))
+            {
+                RaisePropertyChanged(nameof(RecordButtonText));
+            }
+        }
     }
+
+    public string RecordButtonText => IsRecording ? "RECORD ON" : "RECORD OFF";
 
     public bool IsArrangeMode
     {
@@ -1426,8 +1435,35 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _midiActivityTimer.Start();
     }
 
+    // While recording, a key played becomes a note of the selected track: it starts at the playhead and lasts until it is released.
+    private void RecordLiveNote(MidiNoteMessage note)
+    {
+        if (!IsRecording || SelectedTrack is not { } track || !track.SupportsMidiPlayback)
+        {
+            return;
+        }
+
+        if (note.IsOn)
+        {
+            _recordingNotes[note.NoteNumber] = (CurrentStepIndex, note.Velocity);
+            return;
+        }
+
+        if (!_recordingNotes.Remove(note.NoteNumber, out var started))
+        {
+            return;
+        }
+
+        var duration = Math.Max(1, CurrentStepIndex - started.StartStep);
+        var notes = track.MidiNoteEvents.ToList();
+        notes.Add(new MidiNoteEventViewModel(started.StartStep, duration, note.NoteNumber, started.Velocity));
+        ReplaceTrackNotes(track, notes);
+    }
+
     private void PlayLiveKeyboardNote(MidiNoteMessage note)
     {
+        RecordLiveNote(note);
+
         if (!IsLiveKeyboardEnabled)
         {
             return;

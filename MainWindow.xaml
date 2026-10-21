@@ -1597,6 +1597,7 @@
                               SelectedValue="{Binding SelectedTrack.PluginFilePath}" Margin="0,0,0,4" ToolTip="The VST3 plug-in this track plays through" />
                     <StackPanel Orientation="Horizontal" Margin="0,6,0,4">
                         <Button Content="EDIT" Width="50" Click="EditSelectedTrackButton_Click" />
+                        <Button Content="PIANO ROLL" Margin="6,0,0,0" Click="PianoRollMenuItem_Click" />
                     </StackPanel>
                     <Button Content="DO QUANTIZE" Command="{Binding QuantizeTrackCommand}" />
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
@@ -1720,7 +1721,7 @@
 
                     <UniformGrid Columns="2" Margin="0,0,0,4">
                         <Button Content="UNDO" Command="{Binding UndoCommand}" />
-                        <Button Content="RECORD" IsEnabled="False" ToolTip="Recording is not implemented yet" Command="{Binding ToggleRecordCommand}" />
+                        <Button Content="{Binding RecordButtonText}" ToolTip="While on, keys played on the MIDI keyboard are recorded into the selected track" Command="{Binding ToggleRecordCommand}" />
                     </UniformGrid>
                     <UniformGrid Columns="2" Margin="0,0,0,4">
                         <Button Content="STOP" Command="{Binding StopCommand}" />
