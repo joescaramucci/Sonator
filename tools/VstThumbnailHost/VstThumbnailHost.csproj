@@ -10,6 +10,7 @@
   <ItemGroup>
     <Compile Include="..\..\Services\AppSettingsService.cs" Link="Services\AppSettingsService.cs" />
     <Compile Include="..\..\Services\AudioOutputSelection.cs" Link="Services\AudioOutputSelection.cs" />
+    <Compile Include="..\..\Services\Vst3\AsioSessionRegistry.cs" Link="Vst3\AsioSessionRegistry.cs" />
     <Compile Include="..\..\Services\Vst3\IVst3PluginHost.cs" Link="Vst3\IVst3PluginHost.cs" />
     <Compile Include="..\..\Services\Vst3\Vst3HostInterop.cs" Link="Vst3\Vst3HostInterop.cs" />
     <Compile Include="..\..\Services\Vst3\Vst3PluginHost.cs" Link="Vst3\Vst3PluginHost.cs" />

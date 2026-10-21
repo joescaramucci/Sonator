@@ -689,6 +689,37 @@ public partial class MainWindow : Window
         Close();
     }
 
+    private async void MeasureLatencyMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var handle = AsioSessionRegistry.Current;
+        if (handle is null)
+        {
+            MessageBox.Show(this, "Start a plug-in on the ASIO backend first. The measurement uses that running session.", "Measure latency", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var host = new Vst3PluginHost();
+        var result = await Task.Run(() =>
+        {
+            var measured = host.TryMeasureAsioLatency(handle, out var milliseconds, out var error);
+            var timing = host.TryGetAsioTiming(handle, out var bufferFrames, out var outputLatency, out _);
+            return (measured, milliseconds, error, timing, bufferFrames, outputLatency);
+        });
+
+        if (!result.measured)
+        {
+            MessageBox.Show(this, $"Latency not measured: {result.error}", "Measure latency", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var text = $"Measured round trip: {result.milliseconds.ToString("F2", CultureInfo.InvariantCulture)} ms.";
+        if (result.timing)
+        {
+            text += $"\nBuffer {result.bufferFrames} samples; the driver declares {result.outputLatency} samples of output latency.";
+        }
+        MessageBox.Show(this, text, "Measure latency", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
     private void DriverSettingsMenuItem_Click(object sender, RoutedEventArgs e)
     {
         var settings = new AppSettingsService().Load();

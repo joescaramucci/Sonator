@@ -272,6 +272,11 @@ public sealed class Vst3PluginHost : IVst3PluginHost
                 return false;
             }
 
+            if (selection.UseAsio)
+            {
+                AsioSessionRegistry.Set(handle);
+            }
+
             error = null;
             return true;
         }
@@ -294,6 +299,7 @@ public sealed class Vst3PluginHost : IVst3PluginHost
         try
         {
             Vst3HostInterop.VstHostBridge_StopAudio(handle.NativeHandle);
+            AsioSessionRegistry.Clear(handle);
         }
         catch (Exception ex) when (IsBridgeUnavailableException(ex))
         {

@@ -479,6 +479,7 @@
                         </MenuItem>
                         <Separator />
                         <MenuItem Header="Driver settings..." Click="DriverSettingsMenuItem_Click" />
+                        <MenuItem Header="Measure latency" Click="MeasureLatencyMenuItem_Click" />
                     </MenuItem>
                 </Menu>
 
