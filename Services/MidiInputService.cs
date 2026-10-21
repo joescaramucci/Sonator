@@ -30,6 +30,9 @@ public sealed class MidiInputService : IDisposable
 
     public bool IsOpen => _handle != IntPtr.Zero;
 
+    // How long the last message waited between the device and this thread, in milliseconds.
+    public int LastInputDelayMs { get; private set; }
+
     public static IReadOnlyList<(uint DeviceId, string DisplayName)> GetInputDevices()
     {
         var devices = new List<(uint DeviceId, string DisplayName)>();
@@ -85,7 +88,9 @@ public sealed class MidiInputService : IDisposable
         }
 
         // Short messages are packed as status in the low byte, then the two data bytes.
+        // The device stamps each message with the time it arrived (param2), on the timeGetTime clock.
         var packed = param1.ToInt64();
+        LastInputDelayMs = unchecked((int)(timeGetTime() - (uint)param2.ToInt64()));
         MessageReceived?.Invoke((int)packed);
 
         var status = (int)(packed & 0xFF);
@@ -106,6 +111,9 @@ public sealed class MidiInputService : IDisposable
     }
 
     private delegate void MidiInProc(IntPtr handle, uint message, IntPtr instance, IntPtr param1, IntPtr param2);
+
+    [DllImport("winmm.dll")]
+    private static extern uint timeGetTime();
 
     [DllImport("winmm.dll")]
     private static extern uint midiInGetNumDevs();

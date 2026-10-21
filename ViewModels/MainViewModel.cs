@@ -1817,6 +1817,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     // Runs on the MIDI thread. A note for a running plug-in is sent at once, without waiting for the UI thread;
     // recording and the status line are handled on the UI thread.
+    private int _keyboardInputDelayMs;
+
     private enum KeyboardRoute
     {
         None,
@@ -1851,6 +1853,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             }
         }
 
+        _keyboardInputDelayMs = _midiInput.LastInputDelayMs;
         Application.Current?.Dispatcher.BeginInvoke(() => PlayLiveKeyboardNote(note, route));
     }
 
@@ -1863,8 +1866,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             if (note.IsOn)
             {
                 StatusMessage = route == KeyboardRoute.Plugin
-                    ? $"Keyboard note {note.NoteNumber} sent to the plug-in"
-                    : $"Keyboard note {note.NoteNumber} sent to the MIDI output";
+                    ? $"Keyboard note {note.NoteNumber} sent to the plug-in (input delay {_keyboardInputDelayMs} ms)"
+                    : $"Keyboard note {note.NoteNumber} sent to the MIDI output (input delay {_keyboardInputDelayMs} ms)";
             }
             return;
         }
