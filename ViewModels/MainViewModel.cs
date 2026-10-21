@@ -1806,6 +1806,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     }
 
     // While recording, a key played becomes a note of the selected track: it starts at the playhead and lasts until it is released.
+    private int _keyboardNotesPlayed;
+    private int _keyboardNotesRecorded;
+
     private void RecordLiveNote(MidiNoteMessage note)
     {
         var track = Tracks.FirstOrDefault(item => item.IsRecordArmed && item.SupportsMidiPlayback) ?? SelectedTrack;
@@ -1816,6 +1819,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
         if (note.IsOn)
         {
+            _keyboardNotesPlayed++;
             _recordingNotes[note.NoteNumber] = (CurrentStepIndex, note.Velocity);
             return;
         }
@@ -1825,12 +1829,14 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        _keyboardNotesRecorded++;
+
         var duration = Math.Max(1, CurrentStepIndex - started.StartStep);
         var notes = track.MidiNoteEvents.ToList();
         notes.Add(new MidiNoteEventViewModel(started.StartStep, duration, note.NoteNumber, started.Velocity));
         ReplaceTrackNotes(track, notes);
         SelectBlock(track);
-        StatusMessage += $" (timeline rebuilt in {_lastRebuildMs:0.0} ms)";
+        StatusMessage += $" (timeline rebuilt in {_lastRebuildMs:0.0} ms; notes played {_keyboardNotesPlayed}, recorded {_keyboardNotesRecorded})";
     }
 
     // Runs on the MIDI thread. A note for a running plug-in is sent at once, without waiting for the UI thread;
