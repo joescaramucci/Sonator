@@ -162,22 +162,25 @@ public partial class PianoRollWindow : Window
 
     private void DrawGridLines()
     {
-        for (var step = 0; step <= _stepCount; step++)
+        // One line per thirty-second note. Bars are the strongest, then quarter notes, sixteenths, and thirty-seconds faintest.
+        for (var half = 0; half <= _stepCount * 2; half++)
         {
-            var x = KeyboardWidth + step * StepWidth;
-            // Bars are the strongest lines, quarter notes lighter, sixteenths faint.
-            var barLine = step % StepsPerBar == 0;
-            var beatLine = step % 4 == 0;
+            var x = KeyboardWidth + half * StepWidth / 2;
+            var barLine = half % (StepsPerBar * 2) == 0;
+            var beatLine = half % 8 == 0;
+            var sixteenthLine = half % 2 == 0;
+            var (color, thickness) = barLine ? (Color.FromRgb(96, 122, 150), 1.2)
+                : beatLine ? (Color.FromRgb(66, 86, 108), 0.9)
+                : sixteenthLine ? (Color.FromRgb(50, 65, 83), 0.7)
+                : (Color.FromRgb(38, 49, 63), 0.5);
             var line = new Line
             {
                 X1 = x,
                 X2 = x,
                 Y1 = 0,
                 Y2 = _gridHeight,
-                Stroke = new SolidColorBrush(barLine
-                    ? Color.FromRgb(96, 122, 150)
-                    : beatLine ? Color.FromRgb(66, 86, 108) : Color.FromRgb(44, 58, 75)),
-                StrokeThickness = barLine ? 1.2 : beatLine ? 0.9 : 0.6,
+                Stroke = new SolidColorBrush(color),
+                StrokeThickness = thickness,
             };
             PianoRollCanvas.Children.Add(line);
         }
