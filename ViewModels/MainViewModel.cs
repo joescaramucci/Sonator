@@ -2224,8 +2224,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     // Gives the selected pattern as many bars as its arrangement block, so playback loops over the whole block.
     private bool FitSelectedPatternToArrangeLength()
     {
-        var bars = SelectedArrangePatternLength;
-        if (bars <= 0 || SelectedPattern is not { } pattern)
+        // With no arrangement block selected, the pattern still plays the default block length, so it does not loop on one bar.
+        var bars = SelectedArrangePatternLength > 0 ? SelectedArrangePatternLength : ArrangementPatternLength;
+        if (SelectedPattern is not { } pattern)
         {
             return false;
         }
