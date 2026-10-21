@@ -16,7 +16,7 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <ScrollViewer Grid.Row="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-            <Canvas x:Name="PianoRollCanvas" Background="Transparent"
+            <Canvas x:Name="PianoRollCanvas" Background="Transparent" HorizontalAlignment="Left" VerticalAlignment="Top"
                     MouseLeftButtonDown="OnCanvasMouseDown"
                     MouseMove="OnCanvasMouseMove"
                     MouseLeftButtonUp="OnCanvasMouseUp"
