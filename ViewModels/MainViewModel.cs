@@ -156,7 +156,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         MidiInputDevices = new ObservableCollection<MidiInputDeviceViewModel>();
         ReloadMidiInputDevices();
         _engine.PluginNoteRouter = RouteSequencerNoteToPlugin;
-        _midiInput.NoteReceived += note => Application.Current?.Dispatcher.BeginInvoke(() => PlayLiveKeyboardNote(note));
+        _midiInput.NoteReceived += OnKeyboardNote;
         _midiInput.MessageReceived += packed => Application.Current?.Dispatcher.BeginInvoke(() => OnMidiMessageReceived(packed));
         _midiActivityTimer.Tick += (_, _) => IsMidiActivityVisible = false;
         PreviewClickCommand = new RelayCommand(_ =>
@@ -1815,9 +1815,28 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         SelectBlock(track);
     }
 
-    private void PlayLiveKeyboardNote(MidiNoteMessage note)
+    // Runs on the MIDI thread. A note for a running plug-in is sent at once, without waiting for the UI thread;
+    // recording and the status line are handled on the UI thread.
+    private void OnKeyboardNote(MidiNoteMessage note)
+    {
+        var soundedNow = IsLiveKeyboardEnabled
+            && LiveInstrumentRegistry.Current is { } running
+            && _liveInstrumentHost.TrySendNote(running, note.Channel, note.NoteNumber, note.Velocity, note.IsOn);
+        Application.Current?.Dispatcher.BeginInvoke(() => PlayLiveKeyboardNote(note, soundedNow));
+    }
+
+    private void PlayLiveKeyboardNote(MidiNoteMessage note, bool soundedNow)
     {
         RecordLiveNote(note);
+
+        if (soundedNow)
+        {
+            if (note.IsOn)
+            {
+                StatusMessage = $"Keyboard note {note.NoteNumber} sent to the plug-in";
+            }
+            return;
+        }
 
         if (note.IsOn && SelectedTrack is { SupportsMidiPlayback: true, PluginFilePath: { Length: > 0 } selectedPlugin })
         {
