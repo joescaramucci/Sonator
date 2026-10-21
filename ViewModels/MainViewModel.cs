@@ -1888,7 +1888,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             if (note.IsOn)
             {
-                StatusMessage = $"Keyboard note {note.NoteNumber} sent to the plug-in";
+                StatusMessage = $"Keyboard note {note.NoteNumber} sent to the plug-in (input delay {_keyboardInputDelayMs} ms)";
             }
             return;
         }
@@ -1900,8 +1900,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             if (note.IsOn)
             {
                 StatusMessage = instrument is null
-                    ? $"Keyboard note {note.NoteNumber} sent to the MIDI output (no plug-in audio running)"
-                    : $"Keyboard note {note.NoteNumber} sent to the MIDI output (plug-in did not accept it)";
+                    ? $"Keyboard note {note.NoteNumber} sent to the MIDI output (no plug-in audio running, input delay {_keyboardInputDelayMs} ms)"
+                    : $"Keyboard note {note.NoteNumber} sent to the MIDI output (plug-in did not accept it, input delay {_keyboardInputDelayMs} ms)";
             }
         }
         catch (InvalidOperationException ex)
