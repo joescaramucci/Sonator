@@ -10,6 +10,164 @@
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
         Focusable="True">
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Margin" Value="1" />
+            <Setter Property="Padding" Value="6,4" />
+            <Setter Property="Background" Value="#2A3948" />
+            <Setter Property="Foreground" Value="#C4CFDA" />
+            <Setter Property="BorderBrush" Value="#5C7A99" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontFamily" Value="Consolas" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="5">
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#354D69" />
+                    <Setter Property="BorderBrush" Value="#7EB2FF" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Background" Value="#263545" />
+            <Setter Property="Foreground" Value="#C4CFDA" />
+            <Setter Property="BorderBrush" Value="#586E86" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontFamily" Value="Consolas" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="6,4,4,4" />
+            <Setter Property="ItemContainerStyle">
+                <Setter.Value>
+                    <Style TargetType="ComboBoxItem">
+                        <Setter Property="FontFamily" Value="Consolas" />
+                        <Setter Property="FontSize" Value="11" />
+                        <Setter Property="FontWeight" Value="SemiBold" />
+                        <Setter Property="Background" Value="#1F2A38" />
+                        <Setter Property="Foreground" Value="#C4CFDA" />
+                        <Setter Property="Padding" Value="6,3" />
+                        <Style.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter Property="Background" Value="#3A4F68" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="#2D745D" />
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton x:Name="DropDownToggle"
+                                          Focusable="False"
+                                          ClickMode="Press"
+                                          Background="{TemplateBinding Background}"
+                                          BorderBrush="{TemplateBinding BorderBrush}"
+                                          BorderThickness="{TemplateBinding BorderThickness}"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="Body"
+                                                Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="5">
+                                            <Path HorizontalAlignment="Right"
+                                                  VerticalAlignment="Center"
+                                                  Margin="0,0,6,0"
+                                                  Data="M 0 0 L 4 4 L 8 0 Z"
+                                                  Fill="#C4CFDA" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Body" Property="Background" Value="#2F4A63" />
+                                            </Trigger>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="Body" Property="Background" Value="#2F4A63" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <ContentPresenter IsHitTestVisible="False"
+                                              Margin="{TemplateBinding Padding}"
+                                              HorizontalAlignment="Left"
+                                              VerticalAlignment="Center"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                              ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}" />
+                            <Popup x:Name="PART_Popup"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   Placement="Bottom"
+                                   AllowsTransparency="True"
+                                   Focusable="False"
+                                   PopupAnimation="Fade">
+                                <Border MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
+                                        MaxHeight="260"
+                                        Margin="0,2,0,0"
+                                        Background="#1F2A38"
+                                        BorderBrush="#586E86"
+                                        BorderThickness="1"
+                                        CornerRadius="5">
+                                    <ScrollViewer SnapsToDevicePixels="True">
+                                        <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained" />
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="MetronomeToggleStyle" TargetType="ToggleButton">
+            <Setter Property="Background" Value="#2A3948" />
+            <Setter Property="Foreground" Value="#C4CFDA" />
+            <Setter Property="BorderBrush" Value="#5C7A99" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontFamily" Value="Consolas" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Body"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="5">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Body" Property="Background" Value="#49B88D" />
+                                <Setter Property="Foreground" Value="#0F1A14" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -20,6 +178,18 @@
             <Button Content="PLAY" Width="70" Margin="0,0,6,0" Click="PlayButton_Click" />
             <Button Content="STOP" Width="70" Click="StopButton_Click" />
             <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontSize="11" Opacity="0.85" Text="Space: play / stop" />
+            <TextBlock Margin="28,0,8,0" VerticalAlignment="Center" FontSize="11" FontWeight="Bold" Text="QUANTIZE" />
+            <ComboBox x:Name="QuantizeGridBox" Width="130" Height="26" DisplayMemberPath="Label"
+                      ToolTip="Grid the notes move to: straight, dotted or triplet values" />
+            <ComboBox x:Name="QuantizeStrengthBox" Width="80" Height="26" Margin="6,0,0,0" DisplayMemberPath="Label"
+                      ToolTip="Strength: how far each note moves toward the grid" />
+            <ComboBox x:Name="QuantizeSwingBox" Width="110" Height="26" Margin="6,0,0,0" DisplayMemberPath="Label"
+                      ToolTip="Swing: delays every second grid point; 100% is a triplet shuffle" />
+            <ToggleButton x:Name="QuantizeEndsToggle" Content="ENDS" Width="56" Height="26" Margin="6,0,0,0"
+                          Style="{StaticResource MetronomeToggleStyle}"
+                          ToolTip="Also move where notes end. Off keeps each note's length" />
+            <Button Content="APPLY" Width="70" Margin="6,0,0,0" Click="QuantizeButton_Click"
+                    ToolTip="Quantize all the notes of this track. Undo reverts it" />
         </StackPanel>
         <ScrollViewer x:Name="PianoRollScroller" Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
             <Canvas x:Name="PianoRollCanvas" Background="Transparent" HorizontalAlignment="Left" VerticalAlignment="Top"

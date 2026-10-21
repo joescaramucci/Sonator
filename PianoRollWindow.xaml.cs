@@ -53,6 +53,13 @@ public partial class PianoRollWindow : Window
         _stepCount = Math.Max(StepsPerBar, Math.Max(track.Steps.Count, notesEnd));
         Title = $"Piano roll - {track.Name}";
 
+        QuantizeGridBox.ItemsSource = NoteQuantizer.Grids;
+        QuantizeGridBox.SelectedItem = NoteQuantizer.Grids.First(grid => grid.Label == "1/16");
+        QuantizeStrengthBox.ItemsSource = NoteQuantizer.Strengths;
+        QuantizeStrengthBox.SelectedIndex = 0;
+        QuantizeSwingBox.ItemsSource = NoteQuantizer.Swings;
+        QuantizeSwingBox.SelectedIndex = 0;
+
         Loaded += (_, _) => Redraw();
         PreviewKeyDown += OnPreviewKeyDown;
         viewModel.TrackNotesChanged += OnTrackNotesChanged;
@@ -400,6 +407,23 @@ public partial class PianoRollWindow : Window
         _notes.Clear();
         _notes.AddRange(changed.MidiNoteEvents);
         _selectedIndex = -1;
+        Redraw();
+    }
+
+    private void QuantizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_notes.Count == 0
+            || QuantizeGridBox.SelectedItem is not QuantizeOption grid
+            || QuantizeStrengthBox.SelectedItem is not QuantizeOption strength
+            || QuantizeSwingBox.SelectedItem is not QuantizeOption swing)
+        {
+            return;
+        }
+
+        var quantized = NoteQuantizer.Quantize(_notes, grid.Value, strength.Value, swing.Value, QuantizeEndsToggle.IsChecked == true);
+        _notes.Clear();
+        _notes.AddRange(quantized);
+        CommitNotes();
         Redraw();
     }
 
