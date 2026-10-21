@@ -147,7 +147,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         MidiInputDevices = new ObservableCollection<MidiInputDeviceViewModel>();
         ReloadMidiInputDevices();
         _midiInput.NoteReceived += note => Application.Current?.Dispatcher.BeginInvoke(() => PlayLiveKeyboardNote(note));
-        _midiInput.MessageReceived += () => Application.Current?.Dispatcher.BeginInvoke(FlashMidiActivity);
+        _midiInput.MessageReceived += packed => Application.Current?.Dispatcher.BeginInvoke(() => OnMidiMessageReceived(packed));
         _midiActivityTimer.Tick += (_, _) => IsMidiActivityVisible = false;
         SelectMidiInputCommand = new RelayCommand(parameter => SelectMidiInput(parameter as MidiInputDeviceViewModel));
 
@@ -1388,6 +1388,20 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         StatusMessage = _midiInput.Open(deviceId)
             ? $"MIDI input set to {device.DisplayName}"
             : $"Unable to open MIDI input device: {device.DisplayName}";
+    }
+
+    // Shows the raw bytes of each message except clock and sensing, so it is visible what the keyboard sends.
+    private void OnMidiMessageReceived(int packed)
+    {
+        FlashMidiActivity();
+
+        var status = packed & 0xFF;
+        if (status >= 0xF8)
+        {
+            return;
+        }
+
+        StatusMessage = $"MIDI in: {status:X2} {(packed >> 8) & 0xFF:X2} {(packed >> 16) & 0xFF:X2}";
     }
 
     private void FlashMidiActivity()

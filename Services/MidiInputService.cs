@@ -25,8 +25,8 @@ public sealed class MidiInputService : IDisposable
 
     public event Action<MidiNoteMessage>? NoteReceived;
 
-    // Raised for every short message from the device, notes or not.
-    public event Action? MessageReceived;
+    // Raised for every short message from the device, notes or not. The argument is the packed message: status, data1, data2.
+    public event Action<int>? MessageReceived;
 
     public bool IsOpen => _handle != IntPtr.Zero;
 
@@ -84,10 +84,10 @@ public sealed class MidiInputService : IDisposable
             return;
         }
 
-        MessageReceived?.Invoke();
-
         // Short messages are packed as status in the low byte, then the two data bytes.
         var packed = param1.ToInt64();
+        MessageReceived?.Invoke((int)packed);
+
         var status = (int)(packed & 0xFF);
         var data1 = (int)((packed >> 8) & 0xFF);
         var data2 = (int)((packed >> 16) & 0xFF);
