@@ -209,7 +209,41 @@ public partial class PianoRollWindow : Window
 
     private void DrawVelocityLane(double width)
     {
-        AddRect(KeyboardWidth, _gridHeight + 8, width - KeyboardWidth, VelocityLaneHeight, "#152029", "#2C3A4B");
+        var laneTop = _gridHeight + 8;
+        var laneBottom = laneTop + VelocityLaneHeight;
+        AddRect(KeyboardWidth, laneTop, width - KeyboardWidth, VelocityLaneHeight, "#152029", "#2C3A4B");
+
+        // A faint grid: value levels across, and the beats and bars of the song down, so it scrolls with the roll.
+        var faint = new SolidColorBrush(Color.FromRgb(36, 48, 61));
+        var bar = new SolidColorBrush(Color.FromRgb(52, 68, 86));
+        foreach (var level in new[] { 32, 64, 96, 127 })
+        {
+            var y = laneBottom - level / 127.0 * (VelocityLaneHeight - 8);
+            PianoRollCanvas.Children.Add(new Line { X1 = KeyboardWidth, X2 = width, Y1 = y, Y2 = y, Stroke = faint, StrokeThickness = 1 });
+            var value = new TextBlock
+            {
+                Text = level.ToString(),
+                FontSize = 8,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x80, 0x96)),
+            };
+            Canvas.SetLeft(value, KeyboardWidth - 20);
+            Canvas.SetTop(value, y - 6);
+            PianoRollCanvas.Children.Add(value);
+        }
+
+        for (var step = 0; step <= _stepCount; step += 4)
+        {
+            var x = KeyboardWidth + step * StepWidth;
+            PianoRollCanvas.Children.Add(new Line
+            {
+                X1 = x,
+                X2 = x,
+                Y1 = laneTop,
+                Y2 = laneBottom,
+                Stroke = step % StepsPerBar == 0 ? bar : faint,
+                StrokeThickness = 1,
+            });
+        }
 
         // Named beside the lane, under the keyboard, so it is clear what the bars are.
         var label = new TextBlock
