@@ -169,10 +169,10 @@ public partial class PianoRollWindow : Window
             var barLine = half % (StepsPerBar * 2) == 0;
             var beatLine = half % 8 == 0;
             var sixteenthLine = half % 2 == 0;
-            var (color, thickness) = barLine ? (Color.FromRgb(96, 122, 150), 1.2)
-                : beatLine ? (Color.FromRgb(66, 86, 108), 0.9)
-                : sixteenthLine ? (Color.FromRgb(50, 65, 83), 0.7)
-                : (Color.FromRgb(38, 49, 63), 0.5);
+            var (color, thickness) = barLine ? (Color.FromRgb(120, 150, 182), 1.5)
+                : beatLine ? (Color.FromRgb(86, 110, 136), 1.1)
+                : sixteenthLine ? (Color.FromRgb(64, 82, 104), 1.0)
+                : (Color.FromRgb(48, 62, 79), 1.0);
             var line = new Line
             {
                 X1 = x,
