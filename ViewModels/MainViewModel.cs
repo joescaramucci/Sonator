@@ -1817,23 +1817,54 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     // Runs on the MIDI thread. A note for a running plug-in is sent at once, without waiting for the UI thread;
     // recording and the status line are handled on the UI thread.
-    private void OnKeyboardNote(MidiNoteMessage note)
+    private enum KeyboardRoute
     {
-        var soundedNow = IsLiveKeyboardEnabled
-            && LiveInstrumentRegistry.Current is { } running
-            && _liveInstrumentHost.TrySendNote(running, note.Channel, note.NoteNumber, note.Velocity, note.IsOn);
-        Application.Current?.Dispatcher.BeginInvoke(() => PlayLiveKeyboardNote(note, soundedNow));
+        None,
+        Plugin,
+        MidiOutput,
     }
 
-    private void PlayLiveKeyboardNote(MidiNoteMessage note, bool soundedNow)
+    // Runs on the MIDI thread. A note goes out at once to a running plug-in or to the MIDI output; a track whose
+    // plug-in is not running yet is left to the UI thread, which starts it.
+    private void OnKeyboardNote(MidiNoteMessage note)
+    {
+        var route = KeyboardRoute.None;
+        if (IsLiveKeyboardEnabled)
+        {
+            if (LiveInstrumentRegistry.Current is { } running
+                && _liveInstrumentHost.TrySendNote(running, note.Channel, note.NoteNumber, note.Velocity, note.IsOn))
+            {
+                route = KeyboardRoute.Plugin;
+            }
+            else if (SelectedTrack is not { PluginFilePath: { Length: > 0 } })
+            {
+                var channel = SelectedTrack is { } track ? track.Channel - 1 : 0;
+                try
+                {
+                    _engine.PlayLiveNote(channel, note.NoteNumber, note.Velocity, note.IsOn);
+                    route = KeyboardRoute.MidiOutput;
+                }
+                catch (InvalidOperationException)
+                {
+                    route = KeyboardRoute.None;
+                }
+            }
+        }
+
+        Application.Current?.Dispatcher.BeginInvoke(() => PlayLiveKeyboardNote(note, route));
+    }
+
+    private void PlayLiveKeyboardNote(MidiNoteMessage note, KeyboardRoute route)
     {
         RecordLiveNote(note);
 
-        if (soundedNow)
+        if (route != KeyboardRoute.None)
         {
             if (note.IsOn)
             {
-                StatusMessage = $"Keyboard note {note.NoteNumber} sent to the plug-in";
+                StatusMessage = route == KeyboardRoute.Plugin
+                    ? $"Keyboard note {note.NoteNumber} sent to the plug-in"
+                    : $"Keyboard note {note.NoteNumber} sent to the MIDI output";
             }
             return;
         }
