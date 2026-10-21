@@ -215,6 +215,11 @@ public partial class MainWindow : Window
 
         _blockBorder = block;
         _blockTimeline = timeline;
+        if (DataContext is MainViewModel rangeOwner)
+        {
+            rangeOwner.ClearRange(); // grabbing a block clears any bar selection
+        }
+
         _blockPressPoint = e.GetPosition(this);
         _blockResizing = IsInsideTagged(e.OriginalSource, "NoteBlockEdge");
         _blockMoveSteps = 0;

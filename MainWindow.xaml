@@ -1448,7 +1448,7 @@
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
-                                        <Border Background="#55FFFFFF"
+                                        <Border Background="#26FFFFFF"
                                                 BorderBrush="#EAF2FF"
                                                 BorderThickness="1,0"
                                                 HorizontalAlignment="Left"
