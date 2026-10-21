@@ -720,6 +720,16 @@ public partial class MainWindow : Window
         MessageBox.Show(this, text, "Measure latency", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
+    private void MixerMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        new MixerWindow(viewModel) { Owner = this }.Show();
+    }
+
     private void DriverSettingsMenuItem_Click(object sender, RoutedEventArgs e)
     {
         var settings = new AppSettingsService().Load();
