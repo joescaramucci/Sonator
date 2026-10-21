@@ -68,6 +68,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private string? _currentProjectPath;
     private string? _vstPluginsPath;
     private double _timelineBarWidth = 180;
+    private readonly Dictionary<string, AudioWaveformSummary> _audioWaveforms = new(StringComparer.OrdinalIgnoreCase);
     private double _timelineViewportWidth;
     private int _currentSongBarNumber = 1;
     private SongArrangeRowViewModel? _currentPlayingArrangeRow;
@@ -811,6 +812,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             if (SetProperty(ref _tempo, value))
             {
                 _engine.UpdateTempo(value);
+                if (Tracks.Any(track => !string.IsNullOrEmpty(track.AudioClipPath)))
+                {
+                    RebuildTimeline(); // audio clip lengths on the timeline depend on the tempo
+                }
             }
         }
     }
@@ -1522,6 +1527,58 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         track.TrackType = PatternTrackType.AudioInput;
         track.Instrument = "Audio clip";
         StatusMessage = $"{track.Name} now plays the audio clip";
+        RebuildTimeline();
+    }
+
+    // Loads an audio file dropped on a track into it. Only empty tracks take a file.
+    public void AssignAudioFile(PatternTrackViewModel track, string sourcePath)
+    {
+        var fileName = Path.GetFileName(sourcePath);
+        if (!IsEmptyTrack(track))
+        {
+            StatusMessage = $"{track.Name} is not empty; {fileName} was not added";
+            return;
+        }
+
+        try
+        {
+            var clip = AudioClipLoader.Load(sourcePath);
+            var libraryPath = AudioClipLoader.SaveToLibrary(clip);
+            _audioWaveforms[libraryPath] = AudioWaveformSummary.FromClip(clip);
+            AssignAudioClip(track, libraryPath);
+            StatusMessage = $"{track.Name} now plays {fileName} ({clip.Duration.TotalSeconds:0.00} s)";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Could not load {fileName}: {ex.Message}";
+        }
+    }
+
+    // The outline of a track's clip, decoded once per file. Null when the track has no readable clip.
+    private AudioWaveformSummary? LoadAudioWaveform(PatternTrackViewModel track)
+    {
+        var path = track.AudioClipPath;
+        if (string.IsNullOrEmpty(path) || !File.Exists(path))
+        {
+            return null;
+        }
+
+        if (_audioWaveforms.TryGetValue(path, out var cached))
+        {
+            return cached;
+        }
+
+        try
+        {
+            var summary = AudioWaveformSummary.FromClip(AudioClipLoader.Load(path));
+            _audioWaveforms[path] = summary;
+            return summary;
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Could not read the audio clip on {track.Name}: {ex.Message}";
+            return null;
+        }
     }
 
     public static bool IsEmptyTrack(PatternTrackViewModel track)
@@ -1688,7 +1745,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 }
             }
 
-            TimelineTracks.Add(new ArrangeTimelineTrackViewModel(sourceTrack, timelineSteps));
+            TimelineTracks.Add(new ArrangeTimelineTrackViewModel(sourceTrack, timelineSteps, LoadAudioWaveform(sourceTrack), Tempo));
         }
 
         RaisePropertyChanged(nameof(TimelineContentWidth));

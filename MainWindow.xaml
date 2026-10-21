@@ -29,6 +29,19 @@
         <local:MeterSegmentBrushConverter x:Key="MeterSegmentBrushConverter" />
         <local:MasterMeterSegmentBrushConverter x:Key="MasterMeterSegmentBrushConverter" />
         <local:VolumePercentConverter x:Key="VolumePercentConverter" />
+        <local:AudioClipWidthConverter x:Key="AudioClipWidthConverter" />
+
+        <Style x:Key="BottomTabButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Width" Value="64" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Margin" Value="0,0,6,0" />
+            <Setter Property="FontFamily" Value="Consolas" />
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Background" Value="#3A4F68" />
+            <Setter Property="BorderBrush" Value="#6F87A0" />
+            <Setter Property="Foreground" Value="#E4ECF4" />
+        </Style>
 
         <Style TargetType="MenuItem">
             <Setter Property="Foreground" Value="#1B2330" />
@@ -904,6 +917,9 @@
                              Width="{Binding TimelineWorkspaceWidth}"
                              Background="Transparent"
                              BorderThickness="0"
+                             AllowDrop="True"
+                             DragOver="TimelineBodyListBox_DragOver"
+                             Drop="TimelineBodyListBox_Drop"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              ScrollViewer.VerticalScrollBarVisibility="Hidden"
                              ScrollViewer.ScrollChanged="TimelineTrackList_ScrollChanged">
@@ -1170,9 +1186,15 @@
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
-                                        <Viewbox Stretch="Fill" Margin="3,5">
-                                            <Viewbox.Style>
-                                                <Style TargetType="Viewbox">
+                                        <Border HorizontalAlignment="Left"
+                                                Margin="0,4"
+                                                CornerRadius="2"
+                                                Background="#24463F"
+                                                BorderBrush="#62B7A4"
+                                                BorderThickness="1"
+                                                ToolTip="Audio clip">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
                                                     <Setter Property="Visibility" Value="Collapsed" />
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding TrackType}" Value="{x:Static models:PatternTrackType.AudioInput}">
@@ -1180,12 +1202,19 @@
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
-                                            </Viewbox.Style>
-                                            <Canvas Width="320" Height="42">
-                                                <Path Stroke="#62B7A4" StrokeThickness="2"
-                                                      Data="M 0,21 L 8,20 14,12 20,30 27,18 34,22 42,8 49,34 56,17 64,24 72,14 80,28 88,19 96,21 104,10 112,31 120,16 128,26 136,18 144,22 152,7 160,35 168,15 176,27 184,19 192,23 200,11 208,30 216,17 224,25 232,14 240,29 248,19 256,22 264,9 272,33 280,16 288,26 296,18 304,23 312,13 320,21" />
-                                            </Canvas>
-                                        </Viewbox>
+                                            </Border.Style>
+                                            <Border.Width>
+                                                <MultiBinding Converter="{StaticResource AudioClipWidthConverter}">
+                                                    <Binding Path="AudioLengthSteps" />
+                                                    <Binding Path="DataContext.TimelineSixteenthWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                </MultiBinding>
+                                            </Border.Width>
+                                            <Viewbox Stretch="Fill" Margin="2">
+                                                <Canvas Width="1000" Height="100">
+                                                    <Path Fill="#62B7A4" Data="{Binding AudioPathData}" />
+                                                </Canvas>
+                                            </Viewbox>
+                                        </Border>
                                         <ItemsControl ItemsSource="{Binding Steps}"
                                                       Width="{Binding DataContext.TimelineContentWidth, RelativeSource={RelativeSource AncestorType=Window}}"
                                                       IsHitTestVisible="False">
@@ -1800,12 +1829,20 @@
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Text="SONG"
-                           FontFamily="Consolas"
-                           FontSize="10"
-                           FontWeight="Bold"
-                           VerticalAlignment="Center"
-                           Margin="0,0,8,0" />
+                <StackPanel Orientation="Horizontal" Margin="0,0,8,0">
+                    <Button Content="MIXER"
+                            Style="{StaticResource BottomTabButton}"
+                            Click="ShowMixerButton_Click"
+                            AutomationProperties.Name="Open mixer" />
+                    <Button Content="WAVE"
+                            Style="{StaticResource BottomTabButton}"
+                            Click="ShowWaveformButton_Click"
+                            AutomationProperties.Name="Open waveform editor" />
+                    <Button Content="SONG"
+                            Style="{StaticResource BottomTabButton}"
+                            Click="ShowSongButton_Click"
+                            AutomationProperties.Name="Show song arrangement" />
+                </StackPanel>
 
                 <Slider Grid.Column="1"
                         Style="{StaticResource SongTimelineSliderStyle}"

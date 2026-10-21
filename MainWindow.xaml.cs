@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Globalization;
 using System.Windows.Controls;
@@ -14,6 +15,9 @@ namespace Sonator;
 public partial class MainWindow : Window
 {
     private const string ArrangePatternDragFormat = "Sonator.ArrangePatternRow";
+    private static readonly string[] AudioFileExtensions = { ".wav", ".mp3" };
+    private MixerWindow? _mixerWindow;
+    private WaveformEditorWindow? _waveformEditorWindow;
     private readonly Vst3ThumbnailService _vst3ThumbnailService = new();
     private readonly HashSet<string> _thumbnailRequests = new(StringComparer.OrdinalIgnoreCase);
     private MainViewModel? _mainViewModel;
@@ -733,17 +737,120 @@ public partial class MainWindow : Window
 
     private void WaveformEditorMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        new WaveformEditorWindow(null, DataContext is MainViewModel viewModel ? viewModel.Tempo : 120, DataContext as MainViewModel) { Owner = this }.Show();
+        ShowWaveformEditorWindow();
     }
 
     private void MixerMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        ShowMixerWindow();
+    }
+
+    private void ShowMixerButton_Click(object sender, RoutedEventArgs e)
+    {
+        ShowMixerWindow();
+    }
+
+    private void ShowWaveformButton_Click(object sender, RoutedEventArgs e)
+    {
+        ShowWaveformEditorWindow();
+    }
+
+    private void ShowSongButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel)
+        {
+            viewModel.IsArrangeMode = true;
+        }
+        Activate();
+    }
+
+    // One mixer and one waveform editor at a time: a second click brings the open window forward.
+    private void ShowMixerWindow()
     {
         if (DataContext is not MainViewModel viewModel)
         {
             return;
         }
 
-        new MixerWindow(viewModel) { Owner = this }.Show();
+        if (_mixerWindow is null)
+        {
+            _mixerWindow = new MixerWindow(viewModel) { Owner = this };
+            _mixerWindow.Closed += (_, _) => _mixerWindow = null;
+            _mixerWindow.Show();
+            return;
+        }
+
+        _mixerWindow.Activate();
+    }
+
+    private void ShowWaveformEditorWindow()
+    {
+        if (_waveformEditorWindow is null)
+        {
+            _waveformEditorWindow = new WaveformEditorWindow(null, DataContext is MainViewModel viewModel ? viewModel.Tempo : 120, DataContext as MainViewModel) { Owner = this };
+            _waveformEditorWindow.Closed += (_, _) => _waveformEditorWindow = null;
+            _waveformEditorWindow.Show();
+            return;
+        }
+
+        _waveformEditorWindow.Activate();
+    }
+
+    // Audio files dropped on an empty track go straight into it.
+    private void TimelineBodyListBox_DragOver(object sender, DragEventArgs e)
+    {
+        e.Effects = GetDroppedAudioTrack(e) is { } track && MainViewModel.IsEmptyTrack(track)
+            ? DragDropEffects.Copy
+            : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private void TimelineBodyListBox_Drop(object sender, DragEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel
+            || GetDroppedAudioTrack(e) is not { } track
+            || GetDroppedAudioFile(e) is not { } filePath)
+        {
+            return;
+        }
+
+        viewModel.AssignAudioFile(track, filePath);
+        e.Handled = true;
+    }
+
+    private static string? GetDroppedAudioFile(DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent(DataFormats.FileDrop)
+            || e.Data.GetData(DataFormats.FileDrop) is not string[] { Length: 1 } files)
+        {
+            return null;
+        }
+
+        return AudioFileExtensions.Contains(Path.GetExtension(files[0]), StringComparer.OrdinalIgnoreCase)
+            ? files[0]
+            : null;
+    }
+
+    private static PatternTrackViewModel? GetDroppedAudioTrack(DragEventArgs e)
+    {
+        if (GetDroppedAudioFile(e) is null)
+        {
+            return null;
+        }
+
+        var item = FindVisualAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
+        return item?.DataContext is ArrangeTimelineTrackViewModel timelineTrack ? timelineTrack.SourceTrack : null;
+    }
+
+    private static T? FindVisualAncestor<T>(DependencyObject? element)
+        where T : DependencyObject
+    {
+        while (element is not null && element is not T)
+        {
+            element = VisualTreeHelper.GetParent(element);
+        }
+
+        return element as T;
     }
 
     private void DriverSettingsMenuItem_Click(object sender, RoutedEventArgs e)
