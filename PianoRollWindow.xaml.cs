@@ -41,6 +41,16 @@ public partial class PianoRollWindow : Window
     private (int Step, int Note)? _dragStart;
     private bool _velocityDrag;
 
+    // Resizing a note from one of its edges: -1 the start, +1 the end, 0 not resizing.
+    private int _resizeEdge;
+    // True once a gesture has changed a note, so a plain click does not add an undo step.
+    private bool _gestureChanged;
+    // True while this window writes the notes back, so it does not reload its own change.
+    private bool _committing;
+
+    // Width in pixels of the grab zone at each end of a note.
+    private const double EdgeGrabWidth = 5;
+
     public PianoRollWindow(MainViewModel viewModel, PatternTrackViewModel track)
     {
         InitializeComponent();
@@ -200,21 +210,51 @@ public partial class PianoRollWindow : Window
 
     private void DrawNotes()
     {
+        var laneTop = _gridHeight + 8;
         for (var index = 0; index < _notes.Count; index++)
         {
             var note = _notes[index];
             var selected = index == _selectedIndex;
-            var x = KeyboardWidth + (note.StepIndex + note.StartOffset) * StepWidth + 1;
+            var (left, right) = NoteSpan(note);
             var y = (HighestNote - note.NoteNumber) * RowHeight + 1;
-            var noteWidth = Math.Max(3, (note.DurationSteps + note.LengthFraction) * StepWidth - 2);
+            var noteWidth = Math.Max(3, right - left - 1);
 
-            AddRect(x, y, noteWidth, RowHeight - 2, selected ? "#F2C14E" : "#4FA3D9", "#0E1620");
+            AddRect(left, y, noteWidth, RowHeight - 2, selected ? "#F2C14E" : "#4FA3D9", "#0E1620");
+
+            // Handles: a lighter strip at each end, to grab and change where the note starts or ends.
+            if (noteWidth >= 8)
+            {
+                var handle = selected ? "#FFF1C2" : "#B9E0F7";
+                AddRect(left, y, 2, RowHeight - 2, handle, handle);
+                AddRect(left + noteWidth - 2, y, 2, RowHeight - 2, handle, handle);
+            }
 
             var velocityHeight = note.Velocity / 127.0 * (VelocityLaneHeight - 8);
-            var laneTop = _gridHeight + 8;
-            AddRect(x + 2, laneTop + VelocityLaneHeight - velocityHeight, StepWidth - 6, velocityHeight,
-                selected ? "#F2C14E" : "#4FA3D9", "#0E1620");
+            var barTop = laneTop + VelocityLaneHeight - velocityHeight;
+            AddRect(left + 1, barTop, StepWidth - 6, velocityHeight, selected ? "#F2C14E" : "#4FA3D9", "#0E1620");
+
+            if (selected)
+            {
+                var value = new TextBlock
+                {
+                    Text = note.Velocity.ToString(),
+                    FontSize = 11,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0xF2, 0xC1, 0x4E)),
+                };
+                Canvas.SetLeft(value, left);
+                Canvas.SetTop(value, Math.Max(laneTop, barTop - 15));
+                PianoRollCanvas.Children.Add(value);
+            }
         }
+    }
+
+    // Left and right edges of a note in canvas pixels, at its exact start and length.
+    private static (double Left, double Right) NoteSpan(MidiNoteEventViewModel note)
+    {
+        var left = KeyboardWidth + (note.StepIndex + note.StartOffset) * StepWidth + 1;
+        var right = left + Math.Max(0.05, note.DurationSteps + note.LengthFraction) * StepWidth;
+        return (left, right);
     }
 
     private void AddRect(double x, double y, double width, double height, string fill, string stroke)
@@ -253,13 +293,19 @@ public partial class PianoRollWindow : Window
         return (step, note);
     }
 
-    // Index of the note whose bar covers this cell, or -1.
-    private int NoteIndexAt(int step, int note)
+    // Index of the note drawn under this point, or -1.
+    private int NoteIndexAt(Point point)
     {
+        if (point.Y < 0 || point.Y >= _gridHeight)
+        {
+            return -1;
+        }
+
+        var row = HighestNote - (int)(point.Y / RowHeight);
         for (var index = _notes.Count - 1; index >= 0; index--)
         {
-            var candidate = _notes[index];
-            if (candidate.NoteNumber == note && step >= candidate.StepIndex && step < candidate.StepIndex + candidate.DurationSteps)
+            var (left, right) = NoteSpan(_notes[index]);
+            if (_notes[index].NoteNumber == row && point.X >= left - 1 && point.X <= right)
             {
                 return index;
             }
@@ -267,12 +313,36 @@ public partial class PianoRollWindow : Window
         return -1;
     }
 
-    private int NoteIndexInVelocityLane(int step)
+    // -1 when the point is on a note's left edge, +1 on its right edge, 0 inside it.
+    private static int EdgeAt(MidiNoteEventViewModel note, double x)
     {
+        var (left, right) = NoteSpan(note);
+        var grab = Math.Min(EdgeGrabWidth, (right - left) / 3);
+        if (x <= left + grab)
+        {
+            return -1;
+        }
+
+        return x >= right - grab ? 1 : 0;
+    }
+
+    // The note whose velocity bar is under this x, the selected note first.
+    private int NoteIndexInVelocityLane(double x)
+    {
+        bool Covers(int index)
+        {
+            var (left, _) = NoteSpan(_notes[index]);
+            return x >= left && x <= left + StepWidth - 4;
+        }
+
+        if (_selectedIndex >= 0 && _selectedIndex < _notes.Count && Covers(_selectedIndex))
+        {
+            return _selectedIndex;
+        }
+
         for (var index = _notes.Count - 1; index >= 0; index--)
         {
-            var candidate = _notes[index];
-            if (step >= candidate.StepIndex && step < candidate.StepIndex + candidate.DurationSteps)
+            if (Covers(index))
             {
                 return index;
             }
@@ -290,10 +360,10 @@ public partial class PianoRollWindow : Window
             return;
         }
 
+        _gestureChanged = false;
         if (point.Y >= _gridHeight)
         {
-            var step = (int)((point.X - KeyboardWidth) / StepWidth);
-            var index = NoteIndexInVelocityLane(step);
+            var index = NoteIndexInVelocityLane(point.X);
             if (index < 0)
             {
                 return;
@@ -314,13 +384,14 @@ public partial class PianoRollWindow : Window
             return;
         }
 
-        var hit = NoteIndexAt(cell.Value.Step, cell.Value.Note);
+        var hit = NoteIndexAt(point);
         if (hit >= 0)
         {
             _selectedIndex = hit;
             _dragIndex = hit;
             _dragOriginal = _notes[hit];
             _dragStart = cell;
+            _resizeEdge = EdgeAt(_notes[hit], point.X);
             PianoRollCanvas.CaptureMouse();
             Redraw();
             return;
@@ -334,31 +405,92 @@ public partial class PianoRollWindow : Window
 
     private void OnCanvasMouseMove(object sender, MouseEventArgs e)
     {
+        var point = e.GetPosition(PianoRollCanvas);
         if (!PianoRollCanvas.IsMouseCaptured || _dragIndex < 0)
         {
+            // Show what a press would do: resize on an edge, move inside a note.
+            var hover = NoteIndexAt(point);
+            PianoRollCanvas.Cursor = hover < 0 ? null
+                : EdgeAt(_notes[hover], point.X) != 0 ? Cursors.SizeWE
+                : Cursors.Hand;
             return;
         }
 
-        var point = e.GetPosition(PianoRollCanvas);
         if (_velocityDrag)
         {
             SetVelocityFromPoint(point.Y);
+            _gestureChanged = true;
             Redraw();
             return;
         }
 
+        if (_dragOriginal is null)
+        {
+            return;
+        }
+
+        if (_resizeEdge != 0)
+        {
+            ResizeNote(point.X, (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift);
+            return;
+        }
+
         var cell = CellAt(point);
-        if (cell is null || _dragStart is null || _dragOriginal is null)
+        if (cell is null || _dragStart is null)
         {
             return;
         }
 
         var deltaStep = cell.Value.Step - _dragStart.Value.Step;
         var deltaNote = cell.Value.Note - _dragStart.Value.Note;
-        var newStep = Math.Clamp(_dragOriginal.StepIndex + deltaStep, 0, _stepCount - _dragOriginal.DurationSteps);
+        var newStep = Math.Clamp(_dragOriginal.StepIndex + deltaStep, 0, Math.Max(0, _stepCount - _dragOriginal.DurationSteps));
         var newNote = Math.Clamp(_dragOriginal.NoteNumber + deltaNote, LowestNote, HighestNote);
-        _notes[_dragIndex] = _dragOriginal with { StepIndex = newStep, NoteNumber = newNote };
-        Redraw();
+        var moved = _dragOriginal with { StepIndex = newStep, NoteNumber = newNote };
+        if (moved != _notes[_dragIndex])
+        {
+            _notes[_dragIndex] = moved;
+            _gestureChanged = true;
+            Redraw();
+        }
+    }
+
+    // Moves one edge of the dragged note to the pointer, on the quantize grid unless Shift is held.
+    // The other edge stays where it was; a note is never shorter than one grid unit.
+    private void ResizeNote(double x, bool free)
+    {
+        var original = _dragOriginal!;
+        var grid = QuantizeGridBox.SelectedItem is QuantizeOption option && option.Value > 0 ? option.Value : 1.0;
+        var position = Math.Clamp((x - KeyboardWidth) / StepWidth, 0, _stepCount);
+        var target = free ? position : Math.Round(position / grid) * grid;
+        var minimum = free ? 0.05 : grid;
+        var start = original.StepIndex + original.StartOffset;
+        var end = start + Math.Max(0.05, original.DurationSteps + original.LengthFraction);
+
+        if (_resizeEdge > 0)
+        {
+            end = Math.Min(_stepCount, Math.Max(target, start + minimum));
+        }
+        else
+        {
+            start = Math.Max(0, Math.Min(target, end - minimum));
+        }
+
+        var wholeStart = Math.Floor(start);
+        var length = end - start;
+        var wholeLength = Math.Floor(length);
+        var resized = original with
+        {
+            StepIndex = (int)wholeStart,
+            StartOffset = start - wholeStart,
+            DurationSteps = (int)wholeLength,
+            LengthFraction = length - wholeLength,
+        };
+        if (resized != _notes[_dragIndex])
+        {
+            _notes[_dragIndex] = resized;
+            _gestureChanged = true;
+            Redraw();
+        }
     }
 
     private void OnCanvasMouseUp(object sender, MouseButtonEventArgs e)
@@ -369,15 +501,17 @@ public partial class PianoRollWindow : Window
         }
 
         PianoRollCanvas.ReleaseMouseCapture();
-        var moved = _dragIndex >= 0;
         _dragIndex = -1;
         _dragOriginal = null;
         _dragStart = null;
         _velocityDrag = false;
-        if (moved)
+        _resizeEdge = 0;
+        if (_gestureChanged)
         {
             CommitNotes();
         }
+
+        _gestureChanged = false;
         Redraw();
     }
 
@@ -389,7 +523,7 @@ public partial class PianoRollWindow : Window
             return;
         }
 
-        var hit = NoteIndexAt(cell.Value.Step, cell.Value.Note);
+        var hit = NoteIndexAt(e.GetPosition(PianoRollCanvas));
         if (hit >= 0)
         {
             RemoveNote(hit);
@@ -399,7 +533,7 @@ public partial class PianoRollWindow : Window
     // Notes recorded or changed elsewhere appear in the open roll.
     private void OnTrackNotesChanged(PatternTrackViewModel changed)
     {
-        if (!ReferenceEquals(changed, _track) || _dragOriginal is not null)
+        if (!ReferenceEquals(changed, _track) || _dragOriginal is not null || _committing)
         {
             return;
         }
@@ -471,13 +605,23 @@ public partial class PianoRollWindow : Window
 
     private void CommitNotes()
     {
+        var selected = _selectedIndex >= 0 && _selectedIndex < _notes.Count ? _notes[_selectedIndex] : null;
         var ordered = _notes
-            .OrderBy(note => note.StepIndex)
+            .OrderBy(note => note.StepIndex + note.StartOffset)
             .ThenBy(note => note.NoteNumber)
             .ToList();
-        _viewModel.ReplaceTrackNotes(_track, ordered);
+        _committing = true;
+        try
+        {
+            _viewModel.ReplaceTrackNotes(_track, ordered);
+        }
+        finally
+        {
+            _committing = false;
+        }
+
         _notes.Clear();
         _notes.AddRange(ordered);
-        _selectedIndex = -1;
+        _selectedIndex = selected is null ? -1 : _notes.IndexOf(selected);
     }
 }
