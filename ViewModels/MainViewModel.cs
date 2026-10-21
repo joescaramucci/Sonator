@@ -34,6 +34,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private bool _isMidiActivityVisible;
     private readonly IVst3PluginHost _liveInstrumentHost = new Vst3PluginHost();
     private bool _isLiveKeyboardEnabled = true;
+    private Vst3ModuleHandle? _ownedInstrument;
     private readonly VstPluginService _vstPluginService;
     private readonly VstPluginScanner _vstPluginScanner;
     private readonly AudioOutputDeviceService _audioOutputDeviceService;
@@ -1257,6 +1258,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
+        StopOwnedInstrument();
         _engine.StepChanged -= OnStepChanged;
         _engine.PatternChanged -= OnPlaybackPatternChanged;
         _engine.PlaybackCompleted -= OnPlaybackCompleted;
@@ -1415,6 +1417,50 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         StatusMessage = $"MIDI in: {status:X2} {(packed >> 8) & 0xFF:X2} {(packed >> 16) & 0xFF:X2}";
     }
 
+    // Starts the track's plug-in as the live instrument when it is not already the one playing.
+    private void EnsureInstrument(string pluginPath, string trackName)
+    {
+        if (LiveInstrumentRegistry.Current is { } current
+            && string.Equals(current.FilePath, pluginPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        StopOwnedInstrument();
+        var handle = _liveInstrumentHost.TryLoadModule(pluginPath, out var loadError);
+        if (handle is null)
+        {
+            StatusMessage = $"{trackName}: could not load the plug-in: {loadError}";
+            return;
+        }
+
+        var selection = AudioOutputSelection.FromSettings(new AppSettingsService().Load());
+        string? audioError = null;
+        if (!_liveInstrumentHost.HasAudioProcessor(handle)
+            || !_liveInstrumentHost.TryStartAudio(handle, selection, out audioError))
+        {
+            _liveInstrumentHost.UnloadModule(handle);
+            StatusMessage = $"{trackName}: plug-in audio did not start: {audioError ?? "the plug-in has no audio processor"}";
+            return;
+        }
+
+        _ownedInstrument = handle;
+        LiveInstrumentRegistry.Set(handle);
+    }
+
+    private void StopOwnedInstrument()
+    {
+        if (_ownedInstrument is null)
+        {
+            return;
+        }
+
+        LiveInstrumentRegistry.Clear(_ownedInstrument);
+        _liveInstrumentHost.StopAudio(_ownedInstrument);
+        _liveInstrumentHost.UnloadModule(_ownedInstrument);
+        _ownedInstrument = null;
+    }
+
     // Plays a sequencer note through the plug-in running for the track's plug-in file, if there is one.
     private bool RouteSequencerNoteToPlugin(string? pluginPath, int channel, int noteNumber, int velocity, bool isOn)
     {
@@ -1463,6 +1509,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private void PlayLiveKeyboardNote(MidiNoteMessage note)
     {
         RecordLiveNote(note);
+
+        if (note.IsOn && SelectedTrack is { SupportsMidiPlayback: true, PluginFilePath: { Length: > 0 } selectedPlugin })
+        {
+            EnsureInstrument(selectedPlugin, SelectedTrack.Name);
+        }
 
         if (!IsLiveKeyboardEnabled)
         {
@@ -1780,6 +1831,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private void StartPlayback()
     {
+        if (Tracks.FirstOrDefault(track => track.SupportsMidiPlayback && !string.IsNullOrEmpty(track.PluginFilePath)) is { } pluginTrack)
+        {
+            EnsureInstrument(pluginTrack.PluginFilePath!, pluginTrack.Name);
+        }
+
         StartAudioTracks();
         _engine.Start();
         IsPlaying = true;
