@@ -109,6 +109,9 @@ public sealed class PatternTrackViewModel : ViewModelBase
         set => SetProperty(ref _pluginFilePath, string.IsNullOrWhiteSpace(value) ? null : value);
     }
 
+    // A WAV file with the audio clip this track plays, when it was filled from the waveform editor.
+    public string? AudioClipPath { get; set; }
+
     public string Source
     {
         get => _source;

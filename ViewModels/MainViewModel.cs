@@ -1498,8 +1498,42 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         RebuildTimeline();
     }
 
+    // Mixes the audio clips of the unmuted tracks from the current position and plays them with the sequence.
+    private void StartAudioTracks()
+    {
+        var placements = Tracks
+            .Where(track => !track.IsMuted && !string.IsNullOrEmpty(track.AudioClipPath))
+            .Select(track => new AudioPlacement(track.AudioClipPath!, 0))
+            .ToList();
+        var mixed = AudioTrackMixer.Mix(placements, Tempo, CurrentStepIndex, AudioClipLoader.Load);
+        if (mixed is null)
+        {
+            AudioTrackPlayback.Stop();
+            return;
+        }
+        AudioTrackPlayback.Play(mixed);
+    }
+
+    // Puts a clip into an empty track and makes the track an audio track.
+    public void AssignAudioClip(PatternTrackViewModel track, string clipPath)
+    {
+        CaptureUndoStateIfNeeded();
+        track.AudioClipPath = clipPath;
+        track.TrackType = PatternTrackType.AudioInput;
+        track.Instrument = "Audio clip";
+        StatusMessage = $"{track.Name} now plays the audio clip";
+    }
+
+    public static bool IsEmptyTrack(PatternTrackViewModel track)
+    {
+        return track.MidiNoteEvents.Count == 0
+            && !track.Steps.Any(step => step.IsActive)
+            && string.IsNullOrEmpty(track.AudioClipPath);
+    }
+
     private void StartPlayback()
     {
+        StartAudioTracks();
         _engine.Start();
         IsPlaying = true;
         StatusMessage = "Playback started";
@@ -1507,6 +1541,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private void StopPlayback()
     {
+        AudioTrackPlayback.Stop();
         _engine.Stop();
         IsPlaying = false;
         StatusMessage = "Playback paused";

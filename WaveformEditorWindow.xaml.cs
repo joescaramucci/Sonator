@@ -10,6 +10,7 @@ using Microsoft.Win32;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 using Sonator.Services;
+using Sonator.ViewModels;
 
 namespace Sonator;
 
@@ -29,11 +30,13 @@ public partial class WaveformEditorWindow : Window
     private int _selectionEnd = -1;
     private WaveOutEvent? _output;
     private readonly double _songTempo;
+    private readonly MainViewModel? _viewModel;
 
-    public WaveformEditorWindow(string? path = null, double songTempo = 120)
+    public WaveformEditorWindow(string? path = null, double songTempo = 120, MainViewModel? viewModel = null)
     {
         InitializeComponent();
         _songTempo = songTempo;
+        _viewModel = viewModel;
         Closed += (_, _) => StopPlayback();
         if (path is not null)
         {
@@ -187,6 +190,30 @@ public partial class WaveformEditorWindow : Window
         // Output length over input length: a clip recorded at a faster tempo than the song gets longer.
         var ratio = clipBpm / _songTempo;
         Apply(TimeStretcher.Stretch(_clip.Samples, _clip.Channels, ratio), $"Stretched from {clipBpm:F1} to {_songTempo:F1} BPM");
+    }
+
+    private void SendToTrackButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_clip is null)
+        {
+            return;
+        }
+        if (_viewModel is null || _viewModel.SelectedTrack is not { } track)
+        {
+            Info("Select an empty track in the main window first.");
+            return;
+        }
+        if (!MainViewModel.IsEmptyTrack(track))
+        {
+            Info($"{track.Name} is not empty. Choose an empty track.");
+            return;
+        }
+
+        var (start, end) = RangeOrWhole();
+        var clip = new AudioClip(AudioEdits.Copy(_clip.Samples, _clip.Channels, start, end), _clip.Channels, _clip.SampleRate);
+        var path = AudioClipLoader.SaveToLibrary(clip);
+        _viewModel.AssignAudioClip(track, path);
+        Info($"Sent {clip.Duration.TotalSeconds:F2} s to {track.Name}.");
     }
 
     private void UndoButton_Click(object sender, RoutedEventArgs e)

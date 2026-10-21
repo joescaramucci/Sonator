@@ -1,3 +1,4 @@
+using System.IO;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 
@@ -59,6 +60,16 @@ public static class AudioClipLoader
     {
         using var writer = new WaveFileWriter(path, WaveFormat.CreateIeeeFloatWaveFormat(clip.SampleRate, clip.Channels));
         writer.WriteSamples(clip.Samples, 0, clip.Samples.Length);
+    }
+
+    // Saves a clip to the app's audio folder and returns its path, so tracks can refer to it from a saved project.
+    public static string SaveToLibrary(AudioClip clip)
+    {
+        var folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Sonator", "audio");
+        Directory.CreateDirectory(folder);
+        var path = Path.Combine(folder, Guid.NewGuid().ToString("N") + ".wav");
+        SaveWav(clip, path);
+        return path;
     }
 
     // Plays a clip (or a part of it) through the default output.

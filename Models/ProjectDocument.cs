@@ -43,7 +43,8 @@ public sealed record TrackDocument(
     double Volume = 0.75,
     bool IsRecordArmed = false,
     string? TrackColor = null,
-    string? PluginFilePath = null);
+    string? PluginFilePath = null,
+    string? AudioClipPath = null);
 
 public sealed record StepDocument(
     int Index,
