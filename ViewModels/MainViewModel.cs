@@ -38,7 +38,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private bool _isMidiActivityVisible;
     private readonly IVst3PluginHost _liveInstrumentHost = new Vst3PluginHost();
     private bool _isLiveKeyboardEnabled = true;
-    private CountInOption _selectedCountIn = new(0, "No count-in");
+    private CountInOption _selectedCountIn = new(1, "1 bar");
     private ClickOption _selectedClickOption = new(4, "Quarter");
     private Vst3ModuleHandle? _ownedInstrument;
     private readonly VstPluginService _vstPluginService;
