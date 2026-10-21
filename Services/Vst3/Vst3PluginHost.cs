@@ -263,7 +263,8 @@ public sealed class Vst3PluginHost : IVst3PluginHost
             }
 
             var ok = selection.UseAsio
-                ? Vst3HostInterop.VstHostBridge_StartAudioAsio(handle.NativeHandle, selection.AsioDriverClsid!)
+                ? Vst3HostInterop.VstHostBridge_StartAudioAsioWithFormat(
+                    handle.NativeHandle, selection.AsioDriverClsid!, selection.AsioBufferFrames, selection.AsioSampleRate)
                 : Vst3HostInterop.VstHostBridge_StartAudioOnDevice(handle.NativeHandle, selection.WasapiDeviceId);
             if (ok == 0)
             {

@@ -15,6 +15,11 @@ public sealed class AppSettings
 
     // CLSID of the ASIO driver, as listed under HKLM\SOFTWARE\ASIO.
     public string? AsioDriverClsid { get; set; }
+
+    // Buffer size in frames and sample rate for ASIO. Null means the driver's own choice.
+    public int? AsioBufferFrames { get; set; }
+
+    public double? AsioSampleRate { get; set; }
 }
 
 public sealed class AppSettingsService

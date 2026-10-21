@@ -5,6 +5,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.ComponentModel;
 using Sonator.Models;
+using Sonator.Services;
 using Sonator.Services.Vst3;
 using Sonator.ViewModels;
 
@@ -686,6 +687,20 @@ public partial class MainWindow : Window
     private void CloseMenuItem_Click(object sender, RoutedEventArgs e)
     {
         Close();
+    }
+
+    private void DriverSettingsMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var settings = new AppSettingsService().Load();
+        if (string.IsNullOrWhiteSpace(settings.AsioDriverClsid))
+        {
+            MessageBox.Show(this, "Choose an ASIO driver first (Audio > ASIO driver).", "ASIO driver settings", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var driverName = new AsioDriverService().GetInstalledDrivers()
+            .FirstOrDefault(driver => driver.Clsid == settings.AsioDriverClsid)?.Name ?? settings.AsioDriverClsid;
+        new DriverSettingsDialog(driverName, settings.AsioDriverClsid) { Owner = this }.ShowDialog();
     }
 
     private void AddMidiTrackMenuItem_Click(object sender, RoutedEventArgs e)
