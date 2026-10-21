@@ -17,6 +17,7 @@ public partial class MainWindow : Window
     private const string ArrangePatternDragFormat = "Sonator.ArrangePatternRow";
     private static readonly string[] AudioFileExtensions = { ".wav", ".mp3" };
     private const string VstPluginDragFormat = "Sonator.VstPluginPath";
+    private readonly Dictionary<PatternTrackViewModel, Window> _trackPluginWindows = new();
     private Point? _vstPluginDragStart;
     private string? _vstPluginDragPath;
     private MixerWindow? _mixerWindow;
@@ -820,7 +821,7 @@ public partial class MainWindow : Window
         if (GetDroppedPluginTrack(e) is { } pluginTrack && e.Data.GetData(VstPluginDragFormat) is string pluginPath)
         {
             viewModel.AssignPlugin(pluginTrack, pluginPath);
-            OpenPluginWindowFor(viewModel, pluginPath);
+            OpenPluginWindowFor(viewModel, pluginTrack, pluginPath);
             e.Handled = true;
             return;
         }
@@ -984,11 +985,16 @@ public partial class MainWindow : Window
     // Opens the plug-in's own window: the native GUI for VST3, otherwise the parameter dialog.
     private void OpenPluginWindow(string name, string filePath, string kind)
     {
-        Window window = string.Equals(kind, "VST3", StringComparison.OrdinalIgnoreCase)
-            ? new Vst3NativeEditorWindow(name, filePath)
-            : new VstPluginEditorDialog(name, filePath, kind);
+        var window = CreatePluginWindow(name, filePath, kind);
         window.Owner = this;
         window.Show();
+    }
+
+    private static Window CreatePluginWindow(string name, string filePath, string kind)
+    {
+        return string.Equals(kind, "VST3", StringComparison.OrdinalIgnoreCase)
+            ? new Vst3NativeEditorWindow(name, filePath)
+            : new VstPluginEditorDialog(name, filePath, kind);
     }
 
     // Opens the window of the plug-in the selected track plays through.
@@ -1000,14 +1006,30 @@ public partial class MainWindow : Window
             return;
         }
 
-        OpenPluginWindowFor(viewModel, filePath);
+        OpenPluginWindowFor(viewModel, viewModel.SelectedTrack!, filePath);
     }
 
-    private void OpenPluginWindowFor(MainViewModel viewModel, string filePath)
+    // A track has one plug-in, so its previous plug-in window closes when another plug-in takes its place.
+    private void OpenPluginWindowFor(MainViewModel viewModel, PatternTrackViewModel track, string filePath)
     {
+        if (_trackPluginWindows.Remove(track, out var previous))
+        {
+            previous.Close();
+        }
+
         var plugin = viewModel.VstPlugins.FirstOrDefault(item => string.Equals(item.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
         var kind = plugin?.Kind ?? (string.Equals(Path.GetExtension(filePath), ".vst3", StringComparison.OrdinalIgnoreCase) ? "VST3" : "VST2");
-        OpenPluginWindow(plugin?.Name ?? Path.GetFileNameWithoutExtension(filePath), filePath, kind);
+        var window = CreatePluginWindow(plugin?.Name ?? Path.GetFileNameWithoutExtension(filePath), filePath, kind);
+        window.Closed += (_, _) =>
+        {
+            if (_trackPluginWindows.TryGetValue(track, out var open) && ReferenceEquals(open, window))
+            {
+                _trackPluginWindows.Remove(track);
+            }
+        };
+        _trackPluginWindows[track] = window;
+        window.Owner = this;
+        window.Show();
     }
 
     private void TrackColorMenuItem_Click(object sender, RoutedEventArgs e)
