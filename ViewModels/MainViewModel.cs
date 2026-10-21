@@ -19,6 +19,8 @@ using static Sonator.ViewModels.ProjectDocumentMapper;
 
 namespace Sonator.ViewModels;
 
+public sealed record CountInOption(int Bars, string Label);
+
 public sealed class MainViewModel : ViewModelBase, IDisposable
 {
     private const int ArrangementPatternLength = 8;
@@ -34,6 +36,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private bool _isMidiActivityVisible;
     private readonly IVst3PluginHost _liveInstrumentHost = new Vst3PluginHost();
     private bool _isLiveKeyboardEnabled = true;
+    private CountInOption _selectedCountIn = new(0, "No count-in");
     private Vst3ModuleHandle? _ownedInstrument;
     private readonly VstPluginService _vstPluginService;
     private readonly VstPluginScanner _vstPluginScanner;
@@ -1259,6 +1262,31 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public RelayCommand ToggleLoopCommand { get; }
 
+    public bool IsMetronomeOn
+    {
+        get => _engine.IsMetronomeOn;
+        set
+        {
+            _engine.IsMetronomeOn = value;
+            RaisePropertyChanged();
+        }
+    }
+
+    // Bars of clicks played before recording starts.
+    public IReadOnlyList<CountInOption> CountInOptions { get; } = new[]
+    {
+        new CountInOption(0, "No count-in"),
+        new CountInOption(1, "1 bar"),
+        new CountInOption(2, "2 bars"),
+        new CountInOption(3, "3 bars"),
+    };
+
+    public CountInOption SelectedCountIn
+    {
+        get => _selectedCountIn;
+        set => SetProperty(ref _selectedCountIn, value);
+    }
+
     public RelayCommand ZoomTimelineInCommand { get; }
 
     public RelayCommand ZoomTimelineOutCommand { get; }
@@ -1857,6 +1885,14 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         if (Tracks.FirstOrDefault(track => track.SupportsMidiPlayback && !string.IsNullOrEmpty(track.PluginFilePath)) is { } pluginTrack)
         {
             EnsureInstrument(pluginTrack.PluginFilePath!, pluginTrack.Name);
+        }
+
+        if (IsRecording && SelectedCountIn.Bars > 0)
+        {
+            IsPlaying = true;
+            StatusMessage = $"Count-in: {SelectedCountIn.Bars} bar(s)";
+            _ = _engine.StartAfterCountInAsync(SelectedCountIn.Bars, StartAudioTracks);
+            return;
         }
 
         StartAudioTracks();

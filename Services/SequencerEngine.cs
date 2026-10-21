@@ -12,6 +12,15 @@ internal sealed class SequencerEngine : IDisposable
     private WindowsMidiOutput? _midiOutput;
     private readonly List<ActiveNote> _activeNotes = new();
 
+    // Metronome: a click on every beat (quarter note), accented on the first beat of each bar, on MIDI channel 10.
+    private const int MetronomeChannel = 9;
+    private const int MetronomeHighNote = 77;
+    private const int MetronomeLowNote = 76;
+    private int _metronomeNoteOn = -1;
+    private CancellationTokenSource? _countInCts;
+
+    public bool IsMetronomeOn { get; set; }
+
     // Offered each note of a track that has a plug-in. Returns true when the plug-in took the note, so the MIDI output is skipped.
     public Func<string?, int, int, int, bool, bool>? PluginNoteRouter { get; set; }
     private readonly List<PatternViewModel> _songPatterns = new();
@@ -174,11 +183,59 @@ internal sealed class SequencerEngine : IDisposable
         }
     }
 
+    // Plays one click per beat for the given number of bars, then starts the sequence and calls onStarted.
+    // Stop cancels the count-in.
+    public async Task StartAfterCountInAsync(int bars, Action? onStarted)
+    {
+        var cts = new CancellationTokenSource();
+        lock (_sync)
+        {
+            _countInCts?.Cancel();
+            _countInCts = cts;
+        }
+
+        try
+        {
+            using var timerResolution = TimerResolution.Request();
+            var beatTicks = (long)(60.0 / TempoBpm * Stopwatch.Frequency);
+            var nextBeatAt = Stopwatch.GetTimestamp();
+            for (var beat = 0; beat < bars * 4; beat++)
+            {
+                SendClick(beat % 4 == 0);
+                nextBeatAt += beatTicks;
+                await WaitUntilAsync(nextBeatAt, cts.Token).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        finally
+        {
+            lock (_sync)
+            {
+                if (ReferenceEquals(_countInCts, cts))
+                {
+                    _countInCts = null;
+                }
+            }
+            cts.Dispose();
+        }
+
+        await _dispatcher.InvokeAsync(() =>
+        {
+            Start();
+            onStarted?.Invoke();
+        });
+    }
+
     public void Stop()
     {
         CancellationTokenSource? cts;
         lock (_sync)
         {
+            _countInCts?.Cancel();
+            _countInCts = null;
             cts = _playbackCts;
             _playbackCts = null;
             unchecked
@@ -328,6 +385,10 @@ internal sealed class SequencerEngine : IDisposable
 
         TickActiveNotes();
         PlayStepNotes(pattern, playbackPosition.LocalStep);
+        if (IsMetronomeOn && playbackPosition.LocalStep % 4 == 0)
+        {
+            SendClick(playbackPosition.LocalStep % 16 == 0);
+        }
 
         _dispatcher.InvokeAsync(
             () =>
@@ -463,6 +524,20 @@ internal sealed class SequencerEngine : IDisposable
 
         _highlightedPattern = activePattern;
         _highlightedStep = activeStep;
+    }
+
+    private void SendClick(bool accent)
+    {
+        lock (_sync)
+        {
+            if (_metronomeNoteOn >= 0)
+            {
+                _midiOutput?.NoteOff(MetronomeChannel, _metronomeNoteOn);
+            }
+
+            _metronomeNoteOn = accent ? MetronomeHighNote : MetronomeLowNote;
+            _midiOutput?.NoteOn(MetronomeChannel, _metronomeNoteOn, accent ? 120 : 90);
+        }
     }
 
     // A track with a plug-in plays through it when the router takes the note; otherwise the note goes to the MIDI output.

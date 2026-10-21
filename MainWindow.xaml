@@ -1725,6 +1725,10 @@
                         <Button Content="{Binding RecordButtonText}" ToolTip="While on, keys played on the MIDI keyboard are recorded into the selected track" Command="{Binding ToggleRecordCommand}" />
                     </UniformGrid>
                     <UniformGrid Columns="2" Margin="0,0,0,4">
+                        <ToggleButton Content="METRONOME" IsChecked="{Binding IsMetronomeOn}" ToolTip="Click on every beat during playback" />
+                        <ComboBox ItemsSource="{Binding CountInOptions}" DisplayMemberPath="Label" SelectedItem="{Binding SelectedCountIn}" ToolTip="Clicks played before recording starts" />
+                    </UniformGrid>
+                    <UniformGrid Columns="2" Margin="0,0,0,4">
                         <Button Content="STOP" Command="{Binding StopCommand}" />
                         <Button Content="START" Command="{Binding PlayCommand}" />
                     </UniformGrid>
