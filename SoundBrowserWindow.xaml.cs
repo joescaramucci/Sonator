@@ -32,7 +32,16 @@ public partial class SoundBrowserWindow : Window
 
         ShowTarget();
         _viewModel.PropertyChanged += OnViewModelChanged;
-        Closed += (_, _) => _viewModel.PropertyChanged -= OnViewModelChanged;
+        Closed += (_, _) =>
+        {
+            _viewModel.PropertyChanged -= OnViewModelChanged;
+            _viewModel.StopSoundPreview(unload: true); // the preview's plug-in instance goes with the browser
+        };
+        _autoPreviewDelay.Tick += (_, _) =>
+        {
+            _autoPreviewDelay.Stop();
+            PreviewSelected();
+        };
         Loaded += async (_, _) =>
         {
             SearchBox.Focus();
@@ -119,6 +128,10 @@ public partial class SoundBrowserWindow : Window
                 SoundList.ScrollIntoView(SoundList.SelectedItem);
                 e.Handled = true;
                 break;
+            case Key.Enter when (Keyboard.Modifiers & ModifierKeys.Control) != 0:
+                PreviewSelected(); // Ctrl+Enter previews from the search box, where Space types a space
+                e.Handled = true;
+                break;
             case Key.Enter:
                 LoadSelected();
                 e.Handled = true;
@@ -128,8 +141,19 @@ public partial class SoundBrowserWindow : Window
 
     private void CategoryList_SelectionChanged(object sender, SelectionChangedEventArgs e) => ShowSounds();
 
-    private void SoundList_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
-        LoadButton.IsEnabled = SoundList.SelectedItem is SoundEntry;
+    // With AUTO on, a sound is previewed once the selection rests on it a moment, so running through the
+    // list with the arrows does not start every plug-in on the way.
+    private readonly DispatcherTimer _autoPreviewDelay = new() { Interval = TimeSpan.FromMilliseconds(350) };
+
+    private void SoundList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        LoadButton.IsEnabled = PreviewButton.IsEnabled = SoundList.SelectedItem is SoundEntry;
+        _autoPreviewDelay.Stop();
+        if (AutoPreviewToggle.IsChecked == true && SoundList.SelectedItem is SoundEntry)
+        {
+            _autoPreviewDelay.Start();
+        }
+    }
 
     private void SoundList_MouseDoubleClick(object sender, MouseButtonEventArgs e) => LoadSelected();
 
@@ -140,6 +164,33 @@ public partial class SoundBrowserWindow : Window
             LoadSelected();
             e.Handled = true;
         }
+        else if (e.Key == Key.Space)
+        {
+            PreviewSelected();
+            e.Handled = true;
+        }
+    }
+
+    private void PreviewButton_Click(object sender, RoutedEventArgs e) => PreviewSelected();
+
+    private void PreviewSelected()
+    {
+        if (SoundList.SelectedItem is not SoundEntry sound)
+        {
+            return;
+        }
+
+        Mouse.OverrideCursor = Cursors.Wait; // a plug-in not running yet takes a moment to start
+        try
+        {
+            _viewModel.PreviewSound(sound);
+        }
+        finally
+        {
+            Mouse.OverrideCursor = null;
+        }
+
+        StatusText.Text = _viewModel.StatusMessage;
     }
 
     private void LoadButton_Click(object sender, RoutedEventArgs e) => LoadSelected();

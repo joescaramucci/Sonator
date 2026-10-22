@@ -109,6 +109,25 @@
         <DockPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
             <Button x:Name="LoadButton" DockPanel.Dock="Right" Content="LOAD ON TRACK" Width="150" IsEnabled="False" Click="LoadButton_Click"
                     ToolTip="Load the sound on the selected track (or double-click it, or press Enter)" />
+            <Button x:Name="PreviewButton" DockPanel.Dock="Right" Content="▶ PREVIEW" Width="110" Margin="0,0,8,0" IsEnabled="False" Click="PreviewButton_Click"
+                    ToolTip="Hear the sound before loading it: a short phrase, or the start of a groove (Space in the list)" />
+            <ToggleButton x:Name="AutoPreviewToggle" DockPanel.Dock="Right" Content="AUTO" Width="60" Height="28" Margin="0,0,8,0"
+                          FontFamily="Consolas" FontWeight="SemiBold" Cursor="Hand"
+                          ToolTip="Preview each sound as it is selected, with the arrows or a click">
+                <ToggleButton.Template>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Body" Background="#2A3948" BorderBrush="#5C7A99" BorderThickness="1" CornerRadius="5">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="#C4CFDA" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Body" Property="Background" Value="#49B88D" />
+                                <Setter TargetName="Body" Property="BorderBrush" Value="#2F8F6A" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </ToggleButton.Template>
+            </ToggleButton>
             <TextBlock x:Name="StatusText" VerticalAlignment="Center" Foreground="#9FB4C9" TextTrimming="CharacterEllipsis" />
         </DockPanel>
 

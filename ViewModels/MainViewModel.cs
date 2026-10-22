@@ -1751,6 +1751,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public void Dispose()
     {
         _audioMeterTimer.Stop();
+        _previewer?.Dispose();
         _trackInstruments.Dispose();
         _engine.StepChanged -= OnStepChanged;
         _engine.PatternChanged -= OnPlaybackPatternChanged;
@@ -1812,6 +1813,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return false;
         }
 
+        StopSoundPreview();
+
         if (!string.Equals(track.PluginFilePath, sound.PluginPath, StringComparison.OrdinalIgnoreCase))
         {
             AssignPlugin(track, sound.PluginPath);
@@ -1849,6 +1852,32 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         LiveInstrumentRegistry.Set(instrument);
         StatusMessage = $"{track.Name} now plays {sound.Name} ({sound.PluginName})";
         return true;
+    }
+
+    // Previews of the sound browser, in a plug-in instance of their own, made on the first preview.
+    private SoundPreviewer? _previewer;
+
+    // Plays a sound before it is loaded: a short phrase, or the start of a groove at the song's tempo.
+    public bool PreviewSound(Services.Sounds.SoundEntry sound)
+    {
+        _previewer ??= new SoundPreviewer(_liveInstrumentHost);
+        var error = _previewer.Preview(sound, Tempo);
+        StatusMessage = error ?? $"Previewing {sound.Name} ({sound.PluginName})";
+        return error is null;
+    }
+
+    // Stops the preview playing; with unload, its plug-in instance goes too, as when the browser closes.
+    public void StopSoundPreview(bool unload = false)
+    {
+        if (unload)
+        {
+            _previewer?.Dispose();
+            _previewer = null;
+        }
+        else
+        {
+            _previewer?.Stop();
+        }
     }
 
     // A groove's notes go into the track from the start of the bar the playhead is in, each at its exact
