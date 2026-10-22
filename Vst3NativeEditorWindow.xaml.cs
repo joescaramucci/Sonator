@@ -134,6 +134,9 @@ public partial class Vst3NativeEditorWindow : Window
     // The plug-in this window shows.
     public Vst3ModuleHandle? ModuleHandle => _moduleHandle;
 
+    // The native window the plug-in draws its editor in. Zero before it is attached.
+    public IntPtr EditorHwnd => _editorHost?.NativeHandle ?? IntPtr.Zero;
+
     private readonly System.Windows.Threading.DispatcherTimer _resizeWatch = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private int _fittedWidth;
     private int _fittedHeight;

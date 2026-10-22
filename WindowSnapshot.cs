@@ -13,11 +13,39 @@ internal static class WindowSnapshot
     private const uint PrintWindowRenderFullContent = 2; // takes content drawn by the GPU too
     private const int Halftone = 4;
 
-    // A picture of the window at most maxWidth pixels wide, or null when it cannot be taken.
+    // A picture of the window's content at most maxWidth pixels wide, or null when it cannot be taken. A
+    // plug-in's editor is taken from its own native window: asked of the WPF window around it, Windows gives
+    // back a blank picture. A window that is all WPF is drawn by WPF itself.
     public static BitmapSource? Take(Window window, int maxWidth)
     {
-        var hwnd = new WindowInteropHelper(window).Handle;
-        if (hwnd == IntPtr.Zero || !GetWindowRect(hwnd, out var rect))
+        if (window is Vst3NativeEditorWindow { EditorHwnd: var editor } && editor != IntPtr.Zero)
+        {
+            return TakeNative(editor, maxWidth);
+        }
+
+        return window.Content is FrameworkElement { ActualWidth: > 0, ActualHeight: > 0 } content
+            ? TakeWpf(content, maxWidth)
+            : null;
+    }
+
+    private static BitmapSource TakeWpf(FrameworkElement content, int maxWidth)
+    {
+        var dpi = VisualTreeHelper.GetDpi(content);
+        var scale = Math.Min(1.0, maxWidth / (content.ActualWidth * dpi.DpiScaleX));
+        var picture = new RenderTargetBitmap(
+            Math.Max(1, (int)(content.ActualWidth * dpi.DpiScaleX * scale)),
+            Math.Max(1, (int)(content.ActualHeight * dpi.DpiScaleY * scale)),
+            96 * dpi.DpiScaleX * scale,
+            96 * dpi.DpiScaleY * scale,
+            PixelFormats.Pbgra32);
+        picture.Render(content);
+        picture.Freeze();
+        return picture;
+    }
+
+    private static BitmapSource? TakeNative(IntPtr hwnd, int maxWidth)
+    {
+        if (!GetWindowRect(hwnd, out var rect))
         {
             return null;
         }
