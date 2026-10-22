@@ -1759,7 +1759,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _midiInput.Dispose();
         _clickPlayer.Dispose();
         _engine.Dispose();
-        AudioTrackPlayback.Stop();
+        StopAudioTracks();
         _trackEffects.Dispose();
     }
 
@@ -2657,24 +2657,66 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     // Plays the audio clips of the unmuted tracks from the current position with the sequence, each
     // through its track's effects.
+    // The audio tracks' clips playing in the plug-ins' mix, one module each, until playback stops.
+    private readonly List<Vst3ModuleHandle> _playingClips = new();
+
+    // Plays each audio track's clip from where playback starts, through the track's effects and volume, in
+    // the same output as the plug-ins, so they sound together, on ASIO too. Without the native bridge the
+    // clips play through Windows' default output instead.
     private void StartAudioTracks()
     {
-        var tracks = new List<(AudioClip Clip, NativeEffectChain? Effects)>();
+        StopAudioTracks();
+        var secondsFromStart = CurrentStepIndex * 60.0 / Tempo / 4.0;
+        var selection = AudioOutputSelection.FromSettings(new AppSettingsService().Load());
+        var fallback = new List<(AudioClip Clip, NativeEffectChain? Effects)>();
         foreach (var track in Tracks.Where(track => !track.IsMuted && !string.IsNullOrEmpty(track.AudioClipPath)))
         {
-            var clip = AudioTrackMixer.Mix(new[] { new AudioPlacement(track.AudioClipPath!, 0) }, Tempo, CurrentStepIndex, AudioClipLoader.Load);
-            if (clip is not null)
+            AudioClip clip;
+            try
             {
-                tracks.Add((clip, _trackEffects.ChainFor(track)));
+                clip = AudioClipLoader.Load(track.AudioClipPath!);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
+            {
+                StatusMessage = $"{track.Name}: the audio clip could not be read";
+                continue;
+            }
+
+            if (_liveInstrumentHost.TryCreateClip(clip.Samples, clip.Channels, clip.SampleRate, secondsFromStart) is { } module)
+            {
+                _trackEffects.ChainFor(track)?.AttachTo(module);
+                if (_liveInstrumentHost.TryStartAudio(module, selection, out var error))
+                {
+                    _playingClips.Add(module);
+                    continue;
+                }
+
+                _liveInstrumentHost.UnloadModule(module);
+                StatusMessage = $"{track.Name}: the audio clip did not start: {error}";
+                continue;
+            }
+
+            if (AudioTrackMixer.Mix(new[] { new AudioPlacement(track.AudioClipPath!, 0) }, Tempo, CurrentStepIndex, _ => clip) is { } mixed)
+            {
+                fallback.Add((mixed, _trackEffects.ChainFor(track)));
             }
         }
 
-        if (tracks.Count == 0)
+        if (fallback.Count > 0)
         {
-            AudioTrackPlayback.Stop();
-            return;
+            AudioTrackPlayback.Play(fallback);
         }
-        AudioTrackPlayback.Play(tracks);
+    }
+
+    private void StopAudioTracks()
+    {
+        AudioTrackPlayback.Stop();
+        foreach (var clip in _playingClips)
+        {
+            _liveInstrumentHost.StopAudio(clip);
+            _liveInstrumentHost.UnloadModule(clip);
+        }
+        _playingClips.Clear();
     }
 
     // Makes a track play through a plug-in, as when a plug-in is dropped on it from the plug-in list.
@@ -2865,7 +2907,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     {
         var stopPosition = _engine.LivePosition;
         var recordedTake = _recordTakeHasNotes || _recordingNotes.Count > 0;
-        AudioTrackPlayback.Stop();
+        StopAudioTracks();
         _engine.Stop();
         ReleaseAllPluginNotes();
         RaisePropertyChanged(nameof(IsClickLoopRunning));
@@ -2912,6 +2954,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private void OnPlaybackCompleted(object? sender, EventArgs e)
     {
+        StopAudioTracks();
         IsPlaying = false;
         _engine.SetPlaybackPosition(0);
         CurrentStepIndex = 0;
@@ -2923,6 +2966,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private void OnPlaybackFaulted(object? sender, Exception exception)
     {
+        StopAudioTracks();
         IsPlaying = false;
         StatusMessage = $"Playback error: {exception.Message}";
     }

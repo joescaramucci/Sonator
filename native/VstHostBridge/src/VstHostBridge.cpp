@@ -451,6 +451,13 @@ namespace
         // The state last taken by VstHostBridge_SaveState, until it is read.
         std::vector<char> savedState;
 
+        // An audio track's recorded clip, played in the mix in place of a plug-in: then there is no
+        // component. Interleaved floats, and the point in seconds where playing starts.
+        std::vector<float> clipSamples;
+        int32 clipChannels = 0;
+        double clipSampleRate = 0.0;
+        double clipStartSeconds = 0.0;
+
         // The module's ExitDll, when it exports one: called before the DLL is freed.
         bool (PLUGIN_API* exitDll)() = nullptr;
 
@@ -690,9 +697,25 @@ namespace
         bool activatedComponent = false;
         bool startedProcessing = false;
 
-        // Prepares the plug-in to process blocks of up to maxBlock frames at sampleRate.
+        // For an audio track's clip: where in the clip the next block starts, in the clip's frames, and how
+        // much of the effects' tail is left to play once the clip has ended.
+        bool isClip = false;
+        double clipPosition = 0.0;
+        int64 clipTailFrames = 0;
+
+        // Prepares the plug-in, or the clip, to play blocks of up to maxBlock frames at sampleRate.
         bool Activate(int32 maxBlock, double sampleRate, std::string& error)
         {
+            if (isClip)
+            {
+                channels = 2;
+                clipPosition = module->clipStartSeconds * module->clipSampleRate;
+                clipTailFrames = static_cast<int64>(sampleRate * 4.0); // reverb and echo ring out after the clip
+                planar.assign(2, std::vector<float>(static_cast<size_t>(maxBlock)));
+                pointers.assign(2, nullptr);
+                return true;
+            }
+
             BusInfo outBusInfo{};
             channels = 2;
             if (module->component->getBusInfo(kAudio, kOutput, 0, outBusInfo) == kResultOk && outBusInfo.channelCount > 0)
@@ -788,6 +811,12 @@ namespace
             }
             processData.inputEvents = &blockEvents;
 
+            if (isClip)
+            {
+                RenderClip(frames, sampleRate);
+                return;
+            }
+
             const bool hasEvents = !blockEvents.events.empty();
             if (asleep && !hasEvents)
             {
@@ -827,6 +856,55 @@ namespace
             {
                 asleep = true;
                 silentFrames = 0;
+            }
+        }
+
+        // Reads the next block of the clip, at the output's sample rate (reading between the clip's samples when
+        // its rate is another), through the track's effects. After the end, the effects' tail plays out, then
+        // the clip goes to sleep for good.
+        void RenderClip(int32 frames, double sampleRate)
+        {
+            if (asleep)
+            {
+                return;
+            }
+
+            const auto& samples = module->clipSamples;
+            const int32 clipChannels = module->clipChannels;
+            const int64 clipFrames = clipChannels > 0 ? static_cast<int64>(samples.size()) / clipChannels : 0;
+            const double step = module->clipSampleRate / sampleRate;
+            float* left = planar[0].data();
+            float* right = planar[1].data();
+            for (int32 i = 0; i < frames; ++i)
+            {
+                const auto frame = static_cast<int64>(clipPosition);
+                if (frame + 1 < clipFrames)
+                {
+                    const auto fraction = static_cast<float>(clipPosition - static_cast<double>(frame));
+                    const float* a = &samples[static_cast<size_t>(frame * clipChannels)];
+                    const float* b = a + clipChannels;
+                    left[i] = a[0] + (b[0] - a[0]) * fraction;
+                    right[i] = clipChannels > 1 ? a[1] + (b[1] - a[1]) * fraction : left[i];
+                }
+                else
+                {
+                    left[i] = 0.0f;
+                    right[i] = 0.0f;
+                }
+                clipPosition += step;
+            }
+
+            pointers[0] = left;
+            pointers[1] = right;
+            ApplyEffects(module, pointers.data(), 2, frames, sampleRate);
+
+            if (static_cast<int64>(clipPosition) >= clipFrames)
+            {
+                clipTailFrames -= frames;
+                if (clipTailFrames <= 0)
+                {
+                    asleep = true;
+                }
             }
         }
 
@@ -1549,6 +1627,23 @@ int VstHostBridge_LoadState(void* moduleHandle, int32_t part, const uint8_t* dat
     }
 
     return 0;
+}
+
+void* VstHostBridge_CreateClipModule(const float* interleaved, int32_t frames, int32_t channels, double sampleRate, double startSeconds)
+{
+    if (interleaved == nullptr || frames <= 0 || channels <= 0 || sampleRate <= 0.0)
+    {
+        SetBridgeError("Clip audio non valido.");
+        return nullptr;
+    }
+
+    auto* module = new BridgeModule();
+    module->pluginName = "Audio clip";
+    module->clipSamples.assign(interleaved, interleaved + static_cast<size_t>(frames) * static_cast<size_t>(channels));
+    module->clipChannels = channels;
+    module->clipSampleRate = sampleRate;
+    module->clipStartSeconds = startSeconds > 0.0 ? startSeconds : 0.0;
+    return module;
 }
 
 void* VstHostBridge_LoadModule(const wchar_t* filePath)
@@ -2762,7 +2857,8 @@ static int StartAudioEngine(void* moduleHandle, const wchar_t* deviceId, bool us
     }
 
     auto* module = static_cast<BridgeModule*>(moduleHandle);
-    if (module->component == nullptr)
+    const bool isClip = module->component == nullptr && module->clipChannels > 0;
+    if (module->component == nullptr && !isClip)
     {
         SetBridgeError("Nessun IComponent disponibile: impossibile avviare l'audio.");
         return 0;
@@ -2779,8 +2875,10 @@ static int StartAudioEngine(void* moduleHandle, const wchar_t* deviceId, bool us
 
     auto voice = std::make_shared<MixerVoice>();
     voice->module = module;
-    if (module->component->queryInterface(IAudioProcessor_iid, reinterpret_cast<void**>(&voice->processor)) != kResultOk
-        || voice->processor == nullptr)
+    voice->isClip = isClip;
+    if (!isClip
+        && (module->component->queryInterface(IAudioProcessor_iid, reinterpret_cast<void**>(&voice->processor)) != kResultOk
+            || voice->processor == nullptr))
     {
         voice->processor = nullptr;
         SetBridgeError("Il plug-in non espone IAudioProcessor: impossibile avviare l'audio.");

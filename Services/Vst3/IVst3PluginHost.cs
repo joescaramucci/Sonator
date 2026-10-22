@@ -144,6 +144,13 @@ public interface IVst3PluginHost
     void ReleaseAllNotes(Vst3ModuleHandle handle);
 
     /// <summary>
+    /// A module that plays an audio track's clip in the plug-ins' mix, from startSeconds into it. It starts
+    /// with <see cref="TryStartAudio"/> and goes with <see cref="StopAudio"/> and <see cref="UnloadModule"/>.
+    /// Null when the bridge is not available.
+    /// </summary>
+    Vst3ModuleHandle? TryCreateClip(float[] interleaved, int channels, int sampleRate, double startSeconds);
+
+    /// <summary>
     /// The plug-in's state (the sound and settings chosen in it), to save with the project: part 0 is the
     /// processor's, part 1 the editor's. Null when the plug-in has none to give.
     /// </summary>

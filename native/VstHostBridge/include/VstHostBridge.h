@@ -147,6 +147,12 @@ VSTHOSTBRIDGE_API int VstHostBridge_ReadSavedState(void* moduleHandle, uint8_t* 
 // Gives the plug-in back a state taken by VstHostBridge_SaveState. Returns 1 if the plug-in took it.
 VSTHOSTBRIDGE_API int VstHostBridge_LoadState(void* moduleHandle, int32_t part, const uint8_t* data, int32_t size);
 
+// Makes a module that plays an audio track's clip in the mix instead of a plug-in: interleaved floats, from
+// startSeconds into the clip. It starts and stops with VstHostBridge_StartAudio* and VstHostBridge_StopAudio,
+// runs through an effect chain attached with VstHostBridge_AttachEffectChain, and is freed with
+// VstHostBridge_UnloadModule. Null if the clip is empty.
+VSTHOSTBRIDGE_API void* VstHostBridge_CreateClipModule(const float* interleaved, int32_t frames, int32_t channels, double sampleRate, double startSeconds);
+
 // Releases every note the module's plug-in is holding: those sent with VstHostBridge_SendNoteEvent and not
 // released since. Returns 1 if done, 0 if audio is not running.
 VSTHOSTBRIDGE_API int VstHostBridge_ReleaseAllNotes(void* moduleHandle);

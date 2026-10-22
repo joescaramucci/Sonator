@@ -300,6 +300,27 @@ public sealed class Vst3PluginHost : IVst3PluginHost
         return Vst3HostInterop.VstHostBridge_SendNoteEvent(handle.NativeHandle, channel, noteNumber, velocity, isOn ? 1 : 0) != 0;
     }
 
+    public Vst3ModuleHandle? TryCreateClip(float[] interleaved, int channels, int sampleRate, double startSeconds)
+    {
+        ArgumentNullException.ThrowIfNull(interleaved);
+
+        var frames = channels > 0 ? interleaved.Length / channels : 0;
+        if (!IsNativeBridgeAvailable || frames == 0)
+        {
+            return null;
+        }
+
+        try
+        {
+            var nativeHandle = Vst3HostInterop.VstHostBridge_CreateClipModule(interleaved, frames, channels, sampleRate, startSeconds);
+            return nativeHandle == IntPtr.Zero ? null : new Vst3ModuleHandle(nativeHandle, "audio clip");
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            return null;
+        }
+    }
+
     public byte[]? TrySaveState(Vst3ModuleHandle handle, int part)
     {
         ArgumentNullException.ThrowIfNull(handle);
