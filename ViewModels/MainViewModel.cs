@@ -1663,6 +1663,18 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
     }
 
+    // Whether the click keeps going under the song after the count-in, or stops once the count-in is over.
+    public bool IsClickCountInOnly
+    {
+        get => _engine.IsClickCountInOnly;
+        set
+        {
+            _engine.IsClickCountInOnly = value;
+            RaisePropertyChanged();
+            StatusMessage = value ? "Metronome: count-in only, then quiet" : "Metronome: clicks all through the song";
+        }
+    }
+
     public IReadOnlyList<ClickOption> ClickOptions { get; } = new[]
     {
         new ClickOption(1, "Quarter"),

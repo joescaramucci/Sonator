@@ -123,6 +123,31 @@ public sealed class RecordPlaybackTimingTests
         Assert.Equal(0, played);
     }
 
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public void CountInOnly_ClicksTheCountIn_ThenGoesQuiet(bool countInOnly, bool expectClicksAfter)
+    {
+        var (duringCountIn, afterCountIn) = RunOnStaThread(() =>
+        {
+            using var engine = CreateEngine(Array.Empty<MidiNoteEventViewModel>(), out _);
+            engine.IsMetronomeOn = true;
+            engine.IsClickCountInOnly = countInOnly;
+            var clicks = 0;
+            engine.ClickSound = _ => Interlocked.Increment(ref clicks);
+
+            _ = engine.StartAfterCountInAsync(1, null); // one bar: four clicks over 2000 ms
+            Thread.Sleep(1900);
+            var counted = Volatile.Read(ref clicks);
+            Thread.Sleep(2000);
+            engine.Stop();
+            return (counted, Volatile.Read(ref clicks) - counted);
+        });
+
+        Assert.Equal(4, duringCountIn);
+        Assert.Equal(expectClicksAfter, afterCountIn > 0);
+    }
+
     private static SequencerEngine CreateEngine(IReadOnlyList<MidiNoteEventViewModel> notes, out List<(int Note, long Timestamp)> noteOns)
     {
         var steps = new ObservableCollection<StepViewModel>(Enumerable.Range(0, 128).Select(index => new StepViewModel(index, false)));

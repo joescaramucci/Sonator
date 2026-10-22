@@ -22,6 +22,9 @@ internal sealed class SequencerEngine : IDisposable
 
     public bool IsMetronomeOn { get; set; } = true;
 
+    // True when the metronome only counts in and then goes quiet; false when it keeps clicking under the song.
+    public bool IsClickCountInOnly { get; set; }
+
     // The step the sequencer is on right now, read by recording. It does not wait for the UI thread.
     private int _liveStep;
 
@@ -456,7 +459,7 @@ internal sealed class SequencerEngine : IDisposable
 
         TickActiveNotes();
         PlayStepNotes(pattern, playbackPosition.LocalStep);
-        if (IsMetronomeOn && playbackPosition.LocalStep % ClickStepInterval == 0)
+        if (IsMetronomeOn && !IsClickCountInOnly && playbackPosition.LocalStep % ClickStepInterval == 0)
         {
             SendClick(ClickLevelForStep(playbackPosition.LocalStep));
         }

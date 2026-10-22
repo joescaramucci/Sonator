@@ -768,6 +768,19 @@
                                     </Style>
                                 </Button.Style>
                             </Button>
+                            <ToggleButton Width="76" Height="22" Margin="1" FontSize="11" IsChecked="{Binding IsClickCountInOnly}"
+                                          ToolTip="ALWAYS: the click goes on under the song. COUNT-IN: it counts you in, then goes quiet. Press to change.">
+                                <ToggleButton.Style>
+                                    <Style TargetType="ToggleButton" BasedOn="{StaticResource MetronomeToggleStyle}">
+                                        <Setter Property="Content" Value="ALWAYS" />
+                                        <Style.Triggers>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter Property="Content" Value="COUNT-IN" />
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ToggleButton.Style>
+                            </ToggleButton>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,2,0,0">
                             <Button Width="88" Height="20" FontSize="11" Content="{Binding SelectedClickOption.Label}"
