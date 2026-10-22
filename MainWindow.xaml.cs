@@ -79,6 +79,7 @@ public partial class MainWindow : Window
         }
 
         viewModel.Health.Start();
+        viewModel.TracksReplaced += ReopenFxRacks;
         viewModel.VstPlugins.CollectionChanged += (_, args) =>
         {
             if (args.NewItems is null)
@@ -525,6 +526,28 @@ public partial class MainWindow : Window
         if (e.Key == Key.V && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
         {
             viewModel.PasteNotes();
+            e.Handled = true;
+            return;
+        }
+
+        // Ctrl+Z undoes; Ctrl+Y or Ctrl+Shift+Z redoes, as the Edit menu says.
+        if (e.Key == Key.Z && Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            if (viewModel.UndoCommand.CanExecute(null))
+            {
+                viewModel.UndoCommand.Execute(null);
+            }
+            e.Handled = true;
+            return;
+        }
+
+        if ((e.Key == Key.Y && Keyboard.Modifiers == ModifierKeys.Control)
+            || (e.Key == Key.Z && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift)))
+        {
+            if (viewModel.RedoCommand.CanExecute(null))
+            {
+                viewModel.RedoCommand.Execute(null);
+            }
             e.Handled = true;
             return;
         }
@@ -1572,6 +1595,33 @@ public partial class MainWindow : Window
         if (effect is not null)
         {
             rack.ShowEffect(effect);
+        }
+    }
+
+    // After undo, redo or opening a project the tracks are new objects: each open rack is reopened, in
+    // the same place on screen, on the track now at its old track's position.
+    private void ReopenFxRacks()
+    {
+        if (DataContext is not MainViewModel viewModel || _fxRacks.Count == 0)
+        {
+            return;
+        }
+
+        var stale = _fxRacks
+            .Where(entry => !viewModel.Tracks.Contains(entry.Key)) // racks still on a current track need nothing
+            .Select(entry => entry.Value)
+            .ToList();
+        foreach (var window in stale)
+        {
+            var (left, top, index) = (window.Left, window.Top, window.TrackIndex);
+            window.Close();
+            if (index >= 0 && index < viewModel.Tracks.Count)
+            {
+                var track = viewModel.Tracks[index];
+                OpenFxRack(viewModel, track, null);
+                _fxRacks[track].Left = left;
+                _fxRacks[track].Top = top;
+            }
         }
     }
 

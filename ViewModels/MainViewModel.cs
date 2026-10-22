@@ -4361,7 +4361,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             _isRestoringState = false;
         }
+
+        TracksReplaced?.Invoke();
     }
+
+    // Raised after undo, redo or opening a project has replaced the tracks with new ones, so windows
+    // showing a track (such as an FX rack) can switch to the track now in its place.
+    public event Action? TracksReplaced;
 
     private void MovePattern(object? parameter, int offset)
     {

@@ -19,6 +19,7 @@ public partial class EffectRackWindow : Window
     {
         _viewModel = viewModel;
         Track = track;
+        TrackIndex = viewModel.Tracks.IndexOf(track);
         InitializeComponent();
         WindowFrame.UseDarkFrame(this);
         DataContext = this;
@@ -84,6 +85,9 @@ public partial class EffectRackWindow : Window
     }
 
     public PatternTrackViewModel Track { get; }
+
+    // Where the track was in the track list when the rack opened, to find its successor after undo.
+    public int TrackIndex { get; }
 
     public string WindowTitle => $"FX rack — {Track.Name}";
 
