@@ -1894,8 +1894,26 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         RaiseHistoryStateChanged();
     }
 
+    // After the arrangement is rebuilt its selection points at rows that are gone: the selected pattern's
+    // first place in the new arrangement is selected instead, as when Sonator starts.
+    private void SelectPatternInArrangement()
+    {
+        _selectedArrangePatternCell = null;
+        if (SelectedPattern is { } selectedPattern
+            && SongArrangeRows.SelectMany(row => row.Cells)
+                .FirstOrDefault(cell => string.Equals(cell.Label, selectedPattern.Slot, StringComparison.OrdinalIgnoreCase)) is { } firstCell)
+        {
+            SelectArrangeCell(firstCell);
+        }
+    }
+
     private void CreateNewProject()
     {
+        if (IsPlaying)
+        {
+            StopPlayback();
+        }
+
         _history.Clear();
         _isRestoringState = true;
         try
@@ -1912,6 +1930,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             ResetArrangeBlocks();
             SelectedArrangeCell = null;
             SelectedPattern = Patterns.FirstOrDefault();
+            SelectPatternInArrangement();
             Tempo = 120;
             MasterVolume = 0.75;
             BarCount = 32;
@@ -1933,6 +1952,12 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         ConfigurePlaybackSource();
         RebuildTimeline();
         MarkProjectSaved();
+
+        // The old tracks' plug-ins go with them, and their windows, in view or in the dock, close.
+        StopAudioTracks();
+        _trackInstruments.KeepOnly(Array.Empty<PatternTrackViewModel>());
+        PointKeyboardAtSelectedTrack();
+        TracksReplaced?.Invoke();
     }
 
     private void ApplySelectedMidiOutputDevice()
@@ -4479,15 +4504,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             SelectedArrangeCell = null;
             SelectedPattern = Patterns.FirstOrDefault(pattern => pattern.Slot == document.SelectedPatternSlot) ?? Patterns.FirstOrDefault();
 
-            // The arrangement was rebuilt, so its selection points at rows that are gone: the selected
-            // pattern's first place in the new arrangement is selected instead, as when Sonator starts.
-            _selectedArrangePatternCell = null;
-            if (SelectedPattern is { } selectedPattern
-                && SongArrangeRows.SelectMany(row => row.Cells)
-                    .FirstOrDefault(cell => string.Equals(cell.Label, selectedPattern.Slot, StringComparison.OrdinalIgnoreCase)) is { } firstCell)
-            {
-                SelectArrangeCell(firstCell);
-            }
+            SelectPatternInArrangement();
             if (IsLegacyProject(document.Version))
             {
                 LoopStartStep = 0;

@@ -47,6 +47,20 @@ public sealed class DeleteBlockTests
     }
 
     [Fact]
+    public void NewProject_SelectsItsPatternInTheArrangement()
+    {
+        OnSta(() =>
+        {
+            using var viewModel = new MainViewModel();
+            var bars = viewModel.SelectedArrangePatternLength;
+
+            viewModel.NewProjectCommand.Execute(null);
+
+            Assert.Equal(bars, viewModel.SelectedArrangePatternLength);
+        });
+    }
+
+    [Fact]
     public void Delete_RemovesTheClickedBlock_AndUndoBringsItBack()
     {
         OnSta(() =>
