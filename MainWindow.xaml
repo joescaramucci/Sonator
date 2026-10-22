@@ -1,4 +1,4 @@
-﻿<Window x:Class="Sonator.MainWindow"
+<Window x:Class="Sonator.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -1405,9 +1405,9 @@
                                                             <Setter Property="Foreground" Value="#BCC9D8" />
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding SourceTrack.IsMuted}" Value="True">
-                                                                    <Setter Property="Background" Value="#D94C4C" />
-                                                                    <Setter Property="Foreground" Value="#F2D9D9" />
-                                                                    <Setter Property="BorderBrush" Value="#A62B2B" />
+                                                                    <Setter Property="Background" Value="#49B88D" />
+                                                                    <Setter Property="Foreground" Value="#0F1A14" />
+                                                                    <Setter Property="BorderBrush" Value="#2F8F6A" />
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
@@ -1424,9 +1424,9 @@
                                                             <Setter Property="Foreground" Value="#BCC9D8" />
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding SourceTrack.IsSolo}" Value="True">
-                                                                    <Setter Property="Background" Value="#D94C4C" />
-                                                                    <Setter Property="Foreground" Value="#F2D9D9" />
-                                                                    <Setter Property="BorderBrush" Value="#A62B2B" />
+                                                                    <Setter Property="Background" Value="#49B88D" />
+                                                                    <Setter Property="Foreground" Value="#0F1A14" />
+                                                                    <Setter Property="BorderBrush" Value="#2F8F6A" />
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
@@ -1895,9 +1895,9 @@
                                                         <Setter Property="Foreground" Value="#BCC9D8" />
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding SourceTrack.IsMuted}" Value="True">
-                                                                <Setter Property="Background" Value="#D94C4C" />
-                                                                <Setter Property="Foreground" Value="#F2D9D9" />
-                                                                <Setter Property="BorderBrush" Value="#A62B2B" />
+                                                                <Setter Property="Background" Value="#49B88D" />
+                                                                <Setter Property="Foreground" Value="#0F1A14" />
+                                                                <Setter Property="BorderBrush" Value="#2F8F6A" />
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
@@ -1916,9 +1916,9 @@
                                                         <Setter Property="Foreground" Value="#BCC9D8" />
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding SourceTrack.IsSolo}" Value="True">
-                                                                <Setter Property="Background" Value="#D94C4C" />
-                                                                <Setter Property="Foreground" Value="#F2D9D9" />
-                                                                <Setter Property="BorderBrush" Value="#A62B2B" />
+                                                                <Setter Property="Background" Value="#49B88D" />
+                                                                <Setter Property="Foreground" Value="#0F1A14" />
+                                                                <Setter Property="BorderBrush" Value="#2F8F6A" />
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
@@ -1987,7 +1987,7 @@
                                                           AutomationProperties.Name="RECORD ARM"
                                                           IsChecked="{Binding SourceTrack.IsRecordArmed, Mode=OneWay}" Command="{Binding DataContext.ToggleTrackRecordArmCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding SourceTrack}"
                                                           ToolTip="Arm this track. Keys played on the MIDI keyboard are recorded into the armed track while recording is on" />
-                                            <!-- FX opens the track's effect rack, and lights red while the rack is open. -->
+                                            <!-- FX opens the track's effect rack, and lights green while the rack is open, as M and S do when on; only R lights red. -->
                                             <Button Grid.Column="1"
                                                     Content="FX"
                                                     Width="24"
@@ -2008,9 +2008,9 @@
                                                                 <Setter Property="Foreground" Value="#BCC9D8" />
                                                             </DataTrigger>
                                                             <DataTrigger Binding="{Binding SourceTrack.IsFxRackOpen}" Value="True">
-                                                                <Setter Property="Background" Value="#D94C4C" />
-                                                                <Setter Property="Foreground" Value="#F2D9D9" />
-                                                                <Setter Property="BorderBrush" Value="#A62B2B" />
+                                                                <Setter Property="Background" Value="#49B88D" />
+                                                                <Setter Property="Foreground" Value="#0F1A14" />
+                                                                <Setter Property="BorderBrush" Value="#2F8F6A" />
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
