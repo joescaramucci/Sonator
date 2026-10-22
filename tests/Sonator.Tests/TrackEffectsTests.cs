@@ -22,6 +22,9 @@ public sealed class TrackEffectsTests
         var effect = Assert.Single(track.Effects);
         Assert.Equal("SonVerb", effect.Name);
         Assert.True(effect.IsEnabled);
+        Assert.Equal("Small Room", effect.PresetName);
+        Assert.False(effect.IsPresetModified);
+        Assert.Equal(new[] { 35.0, 50, 80, 5, 18 }, effect.Values);
     }
 
     [Fact]
