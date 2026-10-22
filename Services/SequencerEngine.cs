@@ -805,7 +805,7 @@ internal sealed class SequencerEngine : IDisposable
                             track,
                             track.Channel - 1,
                             noteEvent.NoteNumber,
-                            ApplyTrackVolume(noteEvent.Velocity, track.Volume * MasterVolume),
+                            PlaybackVelocity(track, noteEvent.Velocity),
                             noteEvent.StartOffset,
                             noteEvent.DurationSteps + noteEvent.LengthFraction);
                     }
@@ -829,12 +829,17 @@ internal sealed class SequencerEngine : IDisposable
                     track,
                     track.Channel - 1,
                     noteNumber,
-                    ApplyTrackVolume(step.Velocity, track.Volume * MasterVolume));
+                    PlaybackVelocity(track, step.Velocity));
                 _activeNotes.Add(new ActiveNote(track, track.Channel - 1, noteNumber, step.DurationSteps));
             }
 
         }
     }
+
+    // A plug-in gets the note as it was played, and its track's volume turns its sound up or down (see
+    // TrackEffectsHost); an external MIDI instrument only hears the velocity, so the volume scales it.
+    internal int PlaybackVelocity(PatternTrackViewModel track, int velocity) =>
+        track.HasPlugin ? velocity : ApplyTrackVolume(velocity, track.Volume * MasterVolume);
 
     private static int ApplyTrackVolume(int velocity, double volume)
     {

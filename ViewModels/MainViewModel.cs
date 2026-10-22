@@ -1105,6 +1105,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             if (SetProperty(ref _masterVolume, clamped))
             {
                 _engine.UpdateMasterVolume(clamped);
+                _trackEffects.MasterVolume = clamped;
             }
         }
     }
