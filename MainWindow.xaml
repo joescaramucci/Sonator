@@ -1228,7 +1228,7 @@
                                         </Border.ContextMenu>
                                         <Grid>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="48" />
+                                                <ColumnDefinition Width="54" />
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="20" />
                                                 <ColumnDefinition Width="14" />
@@ -1697,7 +1697,7 @@
                                     </Border.ContextMenu>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="48" />
+                                            <ColumnDefinition Width="54" />
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="20" />
                                             <ColumnDefinition Width="14" />
