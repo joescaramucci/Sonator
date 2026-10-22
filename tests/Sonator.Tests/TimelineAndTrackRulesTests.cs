@@ -7,16 +7,22 @@ namespace Sonator.Tests;
 public sealed class TimelineAndTrackRulesTests
 {
     [Theory]
-    [InlineData(0, "00 00 00 00")]
-    [InlineData(1, "00 00 00 01")]
-    [InlineData(4, "00 01 00 00")]
-    [InlineData(6, "00 01 01 00")]
-    [InlineData(15, "00 03 01 01")]
-    [InlineData(16, "01 00 00 00")]
-    [InlineData(35, "02 00 01 01")]
-    public void FormatSubdivisionPosition_SplitsStepIntoBarBeatAndSubdivision(int step, string expected)
+    [InlineData(0, "001.1")]
+    [InlineData(3, "001.1")]
+    [InlineData(4, "001.2")]
+    [InlineData(15, "001.4")]
+    [InlineData(16, "002.1")]
+    [InlineData(35, "003.1")]
+    public void FormatBarBeat_CountsBarsAndBeatsFromOne(int step, string expected)
     {
-        Assert.Equal(expected, TimelineFormatting.FormatSubdivisionPosition(step));
+        Assert.Equal(expected, TimelineFormatting.FormatBarBeat(step));
+    }
+
+    [Fact]
+    public void FormatBarBeat_UsesTwoDigitsWhenABarHasMoreThanNineBeats()
+    {
+        // 12/8: 24 steps per bar, a beat every 2 steps.
+        Assert.Equal("001.12", TimelineFormatting.FormatBarBeat(22, 24, 2));
     }
 
     [Theory]

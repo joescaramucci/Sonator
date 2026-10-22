@@ -42,14 +42,16 @@ public sealed class MeterTests
         Assert.All(Meter.Presets, preset => Assert.True(preset.IsValid, preset.ToString()));
     }
 
-    // In 3/4 a bar is 12 steps: step 12 starts the second bar and step 16 is its second quarter.
+    // In 3/4 a bar is 12 steps: step 12 starts the second bar and step 16 is its second beat.
+    // In 6/8 a beat is an eighth, so the beats count to 6.
     [Theory]
-    [InlineData(11, "00 02 01 01")]
-    [InlineData(12, "01 00 00 00")]
-    [InlineData(16, "01 01 00 00")]
-    public void Position_CountsBarsOfTheTimeSignature(int step, string expected)
+    [InlineData(11, 12, 4, "001.3")]
+    [InlineData(12, 12, 4, "002.1")]
+    [InlineData(16, 12, 4, "002.2")]
+    [InlineData(10, 12, 2, "001.6")]
+    public void Position_CountsBarsAndBeatsOfTheTimeSignature(int step, int stepsPerBar, int stepsPerBeat, string expected)
     {
-        Assert.Equal(expected, TimelineFormatting.FormatSubdivisionPosition(step, 12));
+        Assert.Equal(expected, TimelineFormatting.FormatBarBeat(step, stepsPerBar, stepsPerBeat));
     }
 
     [Fact]

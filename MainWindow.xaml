@@ -812,14 +812,14 @@
                         <TextBlock Text="MIN:SEC.1/100" FontSize="11" Margin="0,2,0,0" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                     </StackPanel>
                 </Border>
-                <!-- The same position in bars, quarters, eighths and sixteenths. -->
+                <!-- The same position as bar and beat, counted from 1. -->
                 <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                         <Border Style="{StaticResource ClockPanel}">
                             <local:SevenSegmentDisplay Text="{Binding CurrentStepBar}" Style="{StaticResource ClockDigits}"
                                                        AutomationProperties.Name="POSITION BARS" />
                         </Border>
-                        <TextBlock Text="BAR 4 8 16" FontSize="11" Margin="0,2,0,0" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                        <TextBlock Text="BAR . BEAT" FontSize="11" Margin="0,2,0,0" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                     </StackPanel>
                 </Border>
                 <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">

@@ -5,16 +5,15 @@ internal static class TimelineFormatting
 {
     private const int DefaultStepsPerTrack = 16;
 
-    // Formats an absolute step as "bar quarter eighth sixteenth", each field zero-based.
-    public static string FormatSubdivisionPosition(int stepIndex, int stepsPerBar = 16)
+    // Formats an absolute step as "bar.beat", both counted from 1 as musicians do: "001.1", then "001.2".
+    // The beat takes two digits when a bar has more than nine beats.
+    public static string FormatBarBeat(int stepIndex, int stepsPerBar = 16, int stepsPerBeat = 4)
     {
-        var bar = stepIndex / stepsPerBar;
-        var remainder = stepIndex % stepsPerBar;
-        var quarter = remainder / 4;
-        var eighth = (remainder % 4) / 2;
-        var sixteenth = remainder % 2;
+        var bar = stepIndex / stepsPerBar + 1;
+        var beat = stepIndex % stepsPerBar / stepsPerBeat + 1;
+        var beatsPerBar = stepsPerBar / stepsPerBeat;
 
-        return $"{bar:D2} {quarter:D2} {eighth:D2} {sixteenth:D2}";
+        return beatsPerBar > 9 ? $"{bar:D3}.{beat:D2}" : $"{bar:D3}.{beat}";
     }
 
     // A pattern lasts as many bars as its longest track, and at least one bar.

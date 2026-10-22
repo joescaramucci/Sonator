@@ -994,7 +994,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public int TimelineTotalSteps => Math.Max(StepsPerBar, BarCount * StepsPerBar);
 
-    public string CurrentStepBar => FormatSubdivisionPosition(CurrentStepIndex, StepsPerBar);
+    public string CurrentStepBar => FormatBarBeat(CurrentStepIndex, StepsPerBar, Meter.StepsPerBeat);
 
     private int GetSelectedPatternStepCount()
     {
