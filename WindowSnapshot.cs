@@ -112,9 +112,14 @@ internal static class WindowSnapshot
                 return null;
             }
 
-            var picture = Imaging.CreateBitmapSourceFromHBitmap(smallBitmap, IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
-            picture.Freeze();
-            return picture;
+            // StretchBlt leaves every pixel's alpha at zero, and WPF would draw the picture fully transparent:
+            // the colours alone are kept.
+            var picture = new FormatConvertedBitmap(
+                Imaging.CreateBitmapSourceFromHBitmap(smallBitmap, IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions()),
+                PixelFormats.Bgr32, null, 0);
+            var copy = new WriteableBitmap(picture);
+            copy.Freeze();
+            return copy;
         }
         finally
         {
