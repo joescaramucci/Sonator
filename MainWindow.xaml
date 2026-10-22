@@ -1856,8 +1856,7 @@
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="54" />
                                             <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="20" />
-                                            <ColumnDefinition Width="14" />
+                                            <ColumnDefinition Width="16" />
                                         </Grid.ColumnDefinitions>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="31" />
@@ -2015,36 +2014,23 @@
                                                 </Grid>
                                             </Grid>
                                         </Button>
-                                        <Slider Grid.RowSpan="2"
-                                                Grid.Column="2"
-                                                Width="14"
-                                                Height="46"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"
-                                                Minimum="0"
-                                                Maximum="100"
-                                                Orientation="Vertical"
-                                                IsDirectionReversed="False"
-                                                AutoToolTipPlacement="TopLeft"
-                                                AutoToolTipPrecision="0"
-                                                Focusable="False"
-                                                AutomationProperties.Name="TRACK VOLUME"
-                                                Style="{StaticResource MasterMixSliderStyle}"
-                                                Value="{Binding SourceTrack.Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource VolumePercentConverter}}"
-                                                ToolTip="Track volume" />
-                                        <Grid Grid.RowSpan="2"
-                                              Grid.Column="3"
-                                              Margin="0,8,0,8">
-                                            <ProgressBar Style="{StaticResource VerticalMeter}"
-                                                         Value="{Binding SourceTrack.SignalLevel}"
+                                        <!-- The track volume: a bar after the icon, dragged left and right. -->
+                                        <local:VolumeBar Grid.Row="1"
+                                                         Grid.Column="1"
+                                                         Height="9"
+                                                         Margin="38,0,8,0"
                                                          VerticalAlignment="Center"
-                                                         ToolTip="Channel level" />
-                                            <Border Height="8"
-                                                    VerticalAlignment="Top"
-                                                    Background="#FF4D4D"
-                                                    Opacity="0.85"
-                                                    Visibility="{Binding SourceTrack.SignalLevel, Converter={StaticResource SignalPeakVisibilityConverter}}" />
-                                        </Grid>
+                                                         Tag="VolumeBar"
+                                                         AutomationProperties.Name="TRACK VOLUME"
+                                                         Value="{Binding SourceTrack.Volume}" />
+                                        <!-- The track level as LEDs: green, red at the top, with the peak held for a moment. -->
+                                        <local:LedMeter Grid.RowSpan="2"
+                                                        Grid.Column="2"
+                                                        Width="8"
+                                                        Margin="0,4,2,4"
+                                                        HorizontalAlignment="Right"
+                                                        Level="{Binding SourceTrack.SignalLevel}"
+                                                        ToolTip="Track level" />
                                     </Grid>
                                 </Border>
                             </DataTemplate>

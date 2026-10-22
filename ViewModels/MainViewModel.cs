@@ -2051,6 +2051,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private void PlayLiveKeyboardNote(MidiNoteMessage note, KeyboardRoute route, double position)
     {
         RecordLiveNote(note, position);
+        ShowLiveNoteOnMeter(note);
 
         if (route != KeyboardRoute.None)
         {
@@ -3197,6 +3198,36 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             : $"{track.Name} icon removed";
     }
 
+
+    // A key played on the keyboard lights the meter of the track that hears it, the selected one.
+    // While stopped, nothing else moves the meters, so a short timer lets them fall back.
+    private void ShowLiveNoteOnMeter(MidiNoteMessage note)
+    {
+        if (!note.IsOn || note.Velocity == 0 || SelectedTrack is not { IsMuted: false } track)
+        {
+            return;
+        }
+
+        track.SignalLevel = Math.Max(track.SignalLevel, note.Velocity / 127.0 * track.Volume);
+        if (_liveMeterTimer is null)
+        {
+            _liveMeterTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(60) };
+            _liveMeterTimer.Tick += (_, _) =>
+            {
+                if (IsPlaying || !TrackMeterCalculator.Release(Tracks))
+                {
+                    _liveMeterTimer.Stop();
+                }
+            };
+        }
+
+        if (!IsPlaying)
+        {
+            _liveMeterTimer.Start();
+        }
+    }
+
+    private DispatcherTimer? _liveMeterTimer;
 
     private void ResetTrackMeters()
     {

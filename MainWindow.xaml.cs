@@ -1251,7 +1251,8 @@ public partial class MainWindow : Window
         if (DataContext is not MainViewModel viewModel
             || IsInsideTagged(e.OriginalSource, "PluginName")
             || IsInsideTagged(e.OriginalSource, "InstrumentIcon")
-            || IsInsideTagged(e.OriginalSource, "TrackName"))
+            || IsInsideTagged(e.OriginalSource, "TrackName")
+            || IsInsideTagged(e.OriginalSource, "VolumeBar"))
         {
             return;
         }
