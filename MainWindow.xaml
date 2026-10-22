@@ -680,8 +680,20 @@
         </Border>
 
         <Border Grid.Row="1" Background="#2A3748" BorderBrush="#4C657F" BorderThickness="0,0,0,1" Padding="3">
-            <UniformGrid Columns="9">
-                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
+            <!-- The top bar's boxes share its width; the one with MIXER, WAVE, ARRANGE and SOUNDS gets more, to fit its four buttons. -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="1.45*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
                     <Button Command="{Binding ToggleLoopCommand}"
                             AutomationProperties.Name="{Binding LoopModeText, StringFormat=LOOP {0}}"
                             Padding="2,0">
@@ -703,7 +715,7 @@
                         </StackPanel>
                     </Button>
                 </Border>
-                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
+                <Border Grid.Column="1" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
                     <Button Command="{Binding ToggleArrangeModeCommand}"
                             AutomationProperties.Name="{Binding ArrangeModeText, StringFormat=ARRANGE {0}}"
                             Padding="2,0">
@@ -725,7 +737,7 @@
                         </StackPanel>
                     </Button>
                 </Border>
-                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2" Cursor="Hand"
+                <Border Grid.Column="2" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2" Cursor="Hand"
                         ToolTipService.InitialShowDelay="0"
                         ToolTipService.ShowDuration="30000"
                         ToolTip="TEMPO: double-click to type a value (1 to 999 BPM). Mouse wheel: 1 BPM per step, Shift for 0.1. Enter or click away applies it.">
@@ -746,7 +758,7 @@
                         </StackPanel>
                     </Border>
                 </Border>
-                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
+                <Border Grid.Column="3" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                             <ToggleButton Content="ON" Width="40" Height="22" Margin="1" Style="{StaticResource MetronomeToggleStyle}"
@@ -794,7 +806,7 @@
                         <TextBlock Text="METRONOME" FontSize="11" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                     </StackPanel>
                 </Border>
-                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2" Cursor="Hand"
+                <Border Grid.Column="4" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2" Cursor="Hand"
                         ToolTipService.InitialShowDelay="0"
                         ToolTipService.ShowDuration="30000"
                         ToolTip="SIGNATURE: click to choose the time signature. Mouse wheel: beats per bar.">
@@ -819,7 +831,7 @@
                     </Border>
                 </Border>
                 <!-- The song position as a large LED clock: hours, minutes and seconds. -->
-                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
+                <Border Grid.Column="5" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                         <Border Style="{StaticResource ClockPanel}">
                             <local:SevenSegmentDisplay Text="{Binding TransportPosition}" Style="{StaticResource ClockDigits}"
@@ -829,7 +841,7 @@
                     </StackPanel>
                 </Border>
                 <!-- The same position as bar and beat, counted from 1. -->
-                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
+                <Border Grid.Column="6" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                         <Border Style="{StaticResource ClockPanel}">
                             <local:SevenSegmentDisplay Text="{Binding CurrentStepBar}" Style="{StaticResource ClockDigits}"
@@ -838,7 +850,7 @@
                         <TextBlock Text="BAR . BEAT" FontSize="11" Margin="0,2,0,0" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                     </StackPanel>
                 </Border>
-                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
+                <Border Grid.Column="7" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
                         <Button Content="MIXER" Style="{StaticResource BottomTabButton}" Width="58" Margin="2,0"
                                 Click="ShowMixerButton_Click" AutomationProperties.Name="Open mixer" />
@@ -852,7 +864,7 @@
                     </StackPanel>
                 </Border>
                 <!-- How hard the PC is working: CPU, the plug-ins' audio load with its dropouts, and memory. -->
-                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="8,2" DataContext="{Binding Health}">
+                <Border Grid.Column="8" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="8,2" DataContext="{Binding Health}">
                     <Border.Resources>
                         <Style x:Key="HealthBar" TargetType="ProgressBar">
                             <Setter Property="Minimum" Value="0" />
@@ -924,7 +936,7 @@
                         <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding RamText}" HorizontalAlignment="Left" ToolTip="{Binding RamToolTip}" />
                     </Grid>
                 </Border>
-            </UniformGrid>
+            </Grid>
         </Border>
 
         <Grid Grid.Row="2" Margin="2" Background="{StaticResource Paper}">
