@@ -22,6 +22,12 @@ internal static class Vst3HostInterop
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int VstHostBridge_GetVersion();
 
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int VstHostBridge_GetDspLoad(out double peakLoad, out double averageLoad, out long dropouts);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void VstHostBridge_ResetDropouts();
+
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
     internal static extern IntPtr VstHostBridge_LoadModule(string filePath);
 

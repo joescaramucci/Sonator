@@ -1387,6 +1387,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public RelayCommand RedoCommand { get; }
 
+    public SystemHealthViewModel Health { get; } = new();
+
     public RelayCommand SaveProjectCommand { get; }
 
     public RelayCommand SaveProjectAsCommand { get; }

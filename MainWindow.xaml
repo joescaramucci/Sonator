@@ -786,6 +786,81 @@
                                 Click="ShowSongButton_Click" AutomationProperties.Name="Show song arrangement" />
                     </StackPanel>
                 </Border>
+                <!-- How hard the PC is working: CPU, the plug-ins' audio load with its dropouts, and memory. -->
+                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="8,2" DataContext="{Binding Health}">
+                    <Border.Resources>
+                        <Style x:Key="HealthBar" TargetType="ProgressBar">
+                            <Setter Property="Minimum" Value="0" />
+                            <Setter Property="Maximum" Value="1" />
+                            <Setter Property="Height" Value="7" />
+                            <Setter Property="Margin" Value="4,0,6,0" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ProgressBar">
+                                        <Border Background="#16202B" BorderBrush="#3A4D63" BorderThickness="1" CornerRadius="3">
+                                            <Grid>
+                                                <Border x:Name="PART_Track" />
+                                                <Border x:Name="PART_Indicator" HorizontalAlignment="Left" Background="{TemplateBinding Foreground}" CornerRadius="2" />
+                                            </Grid>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="FontFamily" Value="Consolas" />
+                            <Setter Property="FontSize" Value="11" />
+                            <Setter Property="Foreground" Value="#C4CFDA" />
+                            <Setter Property="VerticalAlignment" Value="Center" />
+                        </Style>
+                    </Border.Resources>
+                    <Grid VerticalAlignment="Center">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="30" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" MinWidth="38" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="17" />
+                            <RowDefinition Height="17" />
+                            <RowDefinition Height="17" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Text="CPU" FontWeight="Bold" ToolTip="{Binding CpuToolTip}" />
+                        <ProgressBar Grid.Column="1" Style="{StaticResource HealthBar}" Value="{Binding CpuLoad, Mode=OneWay}" Foreground="{Binding CpuBrush}" ToolTip="{Binding CpuToolTip}" />
+                        <TextBlock Grid.Column="2" Text="{Binding CpuText}" HorizontalAlignment="Right" ToolTip="{Binding CpuToolTip}" />
+
+                        <TextBlock Grid.Row="1" Text="DSP" FontWeight="Bold" ToolTip="{Binding DspToolTip}" />
+                        <ProgressBar Grid.Row="1" Grid.Column="1" Style="{StaticResource HealthBar}" Value="{Binding DspLoad, Mode=OneWay}" Foreground="{Binding DspBrush}" ToolTip="{Binding DspToolTip}" />
+                        <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding DspText}" HorizontalAlignment="Right" ToolTip="{Binding DspToolTip}" />
+                        <TextBlock Grid.Row="1"
+                                   Grid.Column="3"
+                                   Text="{Binding DropoutsText}"
+                                   Margin="8,0,0,0"
+                                   Cursor="Hand"
+                                   AutomationProperties.Name="AUDIO DROPOUTS"
+                                   ToolTip="Audio blocks that did not reach the device in time since the last reset. Click to reset."
+                                   MouseLeftButtonDown="DropoutsText_MouseLeftButtonDown">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                    <Setter Property="Foreground" Value="#7F93A8" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasDropouts}" Value="True">
+                                            <Setter Property="Foreground" Value="#F07070" />
+                                            <Setter Property="FontWeight" Value="Bold" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+
+                        <TextBlock Grid.Row="2" Text="RAM" FontWeight="Bold" ToolTip="{Binding RamToolTip}" />
+                        <ProgressBar Grid.Row="2" Grid.Column="1" Style="{StaticResource HealthBar}" Value="{Binding RamLoad, Mode=OneWay}" Foreground="{Binding RamBrush}" ToolTip="{Binding RamToolTip}" />
+                        <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding RamText}" HorizontalAlignment="Right" ToolTip="{Binding RamToolTip}" />
+                        <TextBlock Grid.Row="2" Grid.Column="3" Text="{Binding SonatorMemoryText}" Margin="8,0,0,0" Foreground="#7F93A8" ToolTip="{Binding RamToolTip}" />
+                    </Grid>
+                </Border>
             </UniformGrid>
         </Border>
 

@@ -78,6 +78,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        viewModel.Health.Start();
         viewModel.VstPlugins.CollectionChanged += (_, args) =>
         {
             if (args.NewItems is null)
@@ -115,6 +116,7 @@ public partial class MainWindow : Window
     {
         if (_mainViewModel is not null)
         {
+            _mainViewModel.Health.Stop();
             _mainViewModel.PropertyChanged -= MainViewModel_PropertyChanged;
             _mainViewModel = null;
         }
@@ -1338,6 +1340,15 @@ public partial class MainWindow : Window
         _trackPluginWindows[track] = window;
         window.Owner = this;
         window.Show();
+    }
+
+    private void DropoutsText_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel)
+        {
+            viewModel.Health.ResetDropoutsCommand.Execute(null);
+            e.Handled = true;
+        }
     }
 
     // Clicking a track's name opens the window that sets its name and MIDI channel.

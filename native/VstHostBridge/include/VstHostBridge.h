@@ -35,6 +35,15 @@
 //   2 = real IComponent/IEditController instantiation + parameter reading
 VSTHOSTBRIDGE_API int VstHostBridge_GetVersion();
 
+// Audio load since the previous call, over every running plug-in: the share of each block's
+// duration spent rendering it (1.0 = the whole block). outPeakLoad is the heaviest block,
+// outAverageLoad the average. outDropouts counts the blocks that did not reach the device in
+// time since the last reset. Returns 1 if any audio ran since the previous call, 0 otherwise.
+VSTHOSTBRIDGE_API int VstHostBridge_GetDspLoad(double* outPeakLoad, double* outAverageLoad, int64_t* outDropouts);
+
+// Sets the dropout count back to zero.
+VSTHOSTBRIDGE_API void VstHostBridge_ResetDropouts(void);
+
 // Attempts to load a VST3 module (a .vst3 file or bundle) at the given path,
 // instantiate its first audio effect component and its edit controller.
 // Returns an opaque module handle on success, or nullptr on failure

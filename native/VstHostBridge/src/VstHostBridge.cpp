@@ -79,6 +79,63 @@ namespace
         g_lastError = message;
     }
 
+    // Audio load of every running plug-in: how much of each block's time went into rendering it.
+    // The audio threads record each block; Sonator reads and clears the window about once a second.
+    struct DspMeter
+    {
+        std::atomic<uint32_t> peakPermille{0};
+        std::atomic<uint64_t> busyMicros{0};
+        std::atomic<uint64_t> periodMicros{0};
+        std::atomic<int64_t> dropouts{0};
+    };
+
+    DspMeter g_dspMeter;
+
+    long long QpcNow()
+    {
+        LARGE_INTEGER now;
+        QueryPerformanceCounter(&now);
+        return now.QuadPart;
+    }
+
+    double QpcSeconds(long long ticks)
+    {
+        static const double frequency = []
+        {
+            LARGE_INTEGER value;
+            QueryPerformanceFrequency(&value);
+            return static_cast<double>(value.QuadPart);
+        }();
+        return static_cast<double>(ticks) / frequency;
+    }
+
+    // A block that took longer to render than it lasts could not reach the device in time: a dropout.
+    void RecordDspBlock(double busySeconds, double periodSeconds)
+    {
+        if (periodSeconds <= 0.0)
+        {
+            return;
+        }
+
+        const auto permille = static_cast<uint32_t>((std::min)(busySeconds / periodSeconds, 9.99) * 1000.0);
+        auto peak = g_dspMeter.peakPermille.load();
+        while (permille > peak && !g_dspMeter.peakPermille.compare_exchange_weak(peak, permille))
+        {
+        }
+
+        g_dspMeter.busyMicros += static_cast<uint64_t>(busySeconds * 1e6);
+        g_dspMeter.periodMicros += static_cast<uint64_t>(periodSeconds * 1e6);
+        if (busySeconds > periodSeconds)
+        {
+            ++g_dspMeter.dropouts;
+        }
+    }
+
+    void RecordDspDropout()
+    {
+        ++g_dspMeter.dropouts;
+    }
+
     std::string Narrow(const std::wstring& wide)
     {
         if (wide.empty())
@@ -787,6 +844,8 @@ namespace
             processData.numOutputs = 1;
             processData.outputs = &outputBus;
 
+            const double deviceRate = static_cast<double>(mixFormat->nSamplesPerSec);
+            bool deviceFed = false;
             while (!engine->stopRequested.load())
             {
                 UINT32 padding = 0;
@@ -794,6 +853,12 @@ namespace
                 {
                     std::this_thread::sleep_for(std::chrono::milliseconds(5));
                     continue;
+                }
+
+                // The device played everything it had before the next block arrived.
+                if (padding == 0 && deviceFed)
+                {
+                    RecordDspDropout();
                 }
 
                 UINT32 available = bufferFrameCount > padding ? bufferFrameCount - padding : 0;
@@ -811,6 +876,8 @@ namespace
                     std::this_thread::sleep_for(std::chrono::milliseconds(2));
                     continue;
                 }
+
+                const long long blockStart = QpcNow();
 
                 for (int32 ch = 0; ch < outputChannels; ++ch)
                 {
@@ -837,6 +904,8 @@ namespace
                 }
 
                 renderClient->ReleaseBuffer(static_cast<UINT32>(samplesThisBlock), 0);
+                RecordDspBlock(QpcSeconds(QpcNow() - blockStart), samplesThisBlock / deviceRate);
+                deviceFed = true;
             }
 
             client->Stop();
@@ -904,6 +973,31 @@ namespace
 int VstHostBridge_GetVersion()
 {
     return 2;
+}
+
+int VstHostBridge_GetDspLoad(double* outPeakLoad, double* outAverageLoad, int64_t* outDropouts)
+{
+    const auto peak = g_dspMeter.peakPermille.exchange(0);
+    const auto busy = g_dspMeter.busyMicros.exchange(0);
+    const auto period = g_dspMeter.periodMicros.exchange(0);
+    if (outPeakLoad != nullptr)
+    {
+        *outPeakLoad = peak / 1000.0;
+    }
+    if (outAverageLoad != nullptr)
+    {
+        *outAverageLoad = period > 0 ? static_cast<double>(busy) / static_cast<double>(period) : 0.0;
+    }
+    if (outDropouts != nullptr)
+    {
+        *outDropouts = g_dspMeter.dropouts.load();
+    }
+    return period > 0 ? 1 : 0;
+}
+
+void VstHostBridge_ResetDropouts()
+{
+    g_dspMeter.dropouts = 0;
 }
 
 void* VstHostBridge_LoadModule(const wchar_t* filePath)
@@ -1478,6 +1572,7 @@ namespace
         long long inputPeakFrame = 0; // absolute frame where that level was seen
         float noisePeak = 0.0f;       // input 0 level just before the burst went out
         double sampleRate = 48000.0;
+        long long lastSwitchTicks = 0; // when the driver last asked for a block, for spotting missed blocks
     };
 
     float ClampUnit(float value)
@@ -1652,6 +1747,15 @@ namespace
             return;
         }
 
+        // A block asked for much later than one block after the previous one means the driver skipped some.
+        const long long blockStart = QpcNow();
+        const double period = session->bufferSize / session->sampleRate;
+        if (session->lastSwitchTicks != 0 && QpcSeconds(blockStart - session->lastSwitchTicks) > period * 1.8)
+        {
+            RecordDspDropout();
+        }
+        session->lastSwitchTicks = blockStart;
+
         for (size_t ch = 0; ch < session->channelPointers.size(); ++ch)
         {
             session->channelPointers[ch] = session->planar[ch].data();
@@ -1695,6 +1799,8 @@ namespace
         {
             session->driver->outputReady();
         }
+
+        RecordDspBlock(QpcSeconds(QpcNow() - blockStart), period);
     }
 
     void AsioSampleRateChanged(ASIOSampleRate /*sampleRate*/)
