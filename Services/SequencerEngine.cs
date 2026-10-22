@@ -58,8 +58,13 @@ internal sealed class SequencerEngine : IDisposable
     // Sounds a click of the given volume (0 to 1) through Sonator's own output, independent of any MIDI output.
     public Action<float>? ClickSound { get; set; }
 
-    // Steps between two clicks: 4 for quarter notes, 1 for sixteenths. Must divide 16.
+    // Steps between two clicks: 4 for quarter notes, 1 for sixteenths. Must divide StepsPerBeat.
     public int ClickStepInterval { get; set; } = 4;
+
+    // The bar and beat of the time signature, in sixteenth steps: 16 and 4 in 4/4, 12 and 4 in 3/4, 14 and 2 in 7/8.
+    public int StepsPerBar { get; set; } = 16;
+
+    public int StepsPerBeat { get; set; } = 4;
 
     // Offered each note of a track that has a plug-in. Returns true when the plug-in took the note, so the MIDI output is skipped.
     public Func<string?, int, int, int, bool, bool>? PluginNoteRouter { get; set; }
@@ -236,7 +241,7 @@ internal sealed class SequencerEngine : IDisposable
 
         // The count-in ends exactly where the sequence starts, so notes played during it land just before the start.
         var stepTicks = (long)(GetInterval(TempoBpm).TotalSeconds * Stopwatch.Frequency);
-        var countInSteps = bars * 16;
+        var countInSteps = bars * StepsPerBar;
         Volatile.Write(ref _liveStepLengthTicks, stepTicks);
         Volatile.Write(ref _countInStartStep, GetCurrentStep());
         Volatile.Write(ref _countInEndTicks, Stopwatch.GetTimestamp() + countInSteps * stepTicks);
@@ -623,7 +628,7 @@ internal sealed class SequencerEngine : IDisposable
     private async Task RunClicksAsync(int? bars, CancellationToken token)
     {
         using var timerResolution = TimerResolution.Request();
-        var clicksPerBar = 16 / ClickStepInterval;
+        var clicksPerBar = Math.Max(1, StepsPerBar / ClickStepInterval);
         var clickTicks = (long)(60.0 / TempoBpm / 4.0 * ClickStepInterval * Stopwatch.Frequency);
         var nextClickAt = Stopwatch.GetTimestamp();
         try
@@ -652,10 +657,10 @@ internal sealed class SequencerEngine : IDisposable
         }
     }
 
-    // 0 on the first beat of a bar, 1 on the other quarter notes, 2 on the subdivisions between them.
-    private static int ClickLevelForStep(int step)
+    // 0 on the first beat of a bar, 1 on the other beats, 2 on the subdivisions between them.
+    internal int ClickLevelForStep(int step)
     {
-        return step % 16 == 0 ? 0 : step % 4 == 0 ? 1 : 2;
+        return step % StepsPerBar == 0 ? 0 : step % StepsPerBeat == 0 ? 1 : 2;
     }
 
     private void SendClick(int level)

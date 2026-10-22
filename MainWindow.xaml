@@ -758,11 +758,29 @@
                         <TextBlock Text="METRONOME" FontSize="11" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                     </StackPanel>
                 </Border>
-                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
-                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                        <TextBlock Text="{Binding TimeSignature}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
-                        <TextBlock Text="SIGNATURE" FontSize="11" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
-                    </StackPanel>
+                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2" Cursor="Hand"
+                        ToolTipService.InitialShowDelay="0"
+                        ToolTipService.ShowDuration="30000"
+                        ToolTip="SIGNATURE: click to choose the time signature. Mouse wheel: beats per bar.">
+                    <Border BorderBrush="#586E86" BorderThickness="1" CornerRadius="5" Padding="2" Cursor="Hand"
+                            AutomationProperties.Name="TIME SIGNATURE"
+                            MouseLeftButtonUp="TimeSignature_MouseLeftButtonUp"
+                            MouseWheel="TimeSignature_MouseWheel">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="#263545" />
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#2F4A63" />
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <TextBlock Text="{Binding TimeSignature}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                            <TextBlock Text="SIGNATURE" FontSize="11" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                        </StackPanel>
+                    </Border>
                 </Border>
                 <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -1480,24 +1498,17 @@
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
                                                     <Grid Width="{Binding DataContext.TimelineBarWidth, RelativeSource={RelativeSource AncestorType=Window}}">
-                                                        <UniformGrid Columns="16">
-                                                            <Border BorderThickness="0" />
-                                                            <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
-                                                            <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
-                                                            <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
-                                                            <Border BorderBrush="#3D566D" BorderThickness="1,0,0,0" />
-                                                            <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
-                                                            <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
-                                                            <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
-                                                            <Border BorderBrush="#3D566D" BorderThickness="1,0,0,0" />
-                                                            <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
-                                                            <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
-                                                            <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
-                                                            <Border BorderBrush="#3D566D" BorderThickness="1,0,0,0" />
-                                                            <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
-                                                            <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
-                                                            <Border BorderBrush="#293C4E" BorderThickness="1,0,0,0" />
-                                                        </UniformGrid>
+                                                        <!-- One line per sixteenth of the time signature's bar, brighter on the beats. -->
+                                                        <ItemsControl ItemsSource="{Binding DataContext.TimelineBarGridLines, RelativeSource={RelativeSource AncestorType=Window}}">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate><UniformGrid Rows="1" /></ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Border BorderBrush="{Binding}" BorderThickness="1,0,0,0" />
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
                                                     </Grid>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>

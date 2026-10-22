@@ -984,6 +984,35 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
+    // A click on the signature opens the window that chooses it.
+    private void TimeSignature_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        var window = new TimeSignatureWindow(viewModel.Meter) { Owner = this };
+        if (window.ShowDialog() == true)
+        {
+            viewModel.TimeSignature = window.Selected.ToString();
+        }
+    }
+
+    // The mouse wheel over the signature adds or removes a beat per bar.
+    private void TimeSignature_MouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        var meter = viewModel.Meter;
+        var numerator = Math.Clamp(meter.Numerator + Math.Sign(e.Delta), Models.Meter.Numerators[0], Models.Meter.Numerators[^1]);
+        viewModel.TimeSignature = new Models.Meter(numerator, meter.Denominator).ToString();
+        e.Handled = true;
+    }
+
     // The mouse wheel over the tempo steps it by 1 BPM, or 0.1 BPM with Shift.
     private void Tempo_MouseWheel(object sender, MouseWheelEventArgs e)
     {

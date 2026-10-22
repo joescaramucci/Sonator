@@ -22,7 +22,7 @@ namespace Sonator.ViewModels;
 
 public sealed record CountInOption(int Bars, string Label);
 
-public sealed record ClickOption(int StepsPerClick, string Label);
+public sealed record ClickOption(int ClicksPerBeat, string Label);
 
 public sealed class MainViewModel : ViewModelBase, IDisposable
 {
@@ -80,8 +80,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly IVst3PluginHost _liveInstrumentHost = new Vst3PluginHost();
     private bool _isLiveKeyboardEnabled = true;
     private CountInOption _selectedCountIn = new(1, "1 bar");
-    private int _snapSteps = 16;
-    private ClickOption _selectedClickOption = new(4, "Quarter");
+    private int _snapMode; // 0 bar, 1 beat, 2 sixteenth
+    private ClickOption _selectedClickOption = new(1, "Quarter");
     private Vst3ModuleHandle? _ownedInstrument;
     private readonly VstPluginService _vstPluginService;
     private readonly VstPluginScanner _vstPluginScanner;
@@ -297,12 +297,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         ZoomToFitCommand = new RelayCommand(_ => ZoomToFit());
         CycleSnapCommand = new RelayCommand(_ =>
         {
-            _snapSteps = _snapSteps switch
-            {
-                16 => 4,
-                4 => 1,
-                _ => 16,
-            };
+            _snapMode = (_snapMode + 1) % 3;
             RaisePropertyChanged(nameof(SnapText));
         });
         DeleteTrackCommand = new RelayCommand(
@@ -997,9 +992,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         set => SeekToStep(value);
     }
 
-    public int TimelineTotalSteps => Math.Max(16, BarCount * 16);
+    public int TimelineTotalSteps => Math.Max(StepsPerBar, BarCount * StepsPerBar);
 
-    public string CurrentStepBar => FormatSubdivisionPosition(CurrentStepIndex);
+    public string CurrentStepBar => FormatSubdivisionPosition(CurrentStepIndex, StepsPerBar);
 
     private int GetSelectedPatternStepCount()
     {
@@ -1058,19 +1053,49 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
     }
 
+    // Text such as "3/4". Text that is not a valid time signature is ignored.
     public string TimeSignature
     {
         get => _timeSignature;
         set
         {
-            if (string.Equals(_timeSignature, value, StringComparison.Ordinal))
+            if (!Models.Meter.TryParse(value, out var meter) || meter.ToString() == _timeSignature)
             {
                 return;
             }
 
             CaptureUndoStateIfNeeded();
-            SetProperty(ref _timeSignature, value);
+            SetProperty(ref _timeSignature, meter.ToString());
+            ApplyMeterToEngine();
+            foreach (var name in new[]
+                     {
+                         nameof(Meter), nameof(StepsPerBar), nameof(TimelineTotalSteps), nameof(TimelineSixteenthWidth),
+                         nameof(TimelineBarGridLines), nameof(CurrentStepBar), nameof(SnapText),
+                     })
+            {
+                RaisePropertyChanged(name);
+            }
+
+            if (!_isRestoringState)
+            {
+                RebuildTimeline();
+                StatusMessage = $"Time signature {meter}";
+            }
         }
+    }
+
+    public Models.Meter Meter => Models.Meter.ParseOrCommon(_timeSignature);
+
+    // Sixteenth steps in one bar: 16 in 4/4, 12 in 3/4, 14 in 7/8.
+    public int StepsPerBar => Meter.StepsPerBar;
+
+    // Hands the bar, the beat and the click spacing of the time signature to the engine.
+    private void ApplyMeterToEngine()
+    {
+        var meter = Meter;
+        _engine.StepsPerBar = meter.StepsPerBar;
+        _engine.StepsPerBeat = meter.StepsPerBeat;
+        _engine.ClickStepInterval = Math.Max(1, meter.StepsPerBeat / Math.Max(1, _selectedClickOption.ClicksPerBeat));
     }
 
     public bool IsPlaying
@@ -1187,12 +1212,34 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public double TimelineSixteenthWidth => TimelineBarWidth / 16.0;
+    public double TimelineSixteenthWidth => TimelineBarWidth / StepsPerBar;
+
+    // The vertical lines inside one bar of a lane, one per sixteenth: none at the bar line itself,
+    // brighter on each beat.
+    public IReadOnlyList<Brush> TimelineBarGridLines => Enumerable.Range(0, StepsPerBar)
+        .Select(step => step == 0 ? Brushes.Transparent : step % Meter.StepsPerBeat == 0 ? BeatLineBrush : SixteenthLineBrush)
+        .ToList();
+
+    private static readonly Brush BeatLineBrush = FrozenBrush(0x3D, 0x56, 0x6D);
+    private static readonly Brush SixteenthLineBrush = FrozenBrush(0x29, 0x3C, 0x4E);
+
+    private static Brush FrozenBrush(byte r, byte g, byte b)
+    {
+        var brush = new SolidColorBrush(Color.FromRgb(r, g, b));
+        brush.Freeze();
+        return brush;
+    }
 
     // The nearest snap point to a step, never before the start of the pattern.
     public int SnapStep(int step)
     {
-        var rounded = (int)Math.Round(step / (double)_snapSteps) * _snapSteps;
+        var snapSteps = _snapMode switch
+        {
+            0 => StepsPerBar,
+            1 => Meter.StepsPerBeat,
+            _ => 1,
+        };
+        var rounded = (int)Math.Round(step / (double)snapSteps) * snapSteps;
         return Math.Max(0, rounded);
     }
 
@@ -1457,7 +1504,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public IReadOnlyList<ClickOption> ClickOptions { get; } = new[]
     {
-        new ClickOption(4, "Quarter"),
+        new ClickOption(1, "Quarter"),
         new ClickOption(2, "Eighth"),
     };
 
@@ -1473,7 +1520,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             if (SetProperty(ref _selectedClickOption, value))
             {
-                _engine.ClickStepInterval = value.StepsPerClick;
+                ApplyMeterToEngine();
             }
         }
     }
@@ -1504,13 +1551,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public RelayCommand ZoomToFitCommand { get; }
 
-    // How blocks snap when moved or resized: 16 steps (bar), 4 (quarter note) or 1 (sixteenth). Shown on the SNAP button.
+    // How blocks snap when moved or resized: to a bar, a beat or a sixteenth. Shown on the SNAP button.
     public RelayCommand CycleSnapCommand { get; }
 
-    public string SnapText => _snapSteps switch
+    public string SnapText => _snapMode switch
     {
-        16 => "SNAP BAR",
-        4 => "SNAP 1/4",
+        0 => "SNAP BAR",
+        1 => $"SNAP 1/{Meter.Denominator}",
         _ => "SNAP 1/16",
     };
 
@@ -2353,7 +2400,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         var added = false;
         foreach (var track in pattern.Tracks)
         {
-            while (track.Steps.Count < bars * 16)
+            while (track.Steps.Count < bars * StepsPerBar)
             {
                 track.Steps.Add(new StepViewModel(track.Steps.Count, false));
                 added = true;
@@ -2499,7 +2546,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
             var repetitions = Math.Max(
                 1,
-                (int)Math.Ceiling(assignedBars / (double)PatternBarCount(pattern)));
+                (int)Math.Ceiling(assignedBars / (double)PatternBarCount(pattern, StepsPerBar)));
             sequence.AddRange(Enumerable.Repeat(pattern, repetitions));
             rowIndex += assignedBars;
         }
@@ -2538,7 +2585,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         TimelineTracks.Clear();
         TimelineBarNumbers.Clear();
         _previousTimelineStep = -1;
-        var timelineBarCount = timelinePatterns.Sum(PatternBarCount);
+        var timelineBarCount = timelinePatterns.Sum(pattern => PatternBarCount(pattern, StepsPerBar));
         for (var bar = 1; bar <= timelineBarCount; bar++)
         {
             TimelineBarNumbers.Add(bar);
@@ -2561,7 +2608,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             foreach (var pattern in timelinePatterns)
             {
                 var track = trackIndex < pattern.Tracks.Count ? pattern.Tracks[trackIndex] : null;
-                var timelineStepCount = PatternBarCount(pattern) * 16;
+                var timelineStepCount = PatternBarCount(pattern, StepsPerBar) * StepsPerBar;
                 for (var stepIndex = 0; stepIndex < timelineStepCount; stepIndex++)
                 {
                     var sourceStep = TimelineStepFor(track, stepIndex);
@@ -2592,10 +2639,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
         var barCount = TryGetSelectedArrangePatternRange(out _, out _, out var length)
             ? length
-            : PatternBarCount(SelectedPattern);
+            : PatternBarCount(SelectedPattern, StepsPerBar);
         var repetitions = Math.Max(
             1,
-            (int)Math.Ceiling(barCount / (double)PatternBarCount(SelectedPattern)));
+            (int)Math.Ceiling(barCount / (double)PatternBarCount(SelectedPattern, StepsPerBar)));
         return Enumerable.Repeat(SelectedPattern, repetitions).ToList();
     }
 
@@ -2615,7 +2662,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
         _previousTimelineStep = absoluteStep;
 
-        CurrentSongBarNumber = Math.Max(1, absoluteStep / 16 + 1);
+        CurrentSongBarNumber = Math.Max(1, absoluteStep / StepsPerBar + 1);
         var rowIndex = Math.Clamp(CurrentSongBarNumber - 1, 0, Math.Max(0, SongArrangeRows.Count - 1));
         var playingRow = IsArrangeMode && SongArrangeRows.Count > 0
             ? SongArrangeRows
@@ -2748,9 +2795,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public void MovePlaybackByBars(int barOffset)
     {
-        const int stepsPerBar = 16;
         var targetStep = Math.Clamp(
-            CurrentStepIndex + barOffset * stepsPerBar,
+            CurrentStepIndex + barOffset * StepsPerBar,
             0,
             Math.Max(0, TimelineTotalSteps - 1));
         SeekToStep(targetStep);
@@ -2768,7 +2814,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         CurrentStepIndex = targetStep;
         UpdatePlayhead(targetStep);
         TransportPosition = TransportClock.FormatPosition(targetStep, Tempo);
-        StatusMessage = $"Position: bar {targetStep / 16 + 1}";
+        StatusMessage = $"Position: bar {targetStep / StepsPerBar + 1}";
     }
 
     public void TogglePlayback()

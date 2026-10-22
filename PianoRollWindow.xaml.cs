@@ -19,7 +19,10 @@ public partial class PianoRollWindow : Window
     private const int HighestNote = 96;
     private const int LowestNote = 36;
     private const int DefaultVelocity = 100;
-    private const int StepsPerBar = 16;
+    // The bar and beat of the project's time signature, in sixteenth steps.
+    private int StepsPerBar => _viewModel.StepsPerBar;
+
+    private int StepsPerBeat => _viewModel.Meter.StepsPerBeat;
 
     private readonly MainViewModel _viewModel;
     private readonly PatternTrackViewModel _track;
@@ -184,12 +187,12 @@ public partial class PianoRollWindow : Window
 
     private void DrawGridLines()
     {
-        // One line per thirty-second note. Bars are the strongest, then quarter notes, sixteenths, and thirty-seconds faintest.
+        // One line per thirty-second note. Bars are the strongest, then beats, sixteenths, and thirty-seconds faintest.
         for (var half = 0; half <= _stepCount * 2; half++)
         {
             var x = KeyboardWidth + half * StepWidth / 2;
             var barLine = half % (StepsPerBar * 2) == 0;
-            var beatLine = half % 8 == 0;
+            var beatLine = half % (StepsPerBeat * 2) == 0;
             var sixteenthLine = half % 2 == 0;
             var (color, thickness) = barLine ? (Color.FromRgb(120, 150, 182), 1.5)
                 : beatLine ? (Color.FromRgb(86, 110, 136), 1.1)
@@ -232,7 +235,7 @@ public partial class PianoRollWindow : Window
             PianoRollCanvas.Children.Add(value);
         }
 
-        for (var step = 0; step <= _stepCount; step += 4)
+        for (var step = 0; step <= _stepCount; step += StepsPerBeat)
         {
             var x = KeyboardWidth + step * StepWidth;
             PianoRollCanvas.Children.Add(new Line
