@@ -1479,6 +1479,10 @@ public partial class MainWindow : Window
         public string Title => Window.Title;
     }
 
+    // The dock's pictures of the plug-ins, in pixels across, and the last good picture of each plug-in window.
+    private const int PreviewWidth = 450;
+    private readonly Dictionary<Window, System.Windows.Media.Imaging.BitmapSource> _lastPluginPictures = new();
+
     // The plug-in windows put away in the dock at the bottom, in the order they went there.
     private readonly System.Collections.ObjectModel.ObservableCollection<DockedPluginWindow> _dockedPluginWindows = new();
 
@@ -1499,6 +1503,17 @@ public partial class MainWindow : Window
     // small bars with no room for their name.
     private void FollowPluginWindow(Window window)
     {
+        // Pictured each time it loses the focus, while it is surely in view and in front, so the dock has a
+        // picture even when one cannot be taken as the window goes there.
+        window.Deactivated += (_, _) =>
+        {
+            if (window.IsVisible && window.WindowState == WindowState.Normal
+                && WindowSnapshot.Take(window, PreviewWidth) is { } picture && !WindowSnapshot.IsBlank(picture))
+            {
+                _lastPluginPictures[window] = picture;
+            }
+        };
+        window.Closed += (_, _) => _lastPluginPictures.Remove(window);
         window.StateChanged += (_, _) =>
         {
             if (window.WindowState == WindowState.Minimized)
@@ -1517,7 +1532,11 @@ public partial class MainWindow : Window
         }
 
         PluginDockItems.ItemsSource ??= _dockedPluginWindows;
-        var preview = WindowSnapshot.Take(window, maxWidth: 900);
+        var preview = WindowSnapshot.Take(window, PreviewWidth);
+        if (preview is null || WindowSnapshot.IsBlank(preview))
+        {
+            preview = _lastPluginPictures.GetValueOrDefault(window);
+        }
         window.Hide();
         _dockedPluginWindows.Add(new DockedPluginWindow(window, preview));
         window.Closed += (_, _) => UndockPluginWindow(window);

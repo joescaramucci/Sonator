@@ -2544,8 +2544,8 @@
                                 <Button.ToolTip>
                                     <StackPanel>
                                         <Image Source="{Binding Preview}"
-                                               MaxWidth="420"
-                                               MaxHeight="300"
+                                               MaxWidth="210"
+                                               MaxHeight="150"
                                                Stretch="Uniform"
                                                RenderOptions.BitmapScalingMode="HighQuality" />
                                         <TextBlock Margin="0,4,0,0" Text="{Binding Title}" FontWeight="SemiBold" />

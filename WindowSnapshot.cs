@@ -43,7 +43,33 @@ internal static class WindowSnapshot
         return picture;
     }
 
+    // Asks the window to draw itself; a picture of one colour all over means it could not, and the picture is
+    // copied from the screen instead, where the window is in view.
     private static BitmapSource? TakeNative(IntPtr hwnd, int maxWidth)
+    {
+        var printed = Capture(hwnd, maxWidth, fromScreen: false);
+        return printed is not null && !IsBlank(printed) ? printed : Capture(hwnd, maxWidth, fromScreen: true);
+    }
+
+    // True when every pixel looked at has the same colour, as in a blank picture.
+    public static bool IsBlank(BitmapSource picture)
+    {
+        var stride = picture.PixelWidth * 4;
+        var pixels = new byte[stride * picture.PixelHeight];
+        new FormatConvertedBitmap(picture, PixelFormats.Bgra32, null, 0).CopyPixels(pixels, stride, 0);
+        var first = BitConverter.ToInt32(pixels, 0);
+        for (var offset = 0; offset + 4 <= pixels.Length; offset += 4 * 97)
+        {
+            if (BitConverter.ToInt32(pixels, offset) != first)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static BitmapSource? Capture(IntPtr hwnd, int maxWidth, bool fromScreen)
     {
         if (!GetWindowRect(hwnd, out var rect))
         {
@@ -70,7 +96,9 @@ internal static class WindowSnapshot
         {
             var oldFull = SelectObject(fullDc, fullBitmap);
             var oldSmall = SelectObject(smallDc, smallBitmap);
-            var printed = PrintWindow(hwnd, fullDc, PrintWindowRenderFullContent);
+            var printed = fromScreen
+                ? BitBlt(fullDc, 0, 0, width, height, screen, rect.Left, rect.Top, 0x00CC0020 /* SRCCOPY */)
+                : PrintWindow(hwnd, fullDc, PrintWindowRenderFullContent);
             if (printed)
             {
                 SetStretchBltMode(smallDc, Halftone);
@@ -136,6 +164,10 @@ internal static class WindowSnapshot
 
     [DllImport("gdi32.dll")]
     private static extern int SetStretchBltMode(IntPtr hdc, int mode);
+
+    [DllImport("gdi32.dll")]
+    private static extern bool BitBlt(IntPtr destination, int x, int y, int width, int height,
+        IntPtr source, int sourceX, int sourceY, uint operation);
 
     [DllImport("gdi32.dll")]
     private static extern bool StretchBlt(IntPtr destination, int x, int y, int width, int height,
