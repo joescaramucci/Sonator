@@ -98,16 +98,60 @@ public partial class MainWindow : Window
 
     private void OpenRecentProject(MainViewModel viewModel, string path)
     {
-        if (viewModel.HasUnsavedChanges)
+        if (MayLeaveProject(viewModel, "Open project", "Do you want to save the project before opening another?"))
         {
-            var choice = SonatorMessageDialog.AskToSave(this, "Open project", "Do you want to save the project before opening another?");
-            if (choice == SaveChoice.Cancel || (choice == SaveChoice.Save && !viewModel.SaveProject()))
-            {
-                return;
-            }
+            viewModel.OpenProject(path);
+        }
+    }
+
+    // Before the project open now is replaced (closed, or another opened or started), asks whether to save it
+    // when it has changes, the sounds chosen in its plug-ins included. False when the player cancels, or the
+    // save fails.
+    private bool MayLeaveProject(MainViewModel viewModel, string title, string question)
+    {
+        if (!viewModel.HasUnsavedChanges)
+        {
+            return true;
         }
 
-        viewModel.OpenProject(path);
+        return SonatorMessageDialog.AskToSave(this, title, question) switch
+        {
+            SaveChoice.Save => viewModel.SaveProject(),
+            SaveChoice.DontSave => true,
+            _ => false,
+        };
+    }
+
+    private void NewProject(MainViewModel viewModel)
+    {
+        if (MayLeaveProject(viewModel, "New project", "Do you want to save the project before starting a new one?"))
+        {
+            viewModel.NewProjectCommand.Execute(null);
+        }
+    }
+
+    private void OpenProject(MainViewModel viewModel)
+    {
+        if (MayLeaveProject(viewModel, "Open project", "Do you want to save the project before opening another?"))
+        {
+            viewModel.LoadProjectCommand.Execute(null);
+        }
+    }
+
+    private void NewProjectMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel)
+        {
+            NewProject(viewModel);
+        }
+    }
+
+    private void OpenProjectMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel)
+        {
+            OpenProject(viewModel);
+        }
     }
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -625,14 +669,14 @@ public partial class MainWindow : Window
 
         if (e.Key == Key.L && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
         {
-            viewModel.LoadProjectCommand.Execute(null);
+            OpenProject(viewModel);
             e.Handled = true;
             return;
         }
 
         if (e.Key == Key.N && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
         {
-            viewModel.NewProjectCommand.Execute(null);
+            NewProject(viewModel);
             e.Handled = true;
             return;
         }
@@ -1008,7 +1052,8 @@ public partial class MainWindow : Window
 
     private void CloseProjectMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        if (DataContext is MainViewModel viewModel)
+        if (DataContext is MainViewModel viewModel
+            && MayLeaveProject(viewModel, "Close project", "Do you want to save the project before closing it?"))
         {
             viewModel.NewProjectCommand.Execute(null);
         }
