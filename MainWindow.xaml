@@ -1167,6 +1167,27 @@
                                 <Setter Property="Padding" Value="0" />
                                 <Setter Property="Margin" Value="0,0,0,2" />
                                 <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                <!-- The selected track gets a thin light outline. The row keeps its size, so headers and lanes stay aligned. -->
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Grid Background="Transparent" Margin="1" SnapsToDevicePixels="True">
+                                                <ContentPresenter />
+                                                <Border x:Name="SelectionOutline"
+                                                        Margin="-0.5"
+                                                        BorderBrush="#DADADA"
+                                                        BorderThickness="0.5"
+                                                        IsHitTestVisible="False"
+                                                        Visibility="Collapsed" />
+                                            </Grid>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="SelectionOutline" Property="Visibility" Value="Visible" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
                             </Style>
                         </ListBox.ItemContainerStyle>
                         <ListBox.ItemTemplate>
@@ -1176,7 +1197,7 @@
                                         <ColumnDefinition Width="260" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Background="{Binding SourceTrack.TrackColorBrush}" Padding="3">
+                                    <Border BorderBrush="{StaticResource Line}" BorderThickness="0.5" Background="{Binding SourceTrack.TrackColorBrush}" Padding="3">
                                         <Border.ContextMenu>
                                             <ContextMenu>
                                                 <MenuItem Header="Default" Tag="" Click="TrackColorMenuItem_Click">
@@ -1638,13 +1659,34 @@
                                 <Setter Property="Padding" Value="0" />
                                 <Setter Property="Margin" Value="0,0,0,2" />
                                 <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                <!-- The selected track gets a thin light outline. The row keeps its size, so headers and lanes stay aligned. -->
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Grid Background="Transparent" Margin="1" SnapsToDevicePixels="True">
+                                                <ContentPresenter />
+                                                <Border x:Name="SelectionOutline"
+                                                        Margin="-0.5"
+                                                        BorderBrush="#DADADA"
+                                                        BorderThickness="0.5"
+                                                        IsHitTestVisible="False"
+                                                        Visibility="Collapsed" />
+                                            </Grid>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="SelectionOutline" Property="Visibility" Value="Visible" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
                             </Style>
                         </ListBox.ItemContainerStyle>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Border Height="64"
                                         BorderBrush="{StaticResource Line}"
-                                        BorderThickness="1"
+                                        BorderThickness="0.5"
                                         Background="{Binding SourceTrack.TrackColorBrush}"
                                         Padding="3">
                                     <Border.ContextMenu>
