@@ -4169,8 +4169,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             }
         }
 
-        var selectedPatternName = SelectedPattern?.Name;
-        if (string.IsNullOrWhiteSpace(selectedPatternName))
+        // The arrangement's cells hold the pattern's slot ("01"); older projects hold its name.
+        if (SelectedPattern is not { } selectedPattern)
         {
             return false;
         }
@@ -4179,10 +4179,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             for (var candidateColumn = 0; candidateColumn < SongArrangeRows[row].Cells.Count; candidateColumn++)
             {
-                if (string.Equals(
-                    SongArrangeRows[row].Cells[candidateColumn].Label,
-                    selectedPatternName,
-                    StringComparison.OrdinalIgnoreCase))
+                var label = SongArrangeRows[row].Cells[candidateColumn].Label;
+                if (string.Equals(label, selectedPattern.Slot, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(label, selectedPattern.Name, StringComparison.OrdinalIgnoreCase))
                 {
                     return TryGetArrangePatternRange(row, candidateColumn, out startRow, out column, out length);
                 }
@@ -4414,6 +4413,16 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
             SelectedArrangeCell = null;
             SelectedPattern = Patterns.FirstOrDefault(pattern => pattern.Slot == document.SelectedPatternSlot) ?? Patterns.FirstOrDefault();
+
+            // The arrangement was rebuilt, so its selection points at rows that are gone: the selected
+            // pattern's first place in the new arrangement is selected instead, as when Sonator starts.
+            _selectedArrangePatternCell = null;
+            if (SelectedPattern is { } selectedPattern
+                && SongArrangeRows.SelectMany(row => row.Cells)
+                    .FirstOrDefault(cell => string.Equals(cell.Label, selectedPattern.Slot, StringComparison.OrdinalIgnoreCase)) is { } firstCell)
+            {
+                SelectArrangeCell(firstCell);
+            }
             if (IsLegacyProject(document.Version))
             {
                 LoopStartStep = 0;
@@ -4475,13 +4484,17 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             Application.Current?.Dispatcher.BeginInvoke(DispatcherPriority.Background, () =>
             {
-                if (Patterns.Any(pattern => pattern.Tracks.Contains(track)))
+                if (Patterns.Any(pattern => pattern.Tracks.Contains(track)) && EnsureTrackInstrument(track) is not null)
                 {
-                    EnsureTrackInstrument(track);
+                    SavedInstrumentStarted?.Invoke(track);
                 }
             });
         }
     }
+
+    // Raised when a plug-in of a project just opened has started with its saved sound, so the window can
+    // show it in the dock.
+    public event Action<PatternTrackViewModel>? SavedInstrumentStarted;
 
     // Raised after undo, redo or opening a project has replaced the tracks with new ones, so windows
     // showing a track (such as an FX rack) can switch to the track now in its place.

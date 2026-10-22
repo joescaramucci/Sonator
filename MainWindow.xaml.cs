@@ -81,6 +81,7 @@ public partial class MainWindow : Window
         viewModel.Health.Start();
         viewModel.TracksReplaced += ReopenFxRacks;
         viewModel.TrackInstrumentStopping += ClosePluginWindowsOf;
+        viewModel.SavedInstrumentStarted += DockSavedInstrument;
         viewModel.VstPlugins.CollectionChanged += (_, args) =>
         {
             if (args.NewItems is null)
@@ -1404,6 +1405,31 @@ public partial class MainWindow : Window
             return;
         }
 
+        var window = PrepareTrackPluginWindow(viewModel, track, filePath, playFromKeyboard: true);
+        window.Show();
+        CascadePluginWindow(window);
+    }
+
+    // A plug-in of a project just opened goes to the dock, ready: its window opens from there.
+    private void DockSavedInstrument(PatternTrackViewModel track)
+    {
+        if (DataContext is not MainViewModel viewModel || track.PluginFilePath is not { } filePath
+            || _trackPluginWindows.ContainsKey(track))
+        {
+            return;
+        }
+
+        var window = PrepareTrackPluginWindow(viewModel, track, filePath, playFromKeyboard: false);
+        PluginDockItems.ItemsSource ??= _dockedPluginWindows;
+        _dockedPluginWindows.Add(new DockedPluginWindow(window, Preview: null)); // pictured once it has been open
+        window.Closed += (_, _) => UndockPluginWindow(window);
+        PluginDock.Visibility = Visibility.Visible;
+    }
+
+    // Makes the track's plug-in window, not shown yet, in place of any it had. playFromKeyboard: the keyboard
+    // then plays this plug-in, as when its window is opened on purpose.
+    private Window PrepareTrackPluginWindow(MainViewModel viewModel, PatternTrackViewModel track, string filePath, bool playFromKeyboard)
+    {
         if (_trackPluginWindows.Remove(track, out var previous))
         {
             previous.Close();
@@ -1420,7 +1446,10 @@ public partial class MainWindow : Window
             && string.Equals(track.PluginFilePath, filePath, StringComparison.OrdinalIgnoreCase)
             && viewModel.EnsureTrackInstrument(track) is { } instrument)
         {
-            LiveInstrumentRegistry.Set(instrument);
+            if (playFromKeyboard)
+            {
+                LiveInstrumentRegistry.Set(instrument);
+            }
             window = new Vst3NativeEditorWindow(viewModel.PluginHost, instrument, $"{name} — {track.Name}");
         }
         else
@@ -1439,8 +1468,7 @@ public partial class MainWindow : Window
         _trackPluginWindows[track] = window;
         window.Owner = this;
         FollowPluginWindow(window);
-        window.Show();
-        CascadePluginWindow(window);
+        return window;
     }
 
     // A plug-in window put away in the dock. The dock lists these, not the windows: an ItemsControl given a
