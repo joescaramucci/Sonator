@@ -1368,6 +1368,7 @@ public partial class MainWindow : Window
     {
         var window = CreatePluginWindow(name, filePath, kind);
         window.Owner = this;
+        FollowPluginWindow(window);
         window.Show();
     }
 
@@ -1397,11 +1398,7 @@ public partial class MainWindow : Window
         if (_trackPluginWindows.TryGetValue(track, out var open) && open.Tag is string openPath
             && string.Equals(openPath, filePath, StringComparison.OrdinalIgnoreCase))
         {
-            if (open.WindowState == WindowState.Minimized)
-            {
-                open.WindowState = WindowState.Normal;
-            }
-            open.Activate();
+            ShowPluginWindow(open);
             return;
         }
 
@@ -1439,19 +1436,76 @@ public partial class MainWindow : Window
         window.Tag = filePath;
         _trackPluginWindows[track] = window;
         window.Owner = this;
+        FollowPluginWindow(window);
         window.Show();
     }
 
-    // A click on the timeline puts the open plug-in windows away, minimized under their instrument's name,
-    // so the timeline is in view; they come back from the taskbar or with a double-click on the plug-in name.
+    // The plug-in windows put away in the dock at the bottom, in the order they went there.
+    private readonly System.Collections.ObjectModel.ObservableCollection<Window> _dockedPluginWindows = new();
+
+    // A click on the timeline puts the open plug-in windows away in the dock, each a button with its
+    // instrument's name, so the timeline is in view. They come back from the dock or with a double-click on
+    // the track's plug-in name.
     private void TimelineBodyListBox_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        foreach (var window in OwnedWindows.OfType<Window>())
+        foreach (var window in OwnedWindows.OfType<Window>().Where(IsPluginWindow).ToList())
         {
-            if (window is Vst3NativeEditorWindow or VstPluginEditorDialog && window.WindowState != WindowState.Minimized)
+            DockPluginWindow(window);
+        }
+    }
+
+    private static bool IsPluginWindow(Window window) => window is Vst3NativeEditorWindow or VstPluginEditorDialog;
+
+    // Plug-in windows minimized with their own button go to the dock as well: minimized, Windows shows them as
+    // small bars with no room for their name.
+    private void FollowPluginWindow(Window window)
+    {
+        window.StateChanged += (_, _) =>
+        {
+            if (window.WindowState == WindowState.Minimized)
             {
-                window.WindowState = WindowState.Minimized;
+                window.WindowState = WindowState.Normal;
+                DockPluginWindow(window);
             }
+        };
+    }
+
+    private void DockPluginWindow(Window window)
+    {
+        if (!window.IsVisible || _dockedPluginWindows.Contains(window))
+        {
+            return;
+        }
+
+        PluginDockItems.ItemsSource ??= _dockedPluginWindows;
+        window.Hide();
+        _dockedPluginWindows.Add(window);
+        window.Closed += (_, _) => UndockPluginWindow(window);
+        PluginDock.Visibility = Visibility.Visible;
+    }
+
+    private void UndockPluginWindow(Window window)
+    {
+        _dockedPluginWindows.Remove(window);
+        if (_dockedPluginWindows.Count == 0)
+        {
+            PluginDock.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    // Brings a plug-in window back from the dock, in front.
+    private void ShowPluginWindow(Window window)
+    {
+        UndockPluginWindow(window);
+        window.Show();
+        window.Activate();
+    }
+
+    private void PluginDockButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: Window window })
+        {
+            ShowPluginWindow(window);
         }
     }
 

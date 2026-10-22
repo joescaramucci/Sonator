@@ -545,6 +545,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" Background="#34475C" BorderBrush="#5D7A98" BorderThickness="0,0,0,1" Padding="5,4" MinHeight="42">
@@ -2506,6 +2507,44 @@
                     </Border.Style>
                 </Border>
             </Grid>
+        </Border>
+
+        <!-- The plug-in windows put away with a click in the timeline, one button each with the instrument's name;
+             a click brings the window back. Shown only while there is one. -->
+        <Border x:Name="PluginDock"
+                Grid.Row="4"
+                Background="#1F2A37"
+                BorderBrush="#4C657F"
+                BorderThickness="0,1,0,0"
+                Padding="8,4"
+                Visibility="Collapsed">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Left"
+                           Text="PLUG-INS"
+                           Margin="0,0,10,0"
+                           VerticalAlignment="Center"
+                           FontFamily="Consolas"
+                           FontSize="11"
+                           Foreground="#8FA6BD" />
+                <ItemsControl x:Name="PluginDockItems">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Margin="0,0,6,0"
+                                    Padding="10,2"
+                                    Height="24"
+                                    FontSize="12"
+                                    Content="{Binding Title}"
+                                    ToolTip="Click to bring the plug-in window back"
+                                    Click="PluginDockButton_Click" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </DockPanel>
         </Border>
     </Grid>
 </Window>
