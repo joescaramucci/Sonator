@@ -46,6 +46,23 @@ public sealed class SystemHealthTests
     }
 
     [Fact]
+    public void SystemMemory_IsShownAsUsedOverInstalledGigabytes()
+    {
+        // 11 GB used of 15.9 GB usable, which is sold as 16 GB.
+        var expected = string.Format("{0:0.0}/16 GB", 11.0);
+        Assert.Equal(expected, SystemHealthViewModel.FormatUsedOfTotal(11L << 30, (long)(15.9 * (1L << 30))));
+    }
+
+    [Fact]
+    public void Monitor_ReadsTheInstalledMemory()
+    {
+        var sample = new SystemHealthMonitor().Sample();
+
+        Assert.True(sample.SystemMemoryTotalBytes > 0);
+        Assert.InRange(sample.SystemMemoryUsedBytes, 1, sample.SystemMemoryTotalBytes);
+    }
+
+    [Fact]
     public void Memory_IsShownInMegabytesThenGigabytes()
     {
         Assert.Equal("512 MB", SystemHealthViewModel.FormatBytes(512L << 20));

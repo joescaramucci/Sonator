@@ -60,13 +60,14 @@ public sealed class SystemHealthViewModel : ViewModelBase
 
     public double RamLoad => _sample?.SystemMemoryLoad ?? 0;
 
-    public string RamText => _sample is null ? "--" : Percent(RamLoad);
-
-    public string SonatorMemoryText => _sample is null ? string.Empty : FormatBytes(_sample.SonatorMemoryBytes);
+    // Memory in use on the whole PC over the memory installed, such as "11,0/16 GB".
+    public string RamText => _sample is null
+        ? "--"
+        : FormatUsedOfTotal(_sample.SystemMemoryUsedBytes, _sample.SystemMemoryTotalBytes);
 
     public string RamToolTip => _sample is null
         ? "RAM"
-        : $"Sonator and its plug-ins: {FormatBytes(_sample.SonatorMemoryBytes)}\nMemory in use on the whole PC: {Percent(_sample.SystemMemoryLoad)}";
+        : $"Memory in use on the whole PC: {FormatUsedOfTotal(_sample.SystemMemoryUsedBytes, _sample.SystemMemoryTotalBytes)} ({Percent(_sample.SystemMemoryLoad)})\nSonator and its plug-ins: {FormatBytes(_sample.SonatorMemoryBytes)}";
 
     public Brush RamBrush => BrushFor(RamLoad);
 
@@ -86,7 +87,7 @@ public sealed class SystemHealthViewModel : ViewModelBase
                      nameof(CpuLoad), nameof(CpuText), nameof(CpuToolTip), nameof(CpuBrush),
                      nameof(DspLoad), nameof(DspText), nameof(DspToolTip), nameof(DspBrush),
                      nameof(Dropouts), nameof(DropoutsText), nameof(HasDropouts),
-                     nameof(RamLoad), nameof(RamText), nameof(SonatorMemoryText), nameof(RamToolTip), nameof(RamBrush),
+                     nameof(RamLoad), nameof(RamText), nameof(RamToolTip), nameof(RamBrush),
                  })
         {
             RaisePropertyChanged(name);
@@ -96,6 +97,10 @@ public sealed class SystemHealthViewModel : ViewModelBase
     internal static Brush BrushFor(double load) => load >= 0.85 ? Strained : load >= 0.6 ? Busy : Calm;
 
     internal static string Percent(double share) => $"{Math.Round(share * 100):0}%";
+
+    // The total is rounded to whole gigabytes, as the memory is sold: 15.9 GB usable shows as 16 GB.
+    internal static string FormatUsedOfTotal(long usedBytes, long totalBytes) => string.Format(
+        CultureInfo.CurrentCulture, "{0:0.0}/{1:0} GB", usedBytes / (double)(1L << 30), Math.Round(totalBytes / (double)(1L << 30)));
 
     internal static string FormatBytes(long bytes) => bytes >= 1L << 30
         ? string.Format(CultureInfo.CurrentCulture, "{0:0.0} GB", bytes / (double)(1L << 30))

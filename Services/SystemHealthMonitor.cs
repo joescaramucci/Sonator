@@ -11,6 +11,8 @@ public sealed record SystemHealthSample(
     double SonatorCpu,
     long SonatorMemoryBytes,
     double SystemMemoryLoad,
+    long SystemMemoryUsedBytes,
+    long SystemMemoryTotalBytes,
     double? DspPeak,
     double? DspAverage,
     long Dropouts);
@@ -47,7 +49,10 @@ public sealed class SystemHealthMonitor
         (_lastProcessCpu, _lastWall) = (processCpu, wall);
 
         var memory = new MemoryStatusEx { Length = (uint)Marshal.SizeOf<MemoryStatusEx>() };
-        var systemMemoryLoad = GlobalMemoryStatusEx(ref memory) ? memory.MemoryLoad / 100.0 : 0;
+        var hasMemory = GlobalMemoryStatusEx(ref memory);
+        var systemMemoryLoad = hasMemory ? memory.MemoryLoad / 100.0 : 0;
+        var totalMemory = hasMemory ? (long)memory.TotalPhys : 0;
+        var usedMemory = hasMemory ? (long)(memory.TotalPhys - memory.AvailPhys) : 0;
 
         double? dspPeak = null;
         double? dspAverage = null;
@@ -64,7 +69,7 @@ public sealed class SystemHealthMonitor
             // Without the native bridge there is no audio load to show.
         }
 
-        return new SystemHealthSample(systemCpu, sonatorCpu, _process.WorkingSet64, systemMemoryLoad, dspPeak, dspAverage, dropouts);
+        return new SystemHealthSample(systemCpu, sonatorCpu, _process.WorkingSet64, systemMemoryLoad, usedMemory, totalMemory, dspPeak, dspAverage, dropouts);
     }
 
     public static void ResetDropouts()

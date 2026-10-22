@@ -903,8 +903,7 @@
 
                         <TextBlock Grid.Row="2" Text="RAM" FontWeight="Bold" ToolTip="{Binding RamToolTip}" />
                         <ProgressBar Grid.Row="2" Grid.Column="1" Style="{StaticResource HealthBar}" Value="{Binding RamLoad, Mode=OneWay}" Foreground="{Binding RamBrush}" ToolTip="{Binding RamToolTip}" />
-                        <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding RamText}" HorizontalAlignment="Right" ToolTip="{Binding RamToolTip}" />
-                        <TextBlock Grid.Row="2" Grid.Column="3" Text="{Binding SonatorMemoryText}" Margin="8,0,0,0" Foreground="#7F93A8" ToolTip="{Binding RamToolTip}" />
+                        <TextBlock Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="2" Text="{Binding RamText}" HorizontalAlignment="Left" ToolTip="{Binding RamToolTip}" />
                     </Grid>
                 </Border>
             </UniformGrid>
