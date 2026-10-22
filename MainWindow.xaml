@@ -599,6 +599,7 @@
                         <MenuItem Header="Delete arrange pattern" Command="{Binding DeleteArrangePatternCommand}" />
                     </MenuItem>
                     <MenuItem Header="_Track">
+                        <MenuItem Header="Browse _sounds..." Click="ShowSoundsButton_Click" InputGestureText="Ctrl+B" />
                         <MenuItem Header="Piano roll..." Click="PianoRollMenuItem_Click" />
                         <MenuItem Header="New MIDI channel track" Click="AddMidiTrackMenuItem_Click" />
                         <MenuItem Header="New VST track" Click="AddVstTrackMenuItem_Click" />
@@ -845,6 +846,9 @@
                                 Click="ShowWaveformButton_Click" AutomationProperties.Name="Open waveform editor" />
                         <Button Content="ARRANGE" Style="{StaticResource BottomTabButton}" Width="72" Margin="2,0"
                                 Click="ShowSongButton_Click" AutomationProperties.Name="Show song arrangement" />
+                        <Button Content="SOUNDS" Style="{StaticResource BottomTabButton}" Width="66" Margin="2,0"
+                                Click="ShowSoundsButton_Click" AutomationProperties.Name="Browse sounds"
+                                ToolTip="Find a sound in all the plug-ins, by category or by name, and load it on the selected track (Ctrl+B)" />
                     </StackPanel>
                 </Border>
                 <!-- How hard the PC is working: CPU, the plug-ins' audio load with its dropouts, and memory. -->

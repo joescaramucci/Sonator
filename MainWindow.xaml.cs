@@ -674,6 +674,13 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (e.Key == Key.B && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+        {
+            ShowSoundBrowser();
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key == Key.N && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
         {
             NewProject(viewModel);
@@ -1192,6 +1199,28 @@ public partial class MainWindow : Window
     private void MixerMenuItem_Click(object sender, RoutedEventArgs e)
     {
         ShowMixerWindow();
+    }
+
+    private SoundBrowserWindow? _soundBrowser;
+
+    private void ShowSoundsButton_Click(object sender, RoutedEventArgs e) => ShowSoundBrowser();
+
+    // One sound browser at a time; asked for again, it comes to the front.
+    private void ShowSoundBrowser()
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        if (_soundBrowser is null)
+        {
+            _soundBrowser = new SoundBrowserWindow(viewModel) { Owner = this };
+            _soundBrowser.Closed += (_, _) => _soundBrowser = null;
+            _soundBrowser.Show();
+        }
+
+        _soundBrowser.Activate();
     }
 
     private void ShowMixerButton_Click(object sender, RoutedEventArgs e)

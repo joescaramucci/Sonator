@@ -1780,6 +1780,67 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         return preset;
     }
 
+    // ---- Sounds ----
+
+    // The sounds of the installed plug-ins, read once in the background the first time they are asked for.
+    private Task<IReadOnlyList<Services.Sounds.SoundEntry>>? _sounds;
+
+    public Task<IReadOnlyList<Services.Sounds.SoundEntry>> SoundsAsync()
+    {
+        if (_sounds is null || _sounds.IsFaulted)
+        {
+            var installed = VstPlugins
+                .GroupBy(plugin => Path.GetFileNameWithoutExtension(plugin.FilePath.TrimEnd('\\', '/')), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.First().FilePath, StringComparer.OrdinalIgnoreCase);
+            _sounds = Task.Run(() => Services.Sounds.ArturiaSoundSource.Read(installed));
+        }
+
+        return _sounds;
+    }
+
+    // Loads a sound on the selected track: the track takes the sound's plug-in if it plays another, and the
+    // plug-in takes the preset. The keyboard then plays it. False, with the reason in the status line, when
+    // it cannot.
+    public bool LoadSound(Services.Sounds.SoundEntry sound)
+    {
+        if (SelectedTrack is not { SupportsMidiPlayback: true } track)
+        {
+            StatusMessage = "Select a MIDI track to load the sound on";
+            return false;
+        }
+
+        if (!string.Equals(track.PluginFilePath, sound.PluginPath, StringComparison.OrdinalIgnoreCase))
+        {
+            AssignPlugin(track, sound.PluginPath);
+        }
+
+        if (EnsureTrackInstrument(track) is not { } instrument)
+        {
+            return false;
+        }
+
+        byte[] preset;
+        try
+        {
+            preset = File.ReadAllBytes(sound.PresetPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            StatusMessage = $"{sound.Name}: the preset file could not be read";
+            return false;
+        }
+
+        if (!_liveInstrumentHost.TryLoadState(instrument, 0, preset))
+        {
+            StatusMessage = $"{sound.PluginName} did not take the sound {sound.Name}";
+            return false;
+        }
+
+        LiveInstrumentRegistry.Set(instrument);
+        StatusMessage = $"{track.Name} now plays {sound.Name} ({sound.PluginName})";
+        return true;
+    }
+
     // The first time a track's FX rack is opened, its SonVerb comes on when it is still the one every new
     // track starts with: switched off, on Small Room, untouched. It costs nothing until then. Opened again,
     // the rack leaves the reverb as the player left it. Returns true when the reverb was switched on.
