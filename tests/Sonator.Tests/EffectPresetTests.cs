@@ -89,6 +89,7 @@ public sealed class EffectPresetTests : IDisposable
     public void ThePresetInUse_IsSavedWithTheProject()
     {
         var track = PatternFactory.CreatePattern("Pattern 1", "Test", "01").Tracks[0];
+        track.Effects.Clear();
         var effect = new TrackEffectViewModel(EffectCatalog.Get(EffectKind.Delay));
         effect.Presets = FactoryPresets.For(EffectKind.Delay);
         effect.SelectedPreset = effect.Presets[0];

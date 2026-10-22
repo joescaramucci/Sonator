@@ -3445,14 +3445,14 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
         CaptureUndoStateIfNeeded();
 
-        var track = new PatternTrackViewModel(
+        var track = WithDefaultEffects(new PatternTrackViewModel(
             name.Trim(),
             instrument,
             channel,
             noteNumber,
             BuildDefaultTrackSteps(),
             trackType: trackType,
-            source: source.Trim());
+            source: source.Trim()));
 
         pattern.Tracks.Add(track);
         Tracks.Add(track);

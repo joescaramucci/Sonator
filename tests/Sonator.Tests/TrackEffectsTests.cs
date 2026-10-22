@@ -6,7 +6,33 @@ namespace Sonator.Tests;
 
 public sealed class TrackEffectsTests
 {
-    private static PatternTrackViewModel NewTrack() => PatternFactory.CreatePattern("Pattern 1", "Test", "01").Tracks[0];
+    // A track with an empty rack (new tracks start with SonVerb).
+    private static PatternTrackViewModel NewTrack()
+    {
+        var track = PatternFactory.CreatePattern("Pattern 1", "Test", "01").Tracks[0];
+        track.Effects.Clear();
+        return track;
+    }
+
+    [Fact]
+    public void NewTrack_StartsWithSonVerbSwitchedOn()
+    {
+        var track = PatternFactory.CreatePattern("Pattern 1", "Test", "01").Tracks[0];
+
+        var effect = Assert.Single(track.Effects);
+        Assert.Equal("SonVerb", effect.Name);
+        Assert.True(effect.IsEnabled);
+    }
+
+    [Fact]
+    public void TrackLoadedFromAProject_KeepsItsOwnRack()
+    {
+        var track = NewTrack();
+
+        var restored = ProjectDocumentMapper.ApplyTrackDocument(ProjectDocumentMapper.BuildTrackDocument(track));
+
+        Assert.Empty(restored.Effects);
+    }
 
     private static double PeakAfter(NativeEffectChain chain, double level)
     {
@@ -99,6 +125,7 @@ public sealed class EffectLevelTests
     {
         using var host = new TrackEffectsHost();
         var track = PatternFactory.CreatePattern("Pattern 1", "Test", "01").Tracks[0];
+        track.Effects.Clear();
         var limiter = new TrackEffectViewModel(EffectCatalog.Get(EffectKind.Limiter));
         limiter.Parameters[0].Value = -12;
         track.Effects.Add(limiter);

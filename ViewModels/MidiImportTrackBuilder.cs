@@ -54,14 +54,14 @@ internal static class MidiImportTrackBuilder
                 note.NoteNumber,
                 note.Velocity))
             .ToList();
-        return new PatternTrackViewModel(
+        return PatternFactory.WithDefaultEffects(new PatternTrackViewModel(
             lane.Name,
             GetInstrumentName(lane.Channel, lane.ProgramNumber),
             lane.Channel,
             firstNote?.NoteNumber ?? 60,
             steps,
             lane.ProgramNumber,
-            midiNoteEvents);
+            midiNoteEvents));
     }
 
     internal static string RemoveVoiceSuffix(string name)

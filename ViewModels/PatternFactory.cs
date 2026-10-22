@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Media;
+using Sonator.Services.Effects;
 
 namespace Sonator.ViewModels;
 
@@ -57,7 +58,14 @@ internal static class PatternFactory
             });
         }
 
-        return new PatternTrackViewModel(name, instrument, channel, noteNumber, stepItems);
+        return WithDefaultEffects(new PatternTrackViewModel(name, instrument, channel, noteNumber, stepItems));
+    }
+
+    // A new track starts with SonVerb in its rack, switched on. Tracks loaded from a project keep their own rack.
+    internal static PatternTrackViewModel WithDefaultEffects(PatternTrackViewModel track)
+    {
+        track.Effects.Add(new TrackEffectViewModel(EffectCatalog.Get(EffectKind.Verb)));
+        return track;
     }
 
     internal static SolidColorBrush CreateTrackColorBrush(string? colorHex)
