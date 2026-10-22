@@ -64,12 +64,13 @@ internal static class PatternFactory
     // The preset a new track's SonVerb starts on.
     internal const string DefaultVerbPreset = "Small Room";
 
-    // A new track starts with SonVerb in its rack, switched on, on the Small Room preset.
-    // Tracks loaded from a project keep their own rack.
+    // A new track starts with SonVerb in its rack on the Small Room preset, switched off: ready to switch on,
+    // and costing nothing until then. Tracks loaded from a project keep their own rack.
     internal static PatternTrackViewModel WithDefaultEffects(PatternTrackViewModel track)
     {
         var verb = new TrackEffectViewModel(EffectCatalog.Get(EffectKind.Verb));
         verb.ApplyPreset(FactoryPresets.For(EffectKind.Verb).First(preset => preset.Name == DefaultVerbPreset));
+        verb.IsEnabled = false;
         track.Effects.Add(verb);
         return track;
     }

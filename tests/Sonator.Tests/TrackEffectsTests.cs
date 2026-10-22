@@ -15,13 +15,13 @@ public sealed class TrackEffectsTests
     }
 
     [Fact]
-    public void NewTrack_StartsWithSonVerbSwitchedOn()
+    public void NewTrack_StartsWithSonVerbReady_ButSwitchedOff()
     {
         var track = PatternFactory.CreatePattern("Pattern 1", "Test", "01").Tracks[0];
 
         var effect = Assert.Single(track.Effects);
         Assert.Equal("SonVerb", effect.Name);
-        Assert.True(effect.IsEnabled);
+        Assert.False(effect.IsEnabled);
         Assert.Equal("Small Room", effect.PresetName);
         Assert.False(effect.IsPresetModified);
         Assert.Equal(new[] { 35.0, 50, 80, 5, 18 }, effect.Values);

@@ -670,9 +670,15 @@ namespace
         std::vector<Event> pendingMidi;
         BlockEventList blockEvents;
 
-        // How many times each note is held now, by channel and pitch, so every one can be released at once.
-        // Guarded by midiMutex.
+        // How many times each note is held now, by channel and pitch, so every one can be released at once,
+        // and how many are held in all. Guarded by midiMutex.
         uint8_t held[16][128]{};
+        int32 heldNotes = 0;
+
+        // A plug-in with no note held whose sound has been silent for half a second is not run, as Cubase
+        // does: it is asleep until a note or any other event arrives for it. Audio thread only.
+        int64 silentFrames = 0;
+        bool asleep = false;
 
         int32 channels = 2;
         std::vector<std::vector<float>> planar;
@@ -773,12 +779,22 @@ namespace
         // Renders one block of the plug-in through its effects into its own buffers. One thread at a time.
         void Render(int32 frames, double sampleRate)
         {
+            bool notesHeld = false;
             {
                 std::lock_guard<std::mutex> lock(midiMutex);
                 blockEvents.events.swap(pendingMidi);
                 pendingMidi.clear();
+                notesHeld = heldNotes > 0;
             }
             processData.inputEvents = &blockEvents;
+
+            const bool hasEvents = !blockEvents.events.empty();
+            if (asleep && !hasEvents)
+            {
+                return; // silent: AddTo leaves it out of the mix
+            }
+            asleep = false;
+
 
             for (int32 ch = 0; ch < channels; ++ch)
             {
@@ -788,11 +804,40 @@ namespace
             processData.numSamples = frames;
             processor->process(processData);
             ApplyEffects(module, pointers.data(), channels, frames, sampleRate);
+
+            // Silent after its effects, with no note held and none just played: it may go to sleep. About
+            // -100 dBFS counts as silence, well below anything heard.
+            constexpr float kSilence = 1.0e-5f;
+            bool silent = !notesHeld && !hasEvents;
+            for (int32 ch = 0; silent && ch < channels; ++ch)
+            {
+                const float* samples = planar[static_cast<size_t>(ch)].data();
+                for (int32 i = 0; i < frames; ++i)
+                {
+                    if (std::fabs(samples[i]) > kSilence)
+                    {
+                        silent = false;
+                        break;
+                    }
+                }
+            }
+
+            silentFrames = silent ? silentFrames + frames : 0;
+            if (silentFrames >= static_cast<int64>(sampleRate * 0.5))
+            {
+                asleep = true;
+                silentFrames = 0;
+            }
         }
 
-        // Adds the block last rendered to the stereo mix.
+        // Adds the block last rendered to the stereo mix. A plug-in asleep adds nothing.
         void AddTo(float* left, float* right, int32 frames) const
         {
+            if (asleep)
+            {
+                return;
+            }
+
             const float* sourceLeft = planar[0].data();
             const float* sourceRight = channels > 1 ? planar[1].data() : sourceLeft;
             for (int32 i = 0; i < frames; ++i)
@@ -3367,10 +3412,15 @@ int VstHostBridge_SendNoteEvent(void* moduleHandle, int32_t channel, int32_t pit
         auto& count = voice->held[channel][pitch];
         if (event.type == Event::kNoteOnEvent)
         {
-            count = count < 255 ? static_cast<uint8_t>(count + 1) : count;
+            if (count < 255)
+            {
+                ++count;
+                ++voice->heldNotes;
+            }
         }
         else
         {
+            voice->heldNotes -= count;
             count = 0; // one note-off releases the pitch, however many times it was struck
         }
     }
@@ -3419,6 +3469,7 @@ int VstHostBridge_ReleaseAllNotes(void* moduleHandle)
             voice->held[channel][pitch] = 0;
         }
     }
+    voice->heldNotes = 0;
     return 1;
 }
 
