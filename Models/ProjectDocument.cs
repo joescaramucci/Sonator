@@ -44,7 +44,8 @@ public sealed record TrackDocument(
     bool IsRecordArmed = false,
     string? TrackColor = null,
     string? PluginFilePath = null,
-    string? AudioClipPath = null);
+    string? AudioClipPath = null,
+    string? InstrumentIcon = null);
 
 public sealed record StepDocument(
     int Index,

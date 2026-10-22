@@ -1217,7 +1217,9 @@ public partial class MainWindow : Window
     private void TrackList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         // The plug-in name has its own double-click.
-        if (DataContext is not MainViewModel viewModel || IsInsideTagged(e.OriginalSource, "PluginName"))
+        if (DataContext is not MainViewModel viewModel
+            || IsInsideTagged(e.OriginalSource, "PluginName")
+            || IsInsideTagged(e.OriginalSource, "InstrumentIcon"))
         {
             return;
         }
@@ -1335,6 +1337,22 @@ public partial class MainWindow : Window
         _trackPluginWindows[track] = window;
         window.Owner = this;
         window.Show();
+    }
+
+    private void TrackInstrumentIcon_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel
+            || sender is not FrameworkElement { DataContext: ArrangeTimelineTrackViewModel timelineTrack })
+        {
+            return;
+        }
+
+        var track = timelineTrack.SourceTrack;
+        var picker = new InstrumentIconPickerWindow(track.Name, track.InstrumentIconKey) { Owner = this };
+        if (picker.ShowDialog() == true)
+        {
+            viewModel.SetTrackInstrumentIcon(track, picker.SelectedKey);
+        }
     }
 
     private void TrackColorMenuItem_Click(object sender, RoutedEventArgs e)

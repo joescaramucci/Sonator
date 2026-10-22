@@ -123,6 +123,23 @@ public sealed class PatternTrackViewModel : ViewModelBase
         ? null
         : System.IO.Path.GetFileNameWithoutExtension(PluginFilePath.TrimEnd('\\', '/'));
 
+    private string? _instrumentIconKey;
+
+    // The instrument icon shown under the track's name, by its key in InstrumentIcons. Null when none is chosen.
+    public string? InstrumentIconKey
+    {
+        get => _instrumentIconKey;
+        set
+        {
+            if (SetProperty(ref _instrumentIconKey, InstrumentIcons.Find(value)?.Key))
+            {
+                RaisePropertyChanged(nameof(InstrumentIcon));
+            }
+        }
+    }
+
+    public InstrumentIcon? InstrumentIcon => InstrumentIcons.Find(_instrumentIconKey);
+
     // A WAV file with the audio clip this track plays, when it was filled from the waveform editor.
     public string? AudioClipPath { get; set; }
 

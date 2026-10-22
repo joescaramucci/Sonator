@@ -1807,6 +1807,52 @@
                                                           IsChecked="{Binding SourceTrack.IsRecordArmed, Mode=OneWay}" Command="{Binding DataContext.ToggleTrackRecordArmCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding SourceTrack}"
                                                           ToolTip="Arm this track. Keys played on the MIDI keyboard are recorded into the armed track while recording is on" />
                                         </Grid>
+                                        <!-- The track's instrument icon, under its name. Clicking it opens the icon picker. -->
+                                        <Button Grid.Row="1"
+                                                Grid.Column="1"
+                                                Width="26"
+                                                Height="20"
+                                                HorizontalAlignment="Left"
+                                                VerticalAlignment="Center"
+                                                Focusable="False"
+                                                Cursor="Hand"
+                                                Tag="InstrumentIcon"
+                                                Foreground="#EEF3F8"
+                                                AutomationProperties.Name="INSTRUMENT ICON"
+                                                ToolTip="Click to choose the instrument icon"
+                                                Click="TrackInstrumentIcon_Click">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="IconBorder" Background="Transparent" CornerRadius="4" Padding="3,1">
+                                                        <ContentPresenter />
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="IconBorder" Property="Background" Value="#33FFFFFF" />
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                            <Grid>
+                                                <ContentControl Content="{Binding SourceTrack.InstrumentIcon}" />
+                                                <!-- Without an icon: a faint dashed box with a plus. -->
+                                                <Grid Opacity="0.5">
+                                                    <Grid.Style>
+                                                        <Style TargetType="Grid">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding SourceTrack.InstrumentIcon}" Value="{x:Null}">
+                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Grid.Style>
+                                                    <Rectangle Stroke="#EEF3F8" StrokeThickness="1" StrokeDashArray="2 2" RadiusX="3" RadiusY="3" />
+                                                    <TextBlock Text="+" FontSize="12" FontWeight="Bold" Foreground="#EEF3F8"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0" />
+                                                </Grid>
+                                            </Grid>
+                                        </Button>
                                         <Slider Grid.RowSpan="2"
                                                 Grid.Column="2"
                                                 Width="14"

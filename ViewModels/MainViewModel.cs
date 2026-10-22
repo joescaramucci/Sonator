@@ -3135,6 +3135,20 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             : $"{track.Name} color updated";
     }
 
+    public void SetTrackInstrumentIcon(PatternTrackViewModel track, string? iconKey)
+    {
+        if (track is null || track.InstrumentIconKey == iconKey)
+        {
+            return;
+        }
+
+        CaptureUndoStateIfNeeded();
+        track.InstrumentIconKey = iconKey;
+        StatusMessage = track.InstrumentIcon is { } icon
+            ? $"{track.Name} icon: {icon.Name}"
+            : $"{track.Name} icon removed";
+    }
+
 
     private void ResetTrackMeters()
     {

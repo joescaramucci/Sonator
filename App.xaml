@@ -1,8 +1,25 @@
 <Application x:Class="Sonator.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:Sonator.ViewModels"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
+        <!-- An instrument icon, drawn in the surrounding text colour and scaled to whatever size holds it. -->
+        <DataTemplate DataType="{x:Type vm:InstrumentIcon}">
+            <Viewbox Stretch="Uniform">
+                <Canvas Width="24" Height="24">
+                    <Path Data="{Binding Strokes}"
+                          Stroke="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource Self}}"
+                          StrokeThickness="1.6"
+                          StrokeLineJoin="Round"
+                          StrokeStartLineCap="Round"
+                          StrokeEndLineCap="Round" />
+                    <Path Data="{Binding Fills}"
+                          Fill="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource Self}}" />
+                </Canvas>
+            </Viewbox>
+        </DataTemplate>
+
         <!-- Dark scroll bars everywhere (windows, lists, drop-downs, plug-in windows) instead of the white Windows default. -->
         <Style x:Key="ScrollBarThumbStyle" TargetType="Thumb">
             <Setter Property="OverridesDefaultStyle" Value="True" />
