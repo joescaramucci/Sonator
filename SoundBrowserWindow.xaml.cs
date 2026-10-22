@@ -50,7 +50,7 @@ public partial class SoundBrowserWindow : Window
             ShowCategories();
             StatusText.Text = _sounds.Count == 0
                 ? "No sounds found. Sounds are read from the presets of Arturia's installed instruments."
-                : "Double-click a sound, or press Enter, to load it on the selected track. Then play it on the keyboard.";
+                : "Double-click, or press Enter: a sound loads on the selected track, to play on the keyboard; a groove's notes go into the track from the playhead's bar.";
         };
     }
 

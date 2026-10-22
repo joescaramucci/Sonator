@@ -4,7 +4,15 @@ using Microsoft.Data.Sqlite;
 
 namespace Sonator.Services.Sounds;
 
-// One sound a plug-in can play: a preset, where it is stored, and how it is filed.
+// What loading a sound does: a preset becomes the plug-in's sound; a groove's notes go into the track.
+public enum SoundKind
+{
+    Preset,
+    Groove,
+}
+
+// One sound a plug-in can play: a preset, or a groove of notes to play it with, where it is stored, and how
+// it is filed. PresetPath is the preset's file, or the groove's MIDI file.
 public sealed record SoundEntry(
     string Name,
     string Category,
@@ -14,7 +22,8 @@ public sealed record SoundEntry(
     string PresetPath,
     string Bank,
     string Designer,
-    string Tags)
+    string Tags,
+    SoundKind Kind = SoundKind.Preset)
 {
     // Everything a search looks through, in lower case.
     public string SearchText { get; } = $"{Name} {Category} {Subcategory} {PluginName} {Bank} {Designer} {Tags}".ToLowerInvariant();
@@ -41,11 +50,13 @@ public static class SoundCategories
     public const string Drums = "Drums & Percussion";
     public const string SoundFx = "Sound FX";
     public const string Other = "Other";
+    public const string DrumGrooves = "Drum Grooves";
+    public const string KeysGrooves = "Keys Grooves";
 
     public static IReadOnlyList<string> All { get; } = new[]
     {
         Piano, ElectricPiano, Organ, SynthKeys, Strings, Brass, Woodwinds, Guitar, Bells, Voices,
-        Bass, Lead, Pad, Pluck, Sequence, Drums, SoundFx, Other,
+        Bass, Lead, Pad, Pluck, Sequence, Drums, SoundFx, Other, DrumGrooves, KeysGrooves,
     };
 
     // Rules tried in order on the sound's name first, then on how its maker files it: the first that matches

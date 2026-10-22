@@ -1792,7 +1792,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             var installed = VstPlugins
                 .GroupBy(plugin => Path.GetFileNameWithoutExtension(plugin.FilePath.TrimEnd('\\', '/')), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(group => group.Key, group => group.First().FilePath, StringComparer.OrdinalIgnoreCase);
-            _sounds = Task.Run(() => Services.Sounds.ArturiaSoundSource.Read(installed));
+            _sounds = Task.Run(() => (IReadOnlyList<Services.Sounds.SoundEntry>)Services.Sounds.ArturiaSoundSource.Read(installed)
+                .Concat(Services.Sounds.ToontrackGrooveSource.Read(installed))
+                .ToList());
         }
 
         return _sounds;
@@ -1819,6 +1821,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return false;
         }
 
+        if (sound.Kind == Services.Sounds.SoundKind.Groove)
+        {
+            return LoadGroove(track, instrument, sound);
+        }
+
         byte[] preset;
         try
         {
@@ -1838,6 +1845,44 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
         LiveInstrumentRegistry.Set(instrument);
         StatusMessage = $"{track.Name} now plays {sound.Name} ({sound.PluginName})";
+        return true;
+    }
+
+    // A groove's notes go into the track from the start of the bar the playhead is in, each at its exact
+    // place, added to the notes already there. One undo takes them all away.
+    private bool LoadGroove(PatternTrackViewModel track, Vst3ModuleHandle instrument, Services.Sounds.SoundEntry groove)
+    {
+        IReadOnlyList<(double Start, double Length, int NoteNumber, int Velocity)> notes;
+        try
+        {
+            notes = Services.Sounds.GrooveReader.Read(groove.PresetPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException
+                                       or Melanchall.DryWetMidi.Common.MidiException)
+        {
+            StatusMessage = $"{groove.Name}: the groove could not be read";
+            return false;
+        }
+
+        if (notes.Count == 0)
+        {
+            StatusMessage = $"{groove.Name}: the groove has no notes";
+            return false;
+        }
+
+        var barStart = CurrentStepIndex / StepsPerBar * StepsPerBar;
+        var placed = notes.Select(note =>
+        {
+            var start = barStart + note.Start;
+            var step = (int)Math.Floor(start);
+            var wholeSteps = (int)Math.Floor(note.Length);
+            return new MidiNoteEventViewModel(step, wholeSteps, note.NoteNumber, note.Velocity, start - step, note.Length - wholeSteps);
+        });
+        ReplaceTrackNotes(track, track.MidiNoteEvents.Concat(placed).ToList());
+
+        var bars = Math.Max(1, (int)Math.Ceiling(notes.Max(note => note.Start + note.Length) / StepsPerBar));
+        LiveInstrumentRegistry.Set(instrument);
+        StatusMessage = $"{track.Name}: groove {groove.Name} ({groove.Bank}), {bars} bar{(bars == 1 ? "" : "s")} from bar {barStart / StepsPerBar + 1}, played by {groove.PluginName}";
         return true;
     }
 

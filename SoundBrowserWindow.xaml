@@ -90,7 +90,7 @@
                              TextChanged="SearchBox_TextChanged"
                              PreviewKeyDown="SearchBox_PreviewKeyDown"
                              AutomationProperties.Name="SEARCH SOUNDS" />
-                    <TextBlock Text="Search: sax, violin, piano, warm pad, dx7..." Margin="10,0" VerticalAlignment="Center" Foreground="#5F7286" IsHitTestVisible="False">
+                    <TextBlock Text="Search: sax, violin, piano, warm pad, motown, ballad fill..." Margin="10,0" VerticalAlignment="Center" Foreground="#5F7286" IsHitTestVisible="False">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
                                 <Setter Property="Visibility" Value="Collapsed" />
