@@ -665,14 +665,16 @@
                     </MenuItem>
                 </Menu>
 
-                <TextBlock Text="{Binding SongTitle, StringFormat='{}{0} — SONATOR 1.0'}"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
-                           FontFamily="Segoe UI Semibold"
-                           FontSize="15"
-                           FontWeight="Bold"
-                           Foreground="#CDD6E0"
-                           Margin="0,2,0,0" />
+                <!-- The Sonator logo in the middle of the menu bar, with the project's name beside it. -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <local:SonatorLogo Height="52" Margin="0,-4,0,-4" ToolTip="Sonator 1.0" />
+                    <TextBlock Text="{Binding SongTitle}"
+                               VerticalAlignment="Center"
+                               Margin="16,6,0,0"
+                               FontFamily="Segoe UI Semibold"
+                               FontSize="13"
+                               Foreground="#9FB4C9" />
+                </StackPanel>
             </Grid>
         </Border>
 
