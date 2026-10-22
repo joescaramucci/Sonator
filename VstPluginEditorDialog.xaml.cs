@@ -155,7 +155,7 @@ public partial class VstPluginEditorDialog : Window
         var label = new TextBlock
         {
             Text = string.IsNullOrWhiteSpace(parameter.Units) ? titleText : $"{titleText} ({parameter.Units})",
-            FontSize = 10,
+            FontSize = 11,
         };
         container.Children.Add(label);
 

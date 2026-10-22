@@ -39,14 +39,14 @@
             <Setter Property="BorderBrush" Value="#586E86" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="FontFamily" Value="Consolas" />
-            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontSize" Value="12" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Padding" Value="6,4,4,4" />
             <Setter Property="ItemContainerStyle">
                 <Setter.Value>
                     <Style TargetType="ComboBoxItem">
                         <Setter Property="FontFamily" Value="Consolas" />
-                        <Setter Property="FontSize" Value="11" />
+                        <Setter Property="FontSize" Value="12" />
                         <Setter Property="FontWeight" Value="SemiBold" />
                         <Setter Property="Background" Value="#1F2A38" />
                         <Setter Property="Foreground" Value="#C4CFDA" />
@@ -135,7 +135,7 @@
             <Setter Property="BorderBrush" Value="#5C7A99" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="FontFamily" Value="Consolas" />
-            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontSize" Value="12" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
@@ -164,7 +164,7 @@
             <Setter Property="Height" Value="24" />
             <Setter Property="Margin" Value="0,0,6,0" />
             <Setter Property="FontFamily" Value="Consolas" />
-            <Setter Property="FontSize" Value="10" />
+            <Setter Property="FontSize" Value="11" />
             <Setter Property="FontWeight" Value="Bold" />
             <Setter Property="Background" Value="#3A4F68" />
             <Setter Property="BorderBrush" Value="#6F87A0" />
@@ -192,7 +192,7 @@
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="FontFamily" Value="Consolas" />
-            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontSize" Value="12" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <Setter.Value>
@@ -257,7 +257,7 @@
             <Setter Property="BorderBrush" Value="#607A96" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="FontFamily" Value="Consolas" />
-            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontSize" Value="12" />
             <Setter Property="Cursor" Value="Arrow" />
             <Setter Property="Template">
                 <Setter.Value>
@@ -290,7 +290,7 @@
             <Setter Property="Background" Value="#212D3A" />
             <Setter Property="Foreground" Value="#C4CFDA" />
             <Setter Property="FontFamily" Value="Segoe UI Semibold" />
-            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontSize" Value="12" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="GroupBox">
@@ -676,7 +676,7 @@
                         </Button.Style>
                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                             <TextBlock Text="{Binding LoopModeText}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#E4ECF4" />
-                            <TextBlock Text="LOOP" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                            <TextBlock Text="LOOP" FontSize="11" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                         </StackPanel>
                     </Button>
                 </Border>
@@ -698,7 +698,7 @@
                         </Button.Style>
                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                             <TextBlock Text="{Binding ArrangeModeText}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#E4ECF4" />
-                            <TextBlock Text="ARRANGE" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                            <TextBlock Text="ARRANGE" FontSize="11" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                         </StackPanel>
                     </Button>
                 </Border>
@@ -719,7 +719,7 @@
                         </Border.Style>
                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                             <TextBox Text="{Binding Tempo, StringFormat=0.000, UpdateSourceTrigger=LostFocus}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA"  Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Center" IsReadOnly="True" Cursor="Hand" MouseDoubleClick="Tempo_MouseDoubleClick" MouseWheel="Tempo_MouseWheel" LostFocus="Tempo_LostFocus" KeyDown="Tempo_KeyDown" />
-                            <TextBlock Text="TEMPO" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                            <TextBlock Text="TEMPO" FontSize="11" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                         </StackPanel>
                     </Border>
                 </Border>
@@ -750,30 +750,30 @@
                             </Button>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,2,0,0">
-                            <Button Width="88" Height="20" FontSize="10" Content="{Binding SelectedClickOption.Label}"
+                            <Button Width="88" Height="20" FontSize="11" Content="{Binding SelectedClickOption.Label}"
                                     Command="{Binding CycleClickOptionCommand}" ToolTip="Click on quarter notes or eighths. Press to change." />
-                            <Button Width="88" Height="20" Margin="2,0,0,0" FontSize="10" Content="{Binding SelectedCountIn.Label}"
+                            <Button Width="88" Height="20" Margin="2,0,0,0" FontSize="11" Content="{Binding SelectedCountIn.Label}"
                                     Command="{Binding CycleCountInCommand}" ToolTip="Bars of clicks before recording starts. Press to change." />
                         </StackPanel>
-                        <TextBlock Text="METRONOME" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                        <TextBlock Text="METRONOME" FontSize="11" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                     </StackPanel>
                 </Border>
                 <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                         <TextBlock Text="{Binding TimeSignature}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
-                        <TextBlock Text="SIGNATURE" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                        <TextBlock Text="SIGNATURE" FontSize="11" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                     </StackPanel>
                 </Border>
                 <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                         <TextBlock Text="{Binding TransportPosition}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
-                        <TextBlock Text="MIN:SEC.1/100" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                        <TextBlock Text="MIN:SEC.1/100" FontSize="11" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                     </StackPanel>
                 </Border>
                 <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                         <TextBlock Text="{Binding CurrentStepBar}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
-                        <TextBlock Text="BAR 4 8 16" FontSize="10" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                        <TextBlock Text="BAR 4 8 16" FontSize="11" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                     </StackPanel>
                 </Border>
                 <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
@@ -808,7 +808,7 @@
                             <ColumnDefinition Width="62" />
                             <ColumnDefinition Width="62" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="BAR" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas" />
+                        <TextBlock Text="BAR" HorizontalAlignment="Center" FontSize="11" FontFamily="Consolas" />
                         <TextBlock Grid.Column="1" Text="ARRANGE" HorizontalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" />
                         <TextBlock Grid.Column="2" Text="a" HorizontalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" />
                         <TextBlock Grid.Column="3" Text="b" HorizontalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" />
@@ -823,12 +823,12 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="38" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="BARS" VerticalAlignment="Center" FontSize="10" />
+                            <TextBlock Text="BARS" VerticalAlignment="Center" FontSize="11" />
                             <TextBox Grid.Column="1"
                                      Text="{Binding SelectedArrangePatternLength, UpdateSourceTrigger=PropertyChanged}"
                                      HorizontalContentAlignment="Center"
                                      Padding="1,0" />
-                            <TextBlock Grid.Column="2" Text="TRANSPOSE" Margin="5,0,0,0" VerticalAlignment="Center" FontSize="10" />
+                            <TextBlock Grid.Column="2" Text="TRANSPOSE" Margin="5,0,0,0" VerticalAlignment="Center" FontSize="11" />
                             <TextBox Grid.Column="3"
                                      Text="{Binding SelectedPatternTranspose, UpdateSourceTrigger=PropertyChanged}"
                                      HorizontalContentAlignment="Center"
@@ -836,18 +836,18 @@
                         </Grid>
                         <Grid Margin="0,3,0,0">
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="40" />
+                                <ColumnDefinition Width="70" />
                                 <ColumnDefinition Width="34" />
-                                <ColumnDefinition Width="54" />
-                                <ColumnDefinition Width="28" />
-                                <ColumnDefinition Width="54" />
+                                <ColumnDefinition Width="70" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="START" VerticalAlignment="Center" FontSize="9" />
+                            <TextBlock Text="START" VerticalAlignment="Center" FontSize="10" />
                             <TextBox Grid.Column="1"
                                      Text="{Binding SelectedArrangePatternStart, Mode=OneWay}"
                                      IsReadOnly="True"
                                      Padding="1,0"
                                      HorizontalContentAlignment="Center" />
-                            <TextBlock Grid.Column="2" Text="END" VerticalAlignment="Center" FontSize="9" />
+                            <TextBlock Grid.Column="2" Text="END" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="10" />
                             <TextBox Grid.Column="3"
                                      Text="{Binding SelectedArrangePatternEnd, Mode=OneWay}"
                                      IsReadOnly="True"
@@ -856,10 +856,10 @@
                         </Grid>
                         <Grid Margin="0,2,0,0">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="44" />
-                                <ColumnDefinition Width="54" />
+                                <ColumnDefinition Width="50" />
+                                <ColumnDefinition Width="70" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="LENGTH" VerticalAlignment="Center" FontSize="9" />
+                            <TextBlock Text="LENGTH" VerticalAlignment="Center" FontSize="10" />
                             <TextBox Grid.Column="1"
                                      Text="{Binding SelectedArrangePatternLengthDisplay, UpdateSourceTrigger=LostFocus}"
                                      Padding="1,0"
@@ -886,7 +886,7 @@
                                     <ColumnDefinition Width="0.62*" />
                                     <ColumnDefinition Width="0.62*" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="BAR" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10" FontFamily="Consolas" Foreground="#C4CFDA" />
+                                <TextBlock Text="BAR" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" FontFamily="Consolas" Foreground="#C4CFDA" />
                                 <TextBlock Grid.Column="1" Text="ARRANGE" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" Foreground="#C4CFDA" />
                                 <TextBlock Grid.Column="2" Text="a" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" Foreground="#C4CFDA" />
                                 <TextBlock Grid.Column="3" Text="b" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" Foreground="#C4CFDA" />
@@ -933,7 +933,7 @@
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
-                                                <TextBlock Text="{Binding DisplayBarNumber}" HorizontalAlignment="Center" VerticalAlignment="Center" FontFamily="Consolas" FontSize="10" FontWeight="Bold">
+                                                <TextBlock Text="{Binding DisplayBarNumber}" HorizontalAlignment="Center" VerticalAlignment="Center" FontFamily="Consolas" FontSize="11" FontWeight="Bold">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
                                                             <Setter Property="Foreground" Value="#C4CFDA" />
@@ -1019,7 +1019,7 @@
                                                                    </Style.Triggers>
                                                                </Style>
                                                            </Border.Style>
-                                                           <TextBlock Text="{Binding DisplayLabel}" HorizontalAlignment="Center" VerticalAlignment="Center" FontFamily="Consolas" FontSize="10">
+                                                           <TextBlock Text="{Binding DisplayLabel}" HorizontalAlignment="Center" VerticalAlignment="Center" FontFamily="Consolas" FontSize="11">
                                                                <TextBlock.Style>
                                                                    <Style TargetType="TextBlock">
                                                                        <Setter Property="Foreground" Value="#C4CFDA" />
@@ -1058,7 +1058,7 @@
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center"
                                            FontFamily="Consolas"
-                                           FontSize="9"
+                                           FontSize="10"
                                            Foreground="#9FB4C9" />
                             </Border>
                         </StackPanel>
@@ -1077,7 +1077,7 @@
                                     Margin="0,-2">
                             <TextBlock Text="ZOOM"
                                        VerticalAlignment="Center"
-                                       FontSize="8"
+                                       FontSize="10"
                                        Margin="0,0,4,0"
                                        Foreground="#BCC9D8" />
                             <Slider Width="90"
@@ -1116,7 +1116,7 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel Margin="5,2">
                             <TextBlock Text="{Binding SelectedPattern.Name}" FontWeight="Bold" FontFamily="Consolas" />
-                            <TextBlock Text="{Binding SelectedPattern.Summary}" FontSize="9" FontFamily="Consolas" />
+                            <TextBlock Text="{Binding SelectedPattern.Summary}" FontSize="10" FontFamily="Consolas" />
                         </StackPanel>
                         <ItemsControl Grid.Column="1"
                                       Width="{Binding TimelineContentWidth}"
@@ -1137,7 +1137,7 @@
                                     <Grid Width="{Binding DataContext.TimelineBarWidth, RelativeSource={RelativeSource AncestorType=Window}}">
                                         <TextBlock HorizontalAlignment="Left"
                                                    Margin="5,0,0,0"
-                                                   FontSize="9"
+                                                   FontSize="10"
                                                    VerticalAlignment="Center"
                                                    FontWeight="Bold">
                                             <Run Text="BAR " />
@@ -1303,7 +1303,7 @@
                                                            FontWeight="Bold"
                                                            Foreground="#E4ECF4"
                                                            TextTrimming="CharacterEllipsis" />
-                                                <TextBlock FontSize="9" Foreground="#8FA6BD">
+                                                <TextBlock FontSize="10" Foreground="#8FA6BD">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
                                                             <Style.Triggers>
@@ -1320,7 +1320,7 @@
                                                     <Run Text="{Binding SourceTrack.RoutingDisplay, Mode=OneWay}" />
                                                 </TextBlock>
                                                 <TextBlock Text="{Binding SourceTrack.PluginName}"
-                                                           FontSize="11"
+                                                           FontSize="12"
                                                            FontWeight="SemiBold"
                                                            Foreground="#9FD3F2"
                                                            TextTrimming="CharacterEllipsis"
@@ -1460,7 +1460,7 @@
                                                                 </Style.Triggers>
                                                             </Style>
                                                         </Border.Style>
-                                                        <TextBlock Text="{Binding MidiNoteLabel}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="8" Foreground="White">
+                                                        <TextBlock Text="{Binding MidiNoteLabel}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10" Foreground="White">
                                                             <TextBlock.Style>
                                                                 <Style TargetType="TextBlock">
                                                                     <Setter Property="Visibility" Value="Collapsed" />
@@ -1638,11 +1638,11 @@
                                 Command="{Binding AddTrackCommand}"
                                 CommandParameter="midi"
                                 Padding="2,0"
-                                FontSize="9" />
+                                FontSize="10" />
                         <Button Content="DELETE TRACK"
                                 Command="{Binding DeleteTrackCommand}"
                                 Padding="2,0"
-                                FontSize="9" />
+                                FontSize="10" />
                     </UniformGrid>
                     <ListBox x:Name="FrozenTrackListBox"
                              ItemsSource="{Binding TimelineTracks}"
@@ -1803,7 +1803,7 @@
                                                        Tag="TrackName"
                                                        ToolTip="Click to set the track's name and MIDI channel"
                                                        MouseLeftButtonDown="TrackName_MouseLeftButtonDown" />
-                                            <TextBlock FontSize="9" Foreground="#8FA6BD">
+                                            <TextBlock FontSize="10" Foreground="#8FA6BD">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
                                                         <Style.Triggers>
@@ -1820,7 +1820,7 @@
                                                 <Run Text="{Binding SourceTrack.RoutingDisplay, Mode=OneWay}" />
                                             </TextBlock>
                                             <TextBlock Text="{Binding SourceTrack.PluginName}"
-                                                       FontSize="11"
+                                                       FontSize="12"
                                                        FontWeight="SemiBold"
                                                        Foreground="#9FD3F2"
                                                        TextTrimming="CharacterEllipsis"
@@ -1953,7 +1953,7 @@
                         Panel.ZIndex="11">
                     <StackPanel Margin="5,2">
                         <TextBlock Text="{Binding SelectedPattern.Name}" FontWeight="Bold" FontFamily="Consolas" Foreground="#E4ECF4" />
-                        <TextBlock Text="{Binding SelectedPattern.Summary}" FontSize="9" FontFamily="Consolas" Foreground="#8FA6BD" />
+                        <TextBlock Text="{Binding SelectedPattern.Summary}" FontSize="10" FontFamily="Consolas" Foreground="#8FA6BD" />
                     </StackPanel>
                 </Border>
                 </Grid>
@@ -2003,7 +2003,7 @@
                         </Grid>
                     </Border>
 
-                    <TextBlock Text="PLUGIN" FontSize="10" Margin="0,6,0,2" />
+                    <TextBlock Text="PLUGIN" FontSize="11" Margin="0,6,0,2" />
                     <ComboBox ItemsSource="{Binding VstPlugins}" DisplayMemberPath="Name" SelectedValuePath="FilePath"
                               SelectedValue="{Binding SelectedTrack.PluginFilePath}" Margin="0,0,0,4" ToolTip="The VST3 plug-in this track plays through" />
                     <StackPanel Orientation="Horizontal" Margin="0,6,0,4">
@@ -2036,7 +2036,7 @@
                                     Margin="0,0,0,4">
                                 <TextBlock Text="MASTER"
                                            FontFamily="Consolas"
-                                           FontSize="9"
+                                           FontSize="10"
                                            FontWeight="Bold"
                                            Foreground="{StaticResource Ink}"
                                            HorizontalAlignment="Center" />
@@ -2064,7 +2064,7 @@
                             <TextBlock Grid.Row="2"
                                        Text="{Binding MasterVolume, Converter={StaticResource VolumePercentConverter}, StringFormat={}{0:0}%}"
                                        FontFamily="Consolas"
-                                       FontSize="9"
+                                       FontSize="10"
                                        FontWeight="Bold"
                                        Foreground="{StaticResource Ink}"
                                        HorizontalAlignment="Center" />
@@ -2087,7 +2087,7 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="38" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="LEFT LOCATOR" FontSize="10" VerticalAlignment="Center" />
+                            <TextBlock Text="LEFT LOCATOR" FontSize="11" VerticalAlignment="Center" />
                             <TextBox Grid.Column="1"
                                      Text="{Binding LoopStartStep, UpdateSourceTrigger=PropertyChanged}"
                                      HorizontalContentAlignment="Center"
@@ -2100,7 +2100,7 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="38" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="RIGHT LOCATOR" FontSize="10" VerticalAlignment="Center" />
+                            <TextBlock Text="RIGHT LOCATOR" FontSize="11" VerticalAlignment="Center" />
                             <TextBox Grid.Column="1"
                                      Text="{Binding LoopEndStep, UpdateSourceTrigger=PropertyChanged}"
                                      HorizontalContentAlignment="Center"
@@ -2139,14 +2139,14 @@
                         <Button Content="START" Command="{Binding PlayCommand}" />
                     </UniformGrid>
                     <Button Content="IMPORT MIDI" Command="{Binding ImportMidiCommand}" Margin="0,0,0,4" />
-                    <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="9" Margin="2,2,2,0" />
+                    <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="10" Margin="2,2,2,0" />
                 </StackPanel>
                 </GroupBox>
 
                 <GroupBox Header="VST PLUG-IN" Grid.Row="1" Margin="0,4,0,0">
                     <DockPanel>
                         <StackPanel DockPanel.Dock="Top" Margin="0,0,0,4">
-                            <TextBlock Text="Additional VST folder (in addition to Program Files\Common Files\VST3)" FontSize="10" Margin="0,0,0,2" TextWrapping="Wrap" />
+                            <TextBlock Text="Additional VST folder (in addition to Program Files\Common Files\VST3)" FontSize="11" Margin="0,0,0,2" TextWrapping="Wrap" />
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
@@ -2166,7 +2166,7 @@
 
                         <TextBlock DockPanel.Dock="Top"
                                    Text="No plug-ins found. Select a VST folder."
-                                   FontSize="10"
+                                   FontSize="11"
                                    TextWrapping="Wrap"
                                    Foreground="{StaticResource Ink}"
                                    Margin="0,0,0,4">
@@ -2228,7 +2228,7 @@
                                                         Background="#CC111820"
                                                         Padding="4,2">
                                                     <TextBlock Text="{Binding Name}"
-                                                               FontSize="10"
+                                                               FontSize="11"
                                                                FontWeight="SemiBold"
                                                                TextTrimming="CharacterEllipsis"
                                                                TextAlignment="Center"

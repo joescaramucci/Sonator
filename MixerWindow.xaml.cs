@@ -78,7 +78,7 @@ public partial class MixerWindow : Window
             pluginPanel.Children.Add(new TextBlock
             {
                 Text = Path.GetFileNameWithoutExtension(track.PluginFilePath),
-                FontSize = 10,
+                FontSize = 11,
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 0, 0, 4),
             });
@@ -93,7 +93,7 @@ public partial class MixerWindow : Window
         var handle = GetOrLoadModule(pluginPath, out var error);
         if (handle is null)
         {
-            strip.Children.Add(new TextBlock { Text = error ?? "plug-in not loaded", FontSize = 10, TextWrapping = TextWrapping.Wrap });
+            strip.Children.Add(new TextBlock { Text = error ?? "plug-in not loaded", FontSize = 11, TextWrapping = TextWrapping.Wrap });
             return;
         }
 
@@ -102,7 +102,7 @@ public partial class MixerWindow : Window
             strip.Children.Add(new TextBlock
             {
                 Text = string.IsNullOrWhiteSpace(parameter.Units) ? parameter.Title : $"{parameter.Title} ({parameter.Units})",
-                FontSize = 9,
+                FontSize = 10,
                 TextTrimming = TextTrimming.CharacterEllipsis,
             });
 

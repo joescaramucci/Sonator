@@ -172,7 +172,7 @@ public partial class PianoRollWindow : Window
                 var label = new TextBlock
                 {
                     Text = $"C{note / 12 - 1}",
-                    FontSize = 9,
+                    FontSize = 10,
                     Foreground = Brushes.Black,
                 };
                 Canvas.SetLeft(label, 4);
@@ -224,11 +224,11 @@ public partial class PianoRollWindow : Window
             var value = new TextBlock
             {
                 Text = level.ToString(),
-                FontSize = 8,
+                FontSize = 10,
                 Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x80, 0x96)),
             };
-            Canvas.SetLeft(value, KeyboardWidth - 20);
-            Canvas.SetTop(value, y - 6);
+            Canvas.SetLeft(value, KeyboardWidth - 22);
+            Canvas.SetTop(value, y - 7);
             PianoRollCanvas.Children.Add(value);
         }
 
@@ -250,7 +250,7 @@ public partial class PianoRollWindow : Window
         var label = new TextBlock
         {
             Text = "VELOCITY",
-            FontSize = 9,
+            FontSize = 10,
             FontWeight = FontWeights.Bold,
             Foreground = new SolidColorBrush(Color.FromRgb(0x8F, 0xA6, 0xBD)),
             LayoutTransform = new RotateTransform(-90),
@@ -300,7 +300,7 @@ public partial class PianoRollWindow : Window
                 var value = new TextBlock
                 {
                     Text = note.Velocity.ToString(),
-                    FontSize = 11,
+                    FontSize = 12,
                     FontWeight = FontWeights.Bold,
                     Foreground = new SolidColorBrush(Color.FromRgb(0xF2, 0xC1, 0x4E)),
                 };
