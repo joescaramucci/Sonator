@@ -16,13 +16,8 @@
             <Setter Property="FontFamily" Value="Consolas" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
-        <Style TargetType="ComboBox">
-            <Setter Property="Background" Value="#212D3A" />
-            <Setter Property="Foreground" Value="#1B2330" />
-            <Setter Property="BorderBrush" Value="#607A96" />
-            <Setter Property="FontFamily" Value="Consolas" />
+        <Style TargetType="ComboBox" BasedOn="{StaticResource DarkComboBox}">
             <Setter Property="Margin" Value="0,4,0,12" />
-            <Setter Property="Padding" Value="6,3" />
         </Style>
         <Style TargetType="Button">
             <Setter Property="Background" Value="#212D3A" />

@@ -16,14 +16,6 @@
             <Setter Property="Foreground" Value="#C4CFDA" />
             <Setter Property="FontFamily" Value="Consolas" />
         </Style>
-        <Style TargetType="ComboBox">
-            <Setter Property="Background" Value="#212D3A" />
-            <Setter Property="Foreground" Value="#1B2330" />
-            <Setter Property="BorderBrush" Value="#607A96" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Padding" Value="4,2" />
-            <Setter Property="FontFamily" Value="Consolas" />
-        </Style>
         <Style TargetType="Button">
             <Setter Property="Background" Value="#2A3948" />
             <Setter Property="Foreground" Value="#C4CFDA" />
