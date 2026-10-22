@@ -1440,8 +1440,15 @@ public partial class MainWindow : Window
         window.Show();
     }
 
+    // A plug-in window put away in the dock. The dock lists these, not the windows: an ItemsControl given a
+    // window would try to place the window itself inside the dock.
+    private sealed record DockedPluginWindow(Window Window)
+    {
+        public string Title => Window.Title;
+    }
+
     // The plug-in windows put away in the dock at the bottom, in the order they went there.
-    private readonly System.Collections.ObjectModel.ObservableCollection<Window> _dockedPluginWindows = new();
+    private readonly System.Collections.ObjectModel.ObservableCollection<DockedPluginWindow> _dockedPluginWindows = new();
 
     // A click on the timeline puts the open plug-in windows away in the dock, each a button with its
     // instrument's name, so the timeline is in view. They come back from the dock or with a double-click on
@@ -1472,21 +1479,24 @@ public partial class MainWindow : Window
 
     private void DockPluginWindow(Window window)
     {
-        if (!window.IsVisible || _dockedPluginWindows.Contains(window))
+        if (!window.IsVisible || _dockedPluginWindows.Any(docked => ReferenceEquals(docked.Window, window)))
         {
             return;
         }
 
         PluginDockItems.ItemsSource ??= _dockedPluginWindows;
         window.Hide();
-        _dockedPluginWindows.Add(window);
+        _dockedPluginWindows.Add(new DockedPluginWindow(window));
         window.Closed += (_, _) => UndockPluginWindow(window);
         PluginDock.Visibility = Visibility.Visible;
     }
 
     private void UndockPluginWindow(Window window)
     {
-        _dockedPluginWindows.Remove(window);
+        foreach (var docked in _dockedPluginWindows.Where(docked => ReferenceEquals(docked.Window, window)).ToList())
+        {
+            _dockedPluginWindows.Remove(docked);
+        }
         if (_dockedPluginWindows.Count == 0)
         {
             PluginDock.Visibility = Visibility.Collapsed;
@@ -1503,9 +1513,9 @@ public partial class MainWindow : Window
 
     private void PluginDockButton_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement { DataContext: Window window })
+        if (sender is FrameworkElement { DataContext: DockedPluginWindow docked })
         {
-            ShowPluginWindow(window);
+            ShowPluginWindow(docked.Window);
         }
     }
 
