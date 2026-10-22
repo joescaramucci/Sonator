@@ -148,6 +148,12 @@ public sealed class PatternTrackViewModel : ViewModelBase
 
     public bool HasPlugin => PluginFilePath is not null;
 
+    // The plug-in's own state, the sound and settings chosen in it, as taken when the project was last saved:
+    // the processor's part and the editor's. The plug-in gets them back when it starts. Null when there is none.
+    public byte[]? PluginState { get; set; }
+
+    public byte[]? PluginEditorState { get; set; }
+
     // The plug-in's name as shown on the track: its file or bundle name without the extension.
     public string? PluginName => PluginFilePath is null
         ? null

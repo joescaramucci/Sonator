@@ -327,8 +327,12 @@ namespace
             return kResultOk;
         }
 
+        MemoryIBStream() = default;
+        MemoryIBStream(const uint8_t* bytes, size_t count) : data_(bytes, bytes + count) {}
+
         void rewind() { position_ = 0; }
         size_t size() const { return data_.size(); }
+        const std::vector<char>& bytes() const { return data_; }
 
     private:
         std::vector<char> data_;
@@ -442,6 +446,9 @@ namespace
         // other threads than the one that starts and stops the audio.
         std::mutex voiceMutex;
         std::shared_ptr<MixerVoice> voice;
+
+        // The state last taken by VstHostBridge_SaveState, until it is read.
+        std::vector<char> savedState;
 
         // The module's ExitDll, when it exports one: called before the DLL is freed.
         bool (PLUGIN_API* exitDll)() = nullptr;
@@ -1291,6 +1298,87 @@ int VstHostBridge_AttachEffectChain(void* moduleHandle, void* chainHandle)
     std::lock_guard<std::mutex> lock(module->effectsMutex);
     module->effects.swap(chain);
     return 1;
+}
+
+int32_t VstHostBridge_SaveState(void* moduleHandle, int32_t part)
+{
+    if (moduleHandle == nullptr)
+    {
+        return -1;
+    }
+
+    auto* module = static_cast<BridgeModule*>(moduleHandle);
+    module->savedState.clear();
+    MemoryIBStream stream;
+    tresult result = kResultFalse;
+    if (part == 0 && module->component != nullptr)
+    {
+        result = module->component->getState(&stream);
+    }
+    else if (part == 1 && module->controller != nullptr && !module->controllerIsComponent)
+    {
+        result = module->controller->getState(&stream);
+    }
+
+    if (result != kResultOk)
+    {
+        return -1;
+    }
+
+    module->savedState = stream.bytes();
+    return static_cast<int32_t>(module->savedState.size());
+}
+
+int VstHostBridge_ReadSavedState(void* moduleHandle, uint8_t* buffer, int32_t capacity)
+{
+    if (moduleHandle == nullptr || buffer == nullptr)
+    {
+        return 0;
+    }
+
+    auto* module = static_cast<BridgeModule*>(moduleHandle);
+    if (capacity < static_cast<int32_t>(module->savedState.size()))
+    {
+        return 0;
+    }
+
+    std::memcpy(buffer, module->savedState.data(), module->savedState.size());
+    module->savedState.clear();
+    module->savedState.shrink_to_fit();
+    return 1;
+}
+
+int VstHostBridge_LoadState(void* moduleHandle, int32_t part, const uint8_t* data, int32_t size)
+{
+    if (moduleHandle == nullptr || data == nullptr || size <= 0)
+    {
+        return 0;
+    }
+
+    auto* module = static_cast<BridgeModule*>(moduleHandle);
+    MemoryIBStream stream(data, static_cast<size_t>(size));
+    if (part == 0 && module->component != nullptr)
+    {
+        if (module->component->setState(&stream) != kResultOk)
+        {
+            return 0;
+        }
+
+        // The controller follows the processor's state, as when the plug-in was loaded.
+        if (module->controller != nullptr && !module->controllerIsComponent)
+        {
+            stream.rewind();
+            module->controller->setComponentState(&stream);
+        }
+        return 1;
+    }
+
+    if (part == 1 && module->controller != nullptr && !module->controllerIsComponent)
+    {
+        return module->controller->setState(&stream) == kResultOk ? 1 : 0;
+    }
+
+    return 0;
 }
 
 void* VstHostBridge_LoadModule(const wchar_t* filePath)

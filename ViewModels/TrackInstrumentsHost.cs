@@ -52,6 +52,16 @@ internal sealed class TrackInstrumentsHost : IDisposable
             return null;
         }
 
+        // The sound saved with the project comes back before the plug-in plays.
+        if (track.PluginState is { } state)
+        {
+            _host.TryLoadState(handle, 0, state);
+        }
+        if (track.PluginEditorState is { } editorState)
+        {
+            _host.TryLoadState(handle, 1, editorState);
+        }
+
         _effectsFor(track)?.AttachTo(handle);
         string? audioError = null;
         if (!_host.HasAudioProcessor(handle) || !_host.TryStartAudio(handle, selection, out audioError))
@@ -104,6 +114,40 @@ internal sealed class TrackInstrumentsHost : IDisposable
         foreach (var handle in stale)
         {
             Stop(handle);
+        }
+    }
+
+    // Takes each running plug-in's state into its track, so saving the project keeps the sounds chosen.
+    public void CaptureStates()
+    {
+        List<KeyValuePair<PatternTrackViewModel, Vst3ModuleHandle>> running;
+        lock (_sync)
+        {
+            running = _instruments.Where(pair => IsFor(pair.Key, pair.Value)).ToList();
+        }
+
+        foreach (var (track, handle) in running)
+        {
+            track.PluginState = _host.TrySaveState(handle, 0) ?? track.PluginState;
+            track.PluginEditorState = _host.TrySaveState(handle, 1) ?? track.PluginEditorState;
+        }
+    }
+
+    // Hands the running plug-ins to the tracks that took the place of theirs, as after undo or redo, so they
+    // keep playing with the sound they have instead of starting again.
+    public void HandOver(Func<PatternTrackViewModel, PatternTrackViewModel?> successorOf)
+    {
+        lock (_sync)
+        {
+            foreach (var (track, handle) in _instruments.ToList())
+            {
+                if (successorOf(track) is { } successor && !ReferenceEquals(successor, track)
+                    && IsFor(successor, handle) && !_instruments.ContainsKey(successor))
+                {
+                    _instruments.Remove(track);
+                    _instruments[successor] = handle;
+                }
+            }
         }
     }
 

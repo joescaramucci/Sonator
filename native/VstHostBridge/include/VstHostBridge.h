@@ -136,6 +136,17 @@ VSTHOSTBRIDGE_API void VstHostBridge_StopAudio(void* moduleHandle);
 // isOn 0, or velocity 0, releases the note. Returns 1 if queued, 0 if audio is not running.
 VSTHOSTBRIDGE_API int VstHostBridge_SendNoteEvent(void* moduleHandle, int32_t channel, int32_t pitch, int32_t velocity, int32_t isOn);
 
+// Takes the plug-in's state, the sound and settings chosen in it, so it can be saved with the project. part 0
+// is the processor's state, part 1 the editor's (plug-ins with one object have only part 0). Returns its
+// size in bytes, then VstHostBridge_ReadSavedState copies it out; -1 when the plug-in has none to give.
+VSTHOSTBRIDGE_API int32_t VstHostBridge_SaveState(void* moduleHandle, int32_t part);
+
+// Copies the state taken by VstHostBridge_SaveState into buffer. Returns 1 if copied, 0 if it does not fit.
+VSTHOSTBRIDGE_API int VstHostBridge_ReadSavedState(void* moduleHandle, uint8_t* buffer, int32_t capacity);
+
+// Gives the plug-in back a state taken by VstHostBridge_SaveState. Returns 1 if the plug-in took it.
+VSTHOSTBRIDGE_API int VstHostBridge_LoadState(void* moduleHandle, int32_t part, const uint8_t* data, int32_t size);
+
 // Releases every note the module's plug-in is holding: those sent with VstHostBridge_SendNoteEvent and not
 // released since. Returns 1 if done, 0 if audio is not running.
 VSTHOSTBRIDGE_API int VstHostBridge_ReleaseAllNotes(void* moduleHandle);

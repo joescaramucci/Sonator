@@ -144,6 +144,17 @@ public interface IVst3PluginHost
     void ReleaseAllNotes(Vst3ModuleHandle handle);
 
     /// <summary>
+    /// The plug-in's state (the sound and settings chosen in it), to save with the project: part 0 is the
+    /// processor's, part 1 the editor's. Null when the plug-in has none to give.
+    /// </summary>
+    byte[]? TrySaveState(Vst3ModuleHandle handle, int part);
+
+    /// <summary>
+    /// Gives the plug-in back a state taken by <see cref="TrySaveState"/>. True if it took it.
+    /// </summary>
+    bool TryLoadState(Vst3ModuleHandle handle, int part, byte[] state);
+
+    /// <summary>
     /// True if real-time audio is currently running for this module.
     /// </summary>
     bool IsAudioRunning(Vst3ModuleHandle handle);

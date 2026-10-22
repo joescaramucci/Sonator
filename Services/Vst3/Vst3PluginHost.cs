@@ -300,6 +300,52 @@ public sealed class Vst3PluginHost : IVst3PluginHost
         return Vst3HostInterop.VstHostBridge_SendNoteEvent(handle.NativeHandle, channel, noteNumber, velocity, isOn ? 1 : 0) != 0;
     }
 
+    public byte[]? TrySaveState(Vst3ModuleHandle handle, int part)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+
+        if (handle.NativeHandle == IntPtr.Zero)
+        {
+            return null;
+        }
+
+        try
+        {
+            var size = Vst3HostInterop.VstHostBridge_SaveState(handle.NativeHandle, part);
+            if (size < 0)
+            {
+                return null;
+            }
+
+            var state = new byte[size];
+            return Vst3HostInterop.VstHostBridge_ReadSavedState(handle.NativeHandle, state, size) != 0 ? state : null;
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            return null;
+        }
+    }
+
+    public bool TryLoadState(Vst3ModuleHandle handle, int part, byte[] state)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+        ArgumentNullException.ThrowIfNull(state);
+
+        if (handle.NativeHandle == IntPtr.Zero || state.Length == 0)
+        {
+            return false;
+        }
+
+        try
+        {
+            return Vst3HostInterop.VstHostBridge_LoadState(handle.NativeHandle, part, state, state.Length) != 0;
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            return false;
+        }
+    }
+
     public void ReleaseAllNotes(Vst3ModuleHandle handle)
     {
         ArgumentNullException.ThrowIfNull(handle);

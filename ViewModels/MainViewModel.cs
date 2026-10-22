@@ -873,6 +873,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
                 SelectedStep = value?.Steps.FirstOrDefault(step => step.IsActive) ?? value?.Steps.FirstOrDefault();
                 PointKeyboardAtSelectedTrack();
+                StartSelectedTrackInstrumentSoon();
                 RaisePropertyChanged(nameof(SelectedTrackIndex));
                 RaisePropertyChanged(nameof(SelectedTrackHeader));
                 RefreshPianoRoll();
@@ -1877,7 +1878,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        RestoreProjectDocument(_history.Undo(BuildProjectDocument()));
+        RestoreProjectDocument(_history.Undo(BuildProjectDocument()), keepInstruments: true);
         RaiseHistoryStateChanged();
     }
 
@@ -1888,7 +1889,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        RestoreProjectDocument(_history.Redo(BuildProjectDocument()));
+        RestoreProjectDocument(_history.Redo(BuildProjectDocument()), keepInstruments: true);
         RaiseHistoryStateChanged();
     }
 
@@ -2058,6 +2059,20 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             LiveInstrumentRegistry.Clear(current);
         }
+    }
+
+    // Starts the selected track's plug-in as soon as the window has drawn the selection, so the first key
+    // played on it sounds at once instead of waiting for the plug-in to load.
+    private void StartSelectedTrackInstrumentSoon()
+    {
+        Application.Current?.Dispatcher.BeginInvoke(DispatcherPriority.Background, () =>
+        {
+            if (SelectedTrack is { SupportsMidiPlayback: true, HasPlugin: true } track && _trackInstruments.RunningFor(track) is null)
+            {
+                EnsureTrackInstrument(track);
+                PointKeyboardAtSelectedTrack();
+            }
+        });
     }
 
     // Stops the plug-ins of tracks that are gone or play another plug-in now.
@@ -2473,6 +2488,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     {
         try
         {
+            // The sounds chosen in the plug-ins are saved with the project.
+            _trackInstruments.CaptureStates();
             _projectFileService.Save(path, BuildProjectDocument());
             CurrentProjectPath = path;
             StatusMessage = $"Project saved to {path}";
@@ -2511,6 +2528,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             PasteTrackCommand?.RaiseCanExecuteChanged();
             RaiseHistoryStateChanged();
             MarkProjectSaved();
+            StartSavedInstruments();
         }
         catch (Exception ex)
         {
@@ -2634,8 +2652,16 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public void AssignPlugin(PatternTrackViewModel track, string pluginPath)
     {
         CaptureUndoStateIfNeeded();
+        if (!string.Equals(track.PluginFilePath, pluginPath, StringComparison.OrdinalIgnoreCase))
+        {
+            // A saved sound belongs to the plug-in it was made in.
+            track.PluginState = null;
+            track.PluginEditorState = null;
+        }
+
         track.PluginFilePath = pluginPath;
         ReleaseUnusedInstruments();
+        StartSelectedTrackInstrumentSoon();
         StatusMessage = $"{track.Name} now plays through {Path.GetFileNameWithoutExtension(pluginPath)}";
     }
 
@@ -4333,8 +4359,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             MasterVolume);
     }
 
-    private void RestoreProjectDocument(ProjectDocument document)
+    // keepInstruments: the tracks' running plug-ins go on playing in the tracks that take their places, as for
+    // undo and redo. Otherwise, as for a project opened, each track starts its plug-in with its saved sound.
+    private void RestoreProjectDocument(ProjectDocument document, bool keepInstruments = false)
     {
+        var previousTracks = Patterns.Select(pattern => pattern.Tracks.ToList()).ToList();
         _isRestoringState = true;
         try
         {
@@ -4400,9 +4429,50 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             _isRestoringState = false;
         }
 
+        if (keepInstruments)
+        {
+            // A track takes over the plug-in of the track that was in its place, pattern by pattern.
+            _trackInstruments.HandOver(track =>
+            {
+                for (var p = 0; p < previousTracks.Count && p < Patterns.Count; p++)
+                {
+                    var index = previousTracks[p].IndexOf(track);
+                    if (index >= 0)
+                    {
+                        return index < Patterns[p].Tracks.Count ? Patterns[p].Tracks[index] : null;
+                    }
+                }
+
+                return null;
+            });
+        }
+        else
+        {
+            _trackInstruments.KeepOnly(Array.Empty<PatternTrackViewModel>());
+        }
+
         ReleaseUnusedInstruments();
         PointKeyboardAtSelectedTrack();
         TracksReplaced?.Invoke();
+    }
+
+    // Starts, one after another without holding up the window, the plug-ins of a project just opened that
+    // were saved with a sound of their own, so they are ready when it plays.
+    private void StartSavedInstruments()
+    {
+        var tracks = Patterns.SelectMany(pattern => pattern.Tracks)
+            .Where(track => track.HasPlugin && track.PluginState is not null)
+            .ToList();
+        foreach (var track in tracks)
+        {
+            Application.Current?.Dispatcher.BeginInvoke(DispatcherPriority.Background, () =>
+            {
+                if (Patterns.Any(pattern => pattern.Tracks.Contains(track)))
+                {
+                    EnsureTrackInstrument(track);
+                }
+            });
+        }
     }
 
     // Raised after undo, redo or opening a project has replaced the tracks with new ones, so windows

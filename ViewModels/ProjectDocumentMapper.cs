@@ -43,7 +43,9 @@ internal static class ProjectDocumentMapper
                 ? null
                 : track.Effects
                     .Select(effect => new EffectDocument(effect.Name, effect.IsEnabled, effect.Values.ToList(), effect.PresetName, effect.IsPresetModified))
-                    .ToList());
+                    .ToList(),
+            track.PluginState,
+            track.PluginEditorState);
     }
 
     // Effects whose name Sonator does not know (saved by a newer version) are left out.
@@ -65,6 +67,8 @@ internal static class ProjectDocumentMapper
         targetTrack.Volume = sourceTrack.Volume;
         targetTrack.IsRecordArmed = sourceTrack.IsRecordArmed;
         targetTrack.PluginFilePath = sourceTrack.PluginFilePath;
+        targetTrack.PluginState = sourceTrack.PluginState;
+        targetTrack.PluginEditorState = sourceTrack.PluginEditorState;
         targetTrack.AudioClipPath = sourceTrack.AudioClipPath;
         targetTrack.InstrumentIconKey = sourceTrack.InstrumentIcon;
         targetTrack.Effects.Clear();
@@ -144,6 +148,8 @@ internal static class ProjectDocumentMapper
             CreateTrackColorBrush(trackDocument.TrackColor))
         {
             PluginFilePath = trackDocument.PluginFilePath,
+            PluginState = trackDocument.PluginState,
+            PluginEditorState = trackDocument.PluginEditorState,
             AudioClipPath = trackDocument.AudioClipPath,
             InstrumentIconKey = trackDocument.InstrumentIcon
         };
