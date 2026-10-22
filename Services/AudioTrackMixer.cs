@@ -71,6 +71,31 @@ public static class AudioTrackPlayback
         _output.Play();
     }
 
+    // Plays each track's clip through its own effects, mixed live, so turning a knob is heard at once.
+    // Clips at another sample rate than the first are left out rather than played at the wrong speed.
+    public static void Play(IReadOnlyList<(AudioClip Clip, Effects.NativeEffectChain? Effects)> tracks)
+    {
+        Stop();
+        if (tracks.Count == 0)
+        {
+            return;
+        }
+
+        var sampleRate = tracks[0].Clip.SampleRate;
+        var sources = tracks
+            .Where(track => track.Clip.SampleRate == sampleRate)
+            .Select(track =>
+            {
+                var source = AudioClipLoader.ToPlayable(track.Clip, 0, track.Clip.FrameCount);
+                return track.Effects is null ? source : new Effects.EffectsSampleProvider(source, track.Effects);
+            })
+            .ToList();
+        var mixer = new NAudio.Wave.SampleProviders.MixingSampleProvider(sources) { ReadFully = false };
+        _output = new WaveOutEvent();
+        _output.Init(mixer.ToWaveProvider());
+        _output.Play();
+    }
+
     public static void Stop()
     {
         if (_output is null)

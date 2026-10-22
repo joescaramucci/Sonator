@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows.Media;
 using Sonator.Models;
+using Sonator.Services.Effects;
 
 using static Sonator.ViewModels.PatternFactory;
 
@@ -37,8 +38,20 @@ internal static class ProjectDocumentMapper
             track.TrackColorBrush.Color.ToString(),
             track.PluginFilePath,
             track.AudioClipPath,
-            track.InstrumentIconKey);
+            track.InstrumentIconKey,
+            track.Effects.Count == 0
+                ? null
+                : track.Effects
+                    .Select(effect => new EffectDocument(effect.Name, effect.IsEnabled, effect.Parameters.Select(parameter => parameter.Value).ToList()))
+                    .ToList());
     }
+
+    // Effects whose name Sonator does not know (saved by a newer version) are left out.
+    internal static IEnumerable<TrackEffectViewModel> BuildEffects(IEnumerable<EffectDocument>? documents) =>
+        (documents ?? Enumerable.Empty<EffectDocument>())
+            .Select(document => (Document: document, Definition: EffectCatalog.FindByName(document.Name)))
+            .Where(item => item.Definition is not null)
+            .Select(item => new TrackEffectViewModel(item.Definition!, item.Document.IsEnabled, item.Document.Values));
 
     internal static void ApplyTrackDocumentToTrack(PatternTrackViewModel targetTrack, TrackDocument sourceTrack)
     {
@@ -54,6 +67,11 @@ internal static class ProjectDocumentMapper
         targetTrack.PluginFilePath = sourceTrack.PluginFilePath;
         targetTrack.AudioClipPath = sourceTrack.AudioClipPath;
         targetTrack.InstrumentIconKey = sourceTrack.InstrumentIcon;
+        targetTrack.Effects.Clear();
+        foreach (var effect in BuildEffects(sourceTrack.Effects))
+        {
+            targetTrack.Effects.Add(effect);
+        }
         targetTrack.TrackColorBrush = CreateTrackColorBrush(sourceTrack.TrackColor);
         targetTrack.MidiNoteEvents = sourceTrack.MidiNoteEvents is null
             ? Array.Empty<MidiNoteEventViewModel>()
@@ -109,7 +127,7 @@ internal static class ProjectDocumentMapper
             });
         }
 
-        return new PatternTrackViewModel(
+        var track = new PatternTrackViewModel(
             trackDocument.Name,
             trackDocument.Instrument,
             trackDocument.Channel,
@@ -129,6 +147,12 @@ internal static class ProjectDocumentMapper
             AudioClipPath = trackDocument.AudioClipPath,
             InstrumentIconKey = trackDocument.InstrumentIcon
         };
+        foreach (var effect in BuildEffects(trackDocument.Effects))
+        {
+            track.Effects.Add(effect);
+        }
+
+        return track;
     }
 
     internal static ArrangeRowViewModel ApplyArrangeRowDocument(ArrangeRowDocument arrangeDocument)

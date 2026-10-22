@@ -1381,6 +1381,88 @@ public partial class MainWindow : Window
         }
     }
 
+    // ---- Track effects ----
+
+    private readonly Dictionary<TrackEffectViewModel, EffectWindow> _effectWindows = new();
+
+    // + ADD lists Sonator's effects; picking one adds it to the selected track and opens its knobs.
+    private void AddEffectButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel || sender is not Button button)
+        {
+            return;
+        }
+
+        if (viewModel.SelectedTrack is null)
+        {
+            SonatorMessageDialog.Show(this, "Effects", "Select a track first.");
+            return;
+        }
+
+        var menu = new ContextMenu { PlacementTarget = button, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
+        foreach (var definition in viewModel.AvailableEffects)
+        {
+            var item = new MenuItem { Header = $"{definition.Name}  —  {definition.Description}" };
+            item.Click += (_, _) =>
+            {
+                var track = viewModel.SelectedTrack;
+                if (viewModel.AddEffect(track, definition) is { } effect && track is not null)
+                {
+                    OpenEffectWindow(viewModel, track, effect);
+                }
+            };
+            menu.Items.Add(item);
+        }
+
+        menu.IsOpen = true;
+    }
+
+    private void EffectName_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is MainViewModel { SelectedTrack: { } track } viewModel
+            && sender is FrameworkElement { DataContext: TrackEffectViewModel effect })
+        {
+            OpenEffectWindow(viewModel, track, effect);
+        }
+    }
+
+    private void MoveEffectButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel
+            && sender is Button { DataContext: TrackEffectViewModel effect, Tag: string direction })
+        {
+            viewModel.MoveEffect(viewModel.SelectedTrack, effect, int.Parse(direction, System.Globalization.CultureInfo.InvariantCulture));
+        }
+    }
+
+    private void RemoveEffectButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel && sender is Button { DataContext: TrackEffectViewModel effect })
+        {
+            if (_effectWindows.TryGetValue(effect, out var window))
+            {
+                window.Close();
+            }
+
+            viewModel.RemoveEffect(viewModel.SelectedTrack, effect);
+        }
+    }
+
+    // One window per effect: opening it again brings the open one to the front.
+    private void OpenEffectWindow(MainViewModel viewModel, PatternTrackViewModel track, TrackEffectViewModel effect)
+    {
+        if (_effectWindows.TryGetValue(effect, out var open))
+        {
+            open.Activate();
+            return;
+        }
+
+        var window = new EffectWindow(viewModel, track, effect) { Owner = this };
+        window.Closed += (_, _) => _effectWindows.Remove(effect);
+        _effectWindows[effect] = window;
+        window.Show();
+    }
+
     // Clicking a track's name opens the window that sets its name and MIDI channel.
     private void TrackName_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {

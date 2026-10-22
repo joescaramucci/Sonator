@@ -11,6 +11,7 @@ using Microsoft.Win32;
 using Microsoft.VisualBasic;
 using Sonator.Models;
 using Sonator.Services;
+using Sonator.Services.Effects;
 using Sonator.Services.Vst3;
 
 using static Sonator.ViewModels.MidiImportTrackBuilder;
@@ -83,6 +84,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private int _snapMode; // 0 bar, 1 beat, 2 sixteenth
     private ClickOption _selectedClickOption = new(1, "Quarter");
     private Vst3ModuleHandle? _ownedInstrument;
+    private readonly TrackEffectsHost _trackEffects = new();
     private readonly VstPluginService _vstPluginService;
     private readonly VstPluginScanner _vstPluginScanner;
     private readonly AudioOutputDeviceService _audioOutputDeviceService;
@@ -198,6 +200,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         MidiInputDevices = new ObservableCollection<MidiInputDeviceViewModel>();
         ReloadMidiInputDevices();
         _engine.PluginNoteRouter = RouteSequencerNoteToPlugin;
+        LiveInstrumentRegistry.CurrentChanged += AttachEffectsToLiveInstrument;
         _clickPlayer.Start();
         _engine.ClickSound = _clickPlayer.Trigger;
         _midiInput.NoteReceived += OnKeyboardNote;
@@ -1563,6 +1566,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
+        LiveInstrumentRegistry.CurrentChanged -= AttachEffectsToLiveInstrument;
         StopOwnedInstrument();
         _engine.StepChanged -= OnStepChanged;
         _engine.PatternChanged -= OnPlaybackPatternChanged;
@@ -1571,6 +1575,88 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _midiInput.Dispose();
         _clickPlayer.Dispose();
         _engine.Dispose();
+        AudioTrackPlayback.Stop();
+        _trackEffects.Dispose();
+    }
+
+    // ---- Track effects ----
+
+    // The effects offered by the add menu.
+    public IReadOnlyList<EffectDefinition> AvailableEffects => EffectCatalog.All;
+
+    // Adds an effect at the end of the track's chain, at its default settings.
+    public TrackEffectViewModel? AddEffect(PatternTrackViewModel? track, EffectDefinition definition)
+    {
+        if (track is null)
+        {
+            return null;
+        }
+
+        CaptureUndoStateIfNeeded();
+        var effect = new TrackEffectViewModel(definition);
+        track.Effects.Add(effect);
+        StatusMessage = $"{definition.Name} added to {track.Name}";
+        return effect;
+    }
+
+    public void RemoveEffect(PatternTrackViewModel? track, TrackEffectViewModel effect)
+    {
+        if (track is null || !track.Effects.Contains(effect))
+        {
+            return;
+        }
+
+        CaptureUndoStateIfNeeded();
+        track.Effects.Remove(effect);
+        StatusMessage = $"{effect.Name} removed from {track.Name}";
+    }
+
+    // Moves an effect one place earlier (-1) or later (+1) in the chain.
+    public void MoveEffect(PatternTrackViewModel? track, TrackEffectViewModel effect, int direction)
+    {
+        if (track is null)
+        {
+            return;
+        }
+
+        var from = track.Effects.IndexOf(effect);
+        var to = from + direction;
+        if (from < 0 || to < 0 || to >= track.Effects.Count)
+        {
+            return;
+        }
+
+        CaptureUndoStateIfNeeded();
+        track.Effects.Move(from, to);
+    }
+
+    // The effect's own meter, such as a compressor's gain reduction, while its track's chain is running.
+    public double EffectMeter(PatternTrackViewModel track, TrackEffectViewModel effect)
+    {
+        var slot = track.Effects.IndexOf(effect);
+        return slot < 0 ? 0 : _trackEffects.ChainFor(track)?.Meter(slot) ?? 0;
+    }
+
+    // The plug-in that plays now runs through the effects of its track: the selected track when it
+    // uses that plug-in, otherwise the first track that does.
+    private void AttachEffectsToLiveInstrument()
+    {
+        Application.Current?.Dispatcher.BeginInvoke(() =>
+        {
+            if (LiveInstrumentRegistry.Current is not { } instrument)
+            {
+                return;
+            }
+
+            var track = SelectedTrack is { PluginFilePath: { } selectedPath } && string.Equals(selectedPath, instrument.FilePath, StringComparison.OrdinalIgnoreCase)
+                ? SelectedTrack
+                : Patterns.SelectMany(pattern => pattern.Tracks)
+                    .FirstOrDefault(candidate => string.Equals(candidate.PluginFilePath, instrument.FilePath, StringComparison.OrdinalIgnoreCase));
+            if (track is not null)
+            {
+                _trackEffects.ChainFor(track)?.AttachTo(instrument);
+            }
+        });
     }
 
     private void CaptureUndoStateIfNeeded()
@@ -2295,20 +2381,26 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         RebuildTimeline();
     }
 
-    // Mixes the audio clips of the unmuted tracks from the current position and plays them with the sequence.
+    // Plays the audio clips of the unmuted tracks from the current position with the sequence, each
+    // through its track's effects.
     private void StartAudioTracks()
     {
-        var placements = Tracks
-            .Where(track => !track.IsMuted && !string.IsNullOrEmpty(track.AudioClipPath))
-            .Select(track => new AudioPlacement(track.AudioClipPath!, 0))
-            .ToList();
-        var mixed = AudioTrackMixer.Mix(placements, Tempo, CurrentStepIndex, AudioClipLoader.Load);
-        if (mixed is null)
+        var tracks = new List<(AudioClip Clip, NativeEffectChain? Effects)>();
+        foreach (var track in Tracks.Where(track => !track.IsMuted && !string.IsNullOrEmpty(track.AudioClipPath)))
+        {
+            var clip = AudioTrackMixer.Mix(new[] { new AudioPlacement(track.AudioClipPath!, 0) }, Tempo, CurrentStepIndex, AudioClipLoader.Load);
+            if (clip is not null)
+            {
+                tracks.Add((clip, _trackEffects.ChainFor(track)));
+            }
+        }
+
+        if (tracks.Count == 0)
         {
             AudioTrackPlayback.Stop();
             return;
         }
-        AudioTrackPlayback.Play(mixed);
+        AudioTrackPlayback.Play(tracks);
     }
 
     // Makes a track play through a plug-in, as when a plug-in is dropped on it from the plug-in list.

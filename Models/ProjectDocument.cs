@@ -45,7 +45,14 @@ public sealed record TrackDocument(
     string? TrackColor = null,
     string? PluginFilePath = null,
     string? AudioClipPath = null,
-    string? InstrumentIcon = null);
+    string? InstrumentIcon = null,
+    List<EffectDocument>? Effects = null);
+
+// One insert effect of a track: its name (SonVerb, SonDelay...), whether it is on, and its knobs in order.
+public sealed record EffectDocument(
+    string Name,
+    bool IsEnabled,
+    List<double> Values);
 
 public sealed record StepDocument(
     int Index,

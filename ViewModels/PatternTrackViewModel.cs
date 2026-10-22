@@ -48,7 +48,28 @@ public sealed class PatternTrackViewModel : ViewModelBase
         _trackColorBrush = trackColorBrush ?? new SolidColorBrush(Color.FromRgb(38, 53, 69));
         Steps = steps;
         _midiNoteEvents = midiNoteEvents ?? Array.Empty<MidiNoteEventViewModel>();
+        Effects.CollectionChanged += (_, args) =>
+        {
+            foreach (TrackEffectViewModel effect in args.OldItems ?? Array.Empty<TrackEffectViewModel>())
+            {
+                effect.Changed -= OnEffectChanged;
+            }
+            foreach (TrackEffectViewModel effect in args.NewItems ?? Array.Empty<TrackEffectViewModel>())
+            {
+                effect.Changed += OnEffectChanged;
+            }
+            EffectsChanged?.Invoke(this, new TrackEffectChange(null, -1));
+        };
     }
+
+    // The track's insert effects, in the order the audio goes through them.
+    public ObservableCollection<TrackEffectViewModel> Effects { get; } = new();
+
+    // Raised when an effect is added, removed or moved (Effect null), switched (ParameterIndex -1) or turned.
+    public event EventHandler<TrackEffectChange>? EffectsChanged;
+
+    private void OnEffectChanged(TrackEffectViewModel effect, int parameterIndex) =>
+        EffectsChanged?.Invoke(this, new TrackEffectChange(effect, parameterIndex));
 
     public string Name
     {

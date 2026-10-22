@@ -17,22 +17,31 @@ internal static class LiveInstrumentRegistry
         }
     }
 
+    // Raised after the plug-in changes, on the thread that changed it.
+    public static event Action? CurrentChanged;
+
     public static void Set(Vst3ModuleHandle handle)
     {
         lock (Sync)
         {
             _current = handle;
         }
+
+        CurrentChanged?.Invoke();
     }
 
     public static void Clear(Vst3ModuleHandle handle)
     {
         lock (Sync)
         {
-            if (ReferenceEquals(_current, handle))
+            if (!ReferenceEquals(_current, handle))
             {
-                _current = null;
+                return;
             }
+
+            _current = null;
         }
+
+        CurrentChanged?.Invoke();
     }
 }
