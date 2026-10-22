@@ -529,6 +529,13 @@ public partial class MainWindow : Window
             return;
         }
 
+        // Delete (Canc) removes the recorded block clicked on the timeline.
+        if (e.Key == Key.Delete && Keyboard.Modifiers == ModifierKeys.None && viewModel.DeleteSelectedBlock())
+        {
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key == Key.S && (Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) == (ModifierKeys.Control | ModifierKeys.Shift))
         {
             viewModel.SaveProjectAsCommand.Execute(null);

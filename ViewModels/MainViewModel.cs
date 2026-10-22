@@ -2135,6 +2135,23 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         StatusMessage = $"Cut the block from {track.Name}";
     }
 
+    // Delete removes the recorded block the player clicked on the timeline. Only a block clicked on
+    // the timeline is deleted, never a whole track that is merely selected; Undo brings it back.
+    public bool DeleteSelectedBlock()
+    {
+        var track = _selectedBlockTrack;
+        if (track is null || track.MidiNoteEvents.Count == 0)
+        {
+            return false;
+        }
+
+        var count = track.MidiNoteEvents.Count;
+        ReplaceTrackNotes(track, Array.Empty<MidiNoteEventViewModel>());
+        ClearBlockSelection();
+        StatusMessage = $"Deleted the block of {track.Name} ({count} notes). Undo brings it back.";
+        return true;
+    }
+
     public void CopySelectedNotes()
     {
         var track = _selectedBlockTrack ?? SelectedTrack;
