@@ -1685,7 +1685,8 @@
                                             </Border.Width>
                                             <Border.Style>
                                                 <Style TargetType="Border">
-                                                    <Setter Property="Background" Value="{Binding SourceTrack.TrackColorBrush}" />
+                                                    <!-- Opaque, so the block reads as one colour over the beat lines and steps behind it. -->
+                                                    <Setter Property="Background" Value="{StaticResource Paper}" />
                                                     <Setter Property="BorderBrush" Value="#EAF2FF" />
                                                     <Setter Property="BorderThickness" Value="1" />
                                                     <Style.Triggers>
@@ -1700,6 +1701,7 @@
                                                 </Style>
                                             </Border.Style>
                                             <Grid>
+                                                <Border CornerRadius="2" Background="{Binding SourceTrack.TrackColorBrush}" />
                                                 <Border HorizontalAlignment="Left"
                                                         Width="10"
                                                         Background="Transparent"
