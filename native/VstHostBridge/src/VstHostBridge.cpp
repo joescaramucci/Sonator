@@ -418,7 +418,7 @@ namespace
     }
 
     class SonatorPlugFrame; // defined below, needs BridgeModule's full definition
-    struct AudioEngineState; // defined further below, needs WASAPI + threading types
+    struct MixerVoice; // defined further below, needs the event list and threading types
 
     // Everything the bridge needs to keep alive for one loaded plugin module.
     struct BridgeModule
@@ -437,9 +437,11 @@ namespace
         int32 editorWidth = 0;
         int32 editorHeight = 0;
 
-        // Real-time audio processing (IAudioProcessor + WASAPI), created
-        // lazily by StartAudio.
-        AudioEngineState* audioEngine = nullptr;
+        // The plug-in's place in the mixer while its audio runs, made by StartAudio. Every running plug-in
+        // plays through the one audio output, mixed together. Read under voiceMutex, as notes arrive from
+        // other threads than the one that starts and stops the audio.
+        std::mutex voiceMutex;
+        std::shared_ptr<MixerVoice> voice;
 
         // The module's ExitDll, when it exports one: called before the DLL is freed.
         bool (PLUGIN_API* exitDll)() = nullptr;
@@ -648,15 +650,180 @@ namespace
         std::vector<Event> events;
     };
 
-    struct AudioEngineState
+    // One running plug-in in the mixer: its processor, the notes waiting for its next block, and the
+    // buffers it renders into before its sound is added to the mix.
+    struct MixerVoice
     {
         BridgeModule* module = nullptr;
+        IAudioProcessor* processor = nullptr; // addRef'd; released by Deactivate
 
         // Note events queued by VstHostBridge_SendNoteEvent. The next block the audio thread processes takes them.
         std::mutex midiMutex;
         std::vector<Event> pendingMidi;
         BlockEventList blockEvents;
-        IAudioProcessor* processor = nullptr; // addRef'd; released by the engine thread on stop
+
+        int32 channels = 2;
+        std::vector<std::vector<float>> planar;
+        std::vector<Sample32*> pointers;
+        AudioBusBuffers outputBus{};
+        ProcessData processData{};
+
+        bool activatedOutputBus = false;
+        bool activatedComponent = false;
+        bool startedProcessing = false;
+
+        // Prepares the plug-in to process blocks of up to maxBlock frames at sampleRate.
+        bool Activate(int32 maxBlock, double sampleRate, std::string& error)
+        {
+            BusInfo outBusInfo{};
+            channels = 2;
+            if (module->component->getBusInfo(kAudio, kOutput, 0, outBusInfo) == kResultOk && outBusInfo.channelCount > 0)
+            {
+                channels = outBusInfo.channelCount;
+            }
+
+            if (module->component->activateBus(kAudio, kOutput, 0, 1) == kResultOk)
+            {
+                activatedOutputBus = true;
+            }
+
+            // Instruments take note events on their event input bus.
+            if (module->component->getBusCount(kEvent, kInput) > 0)
+            {
+                module->component->activateBus(kEvent, kInput, 0, 1);
+            }
+
+            ProcessSetup setup{};
+            setup.processMode = kRealtime;
+            setup.symbolicSampleSize = kSample32;
+            setup.maxSamplesPerBlock = maxBlock;
+            setup.sampleRate = sampleRate;
+            if (processor->setupProcessing(setup) != kResultOk)
+            {
+                error = "IAudioProcessor::setupProcessing() fallita.";
+                return false;
+            }
+            if (module->component->setActive(1) != kResultOk)
+            {
+                error = "IComponent::setActive(true) fallita.";
+                return false;
+            }
+            activatedComponent = true;
+            if (processor->setProcessing(1) != kResultOk)
+            {
+                error = "IAudioProcessor::setProcessing(true) fallita.";
+                return false;
+            }
+            startedProcessing = true;
+
+            planar.assign(static_cast<size_t>(channels), std::vector<float>(static_cast<size_t>(maxBlock)));
+            pointers.assign(static_cast<size_t>(channels), nullptr);
+            outputBus.numChannels = channels;
+            outputBus.silenceFlags = 0;
+            processData.processMode = kRealtime;
+            processData.symbolicSampleSize = kSample32;
+            processData.numInputs = 0;
+            processData.inputs = nullptr;
+            processData.numOutputs = 1;
+            processData.outputs = &outputBus;
+            return true;
+        }
+
+        // Undoes Activate, as far as it got. The voice must be out of the mix.
+        void Deactivate()
+        {
+            if (startedProcessing)
+            {
+                processor->setProcessing(0);
+                startedProcessing = false;
+            }
+            if (activatedComponent)
+            {
+                module->component->setActive(0);
+                activatedComponent = false;
+            }
+            if (activatedOutputBus)
+            {
+                module->component->activateBus(kAudio, kOutput, 0, 0);
+                activatedOutputBus = false;
+            }
+        }
+
+        ~MixerVoice()
+        {
+            Deactivate();
+            if (processor != nullptr)
+            {
+                processor->release();
+            }
+        }
+
+        // Renders one block of the plug-in through its effects and adds it to the stereo mix. Audio thread only.
+        void RenderInto(float* left, float* right, int32 frames, double sampleRate)
+        {
+            {
+                std::lock_guard<std::mutex> lock(midiMutex);
+                blockEvents.events.swap(pendingMidi);
+                pendingMidi.clear();
+            }
+            processData.inputEvents = &blockEvents;
+
+            for (int32 ch = 0; ch < channels; ++ch)
+            {
+                pointers[static_cast<size_t>(ch)] = planar[static_cast<size_t>(ch)].data();
+            }
+            outputBus.channelBuffers32 = pointers.data();
+            processData.numSamples = frames;
+            processor->process(processData);
+            ApplyEffects(module, pointers.data(), channels, frames, sampleRate);
+
+            const float* sourceLeft = planar[0].data();
+            const float* sourceRight = channels > 1 ? planar[1].data() : sourceLeft;
+            for (int32 i = 0; i < frames; ++i)
+            {
+                left[i] += sourceLeft[i];
+                right[i] += sourceRight[i];
+            }
+        }
+    };
+
+    // The voices playing now. The audio thread takes the list without waiting (see MixVoices), and a voice
+    // taken out stays alive until the audio thread has let go of it.
+    std::mutex g_voicesMutex;
+    std::shared_ptr<const std::vector<std::shared_ptr<MixerVoice>>> g_voices;
+
+    // The audio thread's own copy of the list, so a block never waits for the list to be changed.
+    std::shared_ptr<const std::vector<std::shared_ptr<MixerVoice>>> g_audioThreadVoices;
+
+    // Sums every running plug-in into one stereo block. Called by the audio thread for each block.
+    void MixVoices(float* left, float* right, int32 frames, double sampleRate)
+    {
+        {
+            std::unique_lock<std::mutex> lock(g_voicesMutex, std::try_to_lock);
+            if (lock.owns_lock())
+            {
+                g_audioThreadVoices = g_voices;
+            }
+        }
+
+        std::fill(left, left + frames, 0.0f);
+        std::fill(right, right + frames, 0.0f);
+        if (g_audioThreadVoices == nullptr)
+        {
+            return;
+        }
+
+        for (const auto& voice : *g_audioThreadVoices)
+        {
+            voice->RenderInto(left, right, frames, sampleRate);
+        }
+    }
+
+    struct AudioEngineState
+    {
+        // The largest block and the sample rate the device runs at, set once it has started.
+        int32 maxBlock = 0;
+        double sampleRate = 0.0;
 
         // Endpoint ID of the output device to open. Empty means the default device.
         std::wstring deviceId;
@@ -684,25 +851,10 @@ namespace
         std::thread thread;
         std::atomic<bool> stopRequested{false};
 
-        // Hands the notes queued since the last block to the plug-in. Called on the audio thread before process().
-        void PrepareEvents(ProcessData& data)
-        {
-            {
-                std::lock_guard<std::mutex> lock(midiMutex);
-                blockEvents.events.swap(pendingMidi);
-                pendingMidi.clear();
-            }
-            data.inputEvents = &blockEvents;
-        }
-
         // 0 = still starting up, 1 = started OK, -1 = failed to start.
         std::atomic<int> initResult{0};
         std::mutex initErrorMutex;
         std::string initError;
-
-        bool activatedOutputBus = false;
-        bool activatedComponent = false;
-        bool startedProcessing = false;
 
         void SetInitError(const std::string& message)
         {
@@ -800,87 +952,25 @@ namespace
             }
         }
 
-        BridgeModule* module = engine->module;
-        int32 outputChannels = 2;
-        int32 maxBlockSize = static_cast<int32>(bufferFrameCount) > 0 ? static_cast<int32>(bufferFrameCount) : 1024;
+        const int32 maxBlockSize = static_cast<int32>(bufferFrameCount) > 0 ? static_cast<int32>(bufferFrameCount) : 1024;
 
-        if (engine->initResult == 0)
+        if (engine->initResult == 0 && FAILED(hr = client->Start()))
         {
-            BusInfo outBusInfo{};
-            if (module->component->getBusInfo(kAudio, kOutput, 0, outBusInfo) == kResultOk && outBusInfo.channelCount > 0)
-            {
-                outputChannels = outBusInfo.channelCount;
-            }
-
-            if (module->component->activateBus(kAudio, kOutput, 0, 1) == kResultOk)
-            {
-                engine->activatedOutputBus = true;
-            }
-
-            // Instruments take note events on their event input bus.
-            if (module->component->getBusCount(kEvent, kInput) > 0)
-            {
-                module->component->activateBus(kEvent, kInput, 0, 1);
-            }
-
-            ProcessSetup setup{};
-            setup.processMode = kRealtime;
-            setup.symbolicSampleSize = kSample32;
-            setup.maxSamplesPerBlock = maxBlockSize;
-            setup.sampleRate = static_cast<SampleRate>(mixFormat->nSamplesPerSec);
-
-            if (engine->processor->setupProcessing(setup) != kResultOk)
-            {
-                fail("IAudioProcessor::setupProcessing() fallita.");
-            }
-            else if (module->component->setActive(1) != kResultOk)
-            {
-                fail("IComponent::setActive(true) fallita.");
-            }
-            else
-            {
-                engine->activatedComponent = true;
-                if (engine->processor->setProcessing(1) != kResultOk)
-                {
-                    fail("IAudioProcessor::setProcessing(true) fallita.");
-                }
-                else
-                {
-                    engine->startedProcessing = true;
-                    if (FAILED(hr = client->Start()))
-                    {
-                        fail("IAudioClient::Start() fallita.");
-                    }
-                }
-            }
+            fail("IAudioClient::Start() fallita.");
         }
 
         if (engine->initResult == 0)
         {
-            engine->initResult = 1; // signal success to VstHostBridge_StartAudio
+            engine->maxBlock = maxBlockSize;
+            engine->sampleRate = static_cast<double>(mixFormat->nSamplesPerSec);
+            engine->initResult = 1; // signal success to StartAudioDevice
         }
 
         if (engine->initResult == 1)
         {
             const int32 deviceChannels = mixFormat->nChannels;
-            std::vector<std::vector<float>> planarBuffers(static_cast<size_t>(outputChannels));
-            std::vector<Sample32*> channelPointers(static_cast<size_t>(outputChannels));
-            for (int32 ch = 0; ch < outputChannels; ++ch)
-            {
-                planarBuffers[static_cast<size_t>(ch)].resize(static_cast<size_t>(maxBlockSize));
-            }
-
-            AudioBusBuffers outputBus{};
-            outputBus.numChannels = outputChannels;
-            outputBus.silenceFlags = 0;
-
-            ProcessData processData{};
-            processData.processMode = kRealtime;
-            processData.symbolicSampleSize = kSample32;
-            processData.numInputs = 0;
-            processData.inputs = nullptr;
-            processData.numOutputs = 1;
-            processData.outputs = &outputBus;
+            std::vector<float> mixLeft(static_cast<size_t>(maxBlockSize));
+            std::vector<float> mixRight(static_cast<size_t>(maxBlockSize));
 
             const double deviceRate = static_cast<double>(mixFormat->nSamplesPerSec);
             bool deviceFed = false;
@@ -917,26 +1007,22 @@ namespace
 
                 const long long blockStart = QpcNow();
 
-                for (int32 ch = 0; ch < outputChannels; ++ch)
-                {
-                    channelPointers[static_cast<size_t>(ch)] = planarBuffers[static_cast<size_t>(ch)].data();
-                }
-                outputBus.channelBuffers32 = channelPointers.data();
-                processData.numSamples = samplesThisBlock;
-                engine->PrepareEvents(processData);
+                MixVoices(mixLeft.data(), mixRight.data(), samplesThisBlock, deviceRate);
 
-                engine->processor->process(processData);
-                ApplyEffects(module, channelPointers.data(), outputChannels, samplesThisBlock, deviceRate);
-
+                // A mono device gets the left side; a device with more than two channels hears the mix on the first two.
                 auto* deviceSamples = reinterpret_cast<float*>(deviceBuffer);
                 for (int32 frame = 0; frame < samplesThisBlock; ++frame)
                 {
                     for (int32 devCh = 0; devCh < deviceChannels; ++devCh)
                     {
                         float value = 0.0f;
-                        if (devCh < outputChannels)
+                        if (devCh == 0)
                         {
-                            value = planarBuffers[static_cast<size_t>(devCh)][static_cast<size_t>(frame)];
+                            value = mixLeft[static_cast<size_t>(frame)];
+                        }
+                        else if (devCh == 1)
+                        {
+                            value = mixRight[static_cast<size_t>(frame)];
                         }
                         deviceSamples[frame * deviceChannels + devCh] = value;
                     }
@@ -950,30 +1036,14 @@ namespace
             client->Stop();
         }
 
-        if (engine->startedProcessing && engine->processor != nullptr)
-        {
-            engine->processor->setProcessing(0);
-        }
-        if (engine->activatedComponent && module->component != nullptr)
-        {
-            module->component->setActive(0);
-        }
-        if (engine->activatedOutputBus && module->component != nullptr)
-        {
-            module->component->activateBus(kAudio, kOutput, 0, 0);
-        }
+        // Let go of the voices, so the ones taken out of the mix can be released.
+        g_audioThreadVoices.reset();
 
         if (renderClient != nullptr) renderClient->Release();
         if (client != nullptr) client->Release();
         if (mixFormat != nullptr) CoTaskMemFree(mixFormat);
         if (device != nullptr) device->Release();
         if (enumerator != nullptr) enumerator->Release();
-
-        if (engine->processor != nullptr)
-        {
-            engine->processor->release();
-            engine->processor = nullptr;
-        }
 
         if (engine->initResult == 0)
         {
@@ -988,24 +1058,98 @@ namespace
         }
     }
 
-    // Stops and fully tears down the audio engine for a module, if running.
-    // Blocks until the engine thread has finished cleaning up.
-    void StopAudioInternal(BridgeModule* module)
+    // The one audio output every running plug-in plays through, and the lock held while plug-ins join or
+    // leave it. The output opens with the first plug-in and closes after the last.
+    std::mutex g_mixerMutex;
+    AudioEngineState* g_engine = nullptr;
+
+    std::vector<std::shared_ptr<MixerVoice>> CurrentVoices()
     {
-        if (module == nullptr || module->audioEngine == nullptr)
+        std::lock_guard<std::mutex> lock(g_voicesMutex);
+        return g_voices != nullptr ? *g_voices : std::vector<std::shared_ptr<MixerVoice>>{};
+    }
+
+    void PublishVoices(std::vector<std::shared_ptr<MixerVoice>> voices)
+    {
+        auto published = std::make_shared<const std::vector<std::shared_ptr<MixerVoice>>>(std::move(voices));
+        std::lock_guard<std::mutex> lock(g_voicesMutex);
+        g_voices = std::move(published);
+    }
+
+    // Stops the audio output and waits for its thread to finish. Called under g_mixerMutex.
+    void StopAudioDevice()
+    {
+        if (g_engine == nullptr)
         {
             return;
         }
 
-        auto* engine = module->audioEngine;
-        engine->stopRequested = true;
-        if (engine->thread.joinable())
+        g_engine->stopRequested = true;
+        if (g_engine->thread.joinable())
         {
-            engine->thread.join();
+            g_engine->thread.join();
         }
 
-        delete engine;
-        module->audioEngine = nullptr;
+        delete g_engine;
+        g_engine = nullptr;
+    }
+
+    // Waits until the audio thread no longer holds the voice, at most a second.
+    void WaitUntilReleased(const std::shared_ptr<MixerVoice>& voice)
+    {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+        while (voice.use_count() > 1 && std::chrono::steady_clock::now() < deadline)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+    }
+
+    // Takes the module's plug-in out of the mix and stops it, if it is playing. The output closes when no
+    // plug-in is left. Blocks until the audio thread has let go of it.
+    void StopAudioInternal(BridgeModule* module)
+    {
+        if (module == nullptr)
+        {
+            return;
+        }
+
+        std::lock_guard<std::mutex> mixerLock(g_mixerMutex);
+        std::shared_ptr<MixerVoice> voice;
+        {
+            std::lock_guard<std::mutex> lock(module->voiceMutex);
+            voice.swap(module->voice);
+        }
+        if (voice == nullptr)
+        {
+            return;
+        }
+
+        auto voices = CurrentVoices();
+        voices.erase(std::remove(voices.begin(), voices.end(), voice), voices.end());
+        const bool lastOne = voices.empty();
+        PublishVoices(std::move(voices));
+        if (lastOne)
+        {
+            StopAudioDevice();
+        }
+
+        WaitUntilReleased(voice);
+        voice->Deactivate();
+    }
+
+    // The output the module's plug-in plays through, or null when it is not playing.
+    AudioEngineState* RunningOutputFor(BridgeModule* module)
+    {
+        {
+            std::lock_guard<std::mutex> lock(module->voiceMutex);
+            if (module->voice == nullptr)
+            {
+                return nullptr;
+            }
+        }
+
+        std::lock_guard<std::mutex> lock(g_mixerMutex);
+        return g_engine;
     }
 }
 
@@ -1792,13 +1936,10 @@ namespace
         long bufferSize = 0;
         bool postOutput = false;
         int32 deviceChannels = 2; // driver output channels written, at most 2
-        int32 pluginChannels = 2; // channels produced by the plug-in output bus
+        int32 pluginChannels = 2; // channels of the mix: always stereo
         std::vector<ASIOBufferInfo> bufferInfos;
         std::vector<std::vector<float>> planar;
         std::vector<float> silence;
-        std::vector<Sample32*> channelPointers;
-        AudioBusBuffers outputBus{};
-        ProcessData processData{};
 
         // Input channel 0, read for the loopback measurement only.
         bool hasInput = false;
@@ -1977,11 +2118,12 @@ namespace
         }
     }
 
-    // Runs on the driver's own thread: renders one block of the plug-in and writes it to the output buffers.
+    // Runs on the driver's own thread: renders one block of every running plug-in, mixed, and writes it to the
+    // output buffers.
     void AsioBufferSwitch(long doubleBufferIndex, ASIOBool /*directProcess*/)
     {
         AsioSession* session = g_asioSession.load();
-        if (session == nullptr || session->engine->processor == nullptr || session->engine->stopRequested.load())
+        if (session == nullptr || session->engine->stopRequested.load())
         {
             return;
         }
@@ -1995,16 +2137,7 @@ namespace
         }
         session->lastSwitchTicks = blockStart;
 
-        for (size_t ch = 0; ch < session->channelPointers.size(); ++ch)
-        {
-            session->channelPointers[ch] = session->planar[ch].data();
-        }
-        session->outputBus.channelBuffers32 = session->channelPointers.data();
-        session->processData.numSamples = session->bufferSize;
-        session->engine->PrepareEvents(session->processData);
-        session->engine->processor->process(session->processData);
-        ApplyEffects(session->engine->module, session->channelPointers.data(), session->pluginChannels,
-                     static_cast<int>(session->bufferSize), session->sampleRate);
+        MixVoices(session->planar[0].data(), session->planar[1].data(), static_cast<int32>(session->bufferSize), session->sampleRate);
 
         if (session->hasInput)
         {
@@ -2068,7 +2201,7 @@ namespace
     }
 
     // Reads the driver's channel count, buffer size, sample rate and sample format, and prepares the render buffers.
-    bool ConfigureAsioSession(AsioSession& session, BridgeModule* module, double& sampleRate, std::string& error)
+    bool ConfigureAsioSession(AsioSession& session, double& sampleRate, std::string& error)
     {
         long inputChannels = 0;
         long outputChannels = 0;
@@ -2143,24 +2276,9 @@ namespace
         }
 
         session.pluginChannels = 2;
-        BusInfo pluginBus{};
-        if (module->component->getBusInfo(kAudio, kOutput, 0, pluginBus) == kResultOk && pluginBus.channelCount > 0)
-        {
-            session.pluginChannels = pluginBus.channelCount;
-        }
-
         const size_t frames = static_cast<size_t>(session.bufferSize);
         session.planar.assign(static_cast<size_t>(session.pluginChannels), std::vector<float>(frames));
         session.silence.assign(frames, 0.0f);
-        session.channelPointers.assign(static_cast<size_t>(session.pluginChannels), nullptr);
-        session.outputBus.numChannels = session.pluginChannels;
-        session.outputBus.silenceFlags = 0;
-        session.processData.processMode = kRealtime;
-        session.processData.symbolicSampleSize = kSample32;
-        session.processData.numInputs = 0;
-        session.processData.inputs = nullptr;
-        session.processData.numOutputs = 1;
-        session.processData.outputs = &session.outputBus;
 
         session.postOutput = session.driver->outputReady() == ASE_OK;
         session.sampleRate = sampleRate;
@@ -2189,10 +2307,6 @@ namespace
 
         AsioSession session;
         session.engine = engine;
-        BridgeModule* module = engine->module;
-        bool activatedOutputBus = false;
-        bool activatedComponent = false;
-        bool startedProcessing = false;
         bool buffersCreated = false;
         bool driverStarted = false;
 
@@ -2224,45 +2338,16 @@ namespace
             session.driver = driver;
             double sampleRate = 0.0;
             std::string error;
-            if (!ConfigureAsioSession(session, module, sampleRate, error))
+            if (!ConfigureAsioSession(session, sampleRate, error))
             {
                 fail(error);
             }
             else
             {
-                if (module->component->activateBus(kAudio, kOutput, 0, 1) == kResultOk)
                 {
-                    activatedOutputBus = true;
-                }
-
-                if (module->component->getBusCount(kEvent, kInput) > 0)
-                {
-                    module->component->activateBus(kEvent, kInput, 0, 1);
-                }
-
-                ProcessSetup setup{};
-                setup.processMode = kRealtime;
-                setup.symbolicSampleSize = kSample32;
-                setup.maxSamplesPerBlock = session.bufferSize;
-                setup.sampleRate = sampleRate;
-                if (engine->processor->setupProcessing(setup) != kResultOk)
-                {
-                    fail("IAudioProcessor::setupProcessing() fallita.");
-                }
-                else if (module->component->setActive(1) != kResultOk)
-                {
-                    fail("IComponent::setActive(true) fallita.");
-                }
-                else
-                {
-                    activatedComponent = true;
-                    if (engine->processor->setProcessing(1) != kResultOk)
                     {
-                        fail("IAudioProcessor::setProcessing(true) fallita.");
-                    }
-                    else
-                    {
-                        startedProcessing = true;
+                        engine->maxBlock = static_cast<int32>(session.bufferSize);
+                        engine->sampleRate = sampleRate;
 
                         ASIOCallbacks callbacks{};
                         callbacks.bufferSwitch = AsioBufferSwitch;
@@ -2290,7 +2375,7 @@ namespace
                         AsioSession* noSession = nullptr;
                         if (!g_asioSession.compare_exchange_strong(noSession, &session))
                         {
-                            fail("Un altro plug-in sta già usando un driver ASIO. Ferma prima l'audio di quel plug-in.");
+                            fail("Un'altra uscita ASIO è già aperta.");
                         }
                         else
                         {
@@ -2360,26 +2445,11 @@ namespace
         {
             driver->disposeBuffers();
         }
-        if (startedProcessing && engine->processor != nullptr)
-        {
-            engine->processor->setProcessing(0);
-        }
-        if (activatedComponent && module->component != nullptr)
-        {
-            module->component->setActive(0);
-        }
-        if (activatedOutputBus && module->component != nullptr)
-        {
-            module->component->activateBus(kAudio, kOutput, 0, 0);
-        }
+        // The driver has stopped calling back: the voices it held can be released.
+        g_audioThreadVoices.reset();
         if (driver != nullptr)
         {
             driver->Release();
-        }
-        if (engine->processor != nullptr)
-        {
-            engine->processor->release();
-            engine->processor = nullptr;
         }
         if (engine->initResult.load() == 0)
         {
@@ -2435,47 +2505,104 @@ static int StartAudioEngine(void* moduleHandle, const wchar_t* deviceId, bool us
         return 0;
     }
 
-    if (module->audioEngine != nullptr)
+    std::lock_guard<std::mutex> mixerLock(g_mixerMutex);
     {
-        // Already running (or starting): treat as success.
-        return 1;
+        std::lock_guard<std::mutex> lock(module->voiceMutex);
+        if (module->voice != nullptr)
+        {
+            return 1; // already playing
+        }
     }
 
-    IAudioProcessor* processor = nullptr;
-    if (module->component->queryInterface(IAudioProcessor_iid, reinterpret_cast<void**>(&processor)) != kResultOk || processor == nullptr)
+    auto voice = std::make_shared<MixerVoice>();
+    voice->module = module;
+    if (module->component->queryInterface(IAudioProcessor_iid, reinterpret_cast<void**>(&voice->processor)) != kResultOk
+        || voice->processor == nullptr)
     {
+        voice->processor = nullptr;
         SetBridgeError("Il plug-in non espone IAudioProcessor: impossibile avviare l'audio.");
         return 0;
     }
 
-    auto* engine = new AudioEngineState();
-    engine->module = module;
-    engine->processor = processor; // ownership transferred; released by the engine thread
-    engine->deviceId = deviceId != nullptr ? deviceId : L"";
-    engine->useAsio = useAsio;
-    engine->requestedBufferFrames = bufferFrames;
-    engine->requestedSampleRate = sampleRate;
-
-    module->audioEngine = engine;
-    engine->thread = useAsio ? std::thread(RunAsioEngineThread, engine) : std::thread(RunAudioEngineThread, engine);
-
-    // Wait (with a generous timeout) for the engine thread to finish its
-    // startup sequence, so the caller gets an accurate success/failure
-    // result instead of a false "started" positive.
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-    while (engine->initResult.load() == 0 && std::chrono::steady_clock::now() < deadline)
+    const std::wstring requestedDevice = deviceId != nullptr ? deviceId : L"";
+    auto voices = CurrentVoices();
+    const bool otherOutput = g_engine != nullptr
+        && (g_engine->deviceId != requestedDevice || g_engine->useAsio != useAsio
+            || g_engine->requestedBufferFrames != bufferFrames || g_engine->requestedSampleRate != sampleRate);
+    if (otherOutput)
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        // The audio settings changed: the output reopens with them, and the plug-ins already playing are
+        // prepared again for its block size and sample rate.
+        PublishVoices({});
+        StopAudioDevice();
+        for (const auto& playing : voices)
+        {
+            WaitUntilReleased(playing);
+            playing->Deactivate();
+        }
     }
 
-    if (engine->initResult.load() != 1)
+    if (g_engine == nullptr)
     {
-        std::string error = engine->GetInitError();
-        SetBridgeError(error.empty() ? "Avvio del motore audio fallito (timeout o errore sconosciuto)." : error);
-        StopAudioInternal(module);
+        auto* engine = new AudioEngineState();
+        engine->deviceId = requestedDevice;
+        engine->useAsio = useAsio;
+        engine->requestedBufferFrames = bufferFrames;
+        engine->requestedSampleRate = sampleRate;
+        engine->thread = useAsio ? std::thread(RunAsioEngineThread, engine) : std::thread(RunAudioEngineThread, engine);
+        g_engine = engine;
+
+        // Wait (with a generous timeout) for the engine thread to finish its startup sequence, so the caller
+        // gets an accurate success/failure result instead of a false "started" positive.
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+        while (engine->initResult.load() == 0 && std::chrono::steady_clock::now() < deadline)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+
+        if (engine->initResult.load() != 1)
+        {
+            std::string error = engine->GetInitError();
+            SetBridgeError(error.empty() ? "Avvio del motore audio fallito (timeout o errore sconosciuto)." : error);
+            StopAudioDevice();
+            for (const auto& playing : voices)
+            {
+                std::lock_guard<std::mutex> lock(playing->module->voiceMutex);
+                playing->module->voice.reset();
+            }
+            PublishVoices({});
+            return 0;
+        }
+
+        if (otherOutput)
+        {
+            for (const auto& playing : voices)
+            {
+                std::string error;
+                playing->Activate(g_engine->maxBlock, g_engine->sampleRate, error);
+            }
+        }
+    }
+
+    std::string error;
+    if (!voice->Activate(g_engine->maxBlock, g_engine->sampleRate, error))
+    {
+        SetBridgeError(error);
+        voice->Deactivate();
+        PublishVoices(voices);
+        if (voices.empty())
+        {
+            StopAudioDevice();
+        }
         return 0;
     }
 
+    voices.push_back(voice);
+    PublishVoices(std::move(voices));
+    {
+        std::lock_guard<std::mutex> lock(module->voiceMutex);
+        module->voice = std::move(voice);
+    }
     return 1;
 }
 
@@ -2592,7 +2719,7 @@ int VstHostBridge_GetAsioTiming(void* moduleHandle, int32_t* outBufferFrames, in
         return 0;
     }
 
-    auto* engine = static_cast<BridgeModule*>(moduleHandle)->audioEngine;
+    auto* engine = RunningOutputFor(static_cast<BridgeModule*>(moduleHandle));
     if (engine == nullptr || !engine->useAsio || engine->asioBufferFrames.load() == 0)
     {
         return 0;
@@ -2612,7 +2739,7 @@ int VstHostBridge_MeasureAsioLatency(void* moduleHandle, double* outMilliseconds
         return 0;
     }
 
-    auto* engine = static_cast<BridgeModule*>(moduleHandle)->audioEngine;
+    auto* engine = RunningOutputFor(static_cast<BridgeModule*>(moduleHandle));
     if (engine == nullptr || !engine->useAsio || engine->asioBufferFrames.load() == 0)
     {
         SetBridgeError("La misura richiede una sessione ASIO in corso.");
@@ -2984,7 +3111,12 @@ int VstHostBridge_SendNoteEvent(void* moduleHandle, int32_t channel, int32_t pit
     }
 
     auto* module = static_cast<BridgeModule*>(moduleHandle);
-    if (module->audioEngine == nullptr || module->audioEngine->initResult.load() != 1)
+    std::shared_ptr<MixerVoice> voice;
+    {
+        std::lock_guard<std::mutex> lock(module->voiceMutex);
+        voice = module->voice;
+    }
+    if (voice == nullptr)
     {
         return 0;
     }
@@ -3010,9 +3142,8 @@ int VstHostBridge_SendNoteEvent(void* moduleHandle, int32_t channel, int32_t pit
         event.noteOff.noteId = -1;
     }
 
-    auto* engine = module->audioEngine;
-    std::lock_guard<std::mutex> lock(engine->midiMutex);
-    engine->pendingMidi.push_back(event);
+    std::lock_guard<std::mutex> lock(voice->midiMutex);
+    voice->pendingMidi.push_back(event);
     return 1;
 }
 
@@ -3024,5 +3155,6 @@ int VstHostBridge_IsAudioRunning(void* moduleHandle)
     }
 
     auto* module = static_cast<BridgeModule*>(moduleHandle);
-    return (module->audioEngine != nullptr && module->audioEngine->initResult.load() == 1) ? 1 : 0;
+    std::lock_guard<std::mutex> lock(module->voiceMutex);
+    return module->voice != nullptr ? 1 : 0;
 }

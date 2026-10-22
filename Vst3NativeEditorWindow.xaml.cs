@@ -155,13 +155,10 @@ public partial class Vst3NativeEditorWindow : Window
             _editorHost = null;
         }
 
-        if (_moduleHandle is not null)
-        {
-            LiveInstrumentRegistry.Clear(_moduleHandle);
-        }
-
+        // A plug-in this window did not load (a track's, for one) keeps playing, and the keyboard with it.
         if (_ownsModule && _moduleHandle is not null)
         {
+            LiveInstrumentRegistry.Clear(_moduleHandle);
             _vst3Host.StopAudio(_moduleHandle);
             _vst3Host.UnloadModule(_moduleHandle);
             _moduleHandle = null;

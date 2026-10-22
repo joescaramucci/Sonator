@@ -17,24 +17,26 @@ public sealed class PlaybackInstrumentTests
     }
 
     [Fact]
-    public void PlaysTheRecordedTrack_NotTheFirstPluginTrack()
-    {
-        var tracks = PluginTracks();
-        tracks[3].MidiNoteEvents = new[] { new MidiNoteEventViewModel(0, 1, 60, 100) };
-
-        // The recorded track plays even when another track is selected.
-        Assert.Same(tracks[3], MainViewModel.PlaybackInstrumentTrack(tracks, tracks[0], recording: false));
-        Assert.Same(tracks[3], MainViewModel.PlaybackInstrumentTrack(tracks, null, recording: false));
-    }
-
-    [Fact]
-    public void SelectedTrackWithNotes_OrBeingRecordedOn_IsTheOneHeard()
+    public void EveryPluginTrackWithNotes_Plays_NotJustOne()
     {
         var tracks = PluginTracks();
         tracks[1].MidiNoteEvents = new[] { new MidiNoteEventViewModel(0, 1, 60, 100) };
-        tracks[5].MidiNoteEvents = new[] { new MidiNoteEventViewModel(0, 1, 64, 100) };
+        tracks[3].MidiNoteEvents = new[] { new MidiNoteEventViewModel(0, 1, 64, 100) };
 
-        Assert.Same(tracks[5], MainViewModel.PlaybackInstrumentTrack(tracks, tracks[5], recording: false));
-        Assert.Same(tracks[6], MainViewModel.PlaybackInstrumentTrack(tracks, tracks[6], recording: true));
+        var playing = MainViewModel.PlaybackInstrumentTracks(tracks, tracks[0], recording: false);
+
+        Assert.Equal(new[] { tracks[1], tracks[3] }, playing);
+    }
+
+    [Fact]
+    public void TheTrackRecordedOn_IsHeard_EvenWithoutNotesYet()
+    {
+        var tracks = PluginTracks();
+        tracks[1].MidiNoteEvents = new[] { new MidiNoteEventViewModel(0, 1, 60, 100) };
+
+        var playing = MainViewModel.PlaybackInstrumentTracks(tracks, tracks[6], recording: true);
+
+        Assert.Equal(new[] { tracks[1], tracks[6] }, playing);
+        Assert.DoesNotContain(tracks[6], MainViewModel.PlaybackInstrumentTracks(tracks, tracks[6], recording: false));
     }
 }

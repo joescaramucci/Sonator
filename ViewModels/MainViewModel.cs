@@ -83,8 +83,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private CountInOption _selectedCountIn = new(1, "1 bar");
     private int _snapMode; // 0 bar, 1 beat, 2 sixteenth
     private ClickOption _selectedClickOption = new(1, "Quarter");
-    private Vst3ModuleHandle? _ownedInstrument;
     private readonly TrackEffectsHost _trackEffects = new();
+    private readonly TrackInstrumentsHost _trackInstruments;
     private readonly VstPluginService _vstPluginService;
     private readonly VstPluginScanner _vstPluginScanner;
     private readonly AudioOutputDeviceService _audioOutputDeviceService;
@@ -162,6 +162,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         AppSettingsService? appSettingsService = null,
         AudioOutputDeviceService? audioOutputDeviceService = null)
     {
+        _trackInstruments = new TrackInstrumentsHost(_liveInstrumentHost, track => _trackEffects.ChainFor(track));
         _engine = engine ?? new SequencerEngine();
         _projectFileService = projectFileService ?? new ProjectFileService();
         _trackClipboardService = trackClipboardService ?? new TrackClipboardService();
@@ -200,7 +201,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         MidiInputDevices = new ObservableCollection<MidiInputDeviceViewModel>();
         ReloadMidiInputDevices();
         _engine.PluginNoteRouter = RouteSequencerNoteToPlugin;
-        LiveInstrumentRegistry.CurrentChanged += AttachEffectsToLiveInstrument;
         _clickPlayer.Start();
         _engine.ClickSound = _clickPlayer.Trigger;
         _midiInput.NoteReceived += OnKeyboardNote;
@@ -861,6 +861,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 }
 
                 SelectedStep = value?.Steps.FirstOrDefault(step => step.IsActive) ?? value?.Steps.FirstOrDefault();
+                PointKeyboardAtSelectedTrack();
                 RaisePropertyChanged(nameof(SelectedTrackIndex));
                 RaisePropertyChanged(nameof(SelectedTrackHeader));
                 RefreshPianoRoll();
@@ -1736,9 +1737,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
-        LiveInstrumentRegistry.CurrentChanged -= AttachEffectsToLiveInstrument;
         _audioMeterTimer.Stop();
-        StopOwnedInstrument();
+        _trackInstruments.Dispose();
         _engine.StepChanged -= OnStepChanged;
         _engine.PatternChanged -= OnPlaybackPatternChanged;
         _engine.PlaybackCompleted -= OnPlaybackCompleted;
@@ -1840,28 +1840,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     {
         var slot = track.Effects.IndexOf(effect);
         return slot < 0 ? 0 : _trackEffects.ChainFor(track)?.Meter(slot) ?? 0;
-    }
-
-    // The plug-in that plays now runs through the effects of its track: the selected track when it
-    // uses that plug-in, otherwise the first track that does.
-    private void AttachEffectsToLiveInstrument()
-    {
-        Application.Current?.Dispatcher.BeginInvoke(() =>
-        {
-            if (LiveInstrumentRegistry.Current is not { } instrument)
-            {
-                return;
-            }
-
-            var track = SelectedTrack is { PluginFilePath: { } selectedPath } && string.Equals(selectedPath, instrument.FilePath, StringComparison.OrdinalIgnoreCase)
-                ? SelectedTrack
-                : Patterns.SelectMany(pattern => pattern.Tracks)
-                    .FirstOrDefault(candidate => string.Equals(candidate.PluginFilePath, instrument.FilePath, StringComparison.OrdinalIgnoreCase));
-            if (track is not null)
-            {
-                _trackEffects.ChainFor(track)?.AttachTo(instrument);
-            }
-        });
     }
 
     private void CaptureUndoStateIfNeeded()
@@ -2042,62 +2020,43 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         StatusMessage = $"MIDI in: {status:X2} {(packed >> 8) & 0xFF:X2} {(packed >> 16) & 0xFF:X2}";
     }
 
-    // Starts the track's plug-in as the live instrument when it is not already the one playing.
-    private void EnsureInstrument(string pluginPath, string trackName)
+    // The host that runs the tracks' plug-ins, for windows that show one of them.
+    public IVst3PluginHost PluginHost => _liveInstrumentHost;
+
+    // Starts the track's own plug-in if it is not running yet, and returns it. Every track has its own,
+    // so all the tracks sound together. Null when the track has no plug-in or it cannot start.
+    public Vst3ModuleHandle? EnsureTrackInstrument(PatternTrackViewModel track)
     {
-        if (LiveInstrumentRegistry.Current is { } current
-            && string.Equals(current.FilePath, pluginPath, StringComparison.OrdinalIgnoreCase))
+        var handle = _trackInstruments.Ensure(track, AudioOutputSelection.FromSettings(new AppSettingsService().Load()), out var error);
+        if (error is not null)
         {
-            return;
+            StatusMessage = $"{track.Name}: {error}";
         }
 
-        StopOwnedInstrument();
-        var handle = _liveInstrumentHost.TryLoadModule(pluginPath, out var loadError);
-        if (handle is null)
-        {
-            StatusMessage = $"{trackName}: could not load the plug-in: {loadError}";
-            return;
-        }
-
-        var selection = AudioOutputSelection.FromSettings(new AppSettingsService().Load());
-        string? audioError = null;
-        if (!_liveInstrumentHost.HasAudioProcessor(handle)
-            || !_liveInstrumentHost.TryStartAudio(handle, selection, out audioError))
-        {
-            _liveInstrumentHost.UnloadModule(handle);
-            StatusMessage = $"{trackName}: plug-in audio did not start: {audioError ?? "the plug-in has no audio processor"}";
-            return;
-        }
-
-        _ownedInstrument = handle;
-        LiveInstrumentRegistry.Set(handle);
+        return handle;
     }
 
-    private void StopOwnedInstrument()
+    // The keyboard plays the selected track's plug-in. When it is not running yet, the first key starts it.
+    private void PointKeyboardAtSelectedTrack()
     {
-        if (_ownedInstrument is null)
+        if (SelectedTrack is { } track && _trackInstruments.RunningFor(track) is { } instrument)
         {
-            return;
+            LiveInstrumentRegistry.Set(instrument);
         }
-
-        LiveInstrumentRegistry.Clear(_ownedInstrument);
-        _liveInstrumentHost.StopAudio(_ownedInstrument);
-        _liveInstrumentHost.UnloadModule(_ownedInstrument);
-        _ownedInstrument = null;
+        else if (LiveInstrumentRegistry.Current is { } current)
+        {
+            LiveInstrumentRegistry.Clear(current);
+        }
     }
 
-    // Plays a sequencer note through the plug-in running for the track's plug-in file, if there is one.
-    private bool RouteSequencerNoteToPlugin(string? pluginPath, int channel, int noteNumber, int velocity, bool isOn)
-    {
-        if (string.IsNullOrEmpty(pluginPath)
-            || LiveInstrumentRegistry.Current is not { } instrument
-            || !string.Equals(instrument.FilePath, pluginPath, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
+    // Stops the plug-ins of tracks that are gone or play another plug-in now.
+    private void ReleaseUnusedInstruments() =>
+        _trackInstruments.KeepOnly(Patterns.SelectMany(pattern => pattern.Tracks));
 
-        return _liveInstrumentHost.TrySendNote(instrument, channel, noteNumber, velocity, isOn);
-    }
+    // Plays a sequencer note through the track's own plug-in, when it is running. Called on the sequencer thread.
+    private bool RouteSequencerNoteToPlugin(PatternTrackViewModel track, int channel, int noteNumber, int velocity, bool isOn) =>
+        _trackInstruments.RunningFor(track) is { } instrument
+        && _liveInstrumentHost.TrySendNote(instrument, channel, noteNumber, velocity, isOn);
 
     private void FlashMidiActivity()
     {
@@ -2372,9 +2331,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        if (note.IsOn && SelectedTrack is { SupportsMidiPlayback: true, PluginFilePath: { Length: > 0 } selectedPlugin })
+        if (note.IsOn && SelectedTrack is { SupportsMidiPlayback: true, PluginFilePath: { Length: > 0 } } selected
+            && EnsureTrackInstrument(selected) is { } started)
         {
-            EnsureInstrument(selectedPlugin, SelectedTrack.Name);
+            LiveInstrumentRegistry.Set(started);
         }
 
         if (!IsLiveKeyboardEnabled)
@@ -2630,6 +2590,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     {
         CaptureUndoStateIfNeeded();
         track.PluginFilePath = pluginPath;
+        ReleaseUnusedInstruments();
         StatusMessage = $"{track.Name} now plays through {Path.GetFileNameWithoutExtension(pluginPath)}";
     }
 
@@ -2753,23 +2714,20 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         return added;
     }
 
-    // Only one plug-in plays at a time, so playback starts the one whose notes are to be heard: the selected
-    // track's when it has a plug-in and notes, or is being recorded on; else the first audible plug-in track that
-    // has notes, else the first plug-in track.
-    internal static PatternTrackViewModel? PlaybackInstrumentTrack(IReadOnlyList<PatternTrackViewModel> tracks, PatternTrackViewModel? selected, bool recording)
+    // The tracks whose plug-ins playback starts: every plug-in track with notes to play, and the selected
+    // plug-in track when it is being recorded on, so it is heard as it is played.
+    internal static IReadOnlyList<PatternTrackViewModel> PlaybackInstrumentTracks(IEnumerable<PatternTrackViewModel> tracks, PatternTrackViewModel? selected, bool recording)
     {
         static bool HasPlugin(PatternTrackViewModel track) => track.SupportsMidiPlayback && !string.IsNullOrEmpty(track.PluginFilePath);
         static bool HasNotes(PatternTrackViewModel track) => track.MidiNoteEvents.Count > 0 || track.Steps.Any(step => step.IsActive);
 
-        if (selected is not null && HasPlugin(selected)
-            && (recording || HasNotes(selected) || !tracks.Any(t => HasPlugin(t) && HasNotes(t))))
+        var playing = tracks.Where(track => HasPlugin(track) && HasNotes(track)).ToList();
+        if (recording && selected is not null && HasPlugin(selected) && !playing.Contains(selected))
         {
-            return selected;
+            playing.Add(selected);
         }
 
-        return tracks.FirstOrDefault(track => HasPlugin(track) && HasNotes(track) && !track.IsMuted)
-            ?? tracks.FirstOrDefault(track => HasPlugin(track) && HasNotes(track))
-            ?? tracks.FirstOrDefault(HasPlugin);
+        return playing;
     }
 
     private void StartPlayback()
@@ -2780,10 +2738,12 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             RebuildTimeline();
         }
 
-        if (PlaybackInstrumentTrack(Tracks, SelectedTrack, IsRecording) is { } pluginTrack)
+        ReleaseUnusedInstruments();
+        foreach (var pluginTrack in PlaybackInstrumentTracks(Patterns.SelectMany(pattern => pattern.Tracks), SelectedTrack, IsRecording))
         {
-            EnsureInstrument(pluginTrack.PluginFilePath!, pluginTrack.Name);
+            EnsureTrackInstrument(pluginTrack);
         }
+        PointKeyboardAtSelectedTrack();
 
         _playbackStartStep = CurrentStepIndex;
         _recordingNotes.Clear();
@@ -4394,6 +4354,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             _isRestoringState = false;
         }
 
+        ReleaseUnusedInstruments();
+        PointKeyboardAtSelectedTrack();
         TracksReplaced?.Invoke();
     }
 

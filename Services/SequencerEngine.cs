@@ -70,7 +70,7 @@ internal sealed class SequencerEngine : IDisposable
     public int StepsPerBeat { get; set; } = 4;
 
     // Offered each note of a track that has a plug-in. Returns true when the plug-in took the note, so the MIDI output is skipped.
-    public Func<string?, int, int, int, bool, bool>? PluginNoteRouter { get; set; }
+    public Func<PatternTrackViewModel, int, int, int, bool, bool>? PluginNoteRouter { get; set; }
     private readonly List<PatternViewModel> _songPatterns = new();
     private PatternViewModel? _pattern;
     private int _currentStep;
@@ -735,7 +735,7 @@ internal sealed class SequencerEngine : IDisposable
 
     private void SendNoteOn(PatternTrackViewModel track, int channel, int noteNumber, int velocity)
     {
-        if (PluginNoteRouter?.Invoke(track.PluginFilePath, channel, noteNumber, velocity, true) == true)
+        if (PluginNoteRouter?.Invoke(track, channel, noteNumber, velocity, true) == true)
         {
             return;
         }
@@ -745,7 +745,7 @@ internal sealed class SequencerEngine : IDisposable
 
     private void SendNoteOff(PatternTrackViewModel track, int channel, int noteNumber)
     {
-        if (PluginNoteRouter?.Invoke(track.PluginFilePath, channel, noteNumber, 0, false) == true)
+        if (PluginNoteRouter?.Invoke(track, channel, noteNumber, 0, false) == true)
         {
             return;
         }

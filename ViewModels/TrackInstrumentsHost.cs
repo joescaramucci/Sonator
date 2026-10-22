@@ -1,0 +1,121 @@
+using Sonator.Services;
+using Sonator.Services.Effects;
+using Sonator.Services.Vst3;
+
+namespace Sonator.ViewModels;
+
+// Keeps one running plug-in per track, so every track plays through its own instrument and they all sound
+// together. A track's plug-in starts the first time it is needed and runs through the track's effects; it
+// stops when the track goes or takes another plug-in.
+internal sealed class TrackInstrumentsHost : IDisposable
+{
+    private readonly IVst3PluginHost _host;
+    private readonly Func<PatternTrackViewModel, NativeEffectChain?> _effectsFor;
+    private readonly Dictionary<PatternTrackViewModel, Vst3ModuleHandle> _instruments = new();
+    private readonly object _sync = new();
+
+    public TrackInstrumentsHost(IVst3PluginHost host, Func<PatternTrackViewModel, NativeEffectChain?> effectsFor)
+    {
+        _host = host;
+        _effectsFor = effectsFor;
+    }
+
+    // The track's plug-in when it is running, from any thread. Null when it has not started yet.
+    public Vst3ModuleHandle? RunningFor(PatternTrackViewModel track)
+    {
+        lock (_sync)
+        {
+            return _instruments.TryGetValue(track, out var handle) && IsFor(track, handle) ? handle : null;
+        }
+    }
+
+    // Starts the track's plug-in if it is not running yet. Null, with the reason, when it cannot start.
+    public Vst3ModuleHandle? Ensure(PatternTrackViewModel track, AudioOutputSelection selection, out string? error)
+    {
+        error = null;
+        if (string.IsNullOrEmpty(track.PluginFilePath))
+        {
+            return null;
+        }
+
+        if (RunningFor(track) is { } running)
+        {
+            return running;
+        }
+
+        Release(track); // a plug-in the track no longer uses
+
+        var handle = _host.TryLoadModule(track.PluginFilePath, out var loadError);
+        if (handle is null)
+        {
+            error = $"could not load the plug-in: {loadError}";
+            return null;
+        }
+
+        _effectsFor(track)?.AttachTo(handle);
+        string? audioError = null;
+        if (!_host.HasAudioProcessor(handle) || !_host.TryStartAudio(handle, selection, out audioError))
+        {
+            _host.UnloadModule(handle);
+            error = $"plug-in audio did not start: {audioError ?? "the plug-in has no audio processor"}";
+            return null;
+        }
+
+        lock (_sync)
+        {
+            _instruments[track] = handle;
+        }
+
+        return handle;
+    }
+
+    // Stops and unloads the track's plug-in, if it runs one.
+    public void Release(PatternTrackViewModel track)
+    {
+        Vst3ModuleHandle? handle;
+        lock (_sync)
+        {
+            if (!_instruments.Remove(track, out handle))
+            {
+                return;
+            }
+        }
+
+        Stop(handle);
+    }
+
+    // Stops the plug-ins of tracks that are gone or have changed plug-in.
+    public void KeepOnly(IEnumerable<PatternTrackViewModel> tracks)
+    {
+        var kept = tracks.ToHashSet();
+        List<Vst3ModuleHandle> stale;
+        lock (_sync)
+        {
+            var staleTracks = _instruments.Where(pair => !kept.Contains(pair.Key) || !IsFor(pair.Key, pair.Value))
+                .Select(pair => pair.Key)
+                .ToList();
+            stale = staleTracks.Select(track => _instruments[track]).ToList();
+            foreach (var track in staleTracks)
+            {
+                _instruments.Remove(track);
+            }
+        }
+
+        foreach (var handle in stale)
+        {
+            Stop(handle);
+        }
+    }
+
+    public void Dispose() => KeepOnly(Array.Empty<PatternTrackViewModel>());
+
+    private static bool IsFor(PatternTrackViewModel track, Vst3ModuleHandle handle) =>
+        string.Equals(track.PluginFilePath, handle.FilePath, StringComparison.OrdinalIgnoreCase);
+
+    private void Stop(Vst3ModuleHandle handle)
+    {
+        LiveInstrumentRegistry.Clear(handle);
+        _host.StopAudio(handle);
+        _host.UnloadModule(handle);
+    }
+}

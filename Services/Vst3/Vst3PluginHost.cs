@@ -256,15 +256,7 @@ public sealed class Vst3PluginHost : IVst3PluginHost
 
         try
         {
-            // An ASIO driver runs one session at a time. Starting a plug-in gives the output to it, so the one playing
-            // now stops first instead of the driver being opened a second time.
-            if (selection.UseAsio
-                && AsioSessionRegistry.Current is { } running
-                && running.NativeHandle != handle.NativeHandle)
-            {
-                StopAudio(running);
-            }
-
+            // Every plug-in started joins the bridge's one audio output, so they all play together.
             if (selection.UseAsio && Vst3HostInterop.VstHostBridge_IsAsioSupported() == 0)
             {
                 error = "This build of the VST3 bridge does not include ASIO support.";

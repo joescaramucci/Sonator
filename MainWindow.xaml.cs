@@ -1398,7 +1398,23 @@ public partial class MainWindow : Window
 
         var plugin = viewModel.VstPlugins.FirstOrDefault(item => string.Equals(item.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
         var kind = plugin?.Kind ?? (string.Equals(Path.GetExtension(filePath), ".vst3", StringComparison.OrdinalIgnoreCase) ? "VST3" : "VST2");
-        var window = CreatePluginWindow(plugin?.Name ?? Path.GetFileNameWithoutExtension(filePath), filePath, kind);
+        var name = plugin?.Name ?? Path.GetFileNameWithoutExtension(filePath);
+
+        // A VST3 track's window shows the plug-in the track plays through, so a sound chosen there is the
+        // track's sound, and closing the window leaves it playing.
+        Window window;
+        if (string.Equals(kind, "VST3", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(track.PluginFilePath, filePath, StringComparison.OrdinalIgnoreCase)
+            && viewModel.EnsureTrackInstrument(track) is { } instrument)
+        {
+            LiveInstrumentRegistry.Set(instrument);
+            window = new Vst3NativeEditorWindow(viewModel.PluginHost, instrument, $"{name} — {track.Name}");
+        }
+        else
+        {
+            window = CreatePluginWindow(name, filePath, kind);
+        }
+
         window.Closed += (_, _) =>
         {
             if (_trackPluginWindows.TryGetValue(track, out var open) && ReferenceEquals(open, window))
