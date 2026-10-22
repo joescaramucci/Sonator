@@ -319,7 +319,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     // The project as it was last saved, opened or created, to tell whether closing would lose changes.
     private string? _savedProjectSnapshot;
 
-    public bool HasUnsavedChanges => ProjectSnapshot() != _savedProjectSnapshot;
+    // An edit to the song, or a sound changed in a plug-in's window since it started or was saved.
+    public bool HasUnsavedChanges => ProjectSnapshot() != _savedProjectSnapshot || _trackInstruments.AnySoundChanged();
 
     private void MarkProjectSaved() => _savedProjectSnapshot = ProjectSnapshot();
 
@@ -2502,6 +2503,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             CurrentProjectPath = path;
             StatusMessage = $"Project saved to {path}";
             MarkProjectSaved();
+            RememberRecentProject(path);
             return true;
         }
         catch (Exception ex)
@@ -2519,29 +2521,48 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             Filter = "Sonator project (*.sonator.json)|*.sonator.json|JSON files (*.json)|*.json"
         };
 
-        if (dialog.ShowDialog() != true)
+        if (dialog.ShowDialog() == true)
         {
-            return;
+            OpenProject(dialog.FileName);
         }
+    }
 
+    // The projects last saved or opened, the latest first, those still on disk only.
+    public IReadOnlyList<string> RecentProjects =>
+        new AppSettingsService().Load().RecentProjects.Where(File.Exists).ToList();
+
+    private void RememberRecentProject(string path)
+    {
+        var settingsService = new AppSettingsService();
+        var settings = settingsService.Load();
+        settings.RecentProjects = RecentProjectList.WithLatest(settings.RecentProjects, path);
+        settingsService.Save(settings);
+    }
+
+    // Opens the project file at path in place of the one open now. Returns false when it cannot be read.
+    public bool OpenProject(string path)
+    {
         try
         {
-            var document = _projectFileService.Load(dialog.FileName);
+            var document = _projectFileService.Load(path);
             _history.Clear();
             RestoreProjectDocument(document);
-            CurrentProjectPath = dialog.FileName;
-            StatusMessage = $"Project loaded from {dialog.FileName}";
+            CurrentProjectPath = path;
+            RememberRecentProject(path);
+            StatusMessage = $"Project loaded from {path}";
             SaveProjectCommand?.RaiseCanExecuteChanged();
             SaveProjectAsCommand?.RaiseCanExecuteChanged();
             PasteTrackCommand?.RaiseCanExecuteChanged();
             RaiseHistoryStateChanged();
             MarkProjectSaved();
             StartSavedInstruments();
+            return true;
         }
         catch (Exception ex)
         {
             MessageBox.Show(ex.Message, "Load project failed", MessageBoxButton.OK, MessageBoxImage.Error);
             StatusMessage = "Load failed";
+            return false;
         }
     }
 

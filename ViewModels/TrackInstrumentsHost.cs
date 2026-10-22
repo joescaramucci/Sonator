@@ -76,8 +76,39 @@ internal sealed class TrackInstrumentsHost : IDisposable
             _instruments[track] = handle;
         }
 
+        RememberSound(handle);
         return handle;
     }
+
+    // The state each running plug-in had when it started or the project was last saved, to tell whether its
+    // sound has been changed since. A plug-in left alone keeps the very same state.
+    private readonly Dictionary<Vst3ModuleHandle, (byte[]? Processor, byte[]? Editor)> _savedSounds = new();
+
+    private void RememberSound(Vst3ModuleHandle handle)
+    {
+        var sound = (_host.TrySaveState(handle, 0), _host.TrySaveState(handle, 1));
+        lock (_sync)
+        {
+            _savedSounds[handle] = sound;
+        }
+    }
+
+    // True when a running plug-in's sound has been changed in its window since it started or was saved.
+    public bool AnySoundChanged()
+    {
+        List<KeyValuePair<Vst3ModuleHandle, (byte[]? Processor, byte[]? Editor)>> remembered;
+        lock (_sync)
+        {
+            remembered = _savedSounds.Where(pair => _instruments.ContainsValue(pair.Key)).ToList();
+        }
+
+        return remembered.Any(pair =>
+            !SameBytes(_host.TrySaveState(pair.Key, 0), pair.Value.Processor)
+            || !SameBytes(_host.TrySaveState(pair.Key, 1), pair.Value.Editor));
+    }
+
+    private static bool SameBytes(byte[]? a, byte[]? b) =>
+        a is null ? b is null : b is not null && a.AsSpan().SequenceEqual(b);
 
     // Stops and unloads the track's plug-in, if it runs one.
     public void Release(PatternTrackViewModel track)
@@ -128,8 +159,14 @@ internal sealed class TrackInstrumentsHost : IDisposable
 
         foreach (var (track, handle) in running)
         {
-            track.PluginState = _host.TrySaveState(handle, 0) ?? track.PluginState;
-            track.PluginEditorState = _host.TrySaveState(handle, 1) ?? track.PluginEditorState;
+            var processor = _host.TrySaveState(handle, 0);
+            var editor = _host.TrySaveState(handle, 1);
+            track.PluginState = processor ?? track.PluginState;
+            track.PluginEditorState = editor ?? track.PluginEditorState;
+            lock (_sync)
+            {
+                _savedSounds[handle] = (processor, editor); // saved now: no longer a change
+            }
         }
     }
 
@@ -176,6 +213,10 @@ internal sealed class TrackInstrumentsHost : IDisposable
 
     private void Stop(Vst3ModuleHandle handle)
     {
+        lock (_sync)
+        {
+            _savedSounds.Remove(handle);
+        }
         Stopping?.Invoke(handle);
         LiveInstrumentRegistry.Clear(handle);
         _host.StopAudio(handle);

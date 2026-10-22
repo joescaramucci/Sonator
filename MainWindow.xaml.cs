@@ -71,6 +71,45 @@ public partial class MainWindow : Window
         };
     }
 
+    // File > Open recent lists the projects last saved or opened, the latest first, numbered for the keyboard.
+    private void FileMenu_SubmenuOpened(object sender, RoutedEventArgs e)
+    {
+        if (e.OriginalSource != sender || DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        OpenRecentMenuItem.Items.Clear();
+        var recent = viewModel.RecentProjects;
+        for (var i = 0; i < recent.Count; i++)
+        {
+            var path = recent[i];
+            var item = new MenuItem
+            {
+                Header = $"_{(i + 1) % 10} {Path.GetFileName(path).Replace("_", "__")}",
+                ToolTip = path,
+            };
+            item.Click += (_, _) => OpenRecentProject(viewModel, path);
+            OpenRecentMenuItem.Items.Add(item);
+        }
+
+        OpenRecentMenuItem.IsEnabled = recent.Count > 0;
+    }
+
+    private void OpenRecentProject(MainViewModel viewModel, string path)
+    {
+        if (viewModel.HasUnsavedChanges)
+        {
+            var choice = SonatorMessageDialog.AskToSave(this, "Open project", "Do you want to save the project before opening another?");
+            if (choice == SaveChoice.Cancel || (choice == SaveChoice.Save && !viewModel.SaveProject()))
+            {
+                return;
+            }
+        }
+
+        viewModel.OpenProject(path);
+    }
+
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
         if (DataContext is not MainViewModel viewModel)

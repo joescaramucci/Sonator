@@ -29,6 +29,21 @@ public sealed class AppSettings
 
     // Plug-in files added one by one, outside the scanned folders.
     public List<string> AddedVstPluginFiles { get; set; } = new();
+
+    // The projects last saved or opened, the latest first, for File > Open recent.
+    public List<string> RecentProjects { get; set; } = new();
+}
+
+public static class RecentProjectList
+{
+    public const int MaxCount = 10;
+
+    // The list with path at the top, once, and at most MaxCount entries.
+    public static List<string> WithLatest(IEnumerable<string> recent, string path) =>
+        new[] { path }
+            .Concat(recent.Where(entry => !string.Equals(entry, path, StringComparison.OrdinalIgnoreCase)))
+            .Take(MaxCount)
+            .ToList();
 }
 
 public sealed class AppSettingsService

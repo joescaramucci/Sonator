@@ -564,9 +564,10 @@
                       BorderThickness="1"
                       FontFamily="Segoe UI Semibold"
                       FontSize="12">
-                    <MenuItem Header="_File">
+                    <MenuItem Header="_File" SubmenuOpened="FileMenu_SubmenuOpened">
                         <MenuItem Header="_New project" Command="{Binding NewProjectCommand}" InputGestureText="Ctrl+N" />
                         <MenuItem Header="_Open project..." Command="{Binding LoadProjectCommand}" InputGestureText="Ctrl+L" />
+                        <MenuItem x:Name="OpenRecentMenuItem" Header="Open _recent" />
                         <Separator />
                         <MenuItem Header="_Save project" Command="{Binding SaveProjectCommand}" InputGestureText="Ctrl+S" />
                         <MenuItem Header="Save _As..." Command="{Binding SaveProjectAsCommand}" InputGestureText="Ctrl+Shift+S" />
