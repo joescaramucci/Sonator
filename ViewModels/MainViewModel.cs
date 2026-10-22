@@ -2035,6 +2035,14 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     // The host that runs the tracks' plug-ins, for windows that show one of them.
     public IVst3PluginHost PluginHost => _liveInstrumentHost;
 
+    // Raised before a track's plug-in is unloaded, as when the track takes another plug-in or goes, so a
+    // window showing that plug-in closes first.
+    public event Action<Vst3ModuleHandle>? TrackInstrumentStopping
+    {
+        add => _trackInstruments.Stopping += value;
+        remove => _trackInstruments.Stopping -= value;
+    }
+
     // Starts the track's own plug-in if it is not running yet, and returns it. Every track has its own,
     // so all the tracks sound together. Null when the track has no plug-in or it cannot start.
     public Vst3ModuleHandle? EnsureTrackInstrument(PatternTrackViewModel track)

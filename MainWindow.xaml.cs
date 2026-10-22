@@ -80,6 +80,7 @@ public partial class MainWindow : Window
 
         viewModel.Health.Start();
         viewModel.TracksReplaced += ReopenFxRacks;
+        viewModel.TrackInstrumentStopping += ClosePluginWindowsOf;
         viewModel.VstPlugins.CollectionChanged += (_, args) =>
         {
             if (args.NewItems is null)
@@ -1502,6 +1503,17 @@ public partial class MainWindow : Window
         if (_dockedPluginWindows.Count == 0)
         {
             PluginDock.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    // Closes the windows, open or in the dock, that show a track's plug-in about to be unloaded.
+    private void ClosePluginWindowsOf(Vst3ModuleHandle instrument)
+    {
+        foreach (var window in OwnedWindows.OfType<Vst3NativeEditorWindow>()
+                     .Where(window => ReferenceEquals(window.ModuleHandle, instrument))
+                     .ToList())
+        {
+            window.Close(); // its Closed handlers take it out of the dock and the track's window list
         }
     }
 

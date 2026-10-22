@@ -171,8 +171,12 @@ internal sealed class TrackInstrumentsHost : IDisposable
     private static bool IsFor(PatternTrackViewModel track, Vst3ModuleHandle handle) =>
         string.Equals(track.PluginFilePath, handle.FilePath, StringComparison.OrdinalIgnoreCase);
 
+    // Raised before a track's plug-in stops and is unloaded, so a window showing it can close first.
+    public event Action<Vst3ModuleHandle>? Stopping;
+
     private void Stop(Vst3ModuleHandle handle)
     {
+        Stopping?.Invoke(handle);
         LiveInstrumentRegistry.Clear(handle);
         _host.StopAudio(handle);
         _host.UnloadModule(handle);

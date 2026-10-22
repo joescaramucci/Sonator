@@ -46,6 +46,7 @@
 #include "pluginterfaces/gui/iplugview.h"
 #include "pluginterfaces/gui/iplugviewcontentscalesupport.h"
 
+#include <immintrin.h>
 #include <mmdeviceapi.h>
 #include <audioclient.h>
 #include <functiondiscoverykeys_devpkey.h>
@@ -769,8 +770,8 @@ namespace
             }
         }
 
-        // Renders one block of the plug-in through its effects and adds it to the stereo mix. Audio thread only.
-        void RenderInto(float* left, float* right, int32 frames, double sampleRate)
+        // Renders one block of the plug-in through its effects into its own buffers. One thread at a time.
+        void Render(int32 frames, double sampleRate)
         {
             {
                 std::lock_guard<std::mutex> lock(midiMutex);
@@ -787,7 +788,11 @@ namespace
             processData.numSamples = frames;
             processor->process(processData);
             ApplyEffects(module, pointers.data(), channels, frames, sampleRate);
+        }
 
+        // Adds the block last rendered to the stereo mix.
+        void AddTo(float* left, float* right, int32 frames) const
+        {
             const float* sourceLeft = planar[0].data();
             const float* sourceRight = channels > 1 ? planar[1].data() : sourceLeft;
             for (int32 i = 0; i < frames; ++i)
@@ -806,6 +811,107 @@ namespace
     // The audio thread's own copy of the list, so a block never waits for the list to be changed.
     std::shared_ptr<const std::vector<std::shared_ptr<MixerVoice>>> g_audioThreadVoices;
 
+    // Makes the calling thread one the system schedules for audio (the "Pro Audio" class of the multimedia
+    // scheduler, where Windows has it), and flushes tiny floating-point values to zero, which would
+    // otherwise slow down effects and plug-ins as their sound fades out.
+    void PrepareAudioThread()
+    {
+        _mm_setcsr(_mm_getcsr() | 0x8040); // flush-to-zero and denormals-are-zero
+        using AvSetFn = HANDLE(WINAPI*)(LPCWSTR, LPDWORD);
+        static const auto avSet = []() -> AvSetFn
+        {
+            HMODULE avrt = LoadLibraryW(L"avrt.dll");
+            return avrt != nullptr
+                ? reinterpret_cast<AvSetFn>(reinterpret_cast<void*>(GetProcAddress(avrt, "AvSetMmThreadCharacteristicsW")))
+                : nullptr;
+        }();
+        DWORD taskIndex = 0;
+        if (avSet == nullptr || avSet(L"Pro Audio", &taskIndex) == nullptr)
+        {
+            SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
+        }
+    }
+
+    // Renders the plug-ins of one block on several cores at once. The audio thread hands out the block's
+    // voices; worker threads and the audio thread itself take them one at a time until none is left, and the
+    // audio thread waits for the last to finish before mixing. The block then takes about as long as its
+    // slowest plug-in rather than all of them one after another.
+    class RenderPool
+    {
+    public:
+        RenderPool()
+        {
+            const unsigned cores = std::thread::hardware_concurrency();
+            const int workers = static_cast<int>(std::clamp(cores > 1 ? cores - 1 : 1u, 1u, 7u));
+            wake_ = CreateSemaphoreW(nullptr, 0, 1 << 20, nullptr);
+            for (int i = 0; i < workers; ++i)
+            {
+                std::thread([this] { WorkerLoop(); }).detach();
+            }
+            workerCount_ = workers;
+        }
+
+        // Renders every voice of the block. Audio thread only.
+        void Render(MixerVoice* const* voices, int32 count, int32 frames, double sampleRate)
+        {
+            tasks_ = voices;
+            frames_ = frames;
+            sampleRate_ = sampleRate;
+            remaining_.store(count, std::memory_order_relaxed);
+
+            // The block's number, its voice count and the next voice to take share one atomic value, so a
+            // worker that takes a voice always sees the count of the same block.
+            ++epoch_;
+            work_.store((epoch_ << 32) | (static_cast<uint64_t>(count) << 16), std::memory_order_release);
+            ReleaseSemaphore(wake_, std::min<LONG>(workerCount_, count - 1), nullptr);
+
+            TakeVoices();
+            while (remaining_.load(std::memory_order_acquire) > 0)
+            {
+                _mm_pause();
+            }
+        }
+
+    private:
+        void WorkerLoop()
+        {
+            PrepareAudioThread();
+            for (;;)
+            {
+                WaitForSingleObject(wake_, INFINITE);
+                TakeVoices();
+            }
+        }
+
+        // Takes voices of the current block until none is left. A voice taken belongs to a block that is still
+        // waiting for it, so the block's voices and format stay as they are until it is done.
+        void TakeVoices()
+        {
+            for (;;)
+            {
+                const uint64_t ticket = work_.fetch_add(1, std::memory_order_acq_rel);
+                const auto index = static_cast<int32>(ticket & 0xFFFF);
+                const auto count = static_cast<int32>((ticket >> 16) & 0xFFFF);
+                if (index >= count)
+                {
+                    return;
+                }
+
+                tasks_[index]->Render(frames_, sampleRate_);
+                remaining_.fetch_sub(1, std::memory_order_acq_rel);
+            }
+        }
+
+        HANDLE wake_ = nullptr;
+        int workerCount_ = 0;
+        uint64_t epoch_ = 0;
+        std::atomic<uint64_t> work_{0};
+        std::atomic<int32> remaining_{0};
+        MixerVoice* const* tasks_ = nullptr;
+        int32 frames_ = 0;
+        double sampleRate_ = 0.0;
+    };
+
     // Sums every running plug-in into one stereo block. Called by the audio thread for each block.
     void MixVoices(float* left, float* right, int32 frames, double sampleRate)
     {
@@ -819,14 +925,32 @@ namespace
 
         std::fill(left, left + frames, 0.0f);
         std::fill(right, right + frames, 0.0f);
-        if (g_audioThreadVoices == nullptr)
+        if (g_audioThreadVoices == nullptr || g_audioThreadVoices->empty())
         {
             return;
         }
 
-        for (const auto& voice : *g_audioThreadVoices)
+        const auto& voices = *g_audioThreadVoices;
+        if (voices.size() == 1)
         {
-            voice->RenderInto(left, right, frames, sampleRate);
+            voices[0]->Render(frames, sampleRate);
+        }
+        else
+        {
+            // Made on the first block that has two plug-ins, and kept: the workers sleep when there is no work.
+            static RenderPool pool;
+            static std::vector<MixerVoice*> tasks;
+            tasks.clear();
+            for (const auto& voice : voices)
+            {
+                tasks.push_back(voice.get());
+            }
+            pool.Render(tasks.data(), static_cast<int32>(tasks.size()), frames, sampleRate);
+        }
+
+        for (const auto& voice : voices)
+        {
+            voice->AddTo(left, right, frames);
         }
     }
 
@@ -886,6 +1010,7 @@ namespace
     // audio device until AudioEngineState::stopRequested is set.
     void RunAudioEngineThread(AudioEngineState* engine)
     {
+        PrepareAudioThread();
         HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
         bool comInitializedHere = SUCCEEDED(hr);
         // RPC_E_CHANGED_MODE just means this thread already has a COM
@@ -2228,6 +2353,7 @@ namespace
             RecordDspDropout();
         }
         session->lastSwitchTicks = blockStart;
+        _mm_setcsr(_mm_getcsr() | 0x8040); // the driver's thread: flush tiny values to zero, as the workers do
 
         MixVoices(session->planar[0].data(), session->planar[1].data(), static_cast<int32>(session->bufferSize), session->sampleRate);
 

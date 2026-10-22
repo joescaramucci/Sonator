@@ -131,6 +131,9 @@ public partial class Vst3NativeEditorWindow : Window
         });
     }
 
+    // The plug-in this window shows.
+    public Vst3ModuleHandle? ModuleHandle => _moduleHandle;
+
     private readonly System.Windows.Threading.DispatcherTimer _resizeWatch = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private int _fittedWidth;
     private int _fittedHeight;
