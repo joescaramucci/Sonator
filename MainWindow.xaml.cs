@@ -233,6 +233,15 @@ public partial class MainWindow : Window
             return;
         }
 
+        // A double-click opens the block's notes in the piano roll.
+        if (e.ClickCount == 2 && DataContext is MainViewModel model)
+        {
+            model.SelectBlock(timeline.SourceTrack);
+            new PianoRollWindow(model, timeline.SourceTrack) { Owner = this }.Show();
+            e.Handled = true;
+            return;
+        }
+
         _blockBorder = block;
         _blockTimeline = timeline;
         _blockPressPoint = e.GetPosition(this);
