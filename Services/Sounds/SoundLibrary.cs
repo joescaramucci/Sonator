@@ -4,11 +4,13 @@ using Microsoft.Data.Sqlite;
 
 namespace Sonator.Services.Sounds;
 
-// What loading a sound does: a preset becomes the plug-in's sound; a groove's notes go into the track.
+// What loading a sound does: a preset becomes the plug-in's sound (an NKS preset's state wrapped first, see
+// NksSoundSource.StateFor); a groove's notes go into the track.
 public enum SoundKind
 {
     Preset,
     Groove,
+    NksPreset,
 }
 
 // One sound a plug-in can play: a preset, or a groove of notes to play it with, where it is stored, and how

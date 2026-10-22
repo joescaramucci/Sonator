@@ -1793,6 +1793,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 .GroupBy(plugin => Path.GetFileNameWithoutExtension(plugin.FilePath.TrimEnd('\\', '/')), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(group => group.Key, group => group.First().FilePath, StringComparer.OrdinalIgnoreCase);
             _sounds = Task.Run(() => (IReadOnlyList<Services.Sounds.SoundEntry>)Services.Sounds.ArturiaSoundSource.Read(installed)
+                .Concat(Services.Sounds.NksSoundSource.Read(installed))
                 .Concat(Services.Sounds.ToontrackGrooveSource.Read(installed))
                 .ToList());
         }
@@ -1829,11 +1830,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         byte[] preset;
         try
         {
-            preset = File.ReadAllBytes(sound.PresetPath);
+            preset = sound.Kind == Services.Sounds.SoundKind.NksPreset
+                ? Services.Sounds.NksSoundSource.StateFor(sound.PresetPath, _liveInstrumentHost.TrySaveState(instrument, 0) ?? Array.Empty<byte>())
+                : File.ReadAllBytes(sound.PresetPath);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
         {
-            StatusMessage = $"{sound.Name}: the preset file could not be read";
+            StatusMessage = $"{sound.Name}: the preset could not be read";
             return false;
         }
 
