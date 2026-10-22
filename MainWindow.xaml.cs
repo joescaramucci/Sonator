@@ -1219,7 +1219,8 @@ public partial class MainWindow : Window
         // The plug-in name has its own double-click.
         if (DataContext is not MainViewModel viewModel
             || IsInsideTagged(e.OriginalSource, "PluginName")
-            || IsInsideTagged(e.OriginalSource, "InstrumentIcon"))
+            || IsInsideTagged(e.OriginalSource, "InstrumentIcon")
+            || IsInsideTagged(e.OriginalSource, "TrackName"))
         {
             return;
         }
@@ -1337,6 +1338,20 @@ public partial class MainWindow : Window
         _trackPluginWindows[track] = window;
         window.Owner = this;
         window.Show();
+    }
+
+    // Clicking a track's name opens the window that sets its name and MIDI channel.
+    private void TrackName_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel
+            || sender is not FrameworkElement { DataContext: ArrangeTimelineTrackViewModel timelineTrack })
+        {
+            return;
+        }
+
+        e.Handled = true;
+        viewModel.SelectedTrack = timelineTrack.SourceTrack;
+        ShowEditTrackDialog(viewModel, timelineTrack.SourceTrack);
     }
 
     private void TrackInstrumentIcon_Click(object sender, RoutedEventArgs e)

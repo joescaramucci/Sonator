@@ -1754,7 +1754,12 @@
                                             <TextBlock Text="{Binding SourceTrack.Name}"
                                                        FontWeight="Bold"
                                                        Foreground="#E4ECF4"
-                                                       TextTrimming="CharacterEllipsis" />
+                                                       TextTrimming="CharacterEllipsis"
+                                                       HorizontalAlignment="Left"
+                                                       Cursor="Hand"
+                                                       Tag="TrackName"
+                                                       ToolTip="Click to set the track's name and MIDI channel"
+                                                       MouseLeftButtonDown="TrackName_MouseLeftButtonDown" />
                                             <TextBlock FontSize="9" Foreground="#8FA6BD">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
