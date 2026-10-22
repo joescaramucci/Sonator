@@ -1601,8 +1601,9 @@
                 </ItemsControl>
                 </Grid>
                 </ScrollViewer>
+                <!-- Starts where the lanes start: below the 42-high ruler and its 3-pixel margin. -->
                 <Border Width="260"
-                        Margin="0,42,0,0"
+                        Margin="0,45,0,0"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Top"
                         Background="{StaticResource Paper}"
