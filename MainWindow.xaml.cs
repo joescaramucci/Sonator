@@ -1425,6 +1425,16 @@ public partial class MainWindow : Window
         restore.Click += (_, _) => viewModel.RestoreRemovedVstPlugins();
         menu.Items.Add(restore);
 
+        var recheck = new MenuItem
+        {
+            Header = viewModel.UnavailableVstPluginCount > 0
+                ? $"Check plug-ins again ({viewModel.UnavailableVstPluginCount} do not load)"
+                : "Check plug-ins again",
+            ToolTip = "Loads every plug-in again to see which ones work, as after installing or licensing one",
+        };
+        recheck.Click += (_, _) => viewModel.CheckVstPluginsAgain();
+        menu.Items.Add(recheck);
+
         menu.IsOpen = true;
     }
 

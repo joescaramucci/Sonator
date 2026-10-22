@@ -366,20 +366,105 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             settings.AddedVstPluginFiles,
             settings.RemovedVstPlugins);
 
+        // Only plug-ins that work are listed. Those already known to work show at once; new or updated
+        // ones are checked in the background and join the list as they pass.
         VstPlugins.Clear();
+        UnavailableVstPluginCount = 0;
+        var generation = ++_vstScanGeneration;
+        var toCheck = new List<VstPluginViewModel>();
         foreach (var (name, filePath, kind) in plugins)
         {
-            VstPlugins.Add(new VstPluginViewModel(name, filePath, kind));
+            var plugin = new VstPluginViewModel(name, filePath, kind);
+            switch (_vstPluginCheck.KnownResult(filePath))
+            {
+                case true:
+                    VstPlugins.Add(plugin);
+                    break;
+                case false:
+                    UnavailableVstPluginCount++;
+                    break;
+                default:
+                    toCheck.Add(plugin);
+                    break;
+            }
         }
 
         RemovedVstPluginCount = settings.RemovedVstPlugins.Count;
+        if (toCheck.Count > 0)
+        {
+            _ = CheckNewVstPluginsAsync(toCheck, generation, scanResult.ScannedFolders);
+            return;
+        }
 
-        var scannedFoldersText = scanResult.ScannedFolders.Count > 0
-            ? string.Join(", ", scanResult.ScannedFolders)
-            : "no folders";
+        ReportVstPlugins(scanResult.ScannedFolders);
+    }
+
+    private readonly Vst3PluginCheckService _vstPluginCheck = new();
+    private int _vstScanGeneration;
+    private int _unavailableVstPluginCount;
+
+    // Plug-ins left out of the list because they do not load in Sonator.
+    public int UnavailableVstPluginCount
+    {
+        get => _unavailableVstPluginCount;
+        private set => SetProperty(ref _unavailableVstPluginCount, value);
+    }
+
+    private async Task CheckNewVstPluginsAsync(IReadOnlyList<VstPluginViewModel> plugins, int generation, IReadOnlyList<string> scannedFolders)
+    {
+        var checkedCount = 0;
+        await Task.WhenAll(plugins.Select(async plugin =>
+        {
+            var works = await _vstPluginCheck.WorksAsync(plugin.FilePath);
+            if (generation != _vstScanGeneration)
+            {
+                return; // a newer scan has replaced this one
+            }
+
+            checkedCount++;
+            if (works == false)
+            {
+                UnavailableVstPluginCount++;
+            }
+            else
+            {
+                InsertByName(plugin);
+            }
+
+            StatusMessage = $"Checking VST plug-ins: {checkedCount} of {plugins.Count}";
+        }));
+
+        if (generation == _vstScanGeneration)
+        {
+            ReportVstPlugins(scannedFolders);
+        }
+    }
+
+    private void InsertByName(VstPluginViewModel plugin)
+    {
+        var index = 0;
+        while (index < VstPlugins.Count && string.Compare(VstPlugins[index].Name, plugin.Name, StringComparison.CurrentCultureIgnoreCase) < 0)
+        {
+            index++;
+        }
+
+        VstPlugins.Insert(index, plugin);
+    }
+
+    private void ReportVstPlugins(IReadOnlyList<string> scannedFolders)
+    {
+        var scannedFoldersText = scannedFolders.Count > 0 ? string.Join(", ", scannedFolders) : "no folders";
+        var leftOut = UnavailableVstPluginCount > 0 ? $"; {UnavailableVstPluginCount} that do not load are left out" : string.Empty;
         StatusMessage = VstPlugins.Count > 0
-            ? $"Found {VstPlugins.Count} VST plug-ins ({scannedFoldersText})"
-            : $"No VST plug-ins found ({scannedFoldersText})";
+            ? $"Found {VstPlugins.Count} working VST plug-ins{leftOut} ({scannedFoldersText})"
+            : $"No working VST plug-ins found{leftOut} ({scannedFoldersText})";
+    }
+
+    // Checks every plug-in again, as after installing or licensing one.
+    public void CheckVstPluginsAgain()
+    {
+        _vstPluginCheck.Forget();
+        RescanVstPlugins();
     }
 
     private int _removedVstPluginCount;

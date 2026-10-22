@@ -19,6 +19,11 @@ internal static class Program
     {
         NativeMethods.SetErrorMode(0x0001 | 0x0002);
 
+        if (args.Length == 2 && args[0] == "--check")
+        {
+            return Check(args[1]);
+        }
+
         if (args.Length != 2)
         {
             return 1;
@@ -36,6 +41,30 @@ internal static class Program
         };
         application.Run();
         return exitCode;
+    }
+
+    // --check: whether Sonator can use the plug-in. 0 when it loads, makes its component and controller
+    // and has an audio processor; 3 when it does not load; 7 when it has nothing to play through.
+    // A plug-in that crashes or hangs takes down only this process, which Sonator reads as not working.
+    private static int Check(string pluginPath)
+    {
+        var pluginHost = new Vst3PluginHost();
+        var module = pluginHost.TryLoadModule(pluginPath, out var error);
+        if (module is null)
+        {
+            // The reason goes to standard output, for whoever runs the check by hand.
+            Console.Out.WriteLine(error);
+            return 3;
+        }
+
+        try
+        {
+            return pluginHost.HasAudioProcessor(module) ? 0 : 7;
+        }
+        finally
+        {
+            pluginHost.UnloadModule(module);
+        }
     }
 
     private static async Task<int> CaptureAsync(string pluginPath, string destinationPath)
