@@ -1,0 +1,205 @@
+<Window x:Class="Sonator.EffectRackWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Sonator"
+        Title="{Binding WindowTitle}"
+        Width="700"
+        SizeToContent="Height"
+        Background="#1B2330"
+        Foreground="#C4CFDA"
+        FontFamily="Consolas"
+        ResizeMode="CanMinimize"
+        ShowInTaskbar="False">
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#C4CFDA" />
+            <Setter Property="FontFamily" Value="Consolas" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style x:Key="RackButton" TargetType="ButtonBase">
+            <Setter Property="Background" Value="#2A3948" />
+            <Setter Property="Foreground" Value="#C4CFDA" />
+            <Setter Property="BorderBrush" Value="#5C7A99" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="MinWidth" Value="26" />
+            <Setter Property="FontFamily" Value="Consolas" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ButtonBase">
+                        <Border x:Name="Body"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="5"
+                                Padding="7,0">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Body" Property="Background" Value="#354D69" />
+                                <Setter TargetName="Body" Property="BorderBrush" Value="#7EB2FF" />
+                            </Trigger>
+                            <Trigger Property="ToggleButton.IsChecked" Value="True">
+                                <Setter TargetName="Body" Property="Background" Value="#2D745D" />
+                                <Setter TargetName="Body" Property="BorderBrush" Value="#5FB87B" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <DockPanel Margin="14,10,14,14">
+        <!-- The rack's title, and + ADD to put another effect at the bottom of it. -->
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+            <Button DockPanel.Dock="Right" Style="{StaticResource RackButton}" Content="+ ADD" Click="Add_Click"
+                    AutomationProperties.Name="ADD EFFECT" ToolTip="Add an effect at the bottom of the rack" />
+            <StackPanel>
+                <TextBlock Text="FX RACK" FontFamily="Segoe UI Semibold" FontSize="20" Foreground="#E8EEF4" />
+                <TextBlock Text="{Binding Subtitle}" Foreground="#7F93A8" FontSize="11" />
+            </StackPanel>
+        </DockPanel>
+
+        <TextBlock DockPanel.Dock="Top" Text="The rack is empty. Press + ADD to put an effect in it." Foreground="#7F93A8" Margin="2,6">
+            <TextBlock.Style>
+                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Track.Effects.Count}" Value="0">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </TextBlock.Style>
+        </TextBlock>
+
+        <ScrollViewer x:Name="RackScroller" MaxHeight="{Binding MaxRackHeight}" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding Track.Effects}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <!-- One effect of the rack: its switch, name and controls on top, its knobs below. -->
+                        <Border Margin="0,0,0,8" Padding="10,8" CornerRadius="7" Background="#212D3A" BorderBrush="#3A4D63" BorderThickness="1">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsEnabled}" Value="False">
+                                            <Setter Property="Opacity" Value="0.5" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,6">
+                                    <ToggleButton DockPanel.Dock="Left"
+                                                  Style="{StaticResource RackButton}"
+                                                  Width="48"
+                                                  IsChecked="{Binding IsEnabled}"
+                                                  Content="ON"
+                                                  AutomationProperties.Name="EFFECT ON"
+                                                  ToolTip="Switch the effect on or off" />
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                        <Button Style="{StaticResource RackButton}" Content="▲" Margin="4,0,0,0" Tag="-1" Click="Move_Click" ToolTip="Move up the rack (earlier in the chain)" />
+                                        <Button Style="{StaticResource RackButton}" Content="▼" Margin="4,0,0,0" Tag="1" Click="Move_Click" ToolTip="Move down the rack (later in the chain)" />
+                                        <Button Style="{StaticResource RackButton}" Content="RESET" Margin="4,0,0,0" Click="Reset_Click" ToolTip="Put every knob back to its default" />
+                                        <Button Style="{StaticResource RackButton}" Content="✕" Margin="4,0,0,0" Click="Remove_Click" ToolTip="Remove the effect from the rack" AutomationProperties.Name="REMOVE EFFECT" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Name}" FontFamily="Segoe UI Semibold" FontSize="16" Foreground="#E8EEF4" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding Definition.Description}" Foreground="#7F93A8" FontSize="11" Margin="10,3,0,0" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </DockPanel>
+
+                                <ItemsControl ItemsSource="{Binding Parameters}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Width="82" Margin="2" Padding="3,5" CornerRadius="6" Background="#1A2431" BorderBrush="#2E3F52" BorderThickness="1">
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Name}" HorizontalAlignment="Center" FontSize="11" Foreground="#9FB4C9" />
+                                                    <Grid Height="50" Margin="0,3">
+                                                        <local:Knob Width="46" Height="46"
+                                                                    Position="{Binding Position}"
+                                                                    DefaultPosition="{Binding DefaultPosition}"
+                                                                    Accent="#5CAFD6"
+                                                                    AutomationProperties.Name="{Binding Name}"
+                                                                    ToolTip="Drag up or down (Shift for fine), mouse wheel, double-click for the default">
+                                                            <local:Knob.Style>
+                                                                <Style TargetType="local:Knob">
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Definition.IsSwitch}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </local:Knob.Style>
+                                                        </local:Knob>
+                                                        <ToggleButton Width="58"
+                                                                      VerticalAlignment="Center"
+                                                                      IsChecked="{Binding IsOn}"
+                                                                      Content="{Binding DisplayValue}"
+                                                                      AutomationProperties.Name="{Binding Name}">
+                                                            <ToggleButton.Style>
+                                                                <Style TargetType="ToggleButton" BasedOn="{StaticResource RackButton}">
+                                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Definition.IsSwitch}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Visible" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </ToggleButton.Style>
+                                                        </ToggleButton>
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding DisplayValue}" HorizontalAlignment="Center" FontWeight="Bold" Foreground="#E8EEF4">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding Definition.IsSwitch}" Value="True">
+                                                                        <Setter Property="Visibility" Value="Hidden" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- Gain reduction, for the compressor and the limiter. -->
+                                <StackPanel Margin="2,8,2,0">
+                                    <StackPanel.Style>
+                                        <Style TargetType="StackPanel">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasMeter}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </StackPanel.Style>
+                                    <DockPanel>
+                                        <TextBlock Text="GAIN REDUCTION" FontSize="11" Foreground="#9FB4C9" />
+                                        <TextBlock Text="{Binding MeterText}" HorizontalAlignment="Right" FontWeight="Bold" />
+                                    </DockPanel>
+                                    <ProgressBar Height="7" Margin="0,3,0,0" Minimum="0" Maximum="24" Value="{Binding MeterValue, Mode=OneWay}"
+                                                 Background="#16202B" BorderBrush="#3A4D63" Foreground="#E6C45B" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

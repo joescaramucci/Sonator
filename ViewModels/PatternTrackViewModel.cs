@@ -65,6 +65,15 @@ public sealed class PatternTrackViewModel : ViewModelBase
     // The track's insert effects, in the order the audio goes through them.
     public ObservableCollection<TrackEffectViewModel> Effects { get; } = new();
 
+    private bool _isFxRackOpen;
+
+    // True while the track's FX rack window is open: its FX button is lit.
+    public bool IsFxRackOpen
+    {
+        get => _isFxRackOpen;
+        set => SetProperty(ref _isFxRackOpen, value);
+    }
+
     // Raised when an effect is added, removed or moved (Effect null), switched (ParameterIndex -1) or turned.
     public event EventHandler<TrackEffectChange>? EffectsChanged;
 

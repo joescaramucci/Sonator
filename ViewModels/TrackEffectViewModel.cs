@@ -120,6 +120,28 @@ public sealed class TrackEffectViewModel : ViewModelBase
 
     // Raised with the index of the knob that moved, or -1 when the effect is switched on or off.
     public event Action<TrackEffectViewModel, int>? Changed;
+
+    // The compressor and the limiter show how far they turn the sound down.
+    public bool HasMeter => Definition.Kind is EffectKind.Compress or EffectKind.Limiter;
+
+    private double _meterValue;
+
+    // Gain reduction in dB, refreshed by the rack window while it is open.
+    public double MeterValue
+    {
+        get => _meterValue;
+        set
+        {
+            if (Math.Abs(_meterValue - value) >= 0.05 && SetProperty(ref _meterValue, value))
+            {
+                RaisePropertyChanged(nameof(MeterText));
+            }
+        }
+    }
+
+    public string MeterText => _meterValue < 0.05
+        ? string.Format(CultureInfo.CurrentCulture, "{0:0.0} dB", 0.0)
+        : string.Format(CultureInfo.CurrentCulture, "-{0:0.0} dB", _meterValue);
 }
 
 // What changed in a track's effects: the whole chain when Effect is null, otherwise one effect's

@@ -1383,7 +1383,7 @@ public partial class MainWindow : Window
 
     // ---- Track effects ----
 
-    private readonly Dictionary<TrackEffectViewModel, EffectWindow> _effectWindows = new();
+    private readonly Dictionary<PatternTrackViewModel, EffectRackWindow> _fxRacks = new();
 
     // + ADD lists Sonator's effects; picking one adds it to the selected track and opens its knobs.
     private void AddEffectButton_Click(object sender, RoutedEventArgs e)
@@ -1408,7 +1408,7 @@ public partial class MainWindow : Window
                 var track = viewModel.SelectedTrack;
                 if (viewModel.AddEffect(track, definition) is { } effect && track is not null)
                 {
-                    OpenEffectWindow(viewModel, track, effect);
+                    OpenFxRack(viewModel, track, effect);
                 }
             };
             menu.Items.Add(item);
@@ -1454,8 +1454,26 @@ public partial class MainWindow : Window
         if (DataContext is MainViewModel { SelectedTrack: { } track } viewModel
             && sender is FrameworkElement { DataContext: TrackEffectViewModel effect })
         {
-            OpenEffectWindow(viewModel, track, effect);
+            OpenFxRack(viewModel, track, effect);
         }
+    }
+
+    // The FX button next to R opens the track's rack, and closes it when it is open.
+    private void TrackFxButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel
+            || sender is not FrameworkElement { DataContext: ArrangeTimelineTrackViewModel timelineTrack })
+        {
+            return;
+        }
+
+        if (_fxRacks.TryGetValue(timelineTrack.SourceTrack, out var open))
+        {
+            open.Close();
+            return;
+        }
+
+        OpenFxRack(viewModel, timelineTrack.SourceTrack, null);
     }
 
     private void MoveEffectButton_Click(object sender, RoutedEventArgs e)
@@ -1471,28 +1489,26 @@ public partial class MainWindow : Window
     {
         if (DataContext is MainViewModel viewModel && sender is Button { DataContext: TrackEffectViewModel effect })
         {
-            if (_effectWindows.TryGetValue(effect, out var window))
-            {
-                window.Close();
-            }
-
             viewModel.RemoveEffect(viewModel.SelectedTrack, effect);
         }
     }
 
-    // One window per effect: opening it again brings the open one to the front.
-    private void OpenEffectWindow(MainViewModel viewModel, PatternTrackViewModel track, TrackEffectViewModel effect)
+    // One rack window per track: opening it again brings the open one to the front, showing the effect.
+    private void OpenFxRack(MainViewModel viewModel, PatternTrackViewModel track, TrackEffectViewModel? effect)
     {
-        if (_effectWindows.TryGetValue(effect, out var open))
+        if (!_fxRacks.TryGetValue(track, out var rack))
         {
-            open.Activate();
-            return;
+            rack = new EffectRackWindow(viewModel, track) { Owner = this };
+            rack.Closed += (_, _) => _fxRacks.Remove(track);
+            _fxRacks[track] = rack;
+            rack.Show();
         }
 
-        var window = new EffectWindow(viewModel, track, effect) { Owner = this };
-        window.Closed += (_, _) => _effectWindows.Remove(effect);
-        _effectWindows[effect] = window;
-        window.Show();
+        rack.Activate();
+        if (effect is not null)
+        {
+            rack.ShowEffect(effect);
+        }
     }
 
     // Clicking a track's name opens the window that sets its name and MIDI channel.
