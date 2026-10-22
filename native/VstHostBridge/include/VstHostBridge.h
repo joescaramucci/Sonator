@@ -44,6 +44,26 @@ VSTHOSTBRIDGE_API int VstHostBridge_GetDspLoad(double* outPeakLoad, double* outA
 // Sets the dropout count back to zero.
 VSTHOSTBRIDGE_API void VstHostBridge_ResetDropouts(void);
 
+// ---- Sonator's insert effects (see src/SonEffects.h) ----
+// A chain holds one track's effects in order, then the track's gain. Effect types: 1 SonVerb,
+// 2 SonDelay, 3 SonCompress, 4 SonEQ, 5 SonLimiter. Parameters are numbered per effect.
+VSTHOSTBRIDGE_API void* VstHostBridge_CreateEffectChain(void);
+VSTHOSTBRIDGE_API void VstHostBridge_DestroyEffectChain(void* chainHandle);
+// Replaces the effects with new ones of the given types, at their default settings.
+VSTHOSTBRIDGE_API void VstHostBridge_SetEffectChainLayout(void* chainHandle, const int32_t* types, int32_t count);
+VSTHOSTBRIDGE_API void VstHostBridge_SetEffectParameter(void* chainHandle, int32_t slot, int32_t parameter, double value);
+VSTHOSTBRIDGE_API void VstHostBridge_SetEffectEnabled(void* chainHandle, int32_t slot, int32_t enabled);
+// Linear gain after the effects.
+VSTHOSTBRIDGE_API void VstHostBridge_SetEffectChainGain(void* chainHandle, double gain);
+// The effect's own meter, such as a compressor's gain reduction in dB.
+VSTHOSTBRIDGE_API double VstHostBridge_GetEffectMeter(void* chainHandle, int32_t slot);
+// The highest absolute output sample since the previous call.
+VSTHOSTBRIDGE_API double VstHostBridge_TakeEffectChainPeak(void* chainHandle);
+// Runs interleaved audio through the chain in place, for audio the caller plays itself.
+VSTHOSTBRIDGE_API void VstHostBridge_ProcessEffectChain(void* chainHandle, float* interleaved, int32_t frames, int32_t channels, double sampleRate);
+// Runs the chain on the module's plug-in output from now on. A null chain detaches it.
+VSTHOSTBRIDGE_API int VstHostBridge_AttachEffectChain(void* moduleHandle, void* chainHandle);
+
 // Attempts to load a VST3 module (a .vst3 file or bundle) at the given path,
 // instantiate its first audio effect component and its edit controller.
 // Returns an opaque module handle on success, or nullptr on failure

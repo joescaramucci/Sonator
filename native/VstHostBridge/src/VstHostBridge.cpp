@@ -28,6 +28,7 @@
 
 #define VSTHOSTBRIDGE_EXPORTS
 #include "../include/VstHostBridge.h"
+#include "SonEffects.h"
 
 #include <windows.h>
 
@@ -427,7 +428,29 @@ namespace
         // Real-time audio processing (IAudioProcessor + WASAPI), created
         // lazily by StartAudio.
         AudioEngineState* audioEngine = nullptr;
+
+        // The track's insert effects, run on the plug-in's output. The audio thread takes its own
+        // reference under the lock (without waiting), so the chain stays alive while it is used.
+        std::mutex effectsMutex;
+        std::shared_ptr<son::EffectChain> effects;
     };
+
+    // Runs the module's effects on a block of the plug-in's planar output.
+    void ApplyEffects(BridgeModule* module, float** channels, int numChannels, int frames, double sampleRate)
+    {
+        std::shared_ptr<son::EffectChain> chain;
+        {
+            std::unique_lock<std::mutex> lock(module->effectsMutex, std::try_to_lock);
+            if (lock.owns_lock())
+            {
+                chain = module->effects;
+            }
+        }
+        if (chain != nullptr)
+        {
+            chain->Process(channels, numChannels, frames, sampleRate);
+        }
+    }
 
     // Window class used for the small native container window that hosts a
     // plugin's editor view. It has no visible chrome of its own - it just
@@ -888,6 +911,7 @@ namespace
                 engine->PrepareEvents(processData);
 
                 engine->processor->process(processData);
+                ApplyEffects(module, channelPointers.data(), outputChannels, samplesThisBlock, deviceRate);
 
                 auto* deviceSamples = reinterpret_cast<float*>(deviceBuffer);
                 for (int32 frame = 0; frame < samplesThisBlock; ++frame)
@@ -998,6 +1022,93 @@ int VstHostBridge_GetDspLoad(double* outPeakLoad, double* outAverageLoad, int64_
 void VstHostBridge_ResetDropouts()
 {
     g_dspMeter.dropouts = 0;
+}
+
+// An effect chain handle is a heap-held shared_ptr, so a module it is attached to keeps the chain alive.
+void* VstHostBridge_CreateEffectChain()
+{
+    return new std::shared_ptr<son::EffectChain>(std::make_shared<son::EffectChain>());
+}
+
+void VstHostBridge_DestroyEffectChain(void* chainHandle)
+{
+    delete static_cast<std::shared_ptr<son::EffectChain>*>(chainHandle);
+}
+
+static son::EffectChain* ChainOf(void* chainHandle)
+{
+    return chainHandle == nullptr ? nullptr : static_cast<std::shared_ptr<son::EffectChain>*>(chainHandle)->get();
+}
+
+void VstHostBridge_SetEffectChainLayout(void* chainHandle, const int32_t* types, int32_t count)
+{
+    if (auto* chain = ChainOf(chainHandle))
+    {
+        chain->SetLayout(types, count);
+    }
+}
+
+void VstHostBridge_SetEffectParameter(void* chainHandle, int32_t slot, int32_t parameter, double value)
+{
+    if (auto* chain = ChainOf(chainHandle))
+    {
+        chain->SetParameter(slot, parameter, value);
+    }
+}
+
+void VstHostBridge_SetEffectEnabled(void* chainHandle, int32_t slot, int32_t enabled)
+{
+    if (auto* chain = ChainOf(chainHandle))
+    {
+        chain->SetEnabled(slot, enabled != 0);
+    }
+}
+
+void VstHostBridge_SetEffectChainGain(void* chainHandle, double gain)
+{
+    if (auto* chain = ChainOf(chainHandle))
+    {
+        chain->gain.store(static_cast<float>(gain));
+    }
+}
+
+double VstHostBridge_GetEffectMeter(void* chainHandle, int32_t slot)
+{
+    auto* chain = ChainOf(chainHandle);
+    return chain == nullptr ? 0.0 : chain->Meter(slot);
+}
+
+double VstHostBridge_TakeEffectChainPeak(void* chainHandle)
+{
+    auto* chain = ChainOf(chainHandle);
+    return chain == nullptr ? 0.0 : chain->TakePeak();
+}
+
+void VstHostBridge_ProcessEffectChain(void* chainHandle, float* interleaved, int32_t frames, int32_t channels, double sampleRate)
+{
+    if (auto* chain = ChainOf(chainHandle))
+    {
+        chain->ProcessInterleaved(interleaved, frames, channels, sampleRate);
+    }
+}
+
+int VstHostBridge_AttachEffectChain(void* moduleHandle, void* chainHandle)
+{
+    if (moduleHandle == nullptr)
+    {
+        return 0;
+    }
+
+    auto* module = static_cast<BridgeModule*>(moduleHandle);
+    std::shared_ptr<son::EffectChain> chain;
+    if (chainHandle != nullptr)
+    {
+        chain = *static_cast<std::shared_ptr<son::EffectChain>*>(chainHandle);
+    }
+
+    std::lock_guard<std::mutex> lock(module->effectsMutex);
+    module->effects.swap(chain);
+    return 1;
 }
 
 void* VstHostBridge_LoadModule(const wchar_t* filePath)
@@ -1764,6 +1875,8 @@ namespace
         session->processData.numSamples = session->bufferSize;
         session->engine->PrepareEvents(session->processData);
         session->engine->processor->process(session->processData);
+        ApplyEffects(session->engine->module, session->channelPointers.data(), session->pluginChannels,
+                     static_cast<int>(session->bufferSize), session->sampleRate);
 
         if (session->hasInput)
         {

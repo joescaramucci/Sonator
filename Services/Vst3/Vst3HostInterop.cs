@@ -28,6 +28,38 @@ internal static class Vst3HostInterop
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern void VstHostBridge_ResetDropouts();
 
+    // ---- Sonator's insert effects (native/VstHostBridge/src/SonEffects.h) ----
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern IntPtr VstHostBridge_CreateEffectChain();
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void VstHostBridge_DestroyEffectChain(IntPtr chain);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void VstHostBridge_SetEffectChainLayout(IntPtr chain, int[] types, int count);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void VstHostBridge_SetEffectParameter(IntPtr chain, int slot, int parameter, double value);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void VstHostBridge_SetEffectEnabled(IntPtr chain, int slot, int enabled);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void VstHostBridge_SetEffectChainGain(IntPtr chain, double gain);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern double VstHostBridge_GetEffectMeter(IntPtr chain, int slot);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern double VstHostBridge_TakeEffectChainPeak(IntPtr chain);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void VstHostBridge_ProcessEffectChain(IntPtr chain, float[] interleaved, int frames, int channels, double sampleRate);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int VstHostBridge_AttachEffectChain(IntPtr module, IntPtr chain);
+
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
     internal static extern IntPtr VstHostBridge_LoadModule(string filePath);
 

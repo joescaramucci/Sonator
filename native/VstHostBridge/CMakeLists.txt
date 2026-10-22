@@ -13,6 +13,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_library(VstHostBridge SHARED
     src/VstHostBridge.cpp
+    src/SonEffects.cpp
+    src/SonEffects.h
     include/VstHostBridge.h
 )
 
