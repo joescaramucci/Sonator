@@ -1850,8 +1850,17 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         LiveInstrumentRegistry.Set(instrument);
+        track.SoundName = SoundDisplayName(sound);
         StatusMessage = $"{track.Name} now plays {sound.Name} ({sound.PluginName})";
         return true;
+    }
+
+    // A sound's name as a track shows it after its plug-in's: NKS names repeat their family first
+    // ("Strings: Discover - Violins 1"), which the track does without ("Discover - Violins 1").
+    internal static string SoundDisplayName(Services.Sounds.SoundEntry sound)
+    {
+        var colon = sound.Name.IndexOf(": ", StringComparison.Ordinal);
+        return sound.Kind == Services.Sounds.SoundKind.NksPreset && colon > 0 ? sound.Name[(colon + 2)..] : sound.Name;
     }
 
     // Previews of the sound browser, in a plug-in instance of their own, made on the first preview.
@@ -2910,9 +2919,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         CaptureUndoStateIfNeeded();
         if (!string.Equals(track.PluginFilePath, pluginPath, StringComparison.OrdinalIgnoreCase))
         {
-            // A saved sound belongs to the plug-in it was made in.
+            // A saved sound belongs to the plug-in it was made in, and so does its name.
             track.PluginState = null;
             track.PluginEditorState = null;
+            track.SoundName = null;
         }
 
         track.PluginFilePath = pluginPath;

@@ -1470,7 +1470,7 @@
                                                     <Run Text="  " />
                                                     <Run Text="{Binding SourceTrack.RoutingDisplay, Mode=OneWay}" />
                                                 </TextBlock>
-                                                <TextBlock Text="{Binding SourceTrack.PluginName}"
+                                                <TextBlock Text="{Binding SourceTrack.PluginAndSoundName}"
                                                            FontSize="12"
                                                            FontWeight="SemiBold"
                                                            Foreground="#9FD3F2"
@@ -1967,7 +1967,7 @@
                                                 <Run Text="  " />
                                                 <Run Text="{Binding SourceTrack.RoutingDisplay, Mode=OneWay}" />
                                             </TextBlock>
-                                            <TextBlock Text="{Binding SourceTrack.PluginName}"
+                                            <TextBlock Text="{Binding SourceTrack.PluginAndSoundName}"
                                                        FontSize="12"
                                                        FontWeight="SemiBold"
                                                        Foreground="#9FD3F2"

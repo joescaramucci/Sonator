@@ -151,10 +151,32 @@ public sealed class PatternTrackViewModel : ViewModelBase
             if (SetProperty(ref _pluginFilePath, string.IsNullOrWhiteSpace(value) ? null : value))
             {
                 RaisePropertyChanged(nameof(PluginName));
+                RaisePropertyChanged(nameof(PluginAndSoundName));
                 RaisePropertyChanged(nameof(HasPlugin));
             }
         }
     }
+
+    private string? _soundName;
+
+    // The sound last loaded on the track from the sound browser, such as "Grand Piano". Null when none is.
+    public string? SoundName
+    {
+        get => _soundName;
+        set
+        {
+            if (SetProperty(ref _soundName, string.IsNullOrWhiteSpace(value) ? null : value))
+            {
+                RaisePropertyChanged(nameof(PluginAndSoundName));
+            }
+        }
+    }
+
+    // What the track shows under its name: the plug-in, and the sound loaded from the browser after a dash,
+    // as "Emulator II V - Grand Piano".
+    public string? PluginAndSoundName => PluginName is null
+        ? null
+        : SoundName is null ? PluginName : $"{PluginName} - {SoundName}";
 
     public bool HasPlugin => PluginFilePath is not null;
 

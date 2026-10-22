@@ -48,7 +48,8 @@ public sealed record TrackDocument(
     string? InstrumentIcon = null,
     List<EffectDocument>? Effects = null,
     byte[]? PluginState = null,
-    byte[]? PluginEditorState = null);
+    byte[]? PluginEditorState = null,
+    string? SoundName = null);
 
 // One insert effect of a track: its name (SonVerb, SonDelay...), whether it is on, and its knobs in order.
 public sealed record EffectDocument(
