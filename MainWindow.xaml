@@ -2017,7 +2017,8 @@
                                         <!-- The track volume: a bar after the icon, dragged left and right. -->
                                         <local:VolumeBar Grid.Row="1"
                                                          Grid.Column="1"
-                                                         Height="9"
+                                                         Height="12"
+                                                         BarThickness="5"
                                                          Margin="38,0,8,0"
                                                          VerticalAlignment="Center"
                                                          Tag="VolumeBar"

@@ -46,13 +46,20 @@ public sealed class VolumeBar : FrameworkElement
         set => SetValue(DefaultValueProperty, value);
     }
 
+    // How tall the drawn bar is, centred in the control.
+    public double BarThickness { get; set; } = 5;
+
     protected override void OnRender(DrawingContext drawingContext)
     {
-        var bounds = new Rect(0, 0, ActualWidth, ActualHeight);
-        if (bounds.Width <= 0 || bounds.Height <= 0)
+        if (ActualWidth <= 0 || ActualHeight <= 0)
         {
             return;
         }
+
+        // The whole height takes the mouse, so the thin bar is easy to grab.
+        drawingContext.DrawRectangle(Brushes.Transparent, null, new Rect(0, 0, ActualWidth, ActualHeight));
+        var thickness = Math.Min(BarThickness, ActualHeight);
+        var bounds = new Rect(0, (ActualHeight - thickness) / 2, ActualWidth, thickness);
 
         var radius = Math.Min(3, bounds.Height / 2);
         drawingContext.DrawRoundedRectangle(TrackBrush, OutlinePen, bounds, radius, radius);
@@ -60,8 +67,8 @@ public sealed class VolumeBar : FrameworkElement
         var fillWidth = Math.Clamp(Value, 0, 1) * bounds.Width;
         if (fillWidth > 0.5)
         {
-            drawingContext.DrawRoundedRectangle(IsMouseOver ? HoverFillBrush : FillBrush, null, new Rect(0, 0, fillWidth, bounds.Height), radius, radius);
-            drawingContext.DrawLine(EdgePen, new Point(fillWidth, 1), new Point(fillWidth, bounds.Height - 1));
+            drawingContext.DrawRoundedRectangle(IsMouseOver ? HoverFillBrush : FillBrush, null, new Rect(0, bounds.Top, fillWidth, bounds.Height), radius, radius);
+            drawingContext.DrawLine(EdgePen, new Point(fillWidth, bounds.Top - 1), new Point(fillWidth, bounds.Bottom + 1));
         }
     }
 
