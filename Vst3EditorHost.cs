@@ -63,6 +63,22 @@ public sealed class Vst3EditorHost : HwndHost
         return new HandleRef(this, childHwnd);
     }
 
+    // The editor's size now, in pixels. Plug-ins such as Kontakt resize their editor after it opens,
+    // through IPlugFrame::resizeView, which the bridge records. False when no editor is open.
+    public bool TryGetCurrentSize(out int width, out int height)
+    {
+        width = height = 0;
+        try
+        {
+            return Vst3HostInterop.VstHostBridge_GetEditorSize(_moduleHandle.NativeHandle, out width, out height) != 0
+                && width > 0 && height > 0;
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException)
+        {
+            return false;
+        }
+    }
+
     protected override void DestroyWindowCore(HandleRef hwnd)
     {
         NativeHandle = IntPtr.Zero;

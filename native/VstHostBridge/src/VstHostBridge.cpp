@@ -404,6 +404,17 @@ namespace
     }
 
     using GetFactoryProc = IPluginFactory* (PLUGIN_API*)();
+    using ModuleEntryProc = bool (PLUGIN_API*)();
+
+    // Frees a plug-in DLL the way the VST3 module rules ask: ExitDll first, when it was initialised.
+    void ReleaseLibrary(HMODULE hmodule, ModuleEntryProc exitDll)
+    {
+        if (exitDll != nullptr)
+        {
+            exitDll();
+        }
+        FreeLibrary(hmodule);
+    }
 
     class SonatorPlugFrame; // defined below, needs BridgeModule's full definition
     struct AudioEngineState; // defined further below, needs WASAPI + threading types
@@ -428,6 +439,9 @@ namespace
         // Real-time audio processing (IAudioProcessor + WASAPI), created
         // lazily by StartAudio.
         AudioEngineState* audioEngine = nullptr;
+
+        // The module's ExitDll, when it exports one: called before the DLL is freed.
+        bool (PLUGIN_API* exitDll)() = nullptr;
 
         // The track's insert effects, run on the plug-in's output. The audio thread takes its own
         // reference under the lock (without waiting), so the chain stays alive while it is used.
@@ -1162,13 +1176,29 @@ void* VstHostBridge_LoadModule(const wchar_t* filePath)
         return nullptr;
     }
 
+    // VST3 modules on Windows may export InitDll and ExitDll. The host must call InitDll right after
+    // loading, before anything else: plug-ins built on the Steinberg SDK set up their module there and
+    // crash on their first call without it.
+    auto initDll = reinterpret_cast<ModuleEntryProc>(GetProcAddress(hmodule, "InitDll"));
+    auto exitDll = reinterpret_cast<ModuleEntryProc>(GetProcAddress(hmodule, "ExitDll"));
+    if (initDll != nullptr && !initDll())
+    {
+        SetBridgeError("InitDll() del plug-in non e' riuscita (" + Narrow(binaryPath.wstring()) + ").");
+        FreeLibrary(hmodule);
+        return nullptr;
+    }
+    if (initDll == nullptr)
+    {
+        exitDll = nullptr; // ExitDll only pairs with a successful InitDll
+    }
+
     auto getFactoryProc = reinterpret_cast<GetFactoryProc>(GetProcAddress(hmodule, "GetPluginFactory"));
     if (getFactoryProc == nullptr)
     {
         SetBridgeError(
             "Il modulo si carica ma non esporta \"GetPluginFactory\": non e' un plug-in VST3 valido ("
             + Narrow(binaryPath.wstring()) + ").");
-        FreeLibrary(hmodule);
+        ReleaseLibrary(hmodule, exitDll);
         return nullptr;
     }
 
@@ -1176,7 +1206,7 @@ void* VstHostBridge_LoadModule(const wchar_t* filePath)
     if (factory == nullptr)
     {
         SetBridgeError("GetPluginFactory() ha restituito nullptr.");
-        FreeLibrary(hmodule);
+        ReleaseLibrary(hmodule, exitDll);
         return nullptr;
     }
 
@@ -1204,7 +1234,8 @@ void* VstHostBridge_LoadModule(const wchar_t* filePath)
     if (!foundComponentClass)
     {
         SetBridgeError("Nessuna classe \"Audio Module Class\" trovata nel factory VST3 di " + Narrow(binaryPath.wstring()) + ".");
-        FreeLibrary(hmodule);
+        factory->release();
+        ReleaseLibrary(hmodule, exitDll);
         return nullptr;
     }
 
@@ -1212,7 +1243,8 @@ void* VstHostBridge_LoadModule(const wchar_t* filePath)
     if (factory->createInstance(componentCid, IComponent_iid, reinterpret_cast<void**>(&component)) != kResultOk || component == nullptr)
     {
         SetBridgeError("createInstance(IComponent) fallita per la classe audio effect del plug-in.");
-        FreeLibrary(hmodule);
+        factory->release();
+        ReleaseLibrary(hmodule, exitDll);
         return nullptr;
     }
 
@@ -1220,7 +1252,8 @@ void* VstHostBridge_LoadModule(const wchar_t* filePath)
     {
         SetBridgeError("IComponent::initialize() fallita.");
         component->release();
-        FreeLibrary(hmodule);
+        factory->release();
+        ReleaseLibrary(hmodule, exitDll);
         return nullptr;
     }
 
@@ -1297,6 +1330,7 @@ void* VstHostBridge_LoadModule(const wchar_t* filePath)
     module->controller = controller;
     module->controllerIsComponent = controllerIsComponent;
     module->pluginName = pluginName;
+    module->exitDll = exitDll;
     return module;
 }
 
@@ -1327,12 +1361,16 @@ void VstHostBridge_UnloadModule(void* moduleHandle)
         module->component->release();
     }
 
-    // The factory is owned by the module itself (freed automatically when
-    // the DLL is unloaded), so it must not be released here.
+    // GetPluginFactory hands the host a reference to the factory; it is released before the module
+    // is told to exit, then the DLL is freed.
+    if (module->factory != nullptr)
+    {
+        module->factory->release();
+    }
 
     if (module->hmodule != nullptr)
     {
-        FreeLibrary(module->hmodule);
+        ReleaseLibrary(module->hmodule, module->exitDll);
     }
 
     delete module;
@@ -1564,9 +1602,17 @@ int VstHostBridge_OpenEditor(void* moduleHandle, void* parentHwnd, void** outChi
     auto* frame = new SonatorPlugFrame(module);
     view->setFrame(frame);
 
+    // Known before attached(): a plug-in may ask to resize itself from inside it, through the frame.
+    module->editorContainerHwnd = container;
+    module->editorWidth = width;
+    module->editorHeight = height;
+
     if (view->attached(container, kPlatformTypeHWND) != kResultOk)
     {
         SetBridgeError("IPlugView::attached() fallita: il plug-in non ha potuto agganciarsi alla finestra host.");
+        module->editorContainerHwnd = nullptr;
+        module->editorWidth = 0;
+        module->editorHeight = 0;
         view->setFrame(nullptr);
         frame->release();
         DestroyWindow(container);
@@ -1576,9 +1622,18 @@ int VstHostBridge_OpenEditor(void* moduleHandle, void* parentHwnd, void** outChi
 
     module->editorView = view;
     module->editorFrame = frame;
-    module->editorContainerHwnd = container;
-    module->editorWidth = width;
-    module->editorHeight = height;
+
+    // Some plug-ins only know their real size once attached: take it again, and fit the container to it.
+    ViewRect attachedRect{};
+    if (view->getSize(&attachedRect) == kResultOk && attachedRect.getWidth() > 0 && attachedRect.getHeight() > 0
+        && (attachedRect.getWidth() != module->editorWidth || attachedRect.getHeight() != module->editorHeight))
+    {
+        module->editorWidth = attachedRect.getWidth();
+        module->editorHeight = attachedRect.getHeight();
+        SetWindowPos(container, nullptr, 0, 0, module->editorWidth, module->editorHeight, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+    width = module->editorWidth;
+    height = module->editorHeight;
 
     if (outChildHwnd != nullptr)
     {

@@ -110,18 +110,38 @@ public partial class Vst3NativeEditorWindow : Window
                 return;
             }
 
-            var dpi = VisualTreeHelper.GetDpi(this);
-            var contentWidth = _editorHost.EditorWidth / dpi.DpiScaleX;
-            var contentHeight = _editorHost.EditorHeight / dpi.DpiScaleY;
+            FitTo(_editorHost.EditorWidth, _editorHost.EditorHeight);
 
-            EditorHostContainer.Width = contentWidth;
-            EditorHostContainer.Height = contentHeight;
-            SizeToContent = SizeToContent.WidthAndHeight;
+            // Some plug-ins (Kontakt, for one) grow their editor after it opens: the window follows.
+            _resizeWatch.Tick += (_, _) =>
+            {
+                if (_editorHost?.TryGetCurrentSize(out var width, out var height) == true
+                    && (width != _fittedWidth || height != _fittedHeight))
+                {
+                    FitTo(width, height);
+                }
+            };
+            _resizeWatch.Start();
         });
+    }
+
+    private readonly System.Windows.Threading.DispatcherTimer _resizeWatch = new() { Interval = TimeSpan.FromMilliseconds(250) };
+    private int _fittedWidth;
+    private int _fittedHeight;
+
+    // Sizes the window around the editor, given in device pixels.
+    private void FitTo(int width, int height)
+    {
+        var dpi = VisualTreeHelper.GetDpi(this);
+        EditorHostContainer.Width = width / dpi.DpiScaleX;
+        EditorHostContainer.Height = height / dpi.DpiScaleY;
+        SizeToContent = SizeToContent.WidthAndHeight;
+        (_fittedWidth, _fittedHeight) = (width, height);
     }
 
     private void Vst3NativeEditorWindow_Closed(object? sender, EventArgs e)
     {
+        _resizeWatch.Stop();
         if (_editorHost is not null)
         {
             EditorHostContainer.Content = null;
