@@ -300,6 +300,25 @@ public sealed class Vst3PluginHost : IVst3PluginHost
         return Vst3HostInterop.VstHostBridge_SendNoteEvent(handle.NativeHandle, channel, noteNumber, velocity, isOn ? 1 : 0) != 0;
     }
 
+    public void ReleaseAllNotes(Vst3ModuleHandle handle)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+
+        if (handle.NativeHandle == IntPtr.Zero)
+        {
+            return;
+        }
+
+        try
+        {
+            Vst3HostInterop.VstHostBridge_ReleaseAllNotes(handle.NativeHandle);
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            // Bridge unavailable: no plug-in is sounding.
+        }
+    }
+
     public void StopAudio(Vst3ModuleHandle handle)
     {
         ArgumentNullException.ThrowIfNull(handle);

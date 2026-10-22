@@ -136,6 +136,10 @@ VSTHOSTBRIDGE_API void VstHostBridge_StopAudio(void* moduleHandle);
 // isOn 0, or velocity 0, releases the note. Returns 1 if queued, 0 if audio is not running.
 VSTHOSTBRIDGE_API int VstHostBridge_SendNoteEvent(void* moduleHandle, int32_t channel, int32_t pitch, int32_t velocity, int32_t isOn);
 
+// Releases every note the module's plug-in is holding: those sent with VstHostBridge_SendNoteEvent and not
+// released since. Returns 1 if done, 0 if audio is not running.
+VSTHOSTBRIDGE_API int VstHostBridge_ReleaseAllNotes(void* moduleHandle);
+
 // Returns 1 if audio is currently running for this module, 0 otherwise.
 VSTHOSTBRIDGE_API int VstHostBridge_IsAudioRunning(void* moduleHandle);
 

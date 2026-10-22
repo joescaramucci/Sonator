@@ -121,6 +121,9 @@ internal static class Vst3HostInterop
     internal static extern int VstHostBridge_SendNoteEvent(IntPtr moduleHandle, int channel, int pitch, int velocity, int isOn);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int VstHostBridge_ReleaseAllNotes(IntPtr moduleHandle);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int VstHostBridge_IsAudioRunning(IntPtr moduleHandle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]

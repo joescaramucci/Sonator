@@ -139,6 +139,11 @@ public interface IVst3PluginHost
     bool TrySendNote(Vst3ModuleHandle handle, int channel, int noteNumber, int velocity, bool isOn);
 
     /// <summary>
+    /// Releases every note the module's plug-in is still holding, so nothing is left sounding.
+    /// </summary>
+    void ReleaseAllNotes(Vst3ModuleHandle handle);
+
+    /// <summary>
     /// True if real-time audio is currently running for this module.
     /// </summary>
     bool IsAudioRunning(Vst3ModuleHandle handle);

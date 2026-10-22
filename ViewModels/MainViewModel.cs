@@ -709,7 +709,18 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         out RelayCommand browseVstPluginsPathCommand)
     {
         playCommand = new RelayCommand(_ => StartPlayback(), _ => SelectedPattern is not null && !IsPlaying);
-        stopCommand = new RelayCommand(_ => StopPlayback(), _ => IsPlaying);
+        // STOP with nothing playing silences every plug-in, for a note left sounding.
+        stopCommand = new RelayCommand(_ =>
+        {
+            if (IsPlaying)
+            {
+                StopPlayback();
+                return;
+            }
+
+            ReleaseAllPluginNotes();
+            StatusMessage = "All notes off";
+        });
         toggleRecordCommand = new RelayCommand(_ =>
         {
             SetRecording(!IsRecording);
@@ -2263,6 +2274,20 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     // recording and the status line are handled on the UI thread.
     private int _keyboardInputDelayMs;
 
+    // The plug-in each key held down on the keyboard was played on, so its release goes there too.
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<int, Vst3ModuleHandle> _heldKeys = new();
+
+    // Releases every note still sounding on any plug-in: those of the tracks and the one the keyboard plays.
+    private void ReleaseAllPluginNotes()
+    {
+        _trackInstruments.ReleaseAllNotes();
+        if (LiveInstrumentRegistry.Current is { } keyboardInstrument)
+        {
+            _liveInstrumentHost.ReleaseAllNotes(keyboardInstrument);
+        }
+        _heldKeys.Clear();
+    }
+
     // The ASIO buffer and output latency the running plug-in is using, for the status line.
     private string DescribeAudioBuffer()
     {
@@ -2291,9 +2316,19 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         var route = KeyboardRoute.None;
         if (IsLiveKeyboardEnabled)
         {
-            if (LiveInstrumentRegistry.Current is { } running
+            if (!note.IsOn && _heldKeys.TryRemove(note.NoteNumber, out var struck))
+            {
+                // Released on the plug-in it was played on, even if the keyboard has moved to another since.
+                _liveInstrumentHost.TrySendNote(struck, note.Channel, note.NoteNumber, note.Velocity, isOn: false);
+                route = KeyboardRoute.Plugin;
+            }
+            else if (LiveInstrumentRegistry.Current is { } running
                 && _liveInstrumentHost.TrySendNote(running, note.Channel, note.NoteNumber, note.Velocity, note.IsOn))
             {
+                if (note.IsOn)
+                {
+                    _heldKeys[note.NoteNumber] = running;
+                }
                 route = KeyboardRoute.Plugin;
             }
             else if (SelectedTrack is not { PluginFilePath: { Length: > 0 } })
@@ -2344,8 +2379,18 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
         // A plug-in whose editor has audio running hears the keyboard directly; otherwise the note goes to the MIDI output.
         var instrument = LiveInstrumentRegistry.Current;
+        if (!note.IsOn && _heldKeys.TryRemove(note.NoteNumber, out var struck))
+        {
+            instrument = struck;
+        }
+
         if (instrument is not null && _liveInstrumentHost.TrySendNote(instrument, note.Channel, note.NoteNumber, note.Velocity, note.IsOn))
         {
+            if (note.IsOn)
+            {
+                _heldKeys[note.NoteNumber] = instrument;
+            }
+
             if (note.IsOn)
             {
                 StatusMessage = $"Keyboard note {note.NoteNumber} sent to the plug-in (input delay {_keyboardInputDelayMs} ms)";
@@ -2767,6 +2812,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         var recordedTake = _recordTakeHasNotes || _recordingNotes.Count > 0;
         AudioTrackPlayback.Stop();
         _engine.Stop();
+        ReleaseAllPluginNotes();
         RaisePropertyChanged(nameof(IsClickLoopRunning));
         IsPlaying = false;
         StatusMessage = "Playback paused";

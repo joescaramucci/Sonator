@@ -662,6 +662,10 @@ namespace
         std::vector<Event> pendingMidi;
         BlockEventList blockEvents;
 
+        // How many times each note is held now, by channel and pitch, so every one can be released at once.
+        // Guarded by midiMutex.
+        uint8_t held[16][128]{};
+
         int32 channels = 2;
         std::vector<std::vector<float>> planar;
         std::vector<Sample32*> pointers;
@@ -3144,6 +3148,63 @@ int VstHostBridge_SendNoteEvent(void* moduleHandle, int32_t channel, int32_t pit
 
     std::lock_guard<std::mutex> lock(voice->midiMutex);
     voice->pendingMidi.push_back(event);
+    if (channel >= 0 && channel < 16 && pitch >= 0 && pitch < 128)
+    {
+        auto& count = voice->held[channel][pitch];
+        if (event.type == Event::kNoteOnEvent)
+        {
+            count = count < 255 ? static_cast<uint8_t>(count + 1) : count;
+        }
+        else
+        {
+            count = 0; // one note-off releases the pitch, however many times it was struck
+        }
+    }
+    return 1;
+}
+
+int VstHostBridge_ReleaseAllNotes(void* moduleHandle)
+{
+    if (moduleHandle == nullptr)
+    {
+        return 0;
+    }
+
+    auto* module = static_cast<BridgeModule*>(moduleHandle);
+    std::shared_ptr<MixerVoice> voice;
+    {
+        std::lock_guard<std::mutex> lock(module->voiceMutex);
+        voice = module->voice;
+    }
+    if (voice == nullptr)
+    {
+        return 0;
+    }
+
+    // A note-off for every note still held, so nothing is left sounding.
+    std::lock_guard<std::mutex> lock(voice->midiMutex);
+    for (int16 channel = 0; channel < 16; ++channel)
+    {
+        for (int16 pitch = 0; pitch < 128; ++pitch)
+        {
+            if (voice->held[channel][pitch] == 0)
+            {
+                continue;
+            }
+
+            Event event{};
+            event.busIndex = 0;
+            event.sampleOffset = 0;
+            event.flags = Event::kIsLive;
+            event.type = Event::kNoteOffEvent;
+            event.noteOff.channel = channel;
+            event.noteOff.pitch = pitch;
+            event.noteOff.velocity = 0.0f;
+            event.noteOff.noteId = -1;
+            voice->pendingMidi.push_back(event);
+            voice->held[channel][pitch] = 0;
+        }
+    }
     return 1;
 }
 

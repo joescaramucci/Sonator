@@ -107,6 +107,21 @@ internal sealed class TrackInstrumentsHost : IDisposable
         }
     }
 
+    // Releases every note held by any track's plug-in.
+    public void ReleaseAllNotes()
+    {
+        List<Vst3ModuleHandle> running;
+        lock (_sync)
+        {
+            running = _instruments.Values.ToList();
+        }
+
+        foreach (var handle in running)
+        {
+            _host.ReleaseAllNotes(handle);
+        }
+    }
+
     public void Dispose() => KeepOnly(Array.Empty<PatternTrackViewModel>());
 
     private static bool IsFor(PatternTrackViewModel track, Vst3ModuleHandle handle) =>
