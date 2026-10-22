@@ -23,6 +23,12 @@ public sealed class AppSettings
 
     // Name of the MIDI input the player last chose, "Off" included. Null means no choice yet.
     public string? MidiInputDeviceName { get; set; }
+
+    // Plug-ins taken out of the plug-in list, by file path. Their files stay where they are.
+    public List<string> RemovedVstPlugins { get; set; } = new();
+
+    // Plug-in files added one by one, outside the scanned folders.
+    public List<string> AddedVstPluginFiles { get; set; } = new();
 }
 
 public sealed class AppSettingsService

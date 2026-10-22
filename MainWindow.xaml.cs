@@ -1381,6 +1381,53 @@ public partial class MainWindow : Window
         }
     }
 
+    // ---- Plug-in list ----
+
+    // Builds the plug-in list's right-click menu: removing the plug-in under the mouse, when there is
+    // one, then adding a file or a folder and bringing back removed plug-ins.
+    private void VstPluginList_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel || sender is not FrameworkElement element)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        var plugin = (e.OriginalSource as FrameworkElement)?.DataContext as VstPluginViewModel
+            ?? element.DataContext as VstPluginViewModel;
+        var menu = new ContextMenu { PlacementTarget = element };
+
+        if (plugin is not null)
+        {
+            var remove = new MenuItem
+            {
+                Header = $"Remove \"{plugin.Name}\" from the list",
+                ToolTip = "For plug-ins that do not load. The file stays on disk; it can be brought back later.",
+            };
+            remove.Click += (_, _) => viewModel.RemoveVstPluginFromList(plugin);
+            menu.Items.Add(remove);
+            menu.Items.Add(new Separator());
+        }
+
+        var addFile = new MenuItem { Header = "Add plug-in file..." };
+        addFile.Click += (_, _) => viewModel.AddVstPluginFile();
+        menu.Items.Add(addFile);
+
+        var addFolder = new MenuItem { Header = "Add plug-in folder..." };
+        addFolder.Click += (_, _) => viewModel.AddVstPluginFolder();
+        menu.Items.Add(addFolder);
+
+        var restore = new MenuItem
+        {
+            Header = $"Restore removed plug-ins ({viewModel.RemovedVstPluginCount})",
+            IsEnabled = viewModel.RemovedVstPluginCount > 0,
+        };
+        restore.Click += (_, _) => viewModel.RestoreRemovedVstPlugins();
+        menu.Items.Add(restore);
+
+        menu.IsOpen = true;
+    }
+
     // ---- Track effects ----
 
     private readonly Dictionary<PatternTrackViewModel, EffectRackWindow> _fxRacks = new();

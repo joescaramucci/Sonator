@@ -2368,8 +2368,15 @@
                             </TextBlock.Style>
                         </TextBlock>
 
+                        <!-- Right-click: remove the plug-in under the mouse from the list, add a file or a folder,
+                             or bring back removed plug-ins. The menu is built when it opens. -->
                         <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                      HorizontalScrollBarVisibility="Disabled">
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      Background="Transparent"
+                                      ContextMenuOpening="VstPluginList_ContextMenuOpening">
+                            <ScrollViewer.ContextMenu>
+                                <ContextMenu />
+                            </ScrollViewer.ContextMenu>
                             <ItemsControl ItemsSource="{Binding VstPlugins}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
@@ -2385,6 +2392,7 @@
                                                 BorderThickness="1"
                                                 Cursor="Hand"
                                                 ToolTip="{Binding FilePath}"
+                                                ContextMenuOpening="VstPluginList_ContextMenuOpening"
                                                 MouseLeftButtonDown="VstPluginThumbnail_MouseLeftButtonDown"
                                                 MouseMove="VstPluginThumbnail_MouseMove"
                                                 MouseLeftButtonUp="VstPluginThumbnail_MouseLeftButtonUp">

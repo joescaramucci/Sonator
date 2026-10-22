@@ -360,12 +360,19 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private void RescanVstPlugins()
     {
         var scanResult = _vstPluginScanner.Scan(DefaultVstDirectory, _vstPluginsPath);
+        var settings = _appSettingsService.Load();
+        var plugins = VstPluginListRules.Arrange(
+            scanResult.Plugins.Select(plugin => (plugin.Name, plugin.FilePath, plugin.Kind)),
+            settings.AddedVstPluginFiles,
+            settings.RemovedVstPlugins);
 
         VstPlugins.Clear();
-        foreach (var plugin in scanResult.Plugins)
+        foreach (var (name, filePath, kind) in plugins)
         {
-            VstPlugins.Add(new VstPluginViewModel(plugin.Name, plugin.FilePath, plugin.Kind));
+            VstPlugins.Add(new VstPluginViewModel(name, filePath, kind));
         }
+
+        RemovedVstPluginCount = settings.RemovedVstPlugins.Count;
 
         var scannedFoldersText = scanResult.ScannedFolders.Count > 0
             ? string.Join(", ", scanResult.ScannedFolders)
@@ -373,6 +380,69 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         StatusMessage = VstPlugins.Count > 0
             ? $"Found {VstPlugins.Count} VST plug-ins ({scannedFoldersText})"
             : $"No VST plug-ins found ({scannedFoldersText})";
+    }
+
+    private int _removedVstPluginCount;
+
+    // How many plug-ins were taken out of the list, for "Restore removed plug-ins".
+    public int RemovedVstPluginCount
+    {
+        get => _removedVstPluginCount;
+        private set => SetProperty(ref _removedVstPluginCount, value);
+    }
+
+    // Takes a plug-in out of the list, such as one that does not load. Its file is left where it is,
+    // and "Restore removed plug-ins" brings it back.
+    public void RemoveVstPluginFromList(VstPluginViewModel plugin)
+    {
+        var settings = _appSettingsService.Load();
+        if (!settings.RemovedVstPlugins.Contains(plugin.FilePath, StringComparer.OrdinalIgnoreCase))
+        {
+            settings.RemovedVstPlugins.Add(plugin.FilePath);
+        }
+
+        settings.AddedVstPluginFiles.RemoveAll(path => string.Equals(path, plugin.FilePath, StringComparison.OrdinalIgnoreCase));
+        _appSettingsService.Save(settings);
+        RescanVstPlugins();
+        StatusMessage = $"{plugin.Name} removed from the plug-in list (the file is still on disk)";
+    }
+
+    // Adds one plug-in file to the list, from anywhere on disk.
+    public void AddVstPluginFile()
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Add a VST3 plug-in",
+            Filter = "VST3 plug-ins (*.vst3)|*.vst3",
+        };
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        var settings = _appSettingsService.Load();
+        settings.RemovedVstPlugins.RemoveAll(path => string.Equals(path, dialog.FileName, StringComparison.OrdinalIgnoreCase));
+        if (!settings.AddedVstPluginFiles.Contains(dialog.FileName, StringComparer.OrdinalIgnoreCase))
+        {
+            settings.AddedVstPluginFiles.Add(dialog.FileName);
+        }
+
+        _appSettingsService.Save(settings);
+        RescanVstPlugins();
+        StatusMessage = $"{Path.GetFileNameWithoutExtension(dialog.FileName)} added to the plug-in list";
+    }
+
+    public void AddVstPluginFolder() => BrowseVstPluginsPath();
+
+    // Puts every removed plug-in back in the list.
+    public void RestoreRemovedVstPlugins()
+    {
+        var settings = _appSettingsService.Load();
+        var count = settings.RemovedVstPlugins.Count;
+        settings.RemovedVstPlugins.Clear();
+        _appSettingsService.Save(settings);
+        RescanVstPlugins();
+        StatusMessage = $"{count} plug-in(s) back in the list";
     }
 
     private void BrowseVstPluginsPath()
