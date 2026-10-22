@@ -1846,6 +1846,8 @@ public partial class MainWindow : Window
             return;
         }
 
+        // The track whose FX is clicked becomes the selected one, so the EFFECTS panel shows the same effects.
+        viewModel.SelectedTrack = timelineTrack.SourceTrack;
         if (_fxRacks.TryGetValue(timelineTrack.SourceTrack, out var open))
         {
             open.Close();
