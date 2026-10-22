@@ -25,6 +25,28 @@ namespace son
 
         float Flush(float value) { return std::fabs(value) < 1e-20f ? 0.0f : value; }
 
+        float PeakOf(float** channels, int numChannels, int frames)
+        {
+            float peak = 0.0f;
+            for (int c = 0; c < numChannels; ++c)
+            {
+                for (int n = 0; n < frames; ++n)
+                {
+                    peak = std::max(peak, std::fabs(channels[c][n]));
+                }
+            }
+            return peak;
+        }
+
+        // Keeps the larger of the stored and the new peak, safely against the UI resetting it.
+        void StorePeak(std::atomic<float>& stored, float peak)
+        {
+            float current = stored.load();
+            while (peak > current && !stored.compare_exchange_weak(current, peak))
+            {
+            }
+        }
+
         void SetDefaults(Effect& effect, std::initializer_list<float> values)
         {
             int i = 0;
@@ -566,6 +588,17 @@ namespace son
         }
     }
 
+    void EffectChain::TakeLevels(int32_t slot, float& input, float& output)
+    {
+        input = output = 0.0f;
+        if (slot >= 0 && slot < static_cast<int32_t>(_effects.size()))
+        {
+            auto& effect = *_effects[static_cast<size_t>(slot)];
+            input = effect.inputPeak.exchange(0.0f);
+            output = effect.outputPeak.exchange(0.0f);
+        }
+    }
+
     double EffectChain::Meter(int32_t slot)
     {
         if (slot >= 0 && slot < static_cast<int32_t>(_effects.size()))
@@ -595,12 +628,15 @@ namespace son
                 }
             }
 
+            // Each effect's level is measured going in and coming out, for its IN and OUT meters.
             for (auto& effect : _effects)
             {
+                StorePeak(effect->inputPeak, PeakOf(channels, numChannels, frames));
                 if (effect->enabled.load())
                 {
                     effect->Process(channels, numChannels, frames);
                 }
+                StorePeak(effect->outputPeak, PeakOf(channels, numChannels, frames));
             }
         }
 

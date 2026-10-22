@@ -139,6 +139,41 @@ public sealed class TrackEffectViewModel : ViewModelBase
         }
     }
 
+    // The effects whose sound level changes by design show the level going in and coming out.
+    public bool HasLevelMeters => Definition.Kind is EffectKind.Compress or EffectKind.Limiter or EffectKind.EQ;
+
+    // The meters' scale: -48 dBFS at the bottom, 0 dBFS at the top.
+    private const double MeterFloorDb = -48;
+
+    // How far a meter may fall in one refresh, so it falls back smoothly after a peak.
+    private const double MeterFall = 0.04;
+
+    private double _inputLevel;
+    private double _outputLevel;
+
+    // The IN and OUT meters, from 0 to 1 on the dB scale above.
+    public double InputLevel
+    {
+        get => _inputLevel;
+        private set => SetProperty(ref _inputLevel, value);
+    }
+
+    public double OutputLevel
+    {
+        get => _outputLevel;
+        private set => SetProperty(ref _outputLevel, value);
+    }
+
+    // Takes the peaks measured since the last refresh: a meter jumps up at once and falls back gently.
+    public void ShowLevels(double inputPeak, double outputPeak)
+    {
+        InputLevel = Math.Max(ToMeter(inputPeak), _inputLevel - MeterFall);
+        OutputLevel = Math.Max(ToMeter(outputPeak), _outputLevel - MeterFall);
+    }
+
+    internal static double ToMeter(double peak) =>
+        peak <= 0 ? 0 : Math.Clamp((20 * Math.Log10(peak) - MeterFloorDb) / -MeterFloorDb, 0, 1);
+
     public string MeterText => _meterValue < 0.05
         ? string.Format(CultureInfo.CurrentCulture, "{0:0.0} dB", 0.0)
         : string.Format(CultureInfo.CurrentCulture, "-{0:0.0} dB", _meterValue);

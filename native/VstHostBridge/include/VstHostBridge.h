@@ -59,6 +59,8 @@ VSTHOSTBRIDGE_API void VstHostBridge_SetEffectChainGain(void* chainHandle, doubl
 VSTHOSTBRIDGE_API double VstHostBridge_GetEffectMeter(void* chainHandle, int32_t slot);
 // The highest absolute output sample since the previous call.
 VSTHOSTBRIDGE_API double VstHostBridge_TakeEffectChainPeak(void* chainHandle);
+// One effect's highest input and output samples since the previous call, for its IN and OUT meters.
+VSTHOSTBRIDGE_API int VstHostBridge_TakeEffectLevels(void* chainHandle, int32_t slot, double* outInputPeak, double* outOutputPeak);
 // Runs interleaved audio through the chain in place, for audio the caller plays itself.
 VSTHOSTBRIDGE_API void VstHostBridge_ProcessEffectChain(void* chainHandle, float* interleaved, int32_t frames, int32_t channels, double sampleRate);
 // Runs the chain on the module's plug-in output from now on. A null chain detaches it.

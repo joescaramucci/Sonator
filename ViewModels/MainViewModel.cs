@@ -1630,6 +1630,28 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         track.Effects.Move(from, to);
     }
 
+    // Moves an effect to a place in the chain, as when it is dragged in the rack.
+    public void MoveEffectTo(PatternTrackViewModel track, TrackEffectViewModel effect, int index)
+    {
+        var from = track.Effects.IndexOf(effect);
+        var to = Math.Clamp(index, 0, track.Effects.Count - 1);
+        if (from < 0 || from == to)
+        {
+            return;
+        }
+
+        CaptureUndoStateIfNeeded();
+        track.Effects.Move(from, to);
+        StatusMessage = $"{effect.Name} moved to place {to + 1} in the rack of {track.Name}";
+    }
+
+    // The effect's input and output peaks since the previous call, for its IN and OUT meters.
+    public (double Input, double Output) TakeEffectLevels(PatternTrackViewModel track, TrackEffectViewModel effect)
+    {
+        var slot = track.Effects.IndexOf(effect);
+        return slot < 0 || _trackEffects.ChainFor(track) is not { } chain ? (0, 0) : chain.TakeLevels(slot);
+    }
+
     // The effect's own meter, such as a compressor's gain reduction, while its track's chain is running.
     public double EffectMeter(PatternTrackViewModel track, TrackEffectViewModel effect)
     {

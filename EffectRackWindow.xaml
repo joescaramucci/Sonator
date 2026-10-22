@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:Sonator"
         Title="{Binding WindowTitle}"
-        Width="700"
+        Width="760"
         SizeToContent="Height"
         Background="#1B2330"
         Foreground="#C4CFDA"
@@ -11,6 +11,7 @@
         ResizeMode="CanMinimize"
         ShowInTaskbar="False">
     <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="VisibleWhenTrue" />
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="#C4CFDA" />
             <Setter Property="FontFamily" Value="Consolas" />
@@ -83,7 +84,8 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <!-- One effect of the rack: its switch, name and controls on top, its knobs below. -->
-                        <Border Margin="0,0,0,8" Padding="10,8" CornerRadius="7" Background="#212D3A" BorderBrush="#3A4D63" BorderThickness="1">
+                        <Border Margin="0,0,0,8" Padding="10,8" CornerRadius="7" Background="#212D3A" BorderBrush="#3A4D63" BorderThickness="1"
+                                AllowDrop="True" DragOver="Module_DragOver" DragLeave="Module_DragLeave" Drop="Module_Drop">
                             <Border.Style>
                                 <Style TargetType="Border">
                                     <Style.Triggers>
@@ -95,6 +97,17 @@
                             </Border.Style>
                             <StackPanel>
                                 <DockPanel Margin="0,0,0,6">
+                                    <TextBlock DockPanel.Dock="Left"
+                                               Text="⠿"
+                                               FontSize="18"
+                                               Foreground="#7F93A8"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,8,0"
+                                               Cursor="SizeAll"
+                                               Background="Transparent"
+                                               ToolTip="Drag to move the effect up or down the rack"
+                                               PreviewMouseLeftButtonDown="Grip_PreviewMouseLeftButtonDown"
+                                               PreviewMouseMove="Grip_PreviewMouseMove" />
                                     <ToggleButton DockPanel.Dock="Left"
                                                   Style="{StaticResource RackButton}"
                                                   Width="48"
@@ -108,13 +121,33 @@
                                         <Button Style="{StaticResource RackButton}" Content="RESET" Margin="4,0,0,0" Click="Reset_Click" ToolTip="Put every knob back to its default" />
                                         <Button Style="{StaticResource RackButton}" Content="✕" Margin="4,0,0,0" Click="Remove_Click" ToolTip="Remove the effect from the rack" AutomationProperties.Name="REMOVE EFFECT" />
                                     </StackPanel>
-                                    <StackPanel Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center"
+                                                Background="Transparent" Cursor="SizeAll"
+                                                ToolTip="Drag to move the effect up or down the rack"
+                                                PreviewMouseLeftButtonDown="Grip_PreviewMouseLeftButtonDown"
+                                                PreviewMouseMove="Grip_PreviewMouseMove">
                                         <TextBlock Text="{Binding Name}" FontFamily="Segoe UI Semibold" FontSize="16" Foreground="#E8EEF4" VerticalAlignment="Center" />
                                         <TextBlock Text="{Binding Definition.Description}" Foreground="#7F93A8" FontSize="11" Margin="10,3,0,0" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </DockPanel>
 
-                                <ItemsControl ItemsSource="{Binding Parameters}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Margin="0,2,8,2" Visibility="{Binding HasLevelMeters, Converter={StaticResource VisibleWhenTrue}}"
+                                                ToolTip="The level going into the effect">
+                                        <local:LedMeter Width="10" Height="96" Segments="16" HorizontalAlignment="Center" Level="{Binding InputLevel}" />
+                                        <TextBlock Text="IN" FontSize="10" Foreground="#9FB4C9" HorizontalAlignment="Center" Margin="0,3,0,0" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Margin="8,2,0,2" Visibility="{Binding HasLevelMeters, Converter={StaticResource VisibleWhenTrue}}"
+                                                ToolTip="The level coming out of the effect">
+                                        <local:LedMeter Width="10" Height="96" Segments="16" HorizontalAlignment="Center" Level="{Binding OutputLevel}" />
+                                        <TextBlock Text="OUT" FontSize="10" Foreground="#9FB4C9" HorizontalAlignment="Center" Margin="0,3,0,0" />
+                                    </StackPanel>
+                                <ItemsControl Grid.Column="1" ItemsSource="{Binding Parameters}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
                                             <WrapPanel />
@@ -175,6 +208,7 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
+                                </Grid>
 
                                 <!-- Gain reduction, for the compressor and the limiter. -->
                                 <StackPanel Margin="2,8,2,0">

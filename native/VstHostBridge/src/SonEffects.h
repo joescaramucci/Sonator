@@ -39,6 +39,10 @@ namespace son
 
         std::atomic<float> parameters[MaxParameters]{};
         std::atomic<bool> enabled{true};
+
+        // The highest absolute sample going in and coming out since the UI last read them.
+        std::atomic<float> inputPeak{0.0f};
+        std::atomic<float> outputPeak{0.0f};
     };
 
     std::unique_ptr<Effect> CreateEffect(EffectType type);
@@ -53,6 +57,9 @@ namespace son
         void SetParameter(int32_t slot, int32_t parameter, double value);
         void SetEnabled(int32_t slot, bool enabled);
         double Meter(int32_t slot);
+
+        // The effect's input and output peaks since the previous call, then starts measuring afresh.
+        void TakeLevels(int32_t slot, float& input, float& output);
 
         // Linear gain applied after the effects.
         std::atomic<float> gain{1.0f};

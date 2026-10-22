@@ -1078,6 +1078,25 @@ double VstHostBridge_GetEffectMeter(void* chainHandle, int32_t slot)
     return chain == nullptr ? 0.0 : chain->Meter(slot);
 }
 
+int VstHostBridge_TakeEffectLevels(void* chainHandle, int32_t slot, double* outInputPeak, double* outOutputPeak)
+{
+    float input = 0.0f;
+    float output = 0.0f;
+    if (auto* chain = ChainOf(chainHandle))
+    {
+        chain->TakeLevels(slot, input, output);
+    }
+    if (outInputPeak != nullptr)
+    {
+        *outInputPeak = input;
+    }
+    if (outOutputPeak != nullptr)
+    {
+        *outOutputPeak = output;
+    }
+    return 1;
+}
+
 double VstHostBridge_TakeEffectChainPeak(void* chainHandle)
 {
     auto* chain = ChainOf(chainHandle);

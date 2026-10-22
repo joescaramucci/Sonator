@@ -91,3 +91,39 @@ public sealed class TrackEffectsTests
         Assert.Equal(0.9, PeakAfter(chain!, 0.9), 2);
     }
 }
+
+public sealed class EffectLevelTests
+{
+    [Fact]
+    public void LevelMeters_ShowTheSignalBeforeAndAfterTheEffect()
+    {
+        using var host = new TrackEffectsHost();
+        var track = PatternFactory.CreatePattern("Pattern 1", "Test", "01").Tracks[0];
+        var limiter = new TrackEffectViewModel(EffectCatalog.Get(EffectKind.Limiter));
+        limiter.Parameters[0].Value = -12;
+        track.Effects.Add(limiter);
+        var chain = host.ChainFor(track)!;
+
+        var samples = new float[4800 * 2];
+        for (var i = 0; i < 4800; i++)
+        {
+            samples[i * 2] = samples[i * 2 + 1] = (float)(0.9 * Math.Sin(2 * Math.PI * 440 * i / 48000.0));
+        }
+        chain.Process(samples, 4800, 2, 48000);
+
+        var (input, output) = chain.TakeLevels(0);
+        Assert.Equal(0.9, input, 2);
+        Assert.InRange(output, 0.2, 0.252);
+        Assert.Equal((0.0, 0.0), chain.TakeLevels(0)); // read once, then measured afresh
+    }
+
+    [Fact]
+    public void Meter_Scale_RunsFromMinus48ToZeroDecibels()
+    {
+        Assert.Equal(1, TrackEffectViewModel.ToMeter(1.0), 6);
+        Assert.Equal(0.5, TrackEffectViewModel.ToMeter(Math.Pow(10, -24 / 20.0)), 6);
+        Assert.Equal(0, TrackEffectViewModel.ToMeter(0.0001));
+        Assert.True(new TrackEffectViewModel(EffectCatalog.Get(EffectKind.Compress)).HasLevelMeters);
+        Assert.False(new TrackEffectViewModel(EffectCatalog.Get(EffectKind.Verb)).HasLevelMeters);
+    }
+}
