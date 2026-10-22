@@ -44,6 +44,7 @@
 #include "pluginterfaces/vst/ivstevents.h"
 #include "pluginterfaces/vst/vstspeaker.h"
 #include "pluginterfaces/gui/iplugview.h"
+#include "pluginterfaces/gui/iplugviewcontentscalesupport.h"
 
 #include <mmdeviceapi.h>
 #include <audioclient.h>
@@ -1529,6 +1530,46 @@ int VstHostBridge_HasEditor(void* moduleHandle)
     return supported ? 1 : 0;
 }
 
+// The DPI a window is drawn at: GetDpiForWindow where Windows has it (10, version 1607 on), else the
+// screen's DPI.
+static UINT WindowDpi(HWND window)
+{
+    using GetDpiForWindowFn = UINT(WINAPI*)(HWND);
+    static const auto getDpiForWindow = reinterpret_cast<GetDpiForWindowFn>(
+        reinterpret_cast<void*>(GetProcAddress(GetModuleHandleW(L"user32.dll"), "GetDpiForWindow")));
+    if (getDpiForWindow != nullptr)
+    {
+        const UINT dpi = getDpiForWindow(window);
+        if (dpi != 0)
+        {
+            return dpi;
+        }
+    }
+
+    HDC screen = GetDC(nullptr);
+    const int dpi = screen != nullptr ? GetDeviceCaps(screen, LOGPIXELSY) : USER_DEFAULT_SCREEN_DPI;
+    if (screen != nullptr)
+    {
+        ReleaseDC(nullptr, screen);
+    }
+    return dpi > 0 ? static_cast<UINT>(dpi) : USER_DEFAULT_SCREEN_DPI;
+}
+
+// Tells the editor the display's scale. False when the plug-in cannot be told it.
+static bool TellContentScale(IPlugView* view, double scale)
+{
+    IPlugViewContentScaleSupport* scaleSupport = nullptr;
+    if (view->queryInterface(IPlugViewContentScaleSupport_iid, reinterpret_cast<void**>(&scaleSupport)) != kResultOk
+        || scaleSupport == nullptr)
+    {
+        return false;
+    }
+
+    scaleSupport->setContentScaleFactor(static_cast<IPlugViewContentScaleSupport::ScaleFactor>(scale));
+    scaleSupport->release();
+    return true;
+}
+
 int VstHostBridge_OpenEditor(void* moduleHandle, void* parentHwnd, void** outChildHwnd, int32_t* outWidth, int32_t* outHeight)
 {
     if (moduleHandle == nullptr || parentHwnd == nullptr)
@@ -1576,6 +1617,13 @@ int VstHostBridge_OpenEditor(void* moduleHandle, void* parentHwnd, void** outChi
         return 0;
     }
 
+    // On a scaled display (such as 200% on a 4K screen) the editor would draw at its 100% size in real
+    // pixels and look tiny. Plug-ins that can scale themselves are told the display's scale before they
+    // report their size, so they draw at the same size as the rest of Sonator.
+    const UINT parentDpi = WindowDpi(static_cast<HWND>(parentHwnd));
+    const double displayScale = static_cast<double>(parentDpi) / USER_DEFAULT_SCREEN_DPI;
+    const bool scaledByPlugin = displayScale > 1.0 && TellContentScale(view, displayScale);
+
     ViewRect rect{};
     view->getSize(&rect);
     int32 width = rect.getWidth() > 0 ? rect.getWidth() : 400;
@@ -1622,6 +1670,12 @@ int VstHostBridge_OpenEditor(void* moduleHandle, void* parentHwnd, void** outChi
 
     module->editorView = view;
     module->editorFrame = frame;
+
+    if (scaledByPlugin)
+    {
+        // Some plug-ins only take the scale once they are attached: tell them again.
+        TellContentScale(view, displayScale);
+    }
 
     // Some plug-ins only know their real size once attached: take it again, and fit the container to it.
     ViewRect attachedRect{};
