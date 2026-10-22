@@ -159,6 +159,26 @@
             </Setter>
         </Style>
 
+        <!-- The recessed dark panel and glowing digits of the position clocks in the top bar. -->
+        <Style x:Key="ClockPanel" TargetType="Border">
+            <Setter Property="Background" Value="#0C1219" />
+            <Setter Property="BorderBrush" Value="#2E3F52" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="8,4" />
+        </Style>
+        <Style x:Key="ClockDigits" TargetType="local:SevenSegmentDisplay">
+            <Setter Property="DigitHeight" Value="26" />
+            <Setter Property="Foreground" Value="#7FF0C2" />
+            <Setter Property="GhostBrush" Value="#132A26" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#3FE0A0" BlurRadius="9" ShadowDepth="0" Opacity="0.55" />
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="BottomTabButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Width" Value="64" />
             <Setter Property="Height" Value="24" />
@@ -782,16 +802,24 @@
                         </StackPanel>
                     </Border>
                 </Border>
+                <!-- The song position as a large LED clock: minutes, seconds and hundredths. -->
                 <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                        <TextBlock Text="{Binding TransportPosition}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
-                        <TextBlock Text="MIN:SEC.1/100" FontSize="11" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                        <Border Style="{StaticResource ClockPanel}">
+                            <local:SevenSegmentDisplay Text="{Binding TransportPosition}" Style="{StaticResource ClockDigits}"
+                                                       AutomationProperties.Name="POSITION MIN SEC" />
+                        </Border>
+                        <TextBlock Text="MIN:SEC.1/100" FontSize="11" Margin="0,2,0,0" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                     </StackPanel>
                 </Border>
+                <!-- The same position in bars, quarters, eighths and sixteenths. -->
                 <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                        <TextBlock Text="{Binding CurrentStepBar}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
-                        <TextBlock Text="BAR 4 8 16" FontSize="11" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                        <Border Style="{StaticResource ClockPanel}">
+                            <local:SevenSegmentDisplay Text="{Binding CurrentStepBar}" Style="{StaticResource ClockDigits}"
+                                                       AutomationProperties.Name="POSITION BARS" />
+                        </Border>
+                        <TextBlock Text="BAR 4 8 16" FontSize="11" Margin="0,2,0,0" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                     </StackPanel>
                 </Border>
                 <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
