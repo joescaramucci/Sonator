@@ -875,11 +875,11 @@
 
                         <TextBlock Text="CPU" FontWeight="Bold" ToolTip="{Binding CpuToolTip}" />
                         <ProgressBar Grid.Column="1" Style="{StaticResource HealthBar}" Value="{Binding CpuLoad, Mode=OneWay}" Foreground="{Binding CpuBrush}" ToolTip="{Binding CpuToolTip}" />
-                        <TextBlock Grid.Column="2" Text="{Binding CpuText}" HorizontalAlignment="Right" ToolTip="{Binding CpuToolTip}" />
+                        <TextBlock Grid.Column="2" Text="{Binding CpuText}" HorizontalAlignment="Left" ToolTip="{Binding CpuToolTip}" />
 
                         <TextBlock Grid.Row="1" Text="DSP" FontWeight="Bold" ToolTip="{Binding DspToolTip}" />
                         <ProgressBar Grid.Row="1" Grid.Column="1" Style="{StaticResource HealthBar}" Value="{Binding DspLoad, Mode=OneWay}" Foreground="{Binding DspBrush}" ToolTip="{Binding DspToolTip}" />
-                        <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding DspText}" HorizontalAlignment="Right" ToolTip="{Binding DspToolTip}" />
+                        <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding DspText}" HorizontalAlignment="Left" ToolTip="{Binding DspToolTip}" />
                         <TextBlock Grid.Row="1"
                                    Grid.Column="3"
                                    Text="{Binding DropoutsText}"
