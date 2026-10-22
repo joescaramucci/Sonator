@@ -1852,6 +1852,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        viewModel.SwitchOnDefaultReverb(timelineTrack.SourceTrack);
         OpenFxRack(viewModel, timelineTrack.SourceTrack, null);
     }
 

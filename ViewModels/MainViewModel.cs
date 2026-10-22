@@ -1780,6 +1780,28 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         return preset;
     }
 
+    // The first time a track's FX rack is opened, its SonVerb comes on when it is still the one every new
+    // track starts with: switched off, on Small Room, untouched. It costs nothing until then. Opened again,
+    // the rack leaves the reverb as the player left it. Returns true when the reverb was switched on.
+    public bool SwitchOnDefaultReverb(PatternTrackViewModel track)
+    {
+        if (track.HasOpenedFxRack)
+        {
+            return false;
+        }
+
+        track.HasOpenedFxRack = true;
+        if (track.Effects is not [{ Definition.Kind: EffectKind.Verb, IsEnabled: false, IsPresetModified: false } verb]
+            || verb.PresetName != PatternFactory.DefaultVerbPreset)
+        {
+            return false;
+        }
+
+        CaptureUndoStateIfNeeded();
+        verb.IsEnabled = true;
+        return true;
+    }
+
     // Adds an effect at the end of the track's chain, at its default settings.
     public TrackEffectViewModel? AddEffect(PatternTrackViewModel? track, EffectDefinition definition)
     {

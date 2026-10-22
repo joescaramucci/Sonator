@@ -154,6 +154,9 @@ public sealed class PatternTrackViewModel : ViewModelBase
 
     public byte[]? PluginEditorState { get; set; }
 
+    // True once the track's FX rack has been opened in this session (see MainViewModel.SwitchOnDefaultReverb).
+    public bool HasOpenedFxRack { get; set; }
+
     // The plug-in's name as shown on the track: its file or bundle name without the extension.
     public string? PluginName => PluginFilePath is null
         ? null
