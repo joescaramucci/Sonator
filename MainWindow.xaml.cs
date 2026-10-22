@@ -1370,6 +1370,7 @@ public partial class MainWindow : Window
         window.Owner = this;
         FollowPluginWindow(window);
         window.Show();
+        CascadePluginWindow(window);
     }
 
     private static Window CreatePluginWindow(string name, string filePath, string kind)
@@ -1438,6 +1439,7 @@ public partial class MainWindow : Window
         window.Owner = this;
         FollowPluginWindow(window);
         window.Show();
+        CascadePluginWindow(window);
     }
 
     // A plug-in window put away in the dock. The dock lists these, not the windows: an ItemsControl given a
@@ -1508,7 +1510,35 @@ public partial class MainWindow : Window
     {
         UndockPluginWindow(window);
         window.Show();
+        CascadePluginWindow(window);
         window.Activate();
+    }
+
+    // A plug-in window opened right over another one moves down and to the right, step by step, so each
+    // window opened shows, as Windows cascades its windows.
+    private void CascadePluginWindow(Window window)
+    {
+        const double step = 32;
+        var others = OwnedWindows.OfType<Window>()
+            .Where(other => !ReferenceEquals(other, window) && other.IsVisible && IsPluginWindow(other))
+            .ToList();
+        var workArea = SystemParameters.WorkArea;
+        var left = window.Left;
+        var top = window.Top;
+        for (var tries = 0; tries < 20 && others.Any(other => Math.Abs(other.Left - left) < step / 2 && Math.Abs(other.Top - top) < step / 2); tries++)
+        {
+            left += step;
+            top += step;
+            if (left + window.ActualWidth > workArea.Right || top + window.ActualHeight > workArea.Bottom)
+            {
+                // Off the screen: the cascade starts again from the top left of the work area.
+                left = workArea.Left + step * (tries % 4);
+                top = workArea.Top + step * (tries % 4);
+            }
+        }
+
+        window.Left = left;
+        window.Top = top;
     }
 
     private void PluginDockButton_Click(object sender, RoutedEventArgs e)
