@@ -29,8 +29,13 @@ public partial class Vst3NativeEditorWindow : Window
 
         AttachEditor();
 
+        Closing += ReturnFocusToOwner;
         Closed += Vst3NativeEditorWindow_Closed;
     }
+
+    // The plug-in's own child windows hold the focus, and when they go Windows hands it to whatever window
+    // is next, often another program. Activating the owner first keeps the focus in Sonator.
+    private void ReturnFocusToOwner(object? sender, System.ComponentModel.CancelEventArgs e) => Owner?.Activate();
 
     public Vst3NativeEditorWindow(string pluginName, string filePath)
     {
@@ -67,6 +72,7 @@ public partial class Vst3NativeEditorWindow : Window
             AttachEditor();
         }
 
+        Closing += ReturnFocusToOwner;
         Closed += Vst3NativeEditorWindow_Closed;
     }
 
