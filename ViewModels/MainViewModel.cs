@@ -2740,6 +2740,25 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         return added;
     }
 
+    // Only one plug-in plays at a time, so playback starts the one whose notes are to be heard: the selected
+    // track's when it has a plug-in and notes, or is being recorded on; else the first audible plug-in track that
+    // has notes, else the first plug-in track.
+    internal static PatternTrackViewModel? PlaybackInstrumentTrack(IReadOnlyList<PatternTrackViewModel> tracks, PatternTrackViewModel? selected, bool recording)
+    {
+        static bool HasPlugin(PatternTrackViewModel track) => track.SupportsMidiPlayback && !string.IsNullOrEmpty(track.PluginFilePath);
+        static bool HasNotes(PatternTrackViewModel track) => track.MidiNoteEvents.Count > 0 || track.Steps.Any(step => step.IsActive);
+
+        if (selected is not null && HasPlugin(selected)
+            && (recording || HasNotes(selected) || !tracks.Any(t => HasPlugin(t) && HasNotes(t))))
+        {
+            return selected;
+        }
+
+        return tracks.FirstOrDefault(track => HasPlugin(track) && HasNotes(track) && !track.IsMuted)
+            ?? tracks.FirstOrDefault(track => HasPlugin(track) && HasNotes(track))
+            ?? tracks.FirstOrDefault(HasPlugin);
+    }
+
     private void StartPlayback()
     {
         if (FitSelectedPatternToArrangeLength())
@@ -2748,7 +2767,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             RebuildTimeline();
         }
 
-        if (Tracks.FirstOrDefault(track => track.SupportsMidiPlayback && !string.IsNullOrEmpty(track.PluginFilePath)) is { } pluginTrack)
+        if (PlaybackInstrumentTrack(Tracks, SelectedTrack, IsRecording) is { } pluginTrack)
         {
             EnsureInstrument(pluginTrack.PluginFilePath!, pluginTrack.Name);
         }
