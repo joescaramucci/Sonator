@@ -1,0 +1,78 @@
+<Window x:Class="Sonator.NormalizeWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Sonator"
+        Title="SonNormalize"
+        SizeToContent="WidthAndHeight"
+        Background="#1B2330"
+        Foreground="#C4CFDA"
+        FontFamily="Consolas"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False">
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#C4CFDA" />
+            <Setter Property="FontFamily" Value="Consolas" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="#2A3948" />
+            <Setter Property="Foreground" Value="#C4CFDA" />
+            <Setter Property="BorderBrush" Value="#5C7A99" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Height" Value="26" />
+            <Setter Property="FontFamily" Value="Consolas" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="5">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#354D69" />
+                    <Setter Property="BorderBrush" Value="#7EB2FF" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <StackPanel Margin="18,14">
+        <TextBlock Text="SonNormalize" FontFamily="Segoe UI Semibold" FontSize="20" Foreground="#E8EEF4" />
+        <TextBlock Text="{Binding Subtitle}" Foreground="#7F93A8" FontSize="11" Margin="0,0,0,12" />
+
+        <StackPanel Orientation="Horizontal">
+            <Border Width="110" Padding="4,6" CornerRadius="6" Background="#212D3A" BorderBrush="#2E3F52" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="Peak now" HorizontalAlignment="Center" FontSize="11" Foreground="#9FB4C9" />
+                    <TextBlock Text="{Binding CurrentPeakText}" HorizontalAlignment="Center" FontSize="18" FontWeight="Bold" Margin="0,18,0,18" />
+                </StackPanel>
+            </Border>
+            <TextBlock Text="→" FontSize="22" VerticalAlignment="Center" Margin="12,0" />
+            <Border Width="110" Padding="4,6" CornerRadius="6" Background="#212D3A" BorderBrush="#2E3F52" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="Target peak" HorizontalAlignment="Center" FontSize="11" Foreground="#9FB4C9" />
+                    <local:Knob Width="52" Height="52" Margin="0,4" Accent="#5CAFD6"
+                                Position="{Binding TargetPosition}" DefaultPosition="{Binding DefaultTargetPosition}"
+                                AutomationProperties.Name="TARGET PEAK"
+                                ToolTip="Drag up or down, mouse wheel, double-click for -0.3 dB" />
+                    <TextBlock Text="{Binding TargetText}" HorizontalAlignment="Center" FontWeight="Bold" Foreground="#E8EEF4" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <TextBlock Text="{Binding GainText}" Margin="0,12,0,0" Foreground="#9FB4C9" />
+        <TextBlock Text="The original file is kept; the track gets a normalized copy." Margin="0,2,0,0" Foreground="#7F93A8" FontSize="11" />
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+            <Button Content="CANCEL" Width="92" Margin="0,0,8,0" IsCancel="True" />
+            <Button Content="APPLY" Width="92" IsDefault="True" Click="Apply_Click" />
+        </StackPanel>
+    </StackPanel>
+</Window>

@@ -159,3 +159,28 @@ public sealed class SonEffectsTests
         Assert.Equal(0.9, Peak(samples, 0, 4800), 2);
     }
 }
+
+public sealed class SonNormalizeTests
+{
+    [Fact]
+    public void Normalize_BringsThePeakToTheTarget_KeepingTheShape()
+    {
+        var clip = new Sonator.Services.AudioClip(new[] { 0.1f, -0.25f, 0.05f, 0f }, 1, 48000);
+
+        var normalized = SonNormalize.Apply(clip, -6);
+
+        Assert.Equal(-12.04, SonNormalize.PeakDb(clip), 2);
+        Assert.Equal(-6, SonNormalize.PeakDb(normalized), 3);
+        Assert.Equal(0.1 / 0.25, normalized.Samples[0] / -normalized.Samples[1], 4);
+        Assert.Equal(0.1f, clip.Samples[0]); // the original is left alone
+    }
+
+    [Fact]
+    public void SilentClip_IsLeftAlone()
+    {
+        var clip = new Sonator.Services.AudioClip(new float[8], 2, 48000);
+
+        Assert.True(double.IsNegativeInfinity(SonNormalize.PeakDb(clip)));
+        Assert.All(SonNormalize.Apply(clip, -1).Samples, sample => Assert.Equal(0f, sample));
+    }
+}

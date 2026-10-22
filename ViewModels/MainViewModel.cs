@@ -2411,6 +2411,34 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         StatusMessage = $"{track.Name} now plays through {Path.GetFileNameWithoutExtension(pluginPath)}";
     }
 
+    // SonNormalize: the track's clip with its peak brought to targetDb, saved as a new file so the
+    // original stays as it was and the change can be undone. Returns false when there is nothing to do.
+    public bool NormalizeAudioClip(PatternTrackViewModel? track, double targetDb)
+    {
+        if (track?.AudioClipPath is not { } path || !File.Exists(path))
+        {
+            StatusMessage = "SonNormalize: the track has no audio clip";
+            return false;
+        }
+
+        var clip = AudioClipLoader.Load(path);
+        var before = SonNormalize.PeakDb(clip);
+        if (double.IsNegativeInfinity(before))
+        {
+            StatusMessage = "SonNormalize: the clip is silent";
+            return false;
+        }
+
+        CaptureUndoStateIfNeeded();
+        track.AudioClipPath = AudioClipLoader.SaveToLibrary(SonNormalize.Apply(clip, targetDb));
+        StatusMessage = string.Format(
+            System.Globalization.CultureInfo.CurrentCulture,
+            "SonNormalize: {0} peak {1:0.0} dB → {2:0.0} dB ({3:+0.0;-0.0} dB)",
+            track.Name, before, targetDb, targetDb - before);
+        RebuildTimeline();
+        return true;
+    }
+
     // Puts a clip into an empty track and makes the track an audio track.
     public void AssignAudioClip(PatternTrackViewModel track, string clipPath)
     {

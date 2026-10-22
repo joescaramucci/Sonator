@@ -1414,7 +1414,39 @@ public partial class MainWindow : Window
             menu.Items.Add(item);
         }
 
+        // SonNormalize works once on the track's audio clip rather than live, so it sits apart.
+        menu.Items.Add(new Separator());
+        var normalize = new MenuItem
+        {
+            Header = "SonNormalize  —  set the audio clip's peak level",
+            IsEnabled = !string.IsNullOrEmpty(viewModel.SelectedTrack.AudioClipPath),
+            ToolTip = "For tracks with an audio clip",
+        };
+        normalize.Click += (_, _) => NormalizeSelectedTrack(viewModel);
+        menu.Items.Add(normalize);
+
         menu.IsOpen = true;
+    }
+
+    private void NormalizeSelectedTrack(MainViewModel viewModel)
+    {
+        if (viewModel.SelectedTrack is not { AudioClipPath: { } path } track || !System.IO.File.Exists(path))
+        {
+            return;
+        }
+
+        var peak = Services.Effects.SonNormalize.PeakDb(Services.AudioClipLoader.Load(path));
+        if (double.IsNegativeInfinity(peak))
+        {
+            SonatorMessageDialog.Show(this, "SonNormalize", "The audio clip is silent, so there is nothing to normalize.");
+            return;
+        }
+
+        var window = new NormalizeWindow(track.Name, peak) { Owner = this };
+        if (window.ShowDialog() == true)
+        {
+            viewModel.NormalizeAudioClip(track, window.TargetDb);
+        }
     }
 
     private void EffectName_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
