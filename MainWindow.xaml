@@ -864,8 +864,7 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="30" />
                             <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" MinWidth="38" />
-                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="92" />
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="17" />
@@ -879,10 +878,9 @@
 
                         <TextBlock Grid.Row="1" Text="DSP" FontWeight="Bold" ToolTip="{Binding DspToolTip}" />
                         <ProgressBar Grid.Row="1" Grid.Column="1" Style="{StaticResource HealthBar}" Value="{Binding DspLoad, Mode=OneWay}" Foreground="{Binding DspBrush}" ToolTip="{Binding DspToolTip}" />
-                        <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding DspText}" HorizontalAlignment="Left" ToolTip="{Binding DspToolTip}" />
-                        <TextBlock Grid.Row="1"
-                                   Grid.Column="3"
-                                   Text="{Binding DropoutsText}"
+                        <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal">
+                        <TextBlock Text="{Binding DspText}" ToolTip="{Binding DspToolTip}" />
+                        <TextBlock Text="{Binding DropoutsText}"
                                    Margin="8,0,0,0"
                                    Cursor="Hand"
                                    AutomationProperties.Name="AUDIO DROPOUTS"
@@ -900,10 +898,11 @@
                                 </Style>
                             </TextBlock.Style>
                         </TextBlock>
+                        </StackPanel>
 
                         <TextBlock Grid.Row="2" Text="RAM" FontWeight="Bold" ToolTip="{Binding RamToolTip}" />
                         <ProgressBar Grid.Row="2" Grid.Column="1" Style="{StaticResource HealthBar}" Value="{Binding RamLoad, Mode=OneWay}" Foreground="{Binding RamBrush}" ToolTip="{Binding RamToolTip}" />
-                        <TextBlock Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="2" Text="{Binding RamText}" HorizontalAlignment="Left" ToolTip="{Binding RamToolTip}" />
+                        <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding RamText}" HorizontalAlignment="Left" ToolTip="{Binding RamToolTip}" />
                     </Grid>
                 </Border>
             </UniformGrid>
