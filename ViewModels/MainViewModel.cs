@@ -206,6 +206,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _midiInput.NoteReceived += OnKeyboardNote;
         _midiInput.MessageReceived += packed => Application.Current?.Dispatcher.BeginInvoke(() => OnMidiMessageReceived(packed));
         _midiActivityTimer.Tick += (_, _) => IsMidiActivityVisible = false;
+        _audioMeterTimer.Tick += (_, _) => ShowAudioLevels();
+        _audioMeterTimer.Start();
         _recordRefreshTimer.Tick += (_, _) => RefreshRecordedTrack();
         PreviewClickCommand = new RelayCommand(_ =>
         {
@@ -1722,6 +1724,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public void Dispose()
     {
         LiveInstrumentRegistry.CurrentChanged -= AttachEffectsToLiveInstrument;
+        _audioMeterTimer.Stop();
         StopOwnedInstrument();
         _engine.StepChanged -= OnStepChanged;
         _engine.PatternChanged -= OnPlaybackPatternChanged;
@@ -3512,7 +3515,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     // While stopped, nothing else moves the meters, so a short timer lets them fall back.
     private void ShowLiveNoteOnMeter(MidiNoteMessage note)
     {
-        if (!note.IsOn || note.Velocity == 0 || SelectedTrack is not { IsMuted: false } track)
+        // A track with its own audio shows the measured sound instead, for as long as it lasts.
+        if (!note.IsOn || note.Velocity == 0 || SelectedTrack is not { IsMuted: false, HasOwnAudio: false } track)
         {
             return;
         }
@@ -3537,6 +3541,18 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     }
 
     private DispatcherTimer? _liveMeterTimer;
+
+    // Reads the measured output of every track that makes its own sound, about twenty times a second.
+    private readonly DispatcherTimer _audioMeterTimer = new() { Interval = TimeSpan.FromMilliseconds(50) };
+
+    private void ShowAudioLevels()
+    {
+        foreach (var track in Patterns.SelectMany(pattern => pattern.Tracks).Where(track => track.HasOwnAudio))
+        {
+            var peak = _trackEffects.ExistingChainFor(track)?.TakePeak() ?? 0;
+            TrackMeterCalculator.ShowAudioLevel(track, peak);
+        }
+    }
 
     private void ResetTrackMeters()
     {

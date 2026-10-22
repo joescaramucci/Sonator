@@ -28,6 +28,10 @@ internal sealed class TrackEffectsHost : IDisposable
         return chain;
     }
 
+    // The track's chain if it has one already, without making it.
+    public NativeEffectChain? ExistingChainFor(PatternTrackViewModel track) =>
+        _chains.TryGetValue(track, out var chain) ? chain : null;
+
     public void Dispose()
     {
         foreach (var (track, chain) in _chains)

@@ -43,3 +43,41 @@ public sealed class TrackMeterTests
         Assert.Equal(0, track.SignalLevel);
     }
 }
+
+public sealed class TrackAudioMeterTests
+{
+    [Fact]
+    public void HeldSound_KeepsTheMeterUp_ForAsLongAsItLasts()
+    {
+        var track = PatternFactory.CreatePattern("Pattern 1", "Test", "01").Tracks[0];
+        track.PluginFilePath = @"C:\VST3\Synth.vst3";
+        Assert.True(track.HasOwnAudio);
+
+        // A chord held at -12 dBFS: every refresh measures the same peak, so the meter stays where it is.
+        for (var refresh = 0; refresh < 40; refresh++)
+        {
+            TrackMeterCalculator.ShowAudioLevel(track, Math.Pow(10, -12 / 20.0));
+        }
+
+        Assert.Equal(0.75, track.SignalLevel, 3);
+
+        // Released: it falls back gently, not at once.
+        TrackMeterCalculator.ShowAudioLevel(track, 0);
+        Assert.Equal(0.72, track.SignalLevel, 3);
+    }
+
+    [Fact]
+    public void PlaybackAndLiveNotes_LeaveMeasuredTracksAlone()
+    {
+        var tracks = PatternFactory.CreatePattern("Pattern 1", "Test", "01").Tracks;
+        var audio = tracks[0];
+        audio.PluginFilePath = @"C:\VST3\Synth.vst3";
+        audio.Steps[0].IsActive = true;
+        audio.SignalLevel = 0.4;
+
+        new TrackMeterCalculator().Update(tracks, 0, 1);
+        TrackMeterCalculator.Release(tracks);
+
+        Assert.Equal(0.4, audio.SignalLevel, 6);
+    }
+}

@@ -35,6 +35,14 @@ internal sealed class TrackMeterCalculator
                 continue;
             }
 
+            // Tracks with their own audio show the measured signal instead (see ShowAudioLevels).
+            if (track.HasOwnAudio)
+            {
+                mixLevel += track.SignalLevel;
+                activeTrackCount++;
+                continue;
+            }
+
             var hit = HitVelocity(track, stepIndex);
             if (hit > 0)
             {
@@ -55,6 +63,20 @@ internal sealed class TrackMeterCalculator
         return _smoothedMasterLevel;
     }
 
+    // The track meters' scale for measured audio: -48 dBFS at the bottom, 0 dBFS at the top.
+    private const double AudioMeterFloorDb = -48;
+
+    // How far a meter of measured audio may fall in one refresh, so it falls back smoothly after a peak.
+    private const double AudioMeterFall = 0.03;
+
+    // Shows the peak measured on a track's output since the last refresh: the meter jumps up at once
+    // and falls back gently, and stays lit for as long as the sound lasts.
+    public static void ShowAudioLevel(PatternTrackViewModel track, double peak)
+    {
+        var level = peak <= 0 ? 0 : Math.Clamp((20 * Math.Log10(peak) - AudioMeterFloorDb) / -AudioMeterFloorDb, 0, 1);
+        track.SignalLevel = track.IsMuted ? 0 : Math.Max(level, track.SignalLevel - AudioMeterFall);
+    }
+
     // Lets the meters of all tracks fall back when nothing drives them, such as after a key is played live.
     // Returns true while any meter is still above zero.
     public static bool Release(IEnumerable<PatternTrackViewModel> tracks)
@@ -62,6 +84,11 @@ internal sealed class TrackMeterCalculator
         var anyLit = false;
         foreach (var track in tracks)
         {
+            if (track.HasOwnAudio)
+            {
+                continue; // measured, not estimated
+            }
+
             if (track.SignalLevel <= 0.01)
             {
                 track.SignalLevel = 0;

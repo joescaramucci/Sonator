@@ -50,8 +50,18 @@ public sealed class LedMeter : FrameworkElement
         set => SetValue(SegmentsProperty, value);
     }
 
-    // The top two segments are red.
-    private bool IsRed(int segment) => segment >= Segments - 2;
+    public static readonly DependencyProperty RedSegmentsProperty = DependencyProperty.Register(
+        nameof(RedSegments), typeof(int), typeof(LedMeter),
+        new FrameworkPropertyMetadata(2, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    // How many segments at the top are red.
+    public int RedSegments
+    {
+        get => (int)GetValue(RedSegmentsProperty);
+        set => SetValue(RedSegmentsProperty, value);
+    }
+
+    private bool IsRed(int segment) => segment >= Segments - RedSegments;
 
     protected override void OnRender(DrawingContext drawingContext)
     {

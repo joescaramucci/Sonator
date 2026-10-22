@@ -170,6 +170,10 @@ public sealed class PatternTrackViewModel : ViewModelBase
 
     public InstrumentIcon? InstrumentIcon => InstrumentIcons.Find(_instrumentIconKey);
 
+    // True when Sonator makes this track's sound itself, through a plug-in or an audio clip: its meter
+    // then shows the real signal. Other tracks send MIDI out, and their meter follows the notes.
+    public bool HasOwnAudio => HasPlugin || !string.IsNullOrEmpty(AudioClipPath);
+
     // A WAV file with the audio clip this track plays, when it was filled from the waveform editor.
     public string? AudioClipPath { get; set; }
 
