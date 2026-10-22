@@ -1584,6 +1584,18 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     // The effects offered by the add menu.
     public IReadOnlyList<EffectDefinition> AvailableEffects => EffectCatalog.All;
 
+    // The user's own effect presets, shared by all projects.
+    public EffectPresetStore EffectPresets { get; } = new();
+
+    // Saves the effect's knobs as a user preset with the name, and marks the effect as being on it.
+    public EffectPreset SaveEffectPreset(TrackEffectViewModel effect, string name)
+    {
+        var preset = EffectPresets.Save(effect.Definition, name, effect.Values);
+        effect.MarkSavedAs(preset);
+        StatusMessage = $"Preset \"{preset.Name}\" saved for {effect.Name}";
+        return preset;
+    }
+
     // Adds an effect at the end of the track's chain, at its default settings.
     public TrackEffectViewModel? AddEffect(PatternTrackViewModel? track, EffectDefinition definition)
     {

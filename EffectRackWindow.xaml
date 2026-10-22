@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:Sonator"
         Title="{Binding WindowTitle}"
-        Width="760"
+        Width="840"
         SizeToContent="Height"
         Background="#1B2330"
         Foreground="#C4CFDA"
@@ -116,6 +116,19 @@
                                                   AutomationProperties.Name="EFFECT ON"
                                                   ToolTip="Switch the effect on or off" />
                                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                        <!-- The preset: choosing one sets every knob; SAVE keeps the current knobs under a name. -->
+                                        <TextBlock Text="modified" FontSize="10" Foreground="#E6C45B" VerticalAlignment="Center" Margin="0,0,6,0"
+                                                   ToolTip="A knob has moved since the preset was chosen"
+                                                   Visibility="{Binding IsPresetModified, Converter={StaticResource VisibleWhenTrue}}" />
+                                        <ComboBox Width="200"
+                                                  Height="24"
+                                                  ItemsSource="{Binding Presets}"
+                                                  SelectedItem="{Binding SelectedPreset}"
+                                                  DisplayMemberPath="DisplayName"
+                                                  AutomationProperties.Name="PRESET"
+                                                  ToolTip="Presets: Sonator's, then yours (★)" />
+                                        <Button Style="{StaticResource RackButton}" Content="SAVE" Margin="4,0,8,0" Click="SavePreset_Click"
+                                                AutomationProperties.Name="SAVE PRESET" ToolTip="Save the current knobs as a preset, with a name" />
                                         <Button Style="{StaticResource RackButton}" Content="▲" Margin="4,0,0,0" Tag="-1" Click="Move_Click" ToolTip="Move up the rack (earlier in the chain)" />
                                         <Button Style="{StaticResource RackButton}" Content="▼" Margin="4,0,0,0" Tag="1" Click="Move_Click" ToolTip="Move down the rack (later in the chain)" />
                                         <Button Style="{StaticResource RackButton}" Content="RESET" Margin="4,0,0,0" Click="Reset_Click" ToolTip="Put every knob back to its default" />

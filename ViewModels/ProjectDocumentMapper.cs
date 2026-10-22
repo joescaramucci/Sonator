@@ -42,7 +42,7 @@ internal static class ProjectDocumentMapper
             track.Effects.Count == 0
                 ? null
                 : track.Effects
-                    .Select(effect => new EffectDocument(effect.Name, effect.IsEnabled, effect.Parameters.Select(parameter => parameter.Value).ToList()))
+                    .Select(effect => new EffectDocument(effect.Name, effect.IsEnabled, effect.Values.ToList(), effect.PresetName, effect.IsPresetModified))
                     .ToList());
     }
 
@@ -51,7 +51,7 @@ internal static class ProjectDocumentMapper
         (documents ?? Enumerable.Empty<EffectDocument>())
             .Select(document => (Document: document, Definition: EffectCatalog.FindByName(document.Name)))
             .Where(item => item.Definition is not null)
-            .Select(item => new TrackEffectViewModel(item.Definition!, item.Document.IsEnabled, item.Document.Values));
+            .Select(item => new TrackEffectViewModel(item.Definition!, item.Document.IsEnabled, item.Document.Values, item.Document.Preset, item.Document.PresetModified));
 
     internal static void ApplyTrackDocumentToTrack(PatternTrackViewModel targetTrack, TrackDocument sourceTrack)
     {

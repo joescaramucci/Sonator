@@ -78,10 +78,17 @@ public sealed class TrackEffectViewModel : ViewModelBase
 {
     private bool _isEnabled;
 
-    public TrackEffectViewModel(EffectDefinition definition, bool isEnabled = true, IReadOnlyList<double>? values = null)
+    public TrackEffectViewModel(
+        EffectDefinition definition,
+        bool isEnabled = true,
+        IReadOnlyList<double>? values = null,
+        string? presetName = null,
+        bool isPresetModified = false)
     {
         Definition = definition;
         _isEnabled = isEnabled;
+        _presetName = presetName;
+        _isPresetModified = isPresetModified;
         Parameters = new ReadOnlyCollection<EffectParameterViewModel>(definition.Parameters
             .Select((parameter, index) => new EffectParameterViewModel(
                 parameter,
@@ -94,6 +101,11 @@ public sealed class TrackEffectViewModel : ViewModelBase
             {
                 if (args.PropertyName == nameof(EffectParameterViewModel.Value))
                 {
+                    if (!_isApplyingPreset && _presetName is not null)
+                    {
+                        IsPresetModified = true;
+                    }
+
                     Changed?.Invoke(this, parameter.Index);
                 }
             };
@@ -120,6 +132,88 @@ public sealed class TrackEffectViewModel : ViewModelBase
 
     // Raised with the index of the knob that moved, or -1 when the effect is switched on or off.
     public event Action<TrackEffectViewModel, int>? Changed;
+
+    // ---- Presets ----
+
+    private IReadOnlyList<EffectPreset> _presets = Array.Empty<EffectPreset>();
+    private EffectPreset? _selectedPreset;
+    private string? _presetName;
+    private bool _isPresetModified;
+    private bool _isApplyingPreset;
+
+    // The presets offered for this effect: the factory ones, then the user's. Filled by the rack window.
+    public IReadOnlyList<EffectPreset> Presets
+    {
+        get => _presets;
+        set
+        {
+            SetProperty(ref _presets, value);
+            // Show the preset in use, if it is still in the list, without applying it again.
+            _selectedPreset = value.FirstOrDefault(preset => string.Equals(preset.Name, _presetName, StringComparison.CurrentCultureIgnoreCase));
+            RaisePropertyChanged(nameof(SelectedPreset));
+        }
+    }
+
+    // Choosing a preset sets every knob to it.
+    public EffectPreset? SelectedPreset
+    {
+        get => _selectedPreset;
+        set
+        {
+            if (value is null || ReferenceEquals(value, _selectedPreset) && !_isPresetModified)
+            {
+                return;
+            }
+
+            _selectedPreset = value;
+            ApplyPreset(value);
+            RaisePropertyChanged();
+        }
+    }
+
+    // The name of the preset the knobs were last set from, or null when none was chosen. Saved with the project.
+    public string? PresetName
+    {
+        get => _presetName;
+        private set => SetProperty(ref _presetName, value);
+    }
+
+    // True once a knob has moved after the preset was chosen.
+    public bool IsPresetModified
+    {
+        get => _isPresetModified;
+        private set => SetProperty(ref _isPresetModified, value);
+    }
+
+    public IReadOnlyList<double> Values => Parameters.Select(parameter => parameter.Value).ToList();
+
+    public void ApplyPreset(EffectPreset preset)
+    {
+        _isApplyingPreset = true;
+        try
+        {
+            for (var i = 0; i < Parameters.Count && i < preset.Values.Count; i++)
+            {
+                Parameters[i].Value = preset.Values[i];
+            }
+        }
+        finally
+        {
+            _isApplyingPreset = false;
+        }
+
+        PresetName = preset.Name;
+        IsPresetModified = false;
+    }
+
+    // After the current knobs were saved as a preset, the effect is on that preset, unmodified.
+    public void MarkSavedAs(EffectPreset preset)
+    {
+        PresetName = preset.Name;
+        IsPresetModified = false;
+        _selectedPreset = preset;
+        RaisePropertyChanged(nameof(SelectedPreset));
+    }
 
     // The compressor and the limiter show how far they turn the sound down.
     public bool HasMeter => Definition.Kind is EffectKind.Compress or EffectKind.Limiter;

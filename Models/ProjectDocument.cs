@@ -52,7 +52,9 @@ public sealed record TrackDocument(
 public sealed record EffectDocument(
     string Name,
     bool IsEnabled,
-    List<double> Values);
+    List<double> Values,
+    string? Preset = null,
+    bool PresetModified = false);
 
 public sealed record StepDocument(
     int Index,

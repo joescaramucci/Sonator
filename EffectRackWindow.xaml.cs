@@ -41,12 +41,46 @@ public partial class EffectRackWindow : Window
         };
         _meterTimer.Start();
 
+        RefreshPresets();
+        Track.Effects.CollectionChanged += OnEffectsChanged;
+
         Track.IsFxRackOpen = true;
         Closed += (_, _) =>
         {
             _meterTimer.Stop();
+            Track.Effects.CollectionChanged -= OnEffectsChanged;
             Track.IsFxRackOpen = false;
         };
+    }
+
+    private void OnEffectsChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) => RefreshPresets();
+
+    // Gives each effect its preset list: Sonator's presets, then the user's.
+    private void RefreshPresets()
+    {
+        foreach (var effect in Track.Effects)
+        {
+            effect.Presets = _viewModel.EffectPresets.PresetsFor(effect.Definition);
+        }
+    }
+
+    private void SavePreset_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: TrackEffectViewModel effect })
+        {
+            return;
+        }
+
+        // A modified factory preset suggests a new name; the user's own preset suggests itself.
+        var suggested = effect.PresetName is { } name && !Services.Effects.EffectPresetStore.IsFactoryName(effect.Definition, name)
+            ? name
+            : effect.PresetName is { } factory ? $"{factory} (mine)" : $"My {effect.Name}";
+        var dialog = new PresetNameDialog(effect.Definition, suggested, _viewModel.EffectPresets.UserPresets(effect.Definition)) { Owner = this };
+        if (dialog.ShowDialog() == true)
+        {
+            _viewModel.SaveEffectPreset(effect, dialog.PresetName);
+            RefreshPresets();
+        }
     }
 
     public PatternTrackViewModel Track { get; }
