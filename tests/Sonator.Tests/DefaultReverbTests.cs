@@ -37,9 +37,22 @@ public sealed class DefaultReverbTests
             var track = viewModel.Tracks[0];
             var verb = Assert.Single(track.Effects);
             Assert.False(verb.IsEnabled);
+            Assert.False(track.HasActiveEffects);
+            var lit = new List<bool>();
+            track.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(PatternTrackViewModel.HasActiveEffects))
+                {
+                    lit.Add(track.HasActiveEffects);
+                }
+            };
 
             Assert.True(viewModel.SwitchOnDefaultReverb(track));
             Assert.True(verb.IsEnabled);
+
+            // The FX button lights while an effect is on, whether the rack is open or not.
+            Assert.True(track.HasActiveEffects);
+            Assert.Equal(new[] { true }, lit);
 
             // Switched off by the player, it stays off when the rack is opened again.
             verb.IsEnabled = false;

@@ -1987,7 +1987,7 @@
                                                           AutomationProperties.Name="RECORD ARM"
                                                           IsChecked="{Binding SourceTrack.IsRecordArmed, Mode=OneWay}" Command="{Binding DataContext.ToggleTrackRecordArmCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding SourceTrack}"
                                                           ToolTip="Arm this track. Keys played on the MIDI keyboard are recorded into the armed track while recording is on" />
-                                            <!-- FX opens the track's effect rack, and lights green while the rack is open, as M and S do when on; only R lights red. -->
+                                            <!-- FX opens the track's effect rack, and lights green while one of its effects is on, as M and S do when on; only R lights red. -->
                                             <Button Grid.Column="1"
                                                     Content="FX"
                                                     Width="24"
@@ -1996,7 +1996,7 @@
                                                     FontSize="10"
                                                     Focusable="False"
                                                     AutomationProperties.Name="FX RACK"
-                                                    ToolTip="Open the track's effect rack"
+                                                    ToolTip="Open the track's effect rack. Green while one of its effects is on"
                                                     Click="TrackFxButton_Click">
                                                 <Button.Style>
                                                     <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
@@ -2007,7 +2007,7 @@
                                                             <DataTrigger Binding="{Binding SourceTrack.Effects.Count}" Value="0">
                                                                 <Setter Property="Foreground" Value="#BCC9D8" />
                                                             </DataTrigger>
-                                                            <DataTrigger Binding="{Binding SourceTrack.IsFxRackOpen}" Value="True">
+                                                            <DataTrigger Binding="{Binding SourceTrack.HasActiveEffects}" Value="True">
                                                                 <Setter Property="Background" Value="#49B88D" />
                                                                 <Setter Property="Foreground" Value="#0F1A14" />
                                                                 <Setter Property="BorderBrush" Value="#2F8F6A" />

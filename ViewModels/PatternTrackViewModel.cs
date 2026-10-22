@@ -59,8 +59,12 @@ public sealed class PatternTrackViewModel : ViewModelBase
                 effect.Changed += OnEffectChanged;
             }
             EffectsChanged?.Invoke(this, new TrackEffectChange(null, -1));
+            RaisePropertyChanged(nameof(HasActiveEffects));
         };
     }
+
+    // True when at least one of the track's effects is switched on: its FX button is lit.
+    public bool HasActiveEffects => Effects.Any(effect => effect.IsEnabled);
 
     // The track's insert effects, in the order the audio goes through them.
     public ObservableCollection<TrackEffectViewModel> Effects { get; } = new();
@@ -77,8 +81,14 @@ public sealed class PatternTrackViewModel : ViewModelBase
     // Raised when an effect is added, removed or moved (Effect null), switched (ParameterIndex -1) or turned.
     public event EventHandler<TrackEffectChange>? EffectsChanged;
 
-    private void OnEffectChanged(TrackEffectViewModel effect, int parameterIndex) =>
+    private void OnEffectChanged(TrackEffectViewModel effect, int parameterIndex)
+    {
         EffectsChanged?.Invoke(this, new TrackEffectChange(effect, parameterIndex));
+        if (parameterIndex < 0)
+        {
+            RaisePropertyChanged(nameof(HasActiveEffects)); // switched on or off
+        }
+    }
 
     public string Name
     {
