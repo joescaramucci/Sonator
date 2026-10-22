@@ -8,20 +8,23 @@ public sealed class TransportClockTests
     [Fact]
     public void FormatPosition_StartOfSong_IsZero()
     {
-        Assert.Equal("00:00.00", TransportClock.FormatPosition(0, 120));
+        Assert.Equal(TransportClock.Zero, TransportClock.FormatPosition(0, 120));
+        Assert.Equal("00:00:00", TransportClock.Zero);
     }
 
     [Fact]
-    public void FormatPosition_AtSixtyBpm_EachSixteenthIsAQuarterSecond()
+    public void FormatPosition_ShowsWholeSeconds()
     {
-        Assert.Equal("00:00.50", TransportClock.FormatPosition(2, 60));
-        Assert.Equal("00:01.00", TransportClock.FormatPosition(4, 60));
+        // At 60 BPM each sixteenth is a quarter of a second.
+        Assert.Equal("00:00:00", TransportClock.FormatPosition(3, 60));
+        Assert.Equal("00:00:01", TransportClock.FormatPosition(4, 60));
     }
 
     [Fact]
-    public void FormatPosition_PastOneMinute_RollsOver()
+    public void FormatPosition_RollsOverIntoMinutesAndHours()
     {
-        Assert.Equal("01:00.00", TransportClock.FormatPosition(240, 60));
+        Assert.Equal("00:01:00", TransportClock.FormatPosition(240, 60));
+        Assert.Equal("01:00:00", TransportClock.FormatPosition(240 * 60, 60));
     }
 
     [Theory]
@@ -32,6 +35,6 @@ public sealed class TransportClockTests
     public void FormatPosition_InvalidTempo_UsesOneBpmFallback(double tempo)
     {
         // At 1 BPM one bar is 60 seconds, so step 4 is one minute in.
-        Assert.Equal("01:00.00", TransportClock.FormatPosition(4, tempo));
+        Assert.Equal("00:01:00", TransportClock.FormatPosition(4, tempo));
     }
 }

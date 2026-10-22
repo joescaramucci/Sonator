@@ -802,14 +802,14 @@
                         </StackPanel>
                     </Border>
                 </Border>
-                <!-- The song position as a large LED clock: minutes, seconds and hundredths. -->
+                <!-- The song position as a large LED clock: hours, minutes and seconds. -->
                 <Border BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                         <Border Style="{StaticResource ClockPanel}">
                             <local:SevenSegmentDisplay Text="{Binding TransportPosition}" Style="{StaticResource ClockDigits}"
                                                        AutomationProperties.Name="POSITION MIN SEC" />
                         </Border>
-                        <TextBlock Text="MIN:SEC.1/100" FontSize="11" Margin="0,2,0,0" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                        <TextBlock Text="HR:MIN:SEC" FontSize="11" Margin="0,2,0,0" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                     </StackPanel>
                 </Border>
                 <!-- The same position as bar and beat, counted from 1. -->

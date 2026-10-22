@@ -119,7 +119,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private bool _isRestoringState;
     private int _previousTimelineStep = -1;
     private int _previousPianoRollStep = -1;
-    private string _transportPosition = "00:00.00";
+    private string _transportPosition = TransportClock.Zero;
     private string _statusMessage = "Ready";
     private string? _currentProjectPath;
     private string? _vstPluginsPath;
@@ -1150,7 +1150,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             ConfigurePlaybackSource();
             RebuildTimeline();
             CurrentStepIndex = 0;
-            TransportPosition = "00:00.00";
+            TransportPosition = TransportClock.Zero;
             RaisePropertyChanged(nameof(ArrangeModeText));
             StatusMessage = value
                 ? "Arrange ON: playing the complete song."
@@ -1185,7 +1185,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             ConfigurePlaybackSource();
             RebuildTimeline();
             CurrentStepIndex = 0;
-            TransportPosition = "00:00.00";
+            TransportPosition = TransportClock.Zero;
             RaisePropertyChanged(nameof(LoopModeText));
             StatusMessage = value
                 ? "Loop ON: repeating the selected pattern."
@@ -1619,7 +1619,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         try
         {
             CurrentStepIndex = 0;
-            TransportPosition = "00:00.00";
+            TransportPosition = TransportClock.Zero;
             Patterns.Clear();
             foreach (var pattern in BuildDefaultPatterns())
             {
@@ -2493,7 +2493,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         IsPlaying = false;
         _engine.SetPlaybackPosition(0);
         CurrentStepIndex = 0;
-        TransportPosition = "00:00.00";
+        TransportPosition = TransportClock.Zero;
         StatusMessage = IsArrangeMode
             ? "Arrange playback completed."
             : "Pattern playback completed.";
@@ -2840,7 +2840,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _engine.SetPlaybackPosition(0);
         CurrentStepIndex = 0;
         UpdatePlayhead(0);
-        TransportPosition = "00:00.00";
+        TransportPosition = TransportClock.Zero;
         StartPlayback();
     }
 
@@ -3959,7 +3959,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         try
         {
             CurrentStepIndex = 0;
-            TransportPosition = "00:00.00";
+            TransportPosition = TransportClock.Zero;
             Tempo = document.Tempo;
             BarCount = document.BarCount;
             TimeSignature = document.TimeSignature;
