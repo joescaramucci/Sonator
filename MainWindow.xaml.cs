@@ -1393,6 +1393,18 @@ public partial class MainWindow : Window
     // A track has one plug-in, so its previous plug-in window closes when another plug-in takes its place.
     private void OpenPluginWindowFor(MainViewModel viewModel, PatternTrackViewModel track, string filePath)
     {
+        // The track's window is still open, maybe minimized: it comes back as it was.
+        if (_trackPluginWindows.TryGetValue(track, out var open) && open.Tag is string openPath
+            && string.Equals(openPath, filePath, StringComparison.OrdinalIgnoreCase))
+        {
+            if (open.WindowState == WindowState.Minimized)
+            {
+                open.WindowState = WindowState.Normal;
+            }
+            open.Activate();
+            return;
+        }
+
         if (_trackPluginWindows.Remove(track, out var previous))
         {
             previous.Close();
@@ -1424,9 +1436,23 @@ public partial class MainWindow : Window
                 _trackPluginWindows.Remove(track);
             }
         };
+        window.Tag = filePath;
         _trackPluginWindows[track] = window;
         window.Owner = this;
         window.Show();
+    }
+
+    // A click on the timeline puts the open plug-in windows away, minimized under their instrument's name,
+    // so the timeline is in view; they come back from the taskbar or with a double-click on the plug-in name.
+    private void TimelineBodyListBox_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        foreach (var window in OwnedWindows.OfType<Window>())
+        {
+            if (window is Vst3NativeEditorWindow or VstPluginEditorDialog && window.WindowState != WindowState.Minimized)
+            {
+                window.WindowState = WindowState.Minimized;
+            }
+        }
     }
 
     private void DropoutsText_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

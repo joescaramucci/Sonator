@@ -1288,6 +1288,7 @@
                              Width="{Binding TimelineWorkspaceWidth}"
                              Background="Transparent"
                              BorderThickness="0"
+                             PreviewMouseLeftButtonDown="TimelineBodyListBox_PreviewMouseLeftButtonDown"
                              AllowDrop="True"
                              DragOver="TimelineBodyListBox_DragOver"
                              Drop="TimelineBodyListBox_Drop"

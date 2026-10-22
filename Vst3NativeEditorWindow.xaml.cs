@@ -25,7 +25,7 @@ public partial class Vst3NativeEditorWindow : Window
         WindowFrame.UseDarkFrame(this);
         _vst3Host = vst3Host;
         _moduleHandle = moduleHandle;
-        Title = $"Native GUI - {pluginName}";
+        Title = pluginName; // the instrument's name, also on its button in the taskbar when minimized
 
         AttachEditor();
 
@@ -43,7 +43,7 @@ public partial class Vst3NativeEditorWindow : Window
         WindowFrame.UseDarkFrame(this);
         _vst3Host = new Vst3PluginHost();
         _ownsModule = true;
-        Title = $"Native GUI - {pluginName}";
+        Title = pluginName;
 
         _moduleHandle = _vst3Host.TryLoadModule(filePath, out var loadError);
         if (_moduleHandle is null)
