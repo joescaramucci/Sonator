@@ -59,11 +59,27 @@ public sealed class TrackAudioMeterTests
             TrackMeterCalculator.ShowAudioLevel(track, Math.Pow(10, -12 / 20.0));
         }
 
-        Assert.Equal(0.75, track.SignalLevel, 3);
+        Assert.Equal((-12 + 42) / 42.0, track.SignalLevel, 3);
 
         // Released: it falls back gently, not at once.
         TrackMeterCalculator.ShowAudioLevel(track, 0);
-        Assert.Equal(0.72, track.SignalLevel, 3);
+        Assert.Equal((-12 + 42) / 42.0 - 0.03, track.SignalLevel, 3);
+    }
+
+    [Fact]
+    public void LoudPlaying_ReachesTheRedLeds()
+    {
+        var track = PatternFactory.CreatePattern("Pattern 1", "Test", "01").Tracks[0];
+        track.PluginFilePath = @"C:\VST3\Synth.vst3";
+
+        // -6 dBFS lights ten of the twelve LEDs, so the first of the three red ones; -9 dB is where the red starts.
+        TrackMeterCalculator.ShowAudioLevel(track, Math.Pow(10, -6 / 20.0));
+        Assert.Equal(10, (int)Math.Round(track.SignalLevel * 12));
+
+        // Very soft playing, -40 dBFS, still shows on the meter.
+        track.SignalLevel = 0;
+        TrackMeterCalculator.ShowAudioLevel(track, Math.Pow(10, -40 / 20.0));
+        Assert.True(track.SignalLevel > 0);
     }
 
     [Fact]

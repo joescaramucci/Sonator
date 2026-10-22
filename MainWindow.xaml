@@ -2058,9 +2058,9 @@
                                                         Width="8"
                                                         Margin="0,4,2,4"
                                                         HorizontalAlignment="Right"
-                                                        RedSegments="1"
+                                                        RedSegments="3"
                                                         Level="{Binding SourceTrack.SignalLevel}"
-                                                        ToolTip="Track level: the measured sound for plug-in and audio tracks, from -48 to 0 dB" />
+                                                        ToolTip="Track level: the measured sound for plug-in and audio tracks, from -42 to 0 dB; red above about -9 dB" />
                                     </Grid>
                                 </Border>
                             </DataTemplate>

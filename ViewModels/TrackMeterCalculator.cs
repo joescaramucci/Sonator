@@ -63,8 +63,9 @@ internal sealed class TrackMeterCalculator
         return _smoothedMasterLevel;
     }
 
-    // The track meters' scale for measured audio: -48 dBFS at the bottom, 0 dBFS at the top.
-    private const double AudioMeterFloorDb = -48;
+    // The track meters' scale for measured audio: -42 dBFS at the bottom, 0 dBFS at the top, so each of
+    // the twelve LEDs is 3.5 dB and the three red ones light above about -9 dB, where loud playing goes.
+    internal const double AudioMeterFloorDb = -42;
 
     // How far a meter of measured audio may fall in one refresh, so it falls back smoothly after a peak.
     private const double AudioMeterFall = 0.03;
