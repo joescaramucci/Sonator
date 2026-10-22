@@ -1688,14 +1688,14 @@
                                                     <!-- Opaque, so the block reads as one colour over the beat lines and steps behind it. -->
                                                     <Setter Property="Background" Value="{StaticResource Paper}" />
                                                     <Setter Property="BorderBrush" Value="#EAF2FF" />
-                                                    <Setter Property="BorderThickness" Value="1" />
+                                                    <Setter Property="BorderThickness" Value="0.5" />
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding HasBlock}" Value="False">
                                                             <Setter Property="Visibility" Value="Collapsed" />
                                                         </DataTrigger>
                                                         <DataTrigger Binding="{Binding IsBlockSelected}" Value="True">
                                                             <Setter Property="BorderBrush" Value="#FFD24C" />
-                                                            <Setter Property="BorderThickness" Value="2" />
+                                                            <Setter Property="BorderThickness" Value="1" />
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -1706,14 +1706,14 @@
                                                         Width="10"
                                                         Background="Transparent"
                                                         BorderBrush="#EAF2FF"
-                                                        BorderThickness="3,0,0,0"
+                                                        BorderThickness="1.5,0,0,0"
                                                         Cursor="SizeWE"
                                                         Tag="NoteBlockStartEdge" />
                                                 <Border HorizontalAlignment="Right"
                                                         Width="10"
                                                         Background="Transparent"
                                                         BorderBrush="#EAF2FF"
-                                                        BorderThickness="0,0,3,0"
+                                                        BorderThickness="0,0,1.5,0"
                                                         Cursor="SizeWE"
                                                         Tag="NoteBlockEdge" />
                                             </Grid>
@@ -1778,6 +1778,9 @@
                              MouseDoubleClick="TrackList_MouseDoubleClick"
                              Background="{StaticResource Paper}"
                              BorderThickness="0"
+                             AllowDrop="True"
+                             DragOver="TimelineBodyListBox_DragOver"
+                             Drop="TimelineBodyListBox_Drop"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              ScrollViewer.VerticalScrollBarVisibility="Hidden"
                              ScrollViewer.ScrollChanged="TimelineTrackList_ScrollChanged">

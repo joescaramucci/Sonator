@@ -1179,6 +1179,8 @@ public partial class MainWindow : Window
 
         if (GetDroppedPluginTrack(e) is { } pluginTrack && e.Data.GetData(VstPluginDragFormat) is string pluginPath)
         {
+            // The track dropped on takes the plug-in, and becomes the selected one, whichever was selected before.
+            viewModel.SelectedTrack = pluginTrack;
             viewModel.AssignPlugin(pluginTrack, pluginPath);
             OpenPluginWindowFor(viewModel, pluginTrack, pluginPath);
             e.Handled = true;
