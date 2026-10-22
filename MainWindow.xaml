@@ -2539,8 +2539,20 @@
                                     Height="24"
                                     FontSize="12"
                                     Content="{Binding Title}"
-                                    ToolTip="Click to bring the plug-in window back"
-                                    Click="PluginDockButton_Click" />
+                                    ToolTipService.InitialShowDelay="300"
+                                    Click="PluginDockButton_Click">
+                                <Button.ToolTip>
+                                    <StackPanel>
+                                        <Image Source="{Binding Preview}"
+                                               MaxWidth="420"
+                                               MaxHeight="300"
+                                               Stretch="Uniform"
+                                               RenderOptions.BitmapScalingMode="HighQuality" />
+                                        <TextBlock Margin="0,4,0,0" Text="{Binding Title}" FontWeight="SemiBold" />
+                                        <TextBlock Text="Click to bring the plug-in window back" FontSize="11" />
+                                    </StackPanel>
+                                </Button.ToolTip>
+                            </Button>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>

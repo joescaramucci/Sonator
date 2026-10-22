@@ -1445,7 +1445,8 @@ public partial class MainWindow : Window
 
     // A plug-in window put away in the dock. The dock lists these, not the windows: an ItemsControl given a
     // window would try to place the window itself inside the dock.
-    private sealed record DockedPluginWindow(Window Window)
+    // Preview is a small picture of the window as it was when it went to the dock, shown over its button.
+    private sealed record DockedPluginWindow(Window Window, ImageSource? Preview)
     {
         public string Title => Window.Title;
     }
@@ -1488,8 +1489,9 @@ public partial class MainWindow : Window
         }
 
         PluginDockItems.ItemsSource ??= _dockedPluginWindows;
+        var preview = WindowSnapshot.Take(window, maxWidth: 900);
         window.Hide();
-        _dockedPluginWindows.Add(new DockedPluginWindow(window));
+        _dockedPluginWindows.Add(new DockedPluginWindow(window, preview));
         window.Closed += (_, _) => UndockPluginWindow(window);
         PluginDock.Visibility = Visibility.Visible;
     }
