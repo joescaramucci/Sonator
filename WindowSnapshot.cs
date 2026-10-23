@@ -53,11 +53,43 @@ internal static class WindowSnapshot
     }
 
     // Asks the window to draw itself; a picture of one colour all over means it could not, and the picture is
-    // copied from the screen instead, where the window is in view.
+    // copied from the screen instead, but only where the window is in view: while it is being minimized, or
+    // has another window over it, the screen there shows something else, and no picture is better.
     private static BitmapSource? TakeNative(IntPtr hwnd, int maxWidth)
     {
         var printed = Capture(hwnd, maxWidth, fromScreen: false);
-        return printed is not null && !IsBlank(printed) ? printed : Capture(hwnd, maxWidth, fromScreen: true);
+        if (printed is not null && !IsBlank(printed))
+        {
+            return printed;
+        }
+
+        return IsInView(hwnd) ? Capture(hwnd, maxWidth, fromScreen: true) : null;
+    }
+
+    private const uint RootAncestor = 2; // GA_ROOT
+
+    // True when the window's top-level window is not minimized and is the one seen at the middle and near the
+    // corners of the window.
+    private static bool IsInView(IntPtr hwnd)
+    {
+        var root = GetAncestor(hwnd, RootAncestor);
+        if (root == IntPtr.Zero || IsIconic(root) || !IsWindowVisible(root) || !GetWindowRect(hwnd, out var rect))
+        {
+            return false;
+        }
+
+        var width = rect.Right - rect.Left;
+        var height = rect.Bottom - rect.Top;
+        foreach (var (x, y) in new[] { (0.5, 0.5), (0.1, 0.1), (0.9, 0.1), (0.1, 0.9), (0.9, 0.9) })
+        {
+            var point = new NativePoint { X = rect.Left + (int)(width * x), Y = rect.Top + (int)(height * y) };
+            if (GetAncestor(WindowFromPoint(point), RootAncestor) != root)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     // True when every pixel looked at has the same colour, as in a blank picture.
@@ -151,6 +183,25 @@ internal static class WindowSnapshot
 
     [DllImport("user32.dll")]
     private static extern bool GetWindowRect(IntPtr hwnd, out NativeRect rect);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativePoint
+    {
+        public int X;
+        public int Y;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr WindowFromPoint(NativePoint point);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetAncestor(IntPtr hwnd, uint flags);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsIconic(IntPtr hwnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsWindowVisible(IntPtr hwnd);
 
     [DllImport("user32.dll")]
     private static extern bool PrintWindow(IntPtr hwnd, IntPtr hdc, uint flags);

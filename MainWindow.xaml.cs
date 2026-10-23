@@ -2178,17 +2178,30 @@ public partial class MainWindow : Window
     // small bars with no room for their name. So do the mixer and the FX racks.
     private void FollowPluginWindow(Window window)
     {
-        // Pictured each time it loses the focus, while it is surely in view and in front, so the dock has a
-        // picture even when one cannot be taken as the window goes there.
-        window.Deactivated += (_, _) =>
+        // Pictured while it is in view, every few seconds and each time it loses the focus, so the dock has a
+        // good picture even when none can be taken as the window goes there (a plug-in drawn by the graphics
+        // card can only be copied from the screen, and while minimizing the screen shows what is behind).
+        void Picture()
         {
             if (window.IsVisible && window.WindowState == WindowState.Normal
                 && WindowSnapshot.Take(window, PreviewWidth) is { } picture && !WindowSnapshot.IsBlank(picture))
             {
                 _lastPluginPictures[window] = picture;
             }
+        }
+
+        var pictureTimer = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Background)
+        {
+            Interval = TimeSpan.FromSeconds(2),
         };
-        window.Closed += (_, _) => _lastPluginPictures.Remove(window);
+        pictureTimer.Tick += (_, _) => Picture();
+        pictureTimer.Start();
+        window.Deactivated += (_, _) => Picture();
+        window.Closed += (_, _) =>
+        {
+            pictureTimer.Stop();
+            _lastPluginPictures.Remove(window);
+        };
         var shownState = window.WindowState;
         window.StateChanged += (_, _) =>
         {
