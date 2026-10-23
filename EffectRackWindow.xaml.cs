@@ -59,7 +59,7 @@ public partial class EffectRackWindow : Window
     // Gives each effect its preset list: Sonator's presets, then the user's.
     private void RefreshPresets()
     {
-        foreach (var effect in Track.Effects)
+        foreach (var effect in Track.Effects.Where(effect => !effect.IsPlugin))
         {
             effect.Presets = _viewModel.EffectPresets.PresetsFor(effect.Definition);
         }
@@ -131,7 +131,25 @@ public partial class EffectRackWindow : Window
             menu.Items.Add(item);
         }
 
+        menu.Items.Add(new Separator());
+        menu.Items.Add(MainWindow.VstEffectsMenu(_viewModel, plugin =>
+        {
+            if (_viewModel.AddPluginEffect(Track, plugin) is { } effect)
+            {
+                ShowEffect(effect);
+            }
+        }));
+
         menu.IsOpen = true;
+    }
+
+    // EDIT opens a VST3 effect's own window.
+    private void EditPlugin_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { DataContext: TrackEffectViewModel effect } && Owner is MainWindow main)
+        {
+            main.OpenEffectPluginWindow(Track, effect);
+        }
     }
 
     // ---- Dragging effects up and down the rack ----

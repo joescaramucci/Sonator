@@ -35,6 +35,15 @@ public sealed class NativeEffectChain : IDisposable
         Vst3HostInterop.VstHostBridge_SetEffectChainLayout(_handle, types, types.Length);
     }
 
+    // As SetLayout, where each Plugin slot runs its VST3 effect module. A module already in the chain keeps
+    // running as it is, wherever it moves to.
+    public void SetLayout(IReadOnlyList<EffectKind> kinds, IReadOnlyList<Vst3ModuleHandle?> modules)
+    {
+        var types = kinds.Select(kind => (int)kind).ToArray();
+        var handles = modules.Select(module => module?.NativeHandle ?? IntPtr.Zero).ToArray();
+        Vst3HostInterop.VstHostBridge_SetEffectChainLayoutWithPlugins(_handle, types, handles, types.Length);
+    }
+
     // value is in the units shown to the user; the definition converts it for the bridge.
     public void SetParameter(int slot, EffectParameterDefinition definition, int parameterIndex, double value) =>
         Vst3HostInterop.VstHostBridge_SetEffectParameter(_handle, slot, parameterIndex, value * definition.NativeScale);

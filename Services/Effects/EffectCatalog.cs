@@ -8,6 +8,7 @@ public enum EffectKind
     Compress = 3,
     EQ = 4,
     Limiter = 5,
+    Plugin = 100, // a VST3 effect plug-in
 }
 
 // One knob of an effect, in the units shown to the user. The bridge receives Value * NativeScale.
@@ -74,6 +75,10 @@ public static class EffectCatalog
     };
 
     public static EffectDefinition Get(EffectKind kind) => All.First(definition => definition.Kind == kind);
+
+    // A VST3 effect plug-in in a rack: it has no knobs of Sonator's, only its own window.
+    public static EffectDefinition ForPlugin(string pluginName) =>
+        new(EffectKind.Plugin, pluginName, "VST3 effect", Array.Empty<EffectParameterDefinition>());
 
     public static EffectDefinition? FindByName(string? name) =>
         All.FirstOrDefault(definition => string.Equals(definition.Name, name, StringComparison.OrdinalIgnoreCase));

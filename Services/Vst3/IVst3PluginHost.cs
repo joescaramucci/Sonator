@@ -118,6 +118,11 @@ public interface IVst3PluginHost
     bool HasAudioProcessor(Vst3ModuleHandle handle);
 
     /// <summary>
+    /// Whether the plug-in is an instrument or an effect, from its categories or, without them, its buses.
+    /// </summary>
+    PluginKind GetPluginKind(Vst3ModuleHandle handle);
+
+    /// <summary>
     /// Starts real-time audio processing and plays the plugin's output
     /// through the given Windows audio output device, so its own GUI (e.g. an
     /// on-screen preview keyboard) can actually be heard. A null

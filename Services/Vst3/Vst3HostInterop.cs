@@ -52,6 +52,12 @@ internal static class Vst3HostInterop
     internal static extern void VstHostBridge_SetEffectChainPan(IntPtr chain, double pan);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void VstHostBridge_SetEffectChainLayoutWithPlugins(IntPtr chain, int[] types, IntPtr[] modules, int count);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int VstHostBridge_GetPluginKind(IntPtr module);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern void VstHostBridge_SetMasterEffectChain(IntPtr chain);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]

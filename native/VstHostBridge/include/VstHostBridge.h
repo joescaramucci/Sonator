@@ -55,6 +55,11 @@ VSTHOSTBRIDGE_API void VstHostBridge_SetEffectParameter(void* chainHandle, int32
 VSTHOSTBRIDGE_API void VstHostBridge_SetEffectEnabled(void* chainHandle, int32_t slot, int32_t enabled);
 // Linear gain after the effects.
 VSTHOSTBRIDGE_API void VstHostBridge_SetEffectChainGain(void* chainHandle, double gain);
+// As VstHostBridge_SetEffectChainLayout, where a slot of type 100 runs the VST3 effect module given for it in
+// modules (other slots' entries are ignored). A module already in the chain keeps running as it is.
+VSTHOSTBRIDGE_API void VstHostBridge_SetEffectChainLayoutWithPlugins(void* chainHandle, const int32_t* types, void* const* modules, int32_t count);
+// What a loaded module is: 1 an instrument, 2 an effect, 0 not known.
+VSTHOSTBRIDGE_API int32_t VstHostBridge_GetPluginKind(void* moduleHandle);
 // Stereo balance after the gain: -1 is hard left, 0 the centre, +1 hard right.
 VSTHOSTBRIDGE_API void VstHostBridge_SetEffectChainPan(void* chainHandle, double pan);
 // Runs the chain on the whole mix, after every plug-in is summed and before it goes out. A null chain removes it.

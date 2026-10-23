@@ -543,26 +543,87 @@ namespace son
         return nullptr;
     }
 
+    namespace
+    {
+        // Holds the place of an effect that could not be made, so the slots keep their numbers.
+        class PassThrough final : public Effect
+        {
+        public:
+            void Prepare(double, int) override {}
+            void Process(float**, int, int) override {}
+        };
+    }
+
     void EffectChain::SetLayout(const int32_t* types, int32_t count)
     {
-        std::vector<std::unique_ptr<Effect>> effects;
+        SetLayout(types, nullptr, count, [](int32_t type, void*) { return CreateEffect(static_cast<EffectType>(type)); });
+    }
+
+    void EffectChain::SetLayout(const int32_t* types, void* const* identities, int32_t count, const EffectFactory& make)
+    {
+        // An effect with an identity (a plug-in) that is still in the chain keeps running as it is, sound and
+        // state, wherever it moves to. The others are made afresh. Only the caller's thread replaces the
+        // effects, so reading them here needs no lock.
+        std::vector<int32_t> kept(static_cast<size_t>(std::max(count, 0)), -1);
+        std::vector<bool> claimed(_effects.size(), false);
+        std::vector<std::unique_ptr<Effect>> fresh(static_cast<size_t>(std::max(count, 0)));
         for (int32_t i = 0; i < count; ++i)
         {
-            auto effect = CreateEffect(static_cast<EffectType>(types[i]));
-            if (effect != nullptr)
+            void* identity = identities != nullptr ? identities[i] : nullptr;
+            for (size_t j = 0; identity != nullptr && j < _effects.size(); ++j)
             {
-                effects.push_back(std::move(effect));
+                if (!claimed[j] && _effects[j]->Identity() == identity)
+                {
+                    kept[static_cast<size_t>(i)] = static_cast<int32_t>(j);
+                    claimed[j] = true;
+                    break;
+                }
+            }
+
+            if (kept[static_cast<size_t>(i)] < 0)
+            {
+                auto effect = make(types[i], identity);
+                fresh[static_cast<size_t>(i)] = effect != nullptr ? std::move(effect) : std::make_unique<PassThrough>();
             }
         }
 
+        // Prepared here, on the caller's thread and outside the lock, so the audio thread neither allocates
+        // nor waits for a plug-in that is slow to start.
+        double sampleRate = 0.0;
+        int maxBlock = 0;
         {
             std::lock_guard<std::mutex> lock(_mutex);
-            // Prepared here, on the caller's thread, so the audio thread does not allocate.
-            if (_sampleRate > 0.0)
+            sampleRate = _sampleRate;
+            maxBlock = _maxBlock;
+        }
+        if (sampleRate > 0.0)
+        {
+            for (auto& effect : fresh)
             {
-                for (auto& effect : effects)
+                if (effect != nullptr)
                 {
-                    effect->Prepare(_sampleRate, _maxBlock);
+                    effect->Prepare(sampleRate, maxBlock);
+                }
+            }
+        }
+
+        std::vector<std::unique_ptr<Effect>> effects(fresh.size());
+        {
+            std::lock_guard<std::mutex> lock(_mutex);
+            const bool formatChanged = _sampleRate != sampleRate || _maxBlock != maxBlock;
+            for (size_t i = 0; i < effects.size(); ++i)
+            {
+                if (kept[i] >= 0)
+                {
+                    effects[i] = std::move(_effects[static_cast<size_t>(kept[i])]);
+                }
+                else
+                {
+                    effects[i] = std::move(fresh[i]);
+                    if (formatChanged && _sampleRate > 0.0)
+                    {
+                        effects[i]->Prepare(_sampleRate, _maxBlock); // the output changed meanwhile: rare
+                    }
                 }
             }
             _effects.swap(effects);

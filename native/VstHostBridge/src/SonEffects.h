@@ -6,6 +6,7 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -20,6 +21,7 @@ namespace son
         Compress = 3,
         EQ = 4,
         Limiter = 5,
+        Plugin = 100, // a VST3 effect, made by the bridge (VstHostBridge.cpp), not by CreateEffect
     };
 
     constexpr int MaxParameters = 8;
@@ -38,6 +40,10 @@ namespace son
         // A value for the UI, such as the compressor's gain reduction in dB. 0 when the effect has none.
         virtual double Meter() const { return 0.0; }
 
+        // What the effect runs, when it is a plug-in: an effect with the same identity in a new layout is
+        // kept as it is rather than made again. Null for Sonator's own effects.
+        virtual const void* Identity() const { return nullptr; }
+
         std::atomic<float> parameters[MaxParameters]{};
         std::atomic<bool> enabled{true};
 
@@ -54,6 +60,12 @@ namespace son
     public:
         // Replaces the effects with new ones of the given types, at their default settings.
         void SetLayout(const int32_t* types, int32_t count);
+
+        // Makes the effect for a slot: its type, and its identity (a plug-in) or null.
+        using EffectFactory = std::function<std::unique_ptr<Effect>(int32_t type, void* identity)>;
+
+        // As above, but a slot with an identity already in the chain keeps that effect as it is.
+        void SetLayout(const int32_t* types, void* const* identities, int32_t count, const EffectFactory& make);
 
         void SetParameter(int32_t slot, int32_t parameter, double value);
         void SetEnabled(int32_t slot, bool enabled);

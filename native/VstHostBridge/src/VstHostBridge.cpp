@@ -437,6 +437,7 @@ namespace
         IEditController* controller = nullptr;
         bool controllerIsComponent = false; // true if controller == component (single-object plugin)
         std::string pluginName;
+        std::string subCategories; // as the factory lists them, such as "Fx|Reverb" or "Instrument|Synth"; may be empty
 
         // Native GUI hosting (IPlugView), created lazily by OpenEditor.
         IPlugView* editorView = nullptr;
@@ -485,6 +486,202 @@ namespace
         {
             chain->Process(channels, numChannels, frames, sampleRate);
         }
+    }
+
+    // A VST3 effect plug-in in a track's chain: the track's sound goes in on its first input and comes back
+    // from its first output. Any other buses (a side-chain, extra outputs) get silence and are ignored. The
+    // module stays the caller's; this only runs its processor while it is in a chain.
+    class PluginInsert final : public son::Effect
+    {
+    public:
+        explicit PluginInsert(BridgeModule* module) : module_(module)
+        {
+            if (module_->component != nullptr)
+            {
+                module_->component->queryInterface(IAudioProcessor_iid, reinterpret_cast<void**>(&processor_));
+            }
+        }
+
+        ~PluginInsert() override
+        {
+            Stop();
+            if (processor_ != nullptr)
+            {
+                processor_->release();
+            }
+        }
+
+        const void* Identity() const override { return module_; }
+
+        void Prepare(double sampleRate, int maxBlock) override
+        {
+            Stop();
+            if (processor_ == nullptr || maxBlock <= 0)
+            {
+                return;
+            }
+
+            auto* component = module_->component;
+            const int32 inputBuses = component->getBusCount(kAudio, kInput);
+            const int32 outputBuses = component->getBusCount(kAudio, kOutput);
+            if (inputBuses < 1 || outputBuses < 1)
+            {
+                return; // an instrument, or something else with nothing to put the sound through
+            }
+
+            // Stereo in and out where the plug-in takes it; otherwise whatever it offers.
+            std::vector<SpeakerArrangement> inArrangements(static_cast<size_t>(inputBuses), SpeakerArr::kStereo);
+            std::vector<SpeakerArrangement> outArrangements(static_cast<size_t>(outputBuses), SpeakerArr::kStereo);
+            for (int32 i = 1; i < inputBuses; ++i)
+            {
+                processor_->getBusArrangement(kInput, i, inArrangements[static_cast<size_t>(i)]);
+            }
+            for (int32 i = 1; i < outputBuses; ++i)
+            {
+                processor_->getBusArrangement(kOutput, i, outArrangements[static_cast<size_t>(i)]);
+            }
+            processor_->setBusArrangements(inArrangements.data(), inputBuses, outArrangements.data(), outputBuses);
+
+            component->activateBus(kAudio, kInput, 0, 1);
+            component->activateBus(kAudio, kOutput, 0, 1);
+            busesActive_ = true;
+
+            ProcessSetup setup{};
+            setup.processMode = kRealtime;
+            setup.symbolicSampleSize = kSample32;
+            setup.maxSamplesPerBlock = maxBlock;
+            setup.sampleRate = sampleRate;
+            if (processor_->setupProcessing(setup) != kResultOk || component->setActive(1) != kResultOk)
+            {
+                return;
+            }
+            active_ = true;
+            processor_->setProcessing(1); // some plug-ins answer kNotImplemented, and process all the same
+            processing_ = true;
+
+            // One buffer per channel of every bus, each as long as the largest block.
+            SetUpBuses(kInput, inputBuses, maxBlock, inputs_, inputChannels_);
+            SetUpBuses(kOutput, outputBuses, maxBlock, outputs_, outputChannels_);
+            data_ = ProcessData{};
+            data_.processMode = kRealtime;
+            data_.symbolicSampleSize = kSample32;
+            data_.numInputs = inputBuses;
+            data_.inputs = inputs_.data();
+            data_.numOutputs = outputBuses;
+            data_.outputs = outputs_.data();
+            maxBlock_ = maxBlock;
+        }
+
+        void Process(float** channels, int numChannels, int frames) override
+        {
+            if (!active_ || frames > maxBlock_ || numChannels <= 0)
+            {
+                return;
+            }
+
+            // The track's sound into the first input, silence into the others.
+            for (size_t bus = 0; bus < inputs_.size(); ++bus)
+            {
+                for (int32 c = 0; c < inputs_[bus].numChannels; ++c)
+                {
+                    float* target = inputs_[bus].channelBuffers32[c];
+                    if (bus == 0)
+                    {
+                        const float* source = channels[std::min<int>(c, numChannels - 1)];
+                        std::copy(source, source + frames, target);
+                    }
+                    else
+                    {
+                        std::fill(target, target + frames, 0.0f);
+                    }
+                }
+                inputs_[bus].silenceFlags = 0;
+            }
+
+            data_.numSamples = frames;
+            if (processor_->process(data_) != kResultOk)
+            {
+                return; // the sound passes through as it came
+            }
+
+            // The first output back into the track; a mono output goes to both sides.
+            const auto& output = outputs_[0];
+            for (int c = 0; c < numChannels && output.numChannels > 0; ++c)
+            {
+                const float* source = output.channelBuffers32[std::min<int32>(c, output.numChannels - 1)];
+                std::copy(source, source + frames, channels[c]);
+            }
+        }
+
+    private:
+        void SetUpBuses(BusDirection direction, int32 count, int maxBlock,
+                        std::vector<AudioBusBuffers>& buses, std::vector<std::vector<float*>>& pointers)
+        {
+            buses.assign(static_cast<size_t>(count), AudioBusBuffers{});
+            pointers.assign(static_cast<size_t>(count), {});
+            for (int32 bus = 0; bus < count; ++bus)
+            {
+                BusInfo info{};
+                int32 channelCount = 2;
+                if (module_->component->getBusInfo(kAudio, direction, bus, info) == kResultOk && info.channelCount > 0)
+                {
+                    channelCount = info.channelCount;
+                }
+                auto& busPointers = pointers[static_cast<size_t>(bus)];
+                for (int32 c = 0; c < channelCount; ++c)
+                {
+                    storage_.emplace_back(static_cast<size_t>(maxBlock), 0.0f);
+                    busPointers.push_back(storage_.back().data());
+                }
+                buses[static_cast<size_t>(bus)].numChannels = channelCount;
+                buses[static_cast<size_t>(bus)].channelBuffers32 = busPointers.data();
+            }
+        }
+
+        void Stop()
+        {
+            if (processing_)
+            {
+                processor_->setProcessing(0);
+                processing_ = false;
+            }
+            if (active_)
+            {
+                module_->component->setActive(0);
+                active_ = false;
+            }
+            if (busesActive_)
+            {
+                module_->component->activateBus(kAudio, kInput, 0, 0);
+                module_->component->activateBus(kAudio, kOutput, 0, 0);
+                busesActive_ = false;
+            }
+            storage_.clear();
+        }
+
+        BridgeModule* module_;
+        IAudioProcessor* processor_ = nullptr;
+        bool busesActive_ = false;
+        bool active_ = false;
+        bool processing_ = false;
+        int maxBlock_ = 0;
+        std::vector<std::vector<float>> storage_;
+        std::vector<AudioBusBuffers> inputs_;
+        std::vector<AudioBusBuffers> outputs_;
+        std::vector<std::vector<float*>> inputChannels_;
+        std::vector<std::vector<float*>> outputChannels_;
+        ProcessData data_{};
+    };
+
+    // Makes the effect for a slot of a chain: a plug-in insert when the slot names a module, else one of
+    // Sonator's own.
+    std::unique_ptr<son::Effect> MakeEffect(int32_t type, void* module)
+    {
+        if (type == static_cast<int32_t>(son::EffectType::Plugin))
+        {
+            return module != nullptr ? std::make_unique<PluginInsert>(static_cast<BridgeModule*>(module)) : nullptr;
+        }
+        return son::CreateEffect(static_cast<son::EffectType>(type));
     }
 
     // Window class used for the small native container window that hosts a
@@ -1716,6 +1913,45 @@ void VstHostBridge_SetEffectChainLayout(void* chainHandle, const int32_t* types,
     }
 }
 
+void VstHostBridge_SetEffectChainLayoutWithPlugins(void* chainHandle, const int32_t* types, void* const* modules, int32_t count)
+{
+    if (auto* chain = ChainOf(chainHandle))
+    {
+        chain->SetLayout(types, modules, count, MakeEffect);
+    }
+}
+
+int32_t VstHostBridge_GetPluginKind(void* moduleHandle)
+{
+    if (moduleHandle == nullptr)
+    {
+        return 0;
+    }
+
+    auto* module = static_cast<BridgeModule*>(moduleHandle);
+    const auto& categories = module->subCategories;
+    if (categories.find("Instrument") != std::string::npos)
+    {
+        return 1;
+    }
+    if (categories.find("Fx") != std::string::npos)
+    {
+        return 2;
+    }
+
+    // No categories: an instrument takes notes and makes sound; an effect takes sound in.
+    auto* component = module->component;
+    if (component == nullptr)
+    {
+        return 0;
+    }
+    if (component->getBusCount(kEvent, kInput) > 0)
+    {
+        return 1;
+    }
+    return component->getBusCount(kAudio, kInput) > 0 ? 2 : 0;
+}
+
 void VstHostBridge_SetEffectParameter(void* chainHandle, int32_t slot, int32_t parameter, double value)
 {
     if (auto* chain = ChainOf(chainHandle))
@@ -1985,7 +2221,10 @@ void* VstHostBridge_LoadModule(const wchar_t* filePath)
     // Find the first "Audio Module Class" (the actual instrument/effect).
     TUID componentCid{};
     std::string pluginName;
+    std::string subCategories;
     bool foundComponentClass = false;
+    IPluginFactory2* factory2 = nullptr;
+    factory->queryInterface(IPluginFactory2_iid, reinterpret_cast<void**>(&factory2));
     int32 classCount = factory->countClasses();
     for (int32 i = 0; i < classCount; ++i)
     {
@@ -2000,7 +2239,17 @@ void* VstHostBridge_LoadModule(const wchar_t* filePath)
             std::memcpy(componentCid, info.cid, sizeof(TUID));
             pluginName.assign(info.name, strnlen(info.name, sizeof(info.name)));
             foundComponentClass = true;
+
+            PClassInfo2 info2{};
+            if (factory2 != nullptr && factory2->getClassInfo2(i, &info2) == kResultOk)
+            {
+                subCategories.assign(info2.subCategories, strnlen(info2.subCategories, sizeof(info2.subCategories)));
+            }
         }
+    }
+    if (factory2 != nullptr)
+    {
+        factory2->release();
     }
 
     if (!foundComponentClass)
@@ -2102,6 +2351,7 @@ void* VstHostBridge_LoadModule(const wchar_t* filePath)
     module->controller = controller;
     module->controllerIsComponent = controllerIsComponent;
     module->pluginName = pluginName;
+    module->subCategories = subCategories;
     module->exitDll = exitDll;
     return module;
 }

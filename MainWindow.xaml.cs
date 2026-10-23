@@ -164,6 +164,7 @@ public partial class MainWindow : Window
         viewModel.Health.Start();
         viewModel.TracksReplaced += ReopenFxRacks;
         viewModel.TrackInstrumentStopping += ClosePluginWindowsOf;
+        viewModel.EffectPluginUnloading += ClosePluginWindowsOf;
         viewModel.SavedInstrumentStarted += DockSavedInstrument;
         viewModel.VstPlugins.CollectionChanged += (_, args) =>
         {
@@ -1559,6 +1560,51 @@ public partial class MainWindow : Window
         CascadePluginWindow(window);
     }
 
+    // Opens the window of a VST3 effect in a rack, or brings it back when it is open or in the dock.
+    internal void OpenEffectPluginWindow(PatternTrackViewModel track, TrackEffectViewModel effect)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        if (viewModel.EffectPluginModule(effect) is not { } module)
+        {
+            SonatorMessageDialog.Show(this, effect.Name, $"{effect.Name} cannot be loaded on this computer:\n{effect.PluginPath}");
+            return;
+        }
+
+        if (OwnedWindows.OfType<Vst3NativeEditorWindow>().FirstOrDefault(window => ReferenceEquals(window.ModuleHandle, module)) is { } open)
+        {
+            ShowPluginWindow(open);
+            return;
+        }
+
+        var window = new Vst3NativeEditorWindow(viewModel.PluginHost, module, $"{effect.Name} — {track.Name}") { Owner = this };
+        FollowPluginWindow(window);
+        window.Show();
+        CascadePluginWindow(window);
+    }
+
+    // The VST3 effects for an add menu, under one item; the plug-in check finds out which plug-ins are effects.
+    internal static MenuItem VstEffectsMenu(MainViewModel viewModel, Action<VstPluginViewModel> add)
+    {
+        var menu = new MenuItem { Header = "VST effects" };
+        foreach (var plugin in viewModel.EffectPlugins)
+        {
+            var item = new MenuItem { Header = plugin.Name, ToolTip = plugin.FilePath };
+            item.Click += (_, _) => add(plugin);
+            menu.Items.Add(item);
+        }
+
+        if (menu.Items.Count == 0)
+        {
+            menu.Items.Add(new MenuItem { Header = "No VST effects found yet", IsEnabled = false });
+        }
+
+        return menu;
+    }
+
     // A plug-in of a project just opened goes to the dock, ready: its window opens from there.
     private void DockSavedInstrument(PatternTrackViewModel track)
     {
@@ -1858,6 +1904,16 @@ public partial class MainWindow : Window
             menu.Items.Add(item);
         }
 
+        menu.Items.Add(new Separator());
+        menu.Items.Add(VstEffectsMenu(viewModel, plugin =>
+        {
+            var track = viewModel.SelectedTrack;
+            if (viewModel.AddPluginEffect(track, plugin) is { } effect && track is not null)
+            {
+                OpenFxRack(viewModel, track, effect);
+            }
+        }));
+
         // SonNormalize works once on the track's audio clip rather than live, so it sits apart.
         menu.Items.Add(new Separator());
         var normalize = new MenuItem
@@ -1956,6 +2012,15 @@ public partial class MainWindow : Window
         if (DataContext is MainViewModel viewModel)
         {
             viewModel.ShowAutomation(MenuTrack(sender, viewModel), target);
+        }
+    }
+
+    // Opens a track's (or the master's) rack from elsewhere, as from the mixer, showing the effect if one is given.
+    internal void OpenTrackFxRack(PatternTrackViewModel track, TrackEffectViewModel? effect)
+    {
+        if (DataContext is MainViewModel viewModel)
+        {
+            OpenFxRack(viewModel, track, effect);
         }
     }
 

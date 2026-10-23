@@ -64,19 +64,26 @@ internal static class ProjectDocumentMapper
         effects.Count == 0
             ? null
             : effects
-                .Select(effect => new EffectDocument(effect.Name, effect.IsEnabled, effect.Values.ToList(), effect.PresetName, effect.IsPresetModified))
+                .Select(effect => new EffectDocument(
+                    effect.Name, effect.IsEnabled, effect.Values.ToList(), effect.PresetName, effect.IsPresetModified,
+                    effect.PluginPath, effect.PluginState, effect.PluginEditorState,
+                    effect.IsPlugin ? effect.InstanceId : null))
                 .ToList();
 
     private static IReadOnlyList<MidiControllerEventViewModel> Controllers(IEnumerable<MidiControllerEventDocument>? documents) =>
         documents?.Select(e => new MidiControllerEventViewModel(e.Step, e.Controller, e.Value)).ToList()
         ?? (IReadOnlyList<MidiControllerEventViewModel>)Array.Empty<MidiControllerEventViewModel>();
 
-    // Effects whose name Sonator does not know (saved by a newer version) are left out.
+    // Effects whose name Sonator does not know (saved by a newer version) are left out. A VST3 effect is kept
+    // even when its plug-in is missing here, so the project keeps it for a computer that has it.
     internal static IEnumerable<TrackEffectViewModel> BuildEffects(IEnumerable<EffectDocument>? documents) =>
         (documents ?? Enumerable.Empty<EffectDocument>())
-            .Select(document => (Document: document, Definition: EffectCatalog.FindByName(document.Name)))
-            .Where(item => item.Definition is not null)
-            .Select(item => new TrackEffectViewModel(item.Definition!, item.Document.IsEnabled, item.Document.Values, item.Document.Preset, item.Document.PresetModified));
+            .Select(document => document.PluginPath is { } pluginPath
+                ? TrackEffectViewModel.ForPlugin(pluginPath, document.Name, document.IsEnabled, document.PluginState, document.PluginEditorState, document.PluginInstance)
+                : EffectCatalog.FindByName(document.Name) is { } definition
+                    ? new TrackEffectViewModel(definition, document.IsEnabled, document.Values, document.Preset, document.PresetModified)
+                    : null)
+            .OfType<TrackEffectViewModel>();
 
     internal static void ApplyTrackDocumentToTrack(PatternTrackViewModel targetTrack, TrackDocument sourceTrack)
     {
@@ -102,7 +109,8 @@ internal static class ProjectDocumentMapper
         targetTrack.Effects.Clear();
         foreach (var effect in BuildEffects(sourceTrack.Effects))
         {
-            targetTrack.Effects.Add(effect);
+            // A pasted track's plug-in effects are instances of their own, apart from the copied track's.
+            targetTrack.Effects.Add(effect.IsPlugin ? effect.AsNewInstance() : effect);
         }
         targetTrack.TrackColorBrush = CreateTrackColorBrush(sourceTrack.TrackColor);
         targetTrack.MidiNoteEvents = sourceTrack.MidiNoteEvents is null

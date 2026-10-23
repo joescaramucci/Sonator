@@ -24,6 +24,11 @@ internal static class Program
             return Check(args[1]);
         }
 
+        if (args.Length == 2 && args[0] == "--kind")
+        {
+            return Kind(args[1]);
+        }
+
         if (args.Length != 2)
         {
             return 1;
@@ -60,6 +65,26 @@ internal static class Program
         try
         {
             return pluginHost.HasAudioProcessor(module) ? 0 : 7;
+        }
+        finally
+        {
+            pluginHost.UnloadModule(module);
+        }
+    }
+
+    // --kind: what the plug-in is: 10 not known, 11 an instrument, 12 an effect; 3 when it does not load.
+    private static int Kind(string pluginPath)
+    {
+        var pluginHost = new Vst3PluginHost();
+        var module = pluginHost.TryLoadModule(pluginPath, out _);
+        if (module is null)
+        {
+            return 3;
+        }
+
+        try
+        {
+            return 10 + (int)pluginHost.GetPluginKind(module);
         }
         finally
         {

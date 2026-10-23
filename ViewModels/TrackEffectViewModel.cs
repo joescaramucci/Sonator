@@ -116,6 +116,48 @@ public sealed class TrackEffectViewModel : ViewModelBase
 
     public string Name => Definition.Name;
 
+    // ---- A VST3 effect plug-in ----
+
+    // An effect that runs a VST3 plug-in: its file, and its state (the processor's and the editor's parts)
+    // as last taken, which it gets back when it is loaded again. Such an effect has no knobs of Sonator's.
+    public static TrackEffectViewModel ForPlugin(string pluginPath, string pluginName, bool isEnabled = true,
+        byte[]? state = null, byte[]? editorState = null, Guid? instanceId = null) =>
+        new(EffectCatalog.ForPlugin(pluginName), isEnabled)
+        {
+            PluginPath = pluginPath,
+            PluginState = state,
+            PluginEditorState = editorState,
+            InstanceId = instanceId ?? Guid.NewGuid(),
+        };
+
+    // Which plug-in instance this is, kept through undo and saving: the effect that takes this one's place
+    // after an undo goes on running the same loaded plug-in, with every setting made in its window.
+    public Guid InstanceId { get; private init; } = Guid.NewGuid();
+
+    public string? PluginPath { get; private init; }
+
+    public byte[]? PluginState { get; set; }
+
+    public byte[]? PluginEditorState { get; set; }
+
+    public bool IsPlugin => PluginPath is not null;
+
+    // The same plug-in effect, as another instance starting from this one's state.
+    public TrackEffectViewModel AsNewInstance() =>
+        ForPlugin(PluginPath!, Name, IsEnabled, PluginState, PluginEditorState);
+
+    private bool _isPluginMissing;
+
+    // True when the plug-in could not be loaded, as on a computer without it: the sound passes through.
+    public bool IsPluginMissing
+    {
+        get => _isPluginMissing;
+        set => SetProperty(ref _isPluginMissing, value);
+    }
+
+    // Sonator's own effects have presets and knobs; a plug-in has its own window instead.
+    public bool HasKnobs => !IsPlugin;
+
     public IReadOnlyList<EffectParameterViewModel> Parameters { get; }
 
     public bool IsEnabled

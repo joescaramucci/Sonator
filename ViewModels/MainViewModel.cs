@@ -83,7 +83,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private CountInOption _selectedCountIn = new(1, "1 bar");
     private int _snapMode; // 0 bar, 1 beat, 2 sixteenth
     private ClickOption _selectedClickOption = new(1, "Quarter");
-    private readonly TrackEffectsHost _trackEffects = new();
+    private readonly TrackEffectsHost _trackEffects;
 
     // The master: not a track of any pattern, but it has an FX rack like one, run on the whole mix.
     public PatternTrackViewModel MasterTrack { get; } = NewMasterTrack();
@@ -173,6 +173,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         AppSettingsService? appSettingsService = null,
         AudioOutputDeviceService? audioOutputDeviceService = null)
     {
+        _trackEffects = new TrackEffectsHost(_liveInstrumentHost);
         _trackInstruments = new TrackInstrumentsHost(_liveInstrumentHost, track => _trackEffects.ChainFor(track));
         _trackEffects.UseAsMaster(MasterTrack);
         _engine = engine ?? new SequencerEngine();
@@ -404,6 +405,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             {
                 case true:
                     VstPlugins.Add(plugin);
+                    LearnPluginRole(plugin);
                     break;
                 case false:
                     UnavailableVstPluginCount++;
@@ -474,6 +476,32 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         VstPlugins.Insert(index, plugin);
+        LearnPluginRole(plugin);
+    }
+
+    // Finds out, in the background the first time, whether a VST3 plug-in is an instrument or an effect.
+    private void LearnPluginRole(VstPluginViewModel plugin)
+    {
+        if (!string.Equals(plugin.Kind, "VST3", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (_vstPluginCheck.KnownKind(plugin.FilePath) is { } known)
+        {
+            plugin.Role = known;
+            return;
+        }
+
+        _ = LearnPluginRoleAsync(plugin);
+    }
+
+    private async Task LearnPluginRoleAsync(VstPluginViewModel plugin)
+    {
+        if (await _vstPluginCheck.KindAsync(plugin.FilePath) is { } kind)
+        {
+            plugin.Role = kind;
+        }
     }
 
     private void ReportVstPlugins(IReadOnlyList<string> scannedFolders)
@@ -2149,9 +2177,44 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        _trackEffects.CaptureStates(); // undoing brings a plug-in back as it was set
         CaptureUndoStateIfNeeded();
         track.Effects.Remove(effect);
+        _trackEffects.ReleaseUnusedPlugins(Patterns.SelectMany(pattern => pattern.Tracks));
         StatusMessage = $"{effect.Name} removed from {track.Name}";
+    }
+
+    // The VST3 effects found among the plug-ins, for the racks' add menus.
+    public IEnumerable<VstPluginViewModel> EffectPlugins => VstPlugins.Where(plugin => plugin.IsEffect);
+
+    // Adds a VST3 effect at the end of the track's chain. Its plug-in loads at once and starts running.
+    public TrackEffectViewModel? AddPluginEffect(PatternTrackViewModel? track, VstPluginViewModel plugin)
+    {
+        if (track is null)
+        {
+            return null;
+        }
+
+        CaptureUndoStateIfNeeded();
+        var effect = TrackEffectViewModel.ForPlugin(plugin.FilePath, plugin.Name);
+        _trackEffects.ChainFor(track); // the plug-in loads with the chain, also on a track that is not playing yet
+        track.Effects.Add(effect);
+        StatusMessage = _trackEffects.IsPluginMissing(effect)
+            ? $"{plugin.Name} could not be loaded"
+            : $"{plugin.Name} added to {track.Name}";
+        return effect;
+    }
+
+    // The loaded plug-in of a VST3 effect, for its window. Null when it cannot be loaded.
+    public Vst3ModuleHandle? EffectPluginModule(TrackEffectViewModel effect) => _trackEffects.PluginModuleFor(effect);
+
+    public bool IsEffectPluginMissing(TrackEffectViewModel effect) => _trackEffects.IsPluginMissing(effect);
+
+    // Raised before an effect's plug-in is unloaded, so a window showing it closes first.
+    public event Action<Vst3ModuleHandle>? EffectPluginUnloading
+    {
+        add => _trackEffects.PluginUnloading += value;
+        remove => _trackEffects.PluginUnloading -= value;
     }
 
     // Moves an effect one place earlier (-1) or later (+1) in the chain.
@@ -2292,6 +2355,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             _isRestoringState = false;
         }
+
+        _trackEffects.ReleaseAllPlugins();
+        _trackEffects.KeepOnly(Patterns.SelectMany(pattern => pattern.Tracks));
 
         SaveProjectCommand?.RaiseCanExecuteChanged();
         SaveProjectAsCommand?.RaiseCanExecuteChanged();
@@ -2906,6 +2972,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             // The sounds chosen in the plug-ins are saved with the project.
             _trackInstruments.CaptureStates();
+            _trackEffects.CaptureStates();
             _projectFileService.Save(path, BuildProjectDocument());
             CurrentProjectPath = path;
             StatusMessage = $"Project saved to {path}";
@@ -3601,6 +3668,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        _trackEffects.CaptureStates(); // the copy takes the effects' plug-ins as they sound now
         _copiedTrackDocument = BuildTrackDocument(track);
         try
         {
@@ -4902,6 +4970,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private void RestoreProjectDocument(ProjectDocument document, bool keepInstruments = false)
     {
         var previousTracks = Patterns.Select(pattern => pattern.Tracks.ToList()).ToList();
+        if (!keepInstruments)
+        {
+            _trackEffects.ReleaseAllPlugins(); // another project: its effects start from their saved settings
+        }
         _isRestoringState = true;
         try
         {
@@ -5001,6 +5073,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             _trackInstruments.KeepOnly(Array.Empty<PatternTrackViewModel>());
         }
 
+        // The old tracks' chains go; their plug-in effects stay with the tracks that took their places.
+        _trackEffects.KeepOnly(Patterns.SelectMany(pattern => pattern.Tracks));
         ApplyAutomationAt(CurrentStepIndex);
         ReleaseUnusedInstruments();
         PointKeyboardAtSelectedTrack();

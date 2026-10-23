@@ -237,6 +237,25 @@ public sealed class Vst3PluginHost : IVst3PluginHost
         }
     }
 
+    public PluginKind GetPluginKind(Vst3ModuleHandle handle)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+
+        if (handle.NativeHandle == IntPtr.Zero)
+        {
+            return PluginKind.Unknown;
+        }
+
+        try
+        {
+            return (PluginKind)Vst3HostInterop.VstHostBridge_GetPluginKind(handle.NativeHandle);
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            return PluginKind.Unknown;
+        }
+    }
+
     public bool TryStartAudio(Vst3ModuleHandle handle, AudioOutputSelection selection, out string? error)
     {
         ArgumentNullException.ThrowIfNull(handle);

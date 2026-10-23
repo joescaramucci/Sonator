@@ -280,6 +280,7 @@ public sealed class PatternTrackViewModel : ViewModelBase
             if (SetProperty(ref _volume, Math.Clamp(value, 0.0, 1.0)))
             {
                 RaisePropertyChanged(nameof(MixVolume));
+                RaisePropertyChanged(nameof(VolumeDisplay));
                 RaisePropertyChanged(nameof(ShownAutomationIdleValue));
             }
         }
@@ -402,6 +403,7 @@ public sealed class PatternTrackViewModel : ViewModelBase
             if (SetProperty(ref _automatedVolume, value))
             {
                 RaisePropertyChanged(nameof(MixVolume));
+                RaisePropertyChanged(nameof(VolumeDisplay));
             }
         }
     }
@@ -426,6 +428,11 @@ public sealed class PatternTrackViewModel : ViewModelBase
         get => _automatedVolume ?? _volume;
         set => Volume = value;
     }
+
+    // The volume as a mixer shows it, in dB from the fader's unity position: "0.0 dB", "-6.0 dB", "-inf".
+    public string VolumeDisplay => MixVolume <= 0.0001
+        ? "-inf"
+        : string.Format(System.Globalization.CultureInfo.CurrentCulture, "{0:+0.0;-0.0;0.0} dB", 20 * Math.Log10(MixVolume / TrackEffectsHost.UnityVolume));
 
     public double MixPan
     {

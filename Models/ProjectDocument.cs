@@ -68,7 +68,11 @@ public sealed record EffectDocument(
     bool IsEnabled,
     List<double> Values,
     string? Preset = null,
-    bool PresetModified = false);
+    bool PresetModified = false,
+    string? PluginPath = null,
+    byte[]? PluginState = null,
+    byte[]? PluginEditorState = null,
+    Guid? PluginInstance = null);
 
 public sealed record StepDocument(
     int Index,
