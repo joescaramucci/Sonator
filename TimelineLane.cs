@@ -104,7 +104,8 @@ public sealed class TimelineLane : FrameworkElement
 
         drawingContext.DrawRectangle(Brushes.Transparent, null, new Rect(0, 0, width, height));
 
-        // The grid: one line a sixteenth, as two figures (beats and the rest), none at the bar lines.
+        // The grid: one line a sixteenth, as two figures (beats and the rest), none at the bar lines. Lines
+        // closer than a few pixels are left out, so narrow bars do not turn into a solid colour.
         var stepsPerBar = Math.Max(1, StepsPerBar);
         var stepsPerBeat = Math.Max(1, StepsPerBeat);
         var beats = new StreamGeometry();
@@ -122,7 +123,13 @@ public sealed class TimelineLane : FrameworkElement
                 }
 
                 var x = Math.Round(step * stepWidth) + 0.5;
-                var lines = inBar % stepsPerBeat == 0 ? beatLines : sixteenthLines;
+                var onBeat = inBar % stepsPerBeat == 0;
+                if (onBeat ? stepWidth * stepsPerBeat < 4 : stepWidth < 3)
+                {
+                    continue;
+                }
+
+                var lines = onBeat ? beatLines : sixteenthLines;
                 lines.BeginFigure(new Point(x, 0), false, false);
                 lines.LineTo(new Point(x, height), true, false);
             }

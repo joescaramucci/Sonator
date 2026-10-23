@@ -399,8 +399,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         BrowseVstPluginsPathCommand = browseVstPluginsPathCommand;
         ToggleArrangeModeCommand = new RelayCommand(_ => IsArrangeMode = !IsArrangeMode);
         ToggleLoopCommand = new RelayCommand(_ => IsLoopEnabled = !IsLoopEnabled);
-        ZoomTimelineInCommand = new RelayCommand(_ => TimelineBarWidth += 20);
-        ZoomTimelineOutCommand = new RelayCommand(_ => TimelineBarWidth -= 20);
+        ZoomTimelineInCommand = new RelayCommand(_ => TimelineBarWidth = ZoomedBarWidth(TimelineBarWidth, zoomIn: true));
+        ZoomTimelineOutCommand = new RelayCommand(_ => TimelineBarWidth = ZoomedBarWidth(TimelineBarWidth, zoomIn: false));
         ZoomToFitCommand = new RelayCommand(_ => ZoomToFit());
         CycleSnapCommand = new RelayCommand(_ =>
         {
@@ -1797,12 +1797,20 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
 
     public IReadOnlyList<int> SixteenthLabels { get; } = Enumerable.Range(1, 16).ToArray();
 
+    // How narrow and how wide a bar of the timeline can be, in pixels.
+    public const double MinTimelineBarWidth = 16;
+    public const double MaxTimelineBarWidth = 480;
+
+    // One step of zoom: a quarter wider or narrower, so the narrow bars change as visibly as the wide ones.
+    public static double ZoomedBarWidth(double width, bool zoomIn) =>
+        Math.Clamp(Math.Round(zoomIn ? width * 1.25 : width / 1.25), MinTimelineBarWidth, MaxTimelineBarWidth);
+
     public double TimelineBarWidth
     {
         get => _timelineBarWidth;
         set
         {
-            var clamped = Math.Clamp(value, 80, 480);
+            var clamped = Math.Clamp(value, MinTimelineBarWidth, MaxTimelineBarWidth);
             if (SetProperty(ref _timelineBarWidth, clamped))
             {
                 RaisePropertyChanged(nameof(TimelineContentWidth));

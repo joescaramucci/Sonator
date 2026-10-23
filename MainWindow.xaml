@@ -39,6 +39,7 @@
         <local:AudioClipWidthConverter x:Key="AudioClipWidthConverter" />
         <BooleanToVisibilityConverter x:Key="VisibleWhenLoopRange" />
         <local:StepOffsetConverter x:Key="StepOffsetConverter" />
+        <local:RulerBarLabelConverter x:Key="RulerBarLabelConverter" />
 
         <Style TargetType="ComboBox">
             <Setter Property="Background" Value="#3D3D3D" />
@@ -1247,10 +1248,8 @@
                                        Foreground="#CDCED0" />
                             <Slider Width="90"
                                     Height="18"
-                                    Minimum="80"
-                                    Maximum="480"
-                                    TickFrequency="10"
-                                    IsSnapToTickEnabled="True"
+                                    Minimum="{x:Static vm:MainViewModel.MinTimelineBarWidth}"
+                                    Maximum="{x:Static vm:MainViewModel.MaxTimelineBarWidth}"
                                     Value="{Binding TimelineBarWidth, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                     ToolTip="Bar width"
                                     AutomationProperties.Name="TIMELINE ZOOM" />
@@ -1302,12 +1301,16 @@
                                 <DataTemplate>
                                     <Grid Width="{Binding DataContext.TimelineBarWidth, RelativeSource={RelativeSource AncestorType=Window}}">
                                         <TextBlock HorizontalAlignment="Left"
-                                                   Margin="5,0,0,0"
+                                                   Margin="3,0,0,0"
                                                    FontSize="10"
                                                    VerticalAlignment="Center"
                                                    FontWeight="Bold">
-                                            <Run Text="BAR " />
-                                            <Run Text="{Binding Mode=OneWay}" />
+                                            <TextBlock.Text>
+                                                <MultiBinding Converter="{StaticResource RulerBarLabelConverter}">
+                                                    <Binding />
+                                                    <Binding Path="DataContext.TimelineBarWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                </MultiBinding>
+                                            </TextBlock.Text>
                                         </TextBlock>
                                     </Grid>
                                 </DataTemplate>

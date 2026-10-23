@@ -759,7 +759,7 @@ public partial class MainWindow : Window
             var timelinePointerX = Math.Max(0, pointerX - MainViewModel.TimelineTrackHeaderWidth);
             var contentPosition = ArrangeTimelineScrollViewer.HorizontalOffset + timelinePointerX;
             var oldWidth = viewModel.TimelineBarWidth;
-            var newWidth = Math.Clamp(oldWidth + (e.Delta > 0 ? 20 : -20), 80, 480);
+            var newWidth = MainViewModel.ZoomedBarWidth(oldWidth, zoomIn: e.Delta > 0);
             if (Math.Abs(newWidth - oldWidth) < double.Epsilon)
             {
                 e.Handled = true;
