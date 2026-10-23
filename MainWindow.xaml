@@ -231,7 +231,7 @@
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Foreground" Value="#CDCED0" />
             <Setter Property="FontFamily" Value="Consolas" />
-            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="FontSize" Value="11" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template" Value="{StaticResource Raised3D}" />
             <Style.Triggers>
@@ -2074,10 +2074,9 @@
                                             <!-- FX opens the track's effect rack, and lights green while one of its effects is on, as M and S do when on; only R lights red. -->
                                             <Button Grid.Column="1"
                                                     Content="FX"
-                                                    Width="24"
+                                                    Width="22"
                                                     Height="18"
                                                     Padding="0"
-                                                    FontSize="10"
                                                     Focusable="False"
                                                     AutomationProperties.Name="FX RACK"
                                                     ToolTip="Open the track's effect rack. Green while one of its effects is on"

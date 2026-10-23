@@ -11,7 +11,7 @@ namespace Sonator;
 /// yellow its style gives it when switched on) or, for a switch, when it is checked; the unlit blue-greys light
 /// nothing. Values: Background, then IsChecked, then (for "ink") Tag. The parameter says what to give: "brush"
 /// (the lamp's colour, null when off), "color" (for its glow), "opacity" (1 when lit, else 0) or "ink" (the
-/// label's colour: white on the dark face, dark when lit or on a light cap, Tag "LightCap").
+/// label's colour: a soft white on the dark face, dark when lit or on a light cap, Tag "LightCap").
 /// </summary>
 public sealed class LampConverter : IMultiValueConverter
 {
@@ -19,7 +19,7 @@ public sealed class LampConverter : IMultiValueConverter
     private static readonly Color Amber = Color.FromRgb(0xFF, 0x96, 0x3A);
 
     private static readonly Brush DarkInk = Frozen(Color.FromRgb(0x22, 0x22, 0x22));
-    private static readonly Brush LightInk = Frozen(Color.FromRgb(0xF4, 0xF4, 0xF4));
+    private static readonly Brush LightInk = Frozen(Color.FromRgb(0xCF, 0xD0, 0xD2));
 
     public object? Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
     {

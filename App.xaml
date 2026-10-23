@@ -130,7 +130,7 @@
                                       HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                       VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
                                       TextElement.FontFamily="Arial, Segoe UI Symbol"
-                                      TextElement.FontWeight="Bold"
+                                      TextElement.FontWeight="Normal"
                                       RecognizesAccessKey="True">
                         <TextElement.Foreground>
                             <MultiBinding Converter="{StaticResource Lamp}" ConverterParameter="ink">
