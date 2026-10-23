@@ -206,7 +206,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
     private bool _isLoopEnabled;
     private bool _isFollowingArrangePlayback;
     private bool _isRestoringState;
-    private int _previousTimelineStep = -1;
     private int _previousPianoRollStep = -1;
     private string _transportPosition = TransportClock.Zero;
     private string _statusMessage = "Ready";
@@ -4526,7 +4525,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
 
         TimelineTracks.Clear();
         TimelineBarNumbers.Clear();
-        _previousTimelineStep = -1;
         var timelineBarCount = timelinePatterns.Sum(pattern => PatternBarCount(pattern, StepsPerBar));
         for (var bar = 1; bar <= timelineBarCount; bar++)
         {
@@ -4588,21 +4586,18 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         return Enumerable.Repeat(SelectedPattern, repetitions).ToList();
     }
 
+    private int _timelinePlayheadStep;
+
+    // Where the song plays on the timeline, in steps, for the playhead line drawn over all the lanes.
+    public int TimelinePlayheadStep
+    {
+        get => _timelinePlayheadStep;
+        private set => SetProperty(ref _timelinePlayheadStep, value);
+    }
+
     private void UpdateSongTimelinePosition(int absoluteStep)
     {
-        foreach (var track in TimelineTracks)
-        {
-            if (_previousTimelineStep >= 0 && _previousTimelineStep < track.Steps.Count)
-            {
-                track.Steps[_previousTimelineStep].IsCurrent = false;
-            }
-
-            if (absoluteStep >= 0 && absoluteStep < track.Steps.Count)
-            {
-                track.Steps[absoluteStep].IsCurrent = true;
-            }
-        }
-        _previousTimelineStep = absoluteStep;
+        TimelinePlayheadStep = Math.Max(0, absoluteStep);
 
         CurrentSongBarNumber = Math.Max(1, absoluteStep / StepsPerBar + 1);
         var rowIndex = Math.Clamp(CurrentSongBarNumber - 1, 0, Math.Max(0, SongArrangeRows.Count - 1));

@@ -1604,81 +1604,14 @@
                                           Background="Transparent"
                                           ClipToBounds="True">
                                         <Rectangle Fill="{Binding SourceTrack.TrackColorBrush}" Opacity="0.35" IsHitTestVisible="False" />
-                                        <ItemsControl ItemsSource="{Binding DataContext.TimelineBarNumbers, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                      IsHitTestVisible="False"
-                                                      SnapsToDevicePixels="True"
-                                                      UseLayoutRounding="True">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Grid Width="{Binding DataContext.TimelineBarWidth, RelativeSource={RelativeSource AncestorType=Window}}">
-                                                        <!-- One line per sixteenth of the time signature's bar, brighter on the beats. -->
-                                                        <ItemsControl ItemsSource="{Binding DataContext.TimelineBarGridLines, RelativeSource={RelativeSource AncestorType=Window}}">
-                                                            <ItemsControl.ItemsPanel>
-                                                                <ItemsPanelTemplate><UniformGrid Rows="1" /></ItemsPanelTemplate>
-                                                            </ItemsControl.ItemsPanel>
-                                                            <ItemsControl.ItemTemplate>
-                                                                <DataTemplate>
-                                                                    <Border BorderBrush="{Binding}" BorderThickness="1,0,0,0" />
-                                                                </DataTemplate>
-                                                            </ItemsControl.ItemTemplate>
-                                                        </ItemsControl>
-                                                    </Grid>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                        <ItemsControl ItemsSource="{Binding Steps}"
-                                                      Width="{Binding DataContext.TimelineContentWidth, RelativeSource={RelativeSource AncestorType=Window}}">
-                                            <ItemsControl.Style>
-                                                <Style TargetType="ItemsControl">
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding TrackType}" Value="{x:Static models:PatternTrackType.AudioInput}">
-                                                            <Setter Property="Visibility" Value="Collapsed" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </ItemsControl.Style>
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Grid Width="{Binding DataContext.TimelineSixteenthWidth, RelativeSource={RelativeSource AncestorType=Window}}">
-                                                    <Border Margin="1,8,1,8"
-                                                            CornerRadius="2">
-                                                        <Border.Style>
-                                                            <Style TargetType="Border">
-                                                                <Setter Property="Background" Value="Transparent" />
-                                                                <Setter Property="BorderBrush" Value="#7EAEDC" />
-                                                                <Setter Property="BorderThickness" Value="0" />
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                                                        <Setter Property="Background" Value="{Binding DataContext.SourceTrack.TrackColorBrush, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" />
-                                                                        <Setter Property="BorderThickness" Value="1" />
-                                                                        <Setter Property="BorderBrush" Value="#F7F8FA" />
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </Border.Style>
-                                                        <TextBlock Text="{Binding MidiNoteLabel}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10" Foreground="White">
-                                                            <TextBlock.Style>
-                                                                <Style TargetType="TextBlock">
-                                                                    <Setter Property="Visibility" Value="Collapsed" />
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                                                            <Setter Property="Visibility" Value="Visible" />
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </TextBlock.Style>
-                                                        </TextBlock>
-                                                    </Border>
-                                                    </Grid>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
+                                        <!-- The lane's grid and its active steps, drawn at once: a long song has thousands of steps a lane. -->
+                                        <local:TimelineLane Steps="{Binding Steps}"
+                                                            StepBrush="{Binding SourceTrack.TrackColorBrush}"
+                                                            StepWidth="{Binding DataContext.TimelineSixteenthWidth, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            StepsPerBar="{Binding DataContext.StepsPerBar, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            StepsPerBeat="{Binding DataContext.Meter.StepsPerBeat, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            ShowSteps="{Binding HasStepCells}"
+                                                            IsHitTestVisible="False" />
                                         <!-- The audio clip, where it starts: drag it along to move it in time (SNAP sets the grid),
                                              or onto another empty track to move it there; double-click it to edit it. -->
                                         <Border HorizontalAlignment="Left"
@@ -1726,38 +1659,6 @@
                                                 </Canvas>
                                             </Viewbox>
                                         </Border>
-                                        <ItemsControl ItemsSource="{Binding Steps}"
-                                                      Width="{Binding DataContext.TimelineContentWidth, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                      IsHitTestVisible="False">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Grid Width="{Binding DataContext.TimelineSixteenthWidth, RelativeSource={RelativeSource AncestorType=Window}}">
-                                                        <Line X1="0"
-                                                              X2="0"
-                                                              Y1="0"
-                                                              Y2="52"
-                                                              HorizontalAlignment="Left"
-                                                              Stroke="#E4E5E7"
-                                                              StrokeThickness="1"
-                                                              StrokeDashArray="1 2">
-                                                            <Line.Style>
-                                                                <Style TargetType="Line">
-                                                                    <Setter Property="Visibility" Value="Collapsed" />
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding IsCurrent}" Value="True">
-                                                                            <Setter Property="Visibility" Value="Visible" />
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </Line.Style>
-                                                        </Line>
-                                                    </Grid>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
                                         <Border CornerRadius="3"
                                                 HorizontalAlignment="Left"
                                                 VerticalAlignment="Stretch"
@@ -1860,6 +1761,18 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+                <!-- Where the song plays, one dashed line down all the lanes, below the ruler. -->
+                <Border Margin="260,45,0,0" HorizontalAlignment="Left" IsHitTestVisible="False" Panel.ZIndex="9">
+                    <Line X1="0" X2="0" Y1="0" Y2="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Border}}"
+                          Stroke="#E4E5E7" StrokeThickness="1" StrokeDashArray="1 2" SnapsToDevicePixels="True">
+                        <Line.Margin>
+                            <MultiBinding Converter="{StaticResource StepOffsetConverter}" ConverterParameter="0">
+                                <Binding Path="TimelinePlayheadStep" />
+                                <Binding Path="TimelineSixteenthWidth" />
+                            </MultiBinding>
+                        </Line.Margin>
+                    </Line>
+                </Border>
                 <!-- The part of the song chosen to loop, over the ruler and the lanes, its L and R locators on the ruler. -->
                 <Grid IsHitTestVisible="False" Visibility="{Binding HasLoopRange, Converter={StaticResource VisibleWhenLoopRange}}">
                     <Grid.ColumnDefinitions>

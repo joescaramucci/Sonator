@@ -30,6 +30,9 @@ public sealed class ArrangeTimelineTrackViewModel : ViewModelBase
 
     public ObservableCollection<ArrangeTimelineStepViewModel> Steps { get; }
 
+    // An audio track's lane shows its clip, not steps.
+    public bool HasStepCells => TrackType != PatternTrackType.AudioInput;
+
     // The clip drawn on an audio track, or null when the track has no clip.
     public AudioWaveformSummary? AudioWaveform { get; }
 
