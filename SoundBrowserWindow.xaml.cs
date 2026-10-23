@@ -97,10 +97,55 @@ public partial class SoundBrowserWindow : Window
         CategoryList.SelectedIndex = 0;
     }
 
+    // The column the sounds are sorted by, so that sounds alike come together, or null for the search's own
+    // order (sounds with the words in their name first). A second click on a column sorts the other way.
+    private string? _sortColumn;
+    private bool _sortDescending;
+
+    private void SortHeader_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not TextBlock { Tag: string column })
+        {
+            return;
+        }
+
+        _sortDescending = _sortColumn == column && !_sortDescending;
+        _sortColumn = column;
+        foreach (var header in SortHeaders.Children.OfType<TextBlock>())
+        {
+            var title = ((string)header.Tag).ToUpperInvariant();
+            header.Text = (string)header.Tag == column ? $"{title} {(_sortDescending ? "▼" : "▲")}" : title;
+        }
+
+        ShowSounds();
+        e.Handled = true;
+    }
+
+    private IEnumerable<SoundEntry> Sorted(IEnumerable<SoundEntry> sounds)
+    {
+        if (_sortColumn is null)
+        {
+            return sounds;
+        }
+
+        Func<SoundEntry, string> key = _sortColumn switch
+        {
+            "Category" => sound => sound.Category,
+            "Instrument" => sound => sound.PluginName,
+            "Bank" => sound => sound.Bank,
+            "Designer" => sound => sound.Designer,
+            _ => sound => sound.Name,
+        };
+        var sorted = _sortDescending
+            ? sounds.OrderByDescending(key, StringComparer.OrdinalIgnoreCase)
+            : sounds.OrderBy(key, StringComparer.OrdinalIgnoreCase);
+        return sorted.ThenBy(sound => sound.Name, StringComparer.OrdinalIgnoreCase);
+    }
+
     private void ShowSounds()
     {
         var category = (CategoryList.SelectedItem as CategoryItem)?.Category;
-        var found = SoundSearch.Filter(_sounds, SearchBox.Text, category).ToList();
+        var found = Sorted(SoundSearch.Filter(_sounds, SearchBox.Text, category)).ToList();
         SoundList.ItemsSource = found;
         CountText.Text = $"{found.Count} sounds";
         if (found.Count > 0)
@@ -147,7 +192,31 @@ public partial class SoundBrowserWindow : Window
         }
     }
 
-    private void CategoryList_SelectionChanged(object sender, SelectionChangedEventArgs e) => ShowSounds();
+    // A category clicked shows its sounds, and the arrows then go through them at once, without a click in
+    // the list first. Chosen with the arrows, the focus stays in the categories, to go on through them.
+    private void CategoryList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        ShowSounds();
+        if (Mouse.LeftButton == MouseButtonState.Pressed)
+        {
+            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, FocusSelectedSound);
+        }
+    }
+
+    private void FocusSelectedSound()
+    {
+        if (SoundList.SelectedIndex < 0)
+        {
+            return;
+        }
+
+        SoundList.ScrollIntoView(SoundList.SelectedItem);
+        SoundList.UpdateLayout();
+        if (SoundList.ItemContainerGenerator.ContainerFromIndex(SoundList.SelectedIndex) is ListBoxItem row)
+        {
+            row.Focus();
+        }
+    }
 
     // With AUTO on, a sound is previewed once the selection rests on it a moment, so running through the
     // list with the arrows does not start every plug-in on the way.

@@ -39,15 +39,61 @@ internal sealed class SoundPreviewer : IDisposable
         _host = host;
     }
 
+    // Grooves read ahead: one instance of their plug-in plays them all, so a groove is ready once its notes
+    // are read too. Only the wanted ones are kept.
+    private readonly Dictionary<SoundEntry, IReadOnlyList<PreviewNote>> _grooves = new();
+
     // The sounds to keep ready, in order: the one being tried and the next ones in the list. Ready instances
     // of other sounds may be given to these. Nothing is loaded here; see Prepare.
-    public void Want(IEnumerable<SoundEntry> sounds) => _wanted = sounds.ToHashSet();
+    public void Want(IEnumerable<SoundEntry> sounds)
+    {
+        _wanted = sounds.ToHashSet();
+        foreach (var groove in _grooves.Keys.Where(groove => !_wanted.Contains(groove)).ToList())
+        {
+            _grooves.Remove(groove);
+        }
+    }
 
     // True when the sound can be heard at once.
-    public bool IsReady(SoundEntry sound) => Find(sound) is not null;
+    public bool IsReady(SoundEntry sound) =>
+        Find(sound) is not null && (sound.Kind != SoundKind.Groove || _grooves.ContainsKey(sound));
 
-    // Gets one sound ready in an instance, starting the plug-in if needed. Null when ready, else why not.
-    public string? Prepare(SoundEntry sound) => SlotFor(sound, out var error) is null ? error : null;
+    // Gets one sound ready in an instance, starting the plug-in if needed, and a groove's notes read. Null
+    // when ready, else why not.
+    public string? Prepare(SoundEntry sound)
+    {
+        if (SlotFor(sound, out var error) is null)
+        {
+            return error;
+        }
+
+        return sound.Kind == SoundKind.Groove && GrooveNotes(sound, out error) is null ? error : null;
+    }
+
+    // The first two bars of a groove, read once and kept while it is wanted.
+    private IReadOnlyList<PreviewNote>? GrooveNotes(SoundEntry groove, out string? error)
+    {
+        error = null;
+        if (_grooves.TryGetValue(groove, out var notes))
+        {
+            return notes;
+        }
+
+        try
+        {
+            notes = GrooveReader.Read(groove.PresetPath).Where(note => note.Start < 32)
+                .Select(note => new PreviewNote(note.Start, note.Length, note.NoteNumber, note.Velocity)).ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException
+                                       or Melanchall.DryWetMidi.Common.MidiException)
+        {
+            error = $"{groove.Name} could not be read";
+            return null;
+        }
+
+        _grooves[groove] = notes;
+        return notes;
+    }
 
     // Starts playing the sound, a phrase of its kind chosen at random (or the start of a groove). Null when it
     // plays, else why it cannot.
@@ -61,17 +107,18 @@ internal sealed class SoundPreviewer : IDisposable
         }
 
         IReadOnlyList<PreviewNote> notes;
-        try
+        if (sound.Kind == SoundKind.Groove)
         {
-            notes = sound.Kind == SoundKind.Groove
-                ? GrooveReader.Read(sound.PresetPath).Where(note => note.Start < 32) // the first two bars
-                    .Select(note => new PreviewNote(note.Start, note.Length, note.NoteNumber, note.Velocity)).ToList()
-                : PreviewPhrases.Pick(sound.Category, _random, _lastPhrase);
+            if (GrooveNotes(sound, out error) is not { } groove)
+            {
+                return error;
+            }
+
+            notes = groove;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException
-                                       or Melanchall.DryWetMidi.Common.MidiException)
+        else
         {
-            return $"{sound.Name} could not be read";
+            notes = PreviewPhrases.Pick(sound.Category, _random, _lastPhrase);
         }
 
         // A sampled instrument (CMI, Emulator, BBC...) reads a new sound's samples in the background: a sound

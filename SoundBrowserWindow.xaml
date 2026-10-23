@@ -193,7 +193,7 @@
 
             <Border Grid.Column="2" Background="#18212C" BorderBrush="#2E3F52" BorderThickness="1" CornerRadius="5">
                 <DockPanel Margin="4">
-                    <Grid DockPanel.Dock="Top" Margin="6,2,22,4">
+                    <Grid x:Name="SortHeaders" DockPanel.Dock="Top" Margin="6,2,22,4">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="2.2*" />
                             <ColumnDefinition Width="1.3*" />
@@ -201,11 +201,11 @@
                             <ColumnDefinition Width="1.5*" />
                             <ColumnDefinition Width="1.2*" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="NAME" FontWeight="Bold" Foreground="#8FA6BD" />
-                        <TextBlock Grid.Column="1" Text="CATEGORY" FontWeight="Bold" Foreground="#8FA6BD" />
-                        <TextBlock Grid.Column="2" Text="INSTRUMENT" FontWeight="Bold" Foreground="#8FA6BD" />
-                        <TextBlock Grid.Column="3" Text="BANK" FontWeight="Bold" Foreground="#8FA6BD" />
-                        <TextBlock Grid.Column="4" Text="DESIGNER" FontWeight="Bold" Foreground="#8FA6BD" />
+                        <TextBlock Text="NAME" Tag="Name" FontWeight="Bold" Foreground="#8FA6BD" Cursor="Hand" MouseLeftButtonDown="SortHeader_MouseLeftButtonDown" ToolTip="Sort by name, grouping the sounds; click again for the other way" />
+                        <TextBlock Grid.Column="1" Text="CATEGORY" Tag="Category" FontWeight="Bold" Foreground="#8FA6BD" Cursor="Hand" MouseLeftButtonDown="SortHeader_MouseLeftButtonDown" ToolTip="Sort by category, grouping the sounds; click again for the other way" />
+                        <TextBlock Grid.Column="2" Text="INSTRUMENT" Tag="Instrument" FontWeight="Bold" Foreground="#8FA6BD" Cursor="Hand" MouseLeftButtonDown="SortHeader_MouseLeftButtonDown" ToolTip="Sort by instrument, grouping the sounds; click again for the other way" />
+                        <TextBlock Grid.Column="3" Text="BANK" Tag="Bank" FontWeight="Bold" Foreground="#8FA6BD" Cursor="Hand" MouseLeftButtonDown="SortHeader_MouseLeftButtonDown" ToolTip="Sort by bank, grouping the sounds; click again for the other way" />
+                        <TextBlock Grid.Column="4" Text="DESIGNER" Tag="Designer" FontWeight="Bold" Foreground="#8FA6BD" Cursor="Hand" MouseLeftButtonDown="SortHeader_MouseLeftButtonDown" ToolTip="Sort by designer, grouping the sounds; click again for the other way" />
                     </Grid>
                     <ListBox x:Name="SoundList"
                              Background="Transparent"
