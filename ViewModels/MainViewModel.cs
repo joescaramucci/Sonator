@@ -3107,11 +3107,41 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         _midiActivityTimer.Start();
     }
 
-    // The block of notes copied with Ctrl+C, with its first note at step 0.
+    // The block of notes copied with Ctrl+C, from the start of its first bar, and its length in whole bars.
     private IReadOnlyList<MidiNoteEventViewModel>? _copiedNotes;
+    private int _copiedLengthSteps;
+
+    // Where a note ends, in steps; a very short note counts as one step, as on the timeline.
+    private static double NoteEnd(MidiNoteEventViewModel note) =>
+        note.StepIndex + Math.Max(1, note.StartOffset + note.DurationSteps + note.LengthFraction);
+
+    private static string Bars(int count) => count == 1 ? "1 bar" : $"{count} bars";
+
+    // The step at the start of the first whole bar at or after the step.
+    private int BarAtOrAfter(double step) => (int)Math.Ceiling(step / StepsPerBar - 1e-6) * StepsPerBar;
 
     // The block the player has clicked. It is highlighted, and copy, cut and the block handles act on it.
     private PatternTrackViewModel? _selectedBlockTrack;
+
+    public PatternTrackViewModel? SelectedBlockTrack => _selectedBlockTrack;
+
+    // Lays one more copy of the track's block after its end. The first of a run copies the block first, so the
+    // run repeats the block as it was, not what the copies have made of it.
+    public void RepeatBlock(PatternTrackViewModel track, bool first)
+    {
+        if (track.MidiNoteEvents.Count == 0)
+        {
+            return;
+        }
+
+        SelectBlock(track);
+        if (first)
+        {
+            CopySelectedNotes();
+        }
+
+        PasteNotes();
+    }
 
     public void SelectBlock(PatternTrackViewModel? track)
     {
@@ -3176,12 +3206,16 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
             return;
         }
 
-        var blockStart = track.MidiNoteEvents.Min(note => note.StepIndex);
-        _copiedNotes = track.MidiNoteEvents.Select(note => note with { StepIndex = note.StepIndex - blockStart }).ToList();
-        StatusMessage = $"Copied {_copiedNotes.Count} notes from {track.Name}";
+        // Whole bars, from the bar the block starts in to the bar it ends in, so copies follow on in time.
+        var barStart = track.MidiNoteEvents.Min(note => note.StepIndex) / StepsPerBar * StepsPerBar;
+        _copiedLengthSteps = Math.Max(StepsPerBar, BarAtOrAfter(track.MidiNoteEvents.Max(NoteEnd) - barStart));
+        _copiedNotes = track.MidiNoteEvents.Select(note => note with { StepIndex = note.StepIndex - barStart }).ToList();
+        StatusMessage = $"Copied {_copiedNotes.Count} notes, {Bars(_copiedLengthSteps / StepsPerBar)}, from {track.Name}: Ctrl+V puts them after its end";
     }
 
-    // Pastes the copied block on the selected track, starting at the playhead.
+    // Pastes the copied block on the selected track right after its last bar, so pasting again and again lays the
+    // copies one after the other; on a track with no notes, at the bar the playhead is in. The pattern grows to
+    // play them. One undo step.
     public void PasteNotes()
     {
         var track = SelectedTrack;
@@ -3190,10 +3224,18 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
             return;
         }
 
+        var at = track.MidiNoteEvents.Count > 0
+            ? BarAtOrAfter(track.MidiNoteEvents.Max(NoteEnd))
+            : CurrentStepIndex / StepsPerBar * StepsPerBar;
+        CaptureUndoStateIfNeeded();
         var notes = track.MidiNoteEvents.ToList();
-        notes.AddRange(_copiedNotes.Select(note => note with { StepIndex = note.StepIndex + CurrentStepIndex }));
-        ReplaceTrackNotes(track, notes);
+        notes.AddRange(_copiedNotes.Select(note => note with { StepIndex = note.StepIndex + at }));
+        track.MidiNoteEvents = notes;
+        LengthenPatternTo(track, at + _copiedLengthSteps);
+        TrackNotesChanged?.Invoke(track);
+        RebuildTimeline();
         SelectBlock(track);
+        StatusMessage = $"Pasted {Bars(_copiedLengthSteps / StepsPerBar)} into {track.Name} at bar {at / StepsPerBar + 1}";
     }
 
     // Recording is turned on and off here; playback is started by the transport (space bar or START).
@@ -4093,10 +4135,25 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
 
         var tempoMap = CurrentTempoMap;
         var endStep = tempoMap.StepAt(tempoMap.SecondsAt(track.AudioClipStartStep) + waveform.DurationSeconds);
+        if (LengthenPatternTo(track, endStep) is { } bars)
+        {
+            StatusMessage = $"{StatusMessage}; the pattern now lasts {bars} bars, to play the whole clip";
+        }
+    }
+
+    // Makes the selected pattern, when it holds the track, last in whole bars at least to endStep: it grows,
+    // it never shrinks. The bars it now lasts, or null when it was long enough.
+    private int? LengthenPatternTo(PatternTrackViewModel track, double endStep)
+    {
+        if (SelectedPattern is not { } pattern || !pattern.Tracks.Contains(track))
+        {
+            return null;
+        }
+
         var bars = (int)Math.Ceiling(endStep / StepsPerBar - 1e-6);
         if (bars <= PatternBarCount(pattern, StepsPerBar))
         {
-            return;
+            return null;
         }
 
         if (SelectedArrangePatternLength > 0 && bars > SelectedArrangePatternLength)
@@ -4113,7 +4170,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         }
 
         ConfigurePlaybackSource();
-        StatusMessage = $"{StatusMessage}; the pattern now lasts {bars} bars, to play the whole clip";
+        return bars;
     }
 
     // ---- Tempo detection ----

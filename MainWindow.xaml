@@ -1366,6 +1366,8 @@
                              Background="Transparent"
                              BorderThickness="0"
                              PreviewMouseLeftButtonDown="TimelineBodyListBox_PreviewMouseLeftButtonDown"
+                             PreviewMouseRightButtonDown="TimelineBodyListBox_PreviewMouseRightButtonDown"
+                             PreviewMouseRightButtonUp="TimelineBodyListBox_PreviewMouseRightButtonUp"
                              AllowDrop="True"
                              DragOver="TimelineBodyListBox_DragOver"
                              Drop="TimelineBodyListBox_Drop"

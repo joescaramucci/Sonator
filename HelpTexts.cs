@@ -29,6 +29,7 @@ public static class HelpTexts
         {
             "The tracks of the selected pattern along the timeline, or the whole song with ARRANGE on. On the left of each track: M mutes, S solos, R arms recording, FX opens its effects, + adds an effect, then the volume and pan bars.",
             "The ruler: drag along the bars to choose a part to loop (drag its L or R edge to change it), click to go there, right-click to add a marker or a change of tempo. Drag a recorded block or an audio clip to move it; double-click a block for the piano roll, a clip for the waveform editor, right-click a clip to detect its tempo.",
+            "Click a block, then Ctrl+C copies it in whole bars and Ctrl+V puts the copy right after the block's end, again and again. Quicker: click the block, hold the right button and left-click once for each copy.",
             "ZOOM, or the mouse wheel, widens the bars; FIT shows them all. QUANT sets the grid recorded notes snap to, SNAP the grid blocks and clips move on. Drop a plug-in from the right on a track to play it, or a WAV or MP3 on an empty track.",
         }),
         ["Track"] = new("Track", new[]

@@ -2212,10 +2212,37 @@ public partial class MainWindow : Window
     // the track's plug-in name.
     private void TimelineBodyListBox_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        // With the right button held, each left click lays one more copy of the selected block after its end.
+        if (e.RightButton == MouseButtonState.Pressed && _repeatBlock is { } block && DataContext is MainViewModel model)
+        {
+            model.RepeatBlock(block, first: !_repeatedBlock);
+            _repeatedBlock = true;
+            e.Handled = true;
+            return;
+        }
+
         foreach (var window in OwnedWindows.OfType<Window>().Where(IsPluginWindow).ToList())
         {
             DockPluginWindow(window);
         }
+    }
+
+    // The block selected when the right button went down, copied over and over by left clicks while it is held.
+    private PatternTrackViewModel? _repeatBlock;
+    private bool _repeatedBlock;
+
+    private void TimelineBodyListBox_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _repeatBlock = (DataContext as MainViewModel)?.SelectedBlockTrack;
+        _repeatedBlock = false;
+    }
+
+    // After copies were laid, letting go of the right button opens no menu.
+    private void TimelineBodyListBox_PreviewMouseRightButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = _repeatedBlock;
+        _repeatBlock = null;
+        _repeatedBlock = false;
     }
 
     private static bool IsPluginWindow(Window window) => window is Vst3NativeEditorWindow or VstPluginEditorDialog;
