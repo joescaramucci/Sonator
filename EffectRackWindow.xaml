@@ -125,6 +125,7 @@
                                                   Height="30"
                                                   FontSize="15"
                                                   Padding="0"
+                                                  Tag="LightCap"
                                                   IsChecked="{Binding IsEnabled}"
 
                                                   AutomationProperties.Name="EFFECT ON"

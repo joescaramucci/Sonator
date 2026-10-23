@@ -213,7 +213,7 @@
 
         <Style TargetType="Button">
             <Setter Property="Margin" Value="1" />
-            <Setter Property="Padding" Value="6,3" />
+            <Setter Property="Padding" Value="6,1" />
             <Setter Property="Background" Value="#414141" />
             <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="BorderBrush" Value="#5C7A99" />
@@ -708,8 +708,8 @@
                             </Style>
                         </Button.Style>
                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                            <TextBlock Text="{Binding LoopModeText}" FontWeight="Bold" HorizontalAlignment="Center" Foreground="#24272A" />
-                            <TextBlock Text="LOOP" FontSize="11" HorizontalAlignment="Center" Foreground="#24272A" />
+                            <TextBlock Text="{Binding LoopModeText}" FontWeight="Bold" HorizontalAlignment="Center" />
+                            <TextBlock Text="LOOP" FontSize="11" HorizontalAlignment="Center" />
                         </StackPanel>
                     </Button>
                 </Border>
@@ -730,8 +730,8 @@
                             </Style>
                         </Button.Style>
                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                            <TextBlock Text="{Binding ArrangeModeText}" FontWeight="Bold" HorizontalAlignment="Center" Foreground="#24272A" />
-                            <TextBlock Text="ARRANGE" FontSize="11" HorizontalAlignment="Center" Foreground="#24272A" />
+                            <TextBlock Text="{Binding ArrangeModeText}" FontWeight="Bold" HorizontalAlignment="Center" />
+                            <TextBlock Text="ARRANGE" FontSize="11" HorizontalAlignment="Center" />
                         </StackPanel>
                     </Button>
                 </Border>

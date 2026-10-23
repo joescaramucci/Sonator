@@ -164,11 +164,11 @@ public sealed class Knob : FrameworkElement
             drawingContext.DrawEllipse(ScaleBrush, null, dot, big ? 1.4 : 0.9, big ? 1.4 : 0.9);
         }
 
-        var topCentre = new Point(center.X, center.Y - radius * 0.2);
-        var topRadius = radius * 0.5;
-        var baseCentre = new Point(center.X, center.Y + radius * 0.36);
-        var baseRadiusX = radius * 0.57;
-        var baseRadiusY = radius * 0.27;
+        var topCentre = new Point(center.X, center.Y - radius * 0.36); // measured on SSL's knobs, as a share of the dots' ring
+        var topRadius = radius * 0.46;
+        var baseCentre = new Point(center.X, center.Y + radius * 0.38);
+        var baseRadiusX = radius * 0.6;
+        var baseRadiusY = radius * 0.24;
 
         // The cone's outline: the top circle and the base ellipse joined along their sides.
         var top = new EllipseGeometry(topCentre, topRadius, topRadius);
@@ -192,9 +192,9 @@ public sealed class Knob : FrameworkElement
 
         // The fluting: grooves down the front of the side, each with a lit edge beside it.
         drawingContext.PushClip(body);
-        for (var k = -2; k <= 2; k++)
+        for (var k = -1; k <= 1; k++)
         {
-            var f = k / 2.7;
+            var f = k / 1.75;
             var depth = Math.Sqrt(1 - f * f);
             var from = new Point(topCentre.X + f * topRadius, topCentre.Y + depth * topRadius);
             var to = new Point(baseCentre.X + f * baseRadiusX, baseCentre.Y + depth * baseRadiusY);
@@ -246,7 +246,7 @@ public sealed class Knob : FrameworkElement
     private static readonly Brush ConeSide = FrozenLinearHorizontal(
         (Color.FromRgb(0xF2, 0xF2, 0xF1), 0), (Color.FromRgb(0xE2, 0xE2, 0xE1), 0.35), (Color.FromRgb(0xC9, 0xC9, 0xC8), 0.7), (Color.FromRgb(0x9C, 0x9C, 0x9B), 1));
     private static readonly Brush ConeShade = FrozenLinearVertical(
-        (Color.FromArgb(0x00, 0, 0, 0), 0.45), (Color.FromArgb(0x24, 0, 0, 0), 0.8), (Color.FromArgb(0x50, 0, 0, 0), 1));
+        (Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF), 0.25), (Color.FromArgb(0x00, 0, 0, 0), 0.5), (Color.FromArgb(0x22, 0, 0, 0), 0.8), (Color.FromArgb(0x55, 0, 0, 0), 1));
     private static readonly Brush CapLip = FrozenSolid(Color.FromRgb(0xE4, 0xE4, 0xE3));
     private static readonly Pen GroovePen = FrozenColourPen(Color.FromArgb(0x55, 0x55, 0x55, 0x55), 0.7);
     private static readonly Pen GrooveLightPen = FrozenColourPen(Color.FromArgb(0x70, 0xFF, 0xFF, 0xFF), 0.6);
