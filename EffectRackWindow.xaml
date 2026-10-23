@@ -51,10 +51,29 @@
             <Button DockPanel.Dock="Right" Style="{StaticResource RackButton}" Content="+ ADD" Click="Add_Click"
                     AutomationProperties.Name="ADD EFFECT" ToolTip="Add an effect at the bottom of the rack" />
             <Border Margin="0,0,12,0" Padding="12,5" CornerRadius="2" Background="{StaticResource NamePlate}" BorderBrush="#5C5C5C" BorderThickness="1">
-                <StackPanel>
-                    <TextBlock Text="FX Rack" FontFamily="Arial" FontWeight="Bold" FontSize="20" Foreground="#333333" />
-                    <TextBlock Text="{Binding Subtitle}" FontFamily="Arial" Foreground="#515151" FontSize="11" />
-                </StackPanel>
+                <DockPanel>
+                    <!-- Sonator's logo pressed into the plate: its upper left edge in shadow, its lower right edge
+                         catching the light, the plate's own metal inside. -->
+                    <Grid DockPanel.Dock="Right" Width="112" Height="58" Margin="12,-7,2,-7" IsHitTestVisible="False">
+                        <Grid.Resources>
+                            <ImageBrush x:Key="Logo" ImageSource="pack://application:,,,/Assets/sonator-logo-dove-above.png" Stretch="Uniform" />
+                        </Grid.Resources>
+                        <Rectangle Fill="#C8FFFFFF" OpacityMask="{StaticResource Logo}" Margin="1,1,-1,-1" />
+                        <Rectangle Fill="#A0000000" OpacityMask="{StaticResource Logo}" Margin="-0.8,-0.8,0.8,0.8" />
+                        <Rectangle OpacityMask="{StaticResource Logo}">
+                            <Rectangle.Fill>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#B6B9BD" Offset="0" />
+                                    <GradientStop Color="#C3C6CA" Offset="1" />
+                                </LinearGradientBrush>
+                            </Rectangle.Fill>
+                        </Rectangle>
+                    </Grid>
+                    <StackPanel>
+                        <TextBlock Text="FX Rack" FontFamily="Arial" FontWeight="Bold" FontSize="20" Foreground="#333333" />
+                        <TextBlock Text="{Binding Subtitle}" FontFamily="Arial" Foreground="#515151" FontSize="11" />
+                    </StackPanel>
+                </DockPanel>
             </Border>
         </DockPanel>
 
