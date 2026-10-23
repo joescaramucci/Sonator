@@ -15,7 +15,15 @@ public sealed record ProjectDocument(
             List<SongArrangeBlockDocument>? ArrangeBlocks = null,
         double MasterVolume = 0.75,
         List<EffectDocument>? MasterEffects = null,
-        List<TrackDocument>? Buses = null);
+        List<TrackDocument>? Buses = null,
+        List<TempoChangeDocument>? TempoChanges = null,
+        List<MarkerDocument>? Markers = null);
+
+// From this step on the song plays at Bpm.
+public sealed record TempoChangeDocument(int Step, double Bpm);
+
+// A named place in the song.
+public sealed record MarkerDocument(int Step, string Name);
 
 public sealed record SongArrangeBlockDocument(
     int Row,

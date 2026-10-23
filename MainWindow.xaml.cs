@@ -1238,6 +1238,123 @@ public partial class MainWindow : Window
         await viewModel.ExportAudioAsync(dialog.FileName);
     }
 
+    // File > Export MIDI: the song's notes, controllers, tempo and markers as a standard MIDI file.
+    private void ExportMidiMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        var name = viewModel.CurrentProjectPath is { } project
+            ? Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(project))
+            : "Sonator song";
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "Export MIDI",
+            Filter = "MIDI file (*.mid)|*.mid",
+            FileName = $"{name}.mid",
+        };
+        if (dialog.ShowDialog(this) == true)
+        {
+            viewModel.ExportMidi(dialog.FileName);
+        }
+    }
+
+    // ---- Tempo changes and markers on the ruler ----
+
+    // The step under the mouse on the ruler, snapped as the SNAP setting says.
+    private int RulerStep(MouseEventArgs e, MainViewModel viewModel, FrameworkElement ruler) =>
+        viewModel.SnapStep(Math.Max(0, (int)Math.Round(e.GetPosition(ruler).X / viewModel.TimelineSixteenthWidth)));
+
+    // A right-click on the ruler adds a marker or a change of tempo where it was clicked.
+    private void TimelineRuler_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel || sender is not FrameworkElement ruler)
+        {
+            return;
+        }
+
+        var step = RulerStep(e, viewModel, ruler);
+        var menu = new ContextMenu { PlacementTarget = ruler };
+        var marker = new MenuItem { Header = "Add marker here..." };
+        marker.Click += (_, _) => AskMarkerName(viewModel, step, viewModel.NextMarkerName());
+        var tempo = new MenuItem { Header = "Change tempo here..." };
+        tempo.Click += (_, _) => AskTempo(viewModel, step, viewModel.CurrentTempoMap.TempoAt(step));
+        menu.Items.Add(marker);
+        menu.Items.Add(tempo);
+        menu.IsOpen = true;
+        e.Handled = true;
+    }
+
+    private void AskMarkerName(MainViewModel viewModel, int step, string suggested)
+    {
+        var name = Microsoft.VisualBasic.Interaction.InputBox("Name of the marker:", "Marker", suggested);
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            viewModel.SetMarker(step, name);
+        }
+    }
+
+    private void AskTempo(MainViewModel viewModel, int step, double current)
+    {
+        var text = Microsoft.VisualBasic.Interaction.InputBox(
+            "Tempo from here on, in BPM:", "Change of tempo", current.ToString("0.##", System.Globalization.CultureInfo.CurrentCulture));
+        if (double.TryParse(text.Replace(',', '.'), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var bpm))
+        {
+            viewModel.SetTempoChange(step, bpm);
+        }
+    }
+
+    // A click on a flag moves the playhead there.
+    private void RulerFlag_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel && sender is FrameworkElement { DataContext: RulerFlag flag })
+        {
+            viewModel.SeekToStep(flag.Step);
+            e.Handled = true;
+        }
+    }
+
+    // A right-click on a flag changes or removes it.
+    private void RulerFlag_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel || sender is not FrameworkElement { DataContext: RulerFlag flag } element)
+        {
+            return;
+        }
+
+        var menu = new ContextMenu { PlacementTarget = element };
+        var change = new MenuItem { Header = flag.IsTempo ? "Change the tempo..." : "Rename the marker..." };
+        change.Click += (_, _) =>
+        {
+            if (flag.IsTempo)
+            {
+                AskTempo(viewModel, flag.Step, viewModel.CurrentTempoMap.TempoAt(flag.Step));
+            }
+            else
+            {
+                AskMarkerName(viewModel, flag.Step, flag.Label);
+            }
+        };
+        var remove = new MenuItem { Header = flag.IsTempo ? "Remove the change of tempo" : "Remove the marker" };
+        remove.Click += (_, _) =>
+        {
+            if (flag.IsTempo)
+            {
+                viewModel.RemoveTempoChange(flag.Step);
+            }
+            else
+            {
+                viewModel.RemoveMarker(flag.Step);
+            }
+        };
+        menu.Items.Add(change);
+        menu.Items.Add(remove);
+        menu.IsOpen = true;
+        e.Handled = true;
+    }
+
     private SoundBrowserWindow? _soundBrowser;
 
     private void ShowSoundsButton_Click(object sender, RoutedEventArgs e) => ShowSoundBrowser();

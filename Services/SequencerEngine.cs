@@ -246,7 +246,7 @@ internal sealed class SequencerEngine : IDisposable
         }
 
         // The count-in ends exactly where the sequence starts, so notes played during it land just before the start.
-        var stepTicks = (long)(GetInterval(TempoBpm).TotalSeconds * Stopwatch.Frequency);
+        var stepTicks = (long)(GetInterval(TempoAtStep(GetCurrentStep())).TotalSeconds * Stopwatch.Frequency);
         var countInSteps = bars * StepsPerBar;
         Volatile.Write(ref _liveStepLengthTicks, stepTicks);
         Volatile.Write(ref _countInStartStep, GetCurrentStep());
@@ -318,6 +318,15 @@ internal sealed class SequencerEngine : IDisposable
     {
         TempoBpm = tempoBpm;
     }
+
+    private TempoMap? _tempoMap;
+
+    // The song's changes of tempo, from the steps they are at; null, or none, plays it all at TempoBpm.
+    public void UpdateTempoMap(TempoMap? tempoMap) => Volatile.Write(ref _tempoMap, tempoMap);
+
+    // The tempo at a step of the song: TempoBpm until the first change of tempo.
+    internal double TempoAtStep(int step) =>
+        Volatile.Read(ref _tempoMap) is { Changes.Count: > 0 } map && step >= map.Changes[0].Step ? map.TempoAt(step) : TempoBpm;
 
     public void UpdateMasterVolume(double masterVolume)
     {
@@ -391,7 +400,7 @@ internal sealed class SequencerEngine : IDisposable
         using var timerResolution = TimerResolution.Request();
         try
         {
-            var stepDuration = GetInterval(TempoBpm);
+            var stepDuration = GetInterval(TempoAtStep(GetCurrentStep()));
             var nextStepAt = Stopwatch.GetTimestamp();
 
             while (!token.IsCancellationRequested)
@@ -418,7 +427,7 @@ internal sealed class SequencerEngine : IDisposable
                         break;
                     }
 
-                    stepDuration = GetInterval(TempoBpm);
+                    stepDuration = GetInterval(TempoAtStep(_currentStep));
                 }
             }
         }
@@ -431,7 +440,7 @@ internal sealed class SequencerEngine : IDisposable
     private void ProcessStep(int stepIndex, int playbackGeneration)
     {
         Volatile.Write(ref _liveStep, stepIndex);
-        Volatile.Write(ref _liveStepLengthTicks, (long)(GetInterval(TempoBpm).TotalSeconds * Stopwatch.Frequency));
+        Volatile.Write(ref _liveStepLengthTicks, (long)(GetInterval(TempoAtStep(stepIndex)).TotalSeconds * Stopwatch.Frequency));
         Volatile.Write(ref _liveStepStartTicks, Stopwatch.GetTimestamp());
         Volatile.Write(ref _countInActive, 0);
         var playbackPosition = ResolvePlaybackPosition(stepIndex);
@@ -635,7 +644,7 @@ internal sealed class SequencerEngine : IDisposable
     {
         using var timerResolution = TimerResolution.Request();
         var clicksPerBar = Math.Max(1, StepsPerBar / ClickStepInterval);
-        var clickTicks = (long)(60.0 / TempoBpm / 4.0 * ClickStepInterval * Stopwatch.Frequency);
+        var clickTicks = (long)(60.0 / TempoAtStep(GetCurrentStep()) / 4.0 * ClickStepInterval * Stopwatch.Frequency);
         var nextClickAt = Stopwatch.GetTimestamp();
         try
         {
@@ -701,7 +710,7 @@ internal sealed class SequencerEngine : IDisposable
     private void ScheduleNote(PatternTrackViewModel track, int channel, int noteNumber, int velocity, double startOffset, double lengthSteps)
     {
         var token = _playbackCts?.Token ?? CancellationToken.None;
-        var stepSeconds = GetInterval(TempoBpm).TotalSeconds;
+        var stepSeconds = GetInterval(TempoAtStep(Volatile.Read(ref _liveStep))).TotalSeconds;
         _ = PlayScheduledNoteAsync(track, channel, noteNumber, velocity, startOffset * stepSeconds, Math.Max(0.05, lengthSteps) * stepSeconds, token);
     }
 
@@ -713,7 +722,7 @@ internal sealed class SequencerEngine : IDisposable
         }
 
         var token = _playbackCts?.Token ?? CancellationToken.None;
-        var start = Stopwatch.GetTimestamp() + (long)(startOffset * GetInterval(TempoBpm).TotalSeconds * Stopwatch.Frequency);
+        var start = Stopwatch.GetTimestamp() + (long)(startOffset * GetInterval(TempoAtStep(Volatile.Read(ref _liveStep))).TotalSeconds * Stopwatch.Frequency);
         _ = Task.Run(async () =>
         {
             try

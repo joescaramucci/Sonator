@@ -1509,11 +1509,126 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 RaisePropertyChanged(nameof(TimelineContentWidth));
                 RaisePropertyChanged(nameof(TimelineWorkspaceWidth));
                 RaisePropertyChanged(nameof(TimelineSixteenthWidth));
+                RaisePropertyChanged(nameof(RulerFlags));
             }
         }
     }
 
     public double TimelineSixteenthWidth => TimelineBarWidth / StepsPerBar;
+
+    // ---- Tempo changes and markers ----
+
+    private IReadOnlyList<TempoChange> _tempoChanges = Array.Empty<TempoChange>();
+    private IReadOnlyList<SongMarker> _markers = Array.Empty<SongMarker>();
+
+    // The song's changes of tempo after its start, in order of step; the project's tempo plays until the first.
+    public IReadOnlyList<TempoChange> TempoChanges
+    {
+        get => _tempoChanges;
+        private set
+        {
+            _tempoChanges = new TempoMap(Tempo, value).Changes;
+            RaisePropertyChanged();
+            OnTempoMapChanged();
+        }
+    }
+
+    // The named places of the song, in order of step.
+    public IReadOnlyList<SongMarker> Markers
+    {
+        get => _markers;
+        private set
+        {
+            _markers = value.OrderBy(marker => marker.Step).ToList();
+            RaisePropertyChanged();
+            RaisePropertyChanged(nameof(RulerFlags));
+        }
+    }
+
+    public TempoMap CurrentTempoMap => new(Tempo, _tempoChanges);
+
+    private void OnTempoMapChanged()
+    {
+        _engine.UpdateTempoMap(CurrentTempoMap);
+        RaisePropertyChanged(nameof(RulerFlags));
+        if (!IsPlaying)
+        {
+            TransportPosition = TransportClock.FormatPosition(CurrentStepIndex, CurrentTempoMap);
+        }
+    }
+
+    // The tempo changes and markers as flags on the timeline's ruler, placed for the zoom.
+    public IReadOnlyList<RulerFlag> RulerFlags =>
+        _tempoChanges.Select(change => new RulerFlag(change.Step, $"{change.Bpm:0.##} BPM", true, change.Step * TimelineSixteenthWidth))
+            .Concat(_markers.Select(marker => new RulerFlag(marker.Step, marker.Name, false, marker.Step * TimelineSixteenthWidth)))
+            .ToList();
+
+    // From this step on the song plays at bpm. At the very start, that is the project's tempo.
+    public void SetTempoChange(int step, double bpm)
+    {
+        if (!double.IsFinite(bpm) || bpm < MinTempoBpm || bpm > MaxTempoBpm)
+        {
+            StatusMessage = $"Tempo must be between {MinTempoBpm} and {MaxTempoBpm} BPM.";
+            return;
+        }
+
+        if (step <= 0)
+        {
+            Tempo = bpm;
+            return;
+        }
+
+        CaptureUndoStateIfNeeded();
+        TempoChanges = _tempoChanges.Where(change => change.Step != step).Append(new TempoChange(step, bpm)).ToList();
+        StatusMessage = $"Tempo {bpm:0.##} BPM from bar {FormatBarBeat(step, StepsPerBar, Meter.StepsPerBeat)}";
+    }
+
+    public void RemoveTempoChange(int step)
+    {
+        if (_tempoChanges.All(change => change.Step != step))
+        {
+            return;
+        }
+
+        CaptureUndoStateIfNeeded();
+        TempoChanges = _tempoChanges.Where(change => change.Step != step).ToList();
+        StatusMessage = "Tempo change removed";
+    }
+
+    // Adds a marker, or renames the one at that step.
+    public void SetMarker(int step, string name)
+    {
+        name = name.Trim();
+        if (name.Length == 0)
+        {
+            return;
+        }
+
+        CaptureUndoStateIfNeeded();
+        Markers = _markers.Where(marker => marker.Step != step).Append(new SongMarker(Math.Max(0, step), name)).ToList();
+    }
+
+    public void RemoveMarker(int step)
+    {
+        if (_markers.All(marker => marker.Step != step))
+        {
+            return;
+        }
+
+        CaptureUndoStateIfNeeded();
+        Markers = _markers.Where(marker => marker.Step != step).ToList();
+    }
+
+    // A name for a new marker: Verse, Chorus... are up to the player; this one only needs to be new.
+    public string NextMarkerName()
+    {
+        var number = _markers.Count + 1;
+        while (_markers.Any(marker => marker.Name == $"Marker {number}"))
+        {
+            number++;
+        }
+        return $"Marker {number}";
+    }
 
     // The vertical lines inside one bar of a lane, one per sixteenth: none at the bar line itself,
     // brighter on each beat.
@@ -1958,6 +2073,40 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         return Math.Max(notes, Math.Max(steps, clip));
     }
 
+    // Writes the song as a standard MIDI file, to open in another program: in arrange mode the arrangement's
+    // patterns one after another, otherwise the selected pattern, with the tempo, its changes and the markers.
+    public bool ExportMidi(string path)
+    {
+        var patterns = new List<(PatternViewModel Pattern, int StartStep, int? LengthSteps)>();
+        if (IsArrangeMode && Patterns.Count > 0)
+        {
+            var start = 0;
+            foreach (var pattern in GetArrangePlaybackPatterns())
+            {
+                var length = Math.Max(1, pattern.Tracks.Select(track => track.Steps.Count).DefaultIfEmpty(16).Max());
+                patterns.Add((pattern, start, length));
+                start += length;
+            }
+        }
+        else if (SelectedPattern is { } pattern)
+        {
+            patterns.Add((pattern, 0, null));
+        }
+
+        try
+        {
+            MidiFileExport.Build(patterns, CurrentTempoMap, TimeSignature, _markers).Write(path, overwriteFile: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            StatusMessage = $"MIDI export failed: {ex.Message}";
+            return false;
+        }
+
+        StatusMessage = $"MIDI exported to {path}";
+        return true;
+    }
+
     // True while the song is being exported.
     public bool IsExporting { get; private set; }
 
@@ -1978,7 +2127,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         var lengthSteps = ExportLengthSteps();
-        var seconds = lengthSteps * 60.0 / Tempo / 4.0;
+        var seconds = CurrentTempoMap.SecondsAt(lengthSteps);
         const double tail = 2.0;
         var wasLooping = IsLoopEnabled;
         var startStep = CurrentStepIndex;
@@ -2421,6 +2570,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             MasterVolume = 0.75;
             RestoreMasterEffects(null);
             RestoreBuses(null);
+            TempoChanges = Array.Empty<TempoChange>();
+            Markers = Array.Empty<SongMarker>();
             BarCount = 32;
             LoopStartStep = 0;
             LoopEndStep = 15;
@@ -3217,7 +3368,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private void StartAudioTracks()
     {
         StopAudioTracks();
-        var secondsFromStart = CurrentStepIndex * 60.0 / Tempo / 4.0;
+        var secondsFromStart = CurrentTempoMap.SecondsAt(CurrentStepIndex);
         var selection = AudioOutputSelection.FromSettings(new AppSettingsService().Load());
         var fallback = new List<(AudioClip Clip, NativeEffectChain? Effects)>();
         foreach (var track in Tracks.Where(track => !track.IsMuted && !string.IsNullOrEmpty(track.AudioClipPath)))
@@ -3481,7 +3632,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
         CurrentStepIndex = stepIndex;
         UpdateSongTimelinePosition(stepIndex);
-        TransportPosition = TransportClock.FormatPosition(stepIndex, Tempo);
+        TransportPosition = TransportClock.FormatPosition(stepIndex, CurrentTempoMap);
         UpdatePlayhead(stepIndex);
         UpdateTrackMeters(stepIndex);
     }
@@ -3833,7 +3984,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _engine.SetPlaybackPosition(targetStep);
         CurrentStepIndex = targetStep;
         UpdatePlayhead(targetStep);
-        TransportPosition = TransportClock.FormatPosition(targetStep, Tempo);
+        TransportPosition = TransportClock.FormatPosition(targetStep, CurrentTempoMap);
         StatusMessage = $"Position: bar {targetStep / StepsPerBar + 1}";
     }
 
@@ -5031,7 +5182,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             GetSongArrangeBlocks(),
             MasterVolume,
             BuildEffectDocuments(MasterTrack.Effects),
-            Buses.Count == 0 ? null : Buses.Select(BuildTrackDocument).ToList());
+            Buses.Count == 0 ? null : Buses.Select(BuildTrackDocument).ToList(),
+            _tempoChanges.Count == 0 ? null : _tempoChanges.Select(change => new TempoChangeDocument(change.Step, change.Bpm)).ToList(),
+            _markers.Count == 0 ? null : _markers.Select(marker => new MarkerDocument(marker.Step, marker.Name)).ToList());
     }
 
     private void RestoreMasterEffects(IEnumerable<EffectDocument>? documents)
@@ -5063,6 +5216,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             MasterVolume = document.MasterVolume;
             RestoreMasterEffects(document.MasterEffects);
             RestoreBuses(document.Buses);
+            TempoChanges = document.TempoChanges?.Select(change => new TempoChange(change.Step, change.Bpm)).ToList()
+                ?? (IReadOnlyList<TempoChange>)Array.Empty<TempoChange>();
+            Markers = document.Markers?.Select(marker => new SongMarker(marker.Step, marker.Name)).ToList()
+                ?? (IReadOnlyList<SongMarker>)Array.Empty<SongMarker>();
 
             Patterns.Clear();
             foreach (var patternDocument in document.Patterns)

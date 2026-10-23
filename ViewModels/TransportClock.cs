@@ -13,7 +13,12 @@ internal static class TransportClock
     public static string FormatPosition(int stepIndex, double tempoBpm)
     {
         var tempo = !double.IsFinite(tempoBpm) || tempoBpm <= 0 ? FallbackTempoBpm : tempoBpm;
-        var elapsed = TimeSpan.FromSeconds(stepIndex * 60.0 / tempo / StepsPerBeat);
-        return $"{(int)elapsed.TotalHours:D2}:{elapsed.Minutes:D2}:{elapsed.Seconds:D2}";
+        return Format(TimeSpan.FromSeconds(stepIndex * 60.0 / tempo / StepsPerBeat));
     }
+
+    // With the song's changes of tempo.
+    public static string FormatPosition(int stepIndex, Services.TempoMap tempoMap) =>
+        Format(TimeSpan.FromSeconds(tempoMap.SecondsAt(stepIndex)));
+
+    private static string Format(TimeSpan elapsed) => $"{(int)elapsed.TotalHours:D2}:{elapsed.Minutes:D2}:{elapsed.Seconds:D2}";
 }

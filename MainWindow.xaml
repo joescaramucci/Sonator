@@ -575,6 +575,7 @@
                         <Separator />
                         <MenuItem Header="Import _MIDI..." Command="{Binding ImportMidiCommand}" />
                         <MenuItem Header="_Export audio (WAV)..." Click="ExportAudioMenuItem_Click" InputGestureText="Ctrl+E" />
+                        <MenuItem Header="Export _MIDI..." Click="ExportMidiMenuItem_Click" />
                         <MenuItem Header="Close _project" Click="CloseProjectMenuItem_Click" />
                         <Separator />
                         <MenuItem Header="_Exit" Click="CloseMenuItem_Click" InputGestureText="Alt+F4" />
@@ -1277,9 +1278,12 @@
                         </StackPanel>
                         <ItemsControl Grid.Column="1"
                                       Width="{Binding TimelineContentWidth}"
+                                      HorizontalAlignment="Left"
                                       ItemsSource="{Binding TimelineBarNumbers}"
                                       Cursor="SizeWE"
-                                      ToolTip="Drag or use the mouse wheel to zoom the timeline"
+                                      Background="Transparent"
+                                      ToolTip="Drag or use the mouse wheel to zoom the timeline. Right-click to add a marker or a change of tempo"
+                                      MouseRightButtonUp="TimelineRuler_MouseRightButtonUp"
                                       SnapsToDevicePixels="True"
                                       UseLayoutRounding="True"
                                       PreviewMouseWheel="Timeline_PreviewMouseWheel"
@@ -1301,6 +1305,49 @@
                                             <Run Text="{Binding Mode=OneWay}" />
                                         </TextBlock>
                                     </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <!-- Markers along the top of the ruler, changes of tempo along its bottom: a click goes there,
+                             a right-click changes or removes one. -->
+                        <ItemsControl Grid.Column="1"
+                                      Width="{Binding TimelineContentWidth}"
+                                      HorizontalAlignment="Left"
+                                      ItemsSource="{Binding RulerFlags}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><Canvas /></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemContainerStyle>
+                                <Style TargetType="ContentPresenter">
+                                    <Setter Property="Canvas.Left" Value="{Binding X}" />
+                                    <Setter Property="Canvas.Top" Value="1" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsTempo}" Value="True">
+                                            <Setter Property="Canvas.Top" Value="27" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ItemsControl.ItemContainerStyle>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Height="14" Padding="4,0" CornerRadius="0,3,3,0" BorderThickness="2,0,0,0" Cursor="Hand"
+                                            MouseLeftButtonUp="RulerFlag_MouseLeftButtonUp" MouseRightButtonUp="RulerFlag_MouseRightButtonUp">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="#E6C45B" />
+                                                <Setter Property="BorderBrush" Value="#FFF2C2" />
+                                                <Setter Property="ToolTip" Value="Marker: click to go there, right-click to rename or remove it" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsTempo}" Value="True">
+                                                        <Setter Property="Background" Value="#62B7A4" />
+                                                        <Setter Property="BorderBrush" Value="#D6FFF4" />
+                                                        <Setter Property="ToolTip" Value="Change of tempo: right-click to change or remove it" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock Text="{Binding Label}" FontSize="10" FontWeight="Bold" Foreground="#0F1A14" VerticalAlignment="Center" />
+                                    </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
