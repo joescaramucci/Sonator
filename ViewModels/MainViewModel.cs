@@ -2248,6 +2248,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
     {
         _autosaveTimer.Stop();
         StopTone();
+        StopPreview();
         _audioMeterTimer.Stop();
         _automationTimer.Stop();
         _previewer?.Dispose();
@@ -4816,6 +4817,42 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
 
         _spectrum.Analyse(_scope, sampleRate, levelsDb);
         return true;
+    }
+
+    // ---- Previewing a clip, as the waveform editor does ----
+
+    private Vst3ModuleHandle? _previewModule;
+
+    // Plays interleaved samples once through Sonator's own output, the one the plug-ins and the clips use (ASIO
+    // too), only to be heard: past the master, and never in an export. False without the native bridge.
+    public bool StartPreview(float[] interleaved, int channels, int sampleRate)
+    {
+        StopPreview();
+        if (interleaved.Length < channels
+            || _liveInstrumentHost.TryCreateClip(interleaved, channels, sampleRate, 0) is not { } module)
+        {
+            return false;
+        }
+
+        _liveInstrumentHost.SetClipMonitor(module, true, 0);
+        if (!_liveInstrumentHost.TryStartAudio(module, AudioOutputSelection.FromSettings(new AppSettingsService().Load()), out _))
+        {
+            _liveInstrumentHost.UnloadModule(module);
+            return false;
+        }
+
+        _previewModule = module;
+        return true;
+    }
+
+    public void StopPreview()
+    {
+        if (_previewModule is { } module)
+        {
+            _previewModule = null;
+            _liveInstrumentHost.StopAudio(module);
+            _liveInstrumentHost.UnloadModule(module);
+        }
     }
 
     // ---- The master's oscillator ----

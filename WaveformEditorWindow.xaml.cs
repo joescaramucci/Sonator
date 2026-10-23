@@ -29,6 +29,9 @@ public partial class WaveformEditorWindow : Window
     private int _selectionStart = -1;
     private int _selectionEnd = -1;
     private WaveOutEvent? _output;
+
+    // Ends a preview played through Sonator's own output when it has played through.
+    private System.Windows.Threading.DispatcherTimer? _previewEnd;
     private readonly double _songTempo;
     private readonly MainViewModel? _viewModel;
 
@@ -357,6 +360,21 @@ public partial class WaveformEditorWindow : Window
 
         var (start, end) = wholeClip ? (0, _clip.FrameCount) : RangeOrWhole();
         StopPlayback();
+
+        // Through Sonator's own output (ASIO too), as the song plays; Windows' default output only without it.
+        if (_viewModel is not null
+            && _viewModel.StartPreview(AudioEdits.Copy(_clip.Samples, _clip.Channels, start, end), _clip.Channels, _clip.SampleRate))
+        {
+            _previewEnd = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds((end - start) / (double)_clip.SampleRate + 0.2),
+            };
+            _previewEnd.Tick += (_, _) => StopPlayback();
+            _previewEnd.Start();
+            Info(wholeClip ? "Playing the whole clip." : "Playing the selection.");
+            return;
+        }
+
         _output = new WaveOutEvent();
         _output.Init(AudioClipLoader.ToPlayable(_clip, start, end).ToWaveProvider());
         _output.PlaybackStopped += (_, _) => Dispatcher.InvokeAsync(StopPlayback);
@@ -366,6 +384,13 @@ public partial class WaveformEditorWindow : Window
 
     private void StopPlayback()
     {
+        if (_previewEnd is not null)
+        {
+            _previewEnd.Stop();
+            _previewEnd = null;
+            _viewModel?.StopPreview();
+        }
+
         if (_output is null)
         {
             return;
