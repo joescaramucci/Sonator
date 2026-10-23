@@ -41,7 +41,7 @@ public sealed class Vst3PluginHost : IVst3PluginHost
         }
         catch (Exception ex) when (IsBridgeUnavailableException(ex))
         {
-            error = $"Bridge nativo VST3 non utilizzabile: {ex.Message}";
+            error = $"The native VST3 bridge cannot be used: {ex.Message}";
             return null;
         }
     }
@@ -194,7 +194,7 @@ public sealed class Vst3PluginHost : IVst3PluginHost
         }
         catch (Exception ex) when (IsBridgeUnavailableException(ex))
         {
-            error = $"Bridge nativo VST3 non utilizzabile: {ex.Message}";
+            error = $"The native VST3 bridge cannot be used: {ex.Message}";
             return false;
         }
     }
@@ -302,7 +302,7 @@ public sealed class Vst3PluginHost : IVst3PluginHost
         }
         catch (Exception ex) when (IsBridgeUnavailableException(ex))
         {
-            error = $"Bridge nativo VST3 non utilizzabile: {ex.Message}";
+            error = $"The native VST3 bridge cannot be used: {ex.Message}";
             return false;
         }
     }
@@ -663,7 +663,7 @@ public sealed class Vst3PluginHost : IVst3PluginHost
         }
         catch (Exception ex) when (IsBridgeUnavailableException(ex))
         {
-            error = $"Bridge nativo VST3 non utilizzabile: {ex.Message}";
+            error = $"The native VST3 bridge cannot be used: {ex.Message}";
             return false;
         }
     }

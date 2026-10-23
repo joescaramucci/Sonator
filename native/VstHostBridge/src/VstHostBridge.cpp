@@ -1143,18 +1143,18 @@ namespace
             setup.sampleRate = sampleRate;
             if (processor->setupProcessing(setup) != kResultOk)
             {
-                error = "IAudioProcessor::setupProcessing() fallita.";
+                error = "IAudioProcessor::setupProcessing() failed.";
                 return false;
             }
             if (module->component->setActive(1) != kResultOk)
             {
-                error = "IComponent::setActive(true) fallita.";
+                error = "IComponent::setActive(true) failed.";
                 return false;
             }
             activatedComponent = true;
             if (processor->setProcessing(1) != kResultOk)
             {
-                error = "IAudioProcessor::setProcessing(true) fallita.";
+                error = "IAudioProcessor::setProcessing(true) failed.";
                 return false;
             }
             startedProcessing = true;
@@ -1818,23 +1818,23 @@ namespace
             __uuidof(IMMDeviceEnumerator), reinterpret_cast<void**>(&enumerator));
         if (FAILED(hr))
         {
-            fail("Impossibile creare l'enumeratore dei device audio (WASAPI).");
+            fail("Could not create the audio device enumerator (WASAPI).");
         }
         else if (engine->deviceId.empty()
             ? FAILED(hr = enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &device))
             : FAILED(hr = enumerator->GetDevice(engine->deviceId.c_str(), &device)))
         {
             fail(engine->deviceId.empty()
-                ? "Nessun device audio di output predefinito trovato."
-                : "Il device audio di output selezionato non è disponibile.");
+                ? "No default audio output device was found."
+                : "The audio output device chosen is not available.");
         }
         else if (FAILED(hr = device->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, reinterpret_cast<void**>(&client))))
         {
-            fail("Impossibile attivare IAudioClient sul device audio predefinito.");
+            fail("Could not activate IAudioClient on the audio device.");
         }
         else if (FAILED(hr = client->GetMixFormat(&mixFormat)))
         {
-            fail("Impossibile leggere il formato audio del device (GetMixFormat).");
+            fail("Could not read the audio device's format (GetMixFormat).");
         }
         else
         {
@@ -1851,7 +1851,7 @@ namespace
 
             if (!isFloat)
             {
-                fail("Il device audio predefinito non usa un formato a virgola mobile (non supportato in questa versione).");
+                fail("The audio device does not use a floating-point format, which this version does not support.");
             }
             else
             {
@@ -1859,15 +1859,15 @@ namespace
                 hr = client->Initialize(AUDCLNT_SHAREMODE_SHARED, 0, bufferDuration, 0, mixFormat, nullptr);
                 if (FAILED(hr))
                 {
-                    fail("IAudioClient::Initialize (shared mode) fallita: " + FormatWin32Error(static_cast<DWORD>(hr)));
+                    fail("IAudioClient::Initialize (shared mode) failed: " + FormatWin32Error(static_cast<DWORD>(hr)));
                 }
                 else if (FAILED(hr = client->GetBufferSize(&bufferFrameCount)) || bufferFrameCount == 0)
                 {
-                    fail("IAudioClient::GetBufferSize fallita o ha restituito 0.");
+                    fail("IAudioClient::GetBufferSize failed or gave 0.");
                 }
                 else if (FAILED(hr = client->GetService(__uuidof(IAudioRenderClient), reinterpret_cast<void**>(&renderClient))))
                 {
-                    fail("IAudioClient::GetService(IAudioRenderClient) fallita.");
+                    fail("IAudioClient::GetService(IAudioRenderClient) failed.");
                 }
             }
         }
@@ -1876,7 +1876,7 @@ namespace
 
         if (engine->initResult == 0 && FAILED(hr = client->Start()))
         {
-            fail("IAudioClient::Start() fallita.");
+            fail("IAudioClient::Start() failed.");
         }
 
         if (engine->initResult == 0)
@@ -2397,7 +2397,7 @@ void* VstHostBridge_CreateClipModule(const float* interleaved, int32_t frames, i
 {
     if (interleaved == nullptr || frames <= 0 || channels <= 0 || sampleRate <= 0.0)
     {
-        SetBridgeError("Clip audio non valido.");
+        SetBridgeError("The audio clip is not valid.");
         return nullptr;
     }
 
@@ -2543,7 +2543,7 @@ void* VstHostBridge_LoadModule(const wchar_t* filePath)
 {
     if (filePath == nullptr || *filePath == L'\0')
     {
-        SetBridgeError("Percorso del plug-in non valido.");
+        SetBridgeError("The plug-in's path is not valid.");
         return nullptr;
     }
 
@@ -2551,7 +2551,7 @@ void* VstHostBridge_LoadModule(const wchar_t* filePath)
     std::error_code existsError;
     if (!fs::exists(requestedPath, existsError))
     {
-        SetBridgeError("Il file/cartella del plug-in non esiste: " + Narrow(requestedPath.wstring()));
+        SetBridgeError("The plug-in's file or folder does not exist: " + Narrow(requestedPath.wstring()));
         return nullptr;
     }
 
@@ -2559,7 +2559,7 @@ void* VstHostBridge_LoadModule(const wchar_t* filePath)
     if (binaryPath.empty())
     {
         SetBridgeError(
-            "Bundle VST3 riconosciuto ma nessun binario Windows x86_64 trovato in "
+            "A VST3 bundle, but with no Windows x86_64 binary in "
             "Contents/x86_64-win dentro: " + Narrow(requestedPath.wstring()));
         return nullptr;
     }
@@ -2567,7 +2567,7 @@ void* VstHostBridge_LoadModule(const wchar_t* filePath)
     HMODULE hmodule = LoadLibraryW(binaryPath.c_str());
     if (hmodule == nullptr)
     {
-        SetBridgeError("LoadLibrary fallita per " + Narrow(binaryPath.wstring()) + ": " + FormatWin32Error(GetLastError()));
+        SetBridgeError("LoadLibrary failed for " + Narrow(binaryPath.wstring()) + ": " + FormatWin32Error(GetLastError()));
         return nullptr;
     }
 
@@ -2578,7 +2578,7 @@ void* VstHostBridge_LoadModule(const wchar_t* filePath)
     auto exitDll = reinterpret_cast<ModuleEntryProc>(GetProcAddress(hmodule, "ExitDll"));
     if (initDll != nullptr && !initDll())
     {
-        SetBridgeError("InitDll() del plug-in non e' riuscita (" + Narrow(binaryPath.wstring()) + ").");
+        SetBridgeError("The plug-in's InitDll() failed (" + Narrow(binaryPath.wstring()) + ").");
         FreeLibrary(hmodule);
         return nullptr;
     }
@@ -2591,7 +2591,7 @@ void* VstHostBridge_LoadModule(const wchar_t* filePath)
     if (getFactoryProc == nullptr)
     {
         SetBridgeError(
-            "Il modulo si carica ma non esporta \"GetPluginFactory\": non e' un plug-in VST3 valido ("
+            "The module loads but does not export \"GetPluginFactory\": it is not a valid VST3 plug-in ("
             + Narrow(binaryPath.wstring()) + ").");
         ReleaseLibrary(hmodule, exitDll);
         return nullptr;
@@ -2600,7 +2600,7 @@ void* VstHostBridge_LoadModule(const wchar_t* filePath)
     IPluginFactory* factory = getFactoryProc();
     if (factory == nullptr)
     {
-        SetBridgeError("GetPluginFactory() ha restituito nullptr.");
+        SetBridgeError("GetPluginFactory() gave nullptr.");
         ReleaseLibrary(hmodule, exitDll);
         return nullptr;
     }
@@ -2641,7 +2641,7 @@ void* VstHostBridge_LoadModule(const wchar_t* filePath)
 
     if (!foundComponentClass)
     {
-        SetBridgeError("Nessuna classe \"Audio Module Class\" trovata nel factory VST3 di " + Narrow(binaryPath.wstring()) + ".");
+        SetBridgeError("No \"Audio Module Class\" class in the VST3 factory of " + Narrow(binaryPath.wstring()) + ".");
         factory->release();
         ReleaseLibrary(hmodule, exitDll);
         return nullptr;
@@ -2650,7 +2650,7 @@ void* VstHostBridge_LoadModule(const wchar_t* filePath)
     IComponent* component = nullptr;
     if (factory->createInstance(componentCid, IComponent_iid, reinterpret_cast<void**>(&component)) != kResultOk || component == nullptr)
     {
-        SetBridgeError("createInstance(IComponent) fallita per la classe audio effect del plug-in.");
+        SetBridgeError("createInstance(IComponent) failed for the plug-in's audio class.");
         factory->release();
         ReleaseLibrary(hmodule, exitDll);
         return nullptr;
@@ -2658,7 +2658,7 @@ void* VstHostBridge_LoadModule(const wchar_t* filePath)
 
     if (component->initialize(&HostApplicationInstance()) != kResultOk)
     {
-        SetBridgeError("IComponent::initialize() fallita.");
+        SetBridgeError("IComponent::initialize() failed.");
         component->release();
         factory->release();
         ReleaseLibrary(hmodule, exitDll);
@@ -2787,7 +2787,7 @@ void VstHostBridge_UnloadModule(void* moduleHandle)
 
 const char* VstHostBridge_GetLastError()
 {
-    g_lastErrorNarrow = g_lastError.empty() ? "Nessun errore." : g_lastError;
+    g_lastErrorNarrow = g_lastError.empty() ? "No error." : g_lastError;
     return g_lastErrorNarrow.c_str();
 }
 
@@ -2982,14 +2982,14 @@ int VstHostBridge_OpenEditor(void* moduleHandle, void* parentHwnd, void** outChi
 {
     if (moduleHandle == nullptr || parentHwnd == nullptr)
     {
-        SetBridgeError("Handle del modulo o finestra padre non validi.");
+        SetBridgeError("The module handle or the parent window is not valid.");
         return 0;
     }
 
     auto* module = static_cast<BridgeModule*>(moduleHandle);
     if (module->controller == nullptr)
     {
-        SetBridgeError("Nessun edit controller disponibile: impossibile creare l'editor.");
+        SetBridgeError("No edit controller: the editor cannot be made.");
         return 0;
     }
 
@@ -3014,13 +3014,13 @@ int VstHostBridge_OpenEditor(void* moduleHandle, void* parentHwnd, void** outChi
     IPlugView* view = module->controller->createView(ViewType::kEditor);
     if (view == nullptr)
     {
-        SetBridgeError("Il plug-in non espone una vista editor (createView ha restituito nullptr).");
+        SetBridgeError("The plug-in has no editor view (createView gave nullptr).");
         return 0;
     }
 
     if (view->isPlatformTypeSupported(kPlatformTypeHWND) != kResultTrue)
     {
-        SetBridgeError("La vista dell'editor non supporta l'incorporamento HWND su questa piattaforma.");
+        SetBridgeError("The editor view cannot be embedded in an HWND on this platform.");
         view->release();
         return 0;
     }
@@ -3050,7 +3050,7 @@ int VstHostBridge_OpenEditor(void* moduleHandle, void* parentHwnd, void** outChi
         nullptr);
     if (container == nullptr)
     {
-        SetBridgeError("CreateWindowEx fallita per il contenitore dell'editor: " + FormatWin32Error(GetLastError()));
+        SetBridgeError("CreateWindowEx failed for the editor's container: " + FormatWin32Error(GetLastError()));
         view->release();
         return 0;
     }
@@ -3065,7 +3065,7 @@ int VstHostBridge_OpenEditor(void* moduleHandle, void* parentHwnd, void** outChi
 
     if (view->attached(container, kPlatformTypeHWND) != kResultOk)
     {
-        SetBridgeError("IPlugView::attached() fallita: il plug-in non ha potuto agganciarsi alla finestra host.");
+        SetBridgeError("IPlugView::attached() failed: the plug-in could not attach itself to the host window.");
         module->editorContainerHwnd = nullptr;
         module->editorWidth = 0;
         module->editorHeight = 0;
@@ -3477,7 +3477,7 @@ namespace
         long outputChannels = 0;
         if (session.driver->getChannels(&inputChannels, &outputChannels) != ASE_OK || outputChannels <= 0)
         {
-            error = "Il driver ASIO non espone canali di uscita.";
+            error = "The ASIO driver has no output channels.";
             return false;
         }
         session.deviceChannels = outputChannels < 2 ? outputChannels : 2;
@@ -3488,7 +3488,7 @@ namespace
         long granularity = 0;
         if (session.driver->getBufferSize(&minSize, &maxSize, &preferredSize, &granularity) != ASE_OK || preferredSize <= 0)
         {
-            error = "Il driver ASIO non riporta una dimensione di buffer valida.";
+            error = "The ASIO driver reports no valid buffer size.";
             return false;
         }
         // The user's buffer size is used when it lies within the driver's range, otherwise the driver's preferred size.
@@ -3498,7 +3498,7 @@ namespace
             const long requested = session.engine->requestedBufferFrames;
             if (requested < minSize || requested > maxSize)
             {
-                error = "La dimensione del buffer scelta non rientra nei limiti del driver (" + std::to_string(minSize) + " - " + std::to_string(maxSize) + " campioni).";
+                error = "The buffer size chosen is outside the driver's limits (" + std::to_string(minSize) + " - " + std::to_string(maxSize) + " samples).";
                 return false;
             }
             session.bufferSize = requested;
@@ -3510,7 +3510,7 @@ namespace
             if (session.driver->canSampleRate(session.engine->requestedSampleRate) != ASE_OK
                 || session.driver->setSampleRate(session.engine->requestedSampleRate) != ASE_OK)
             {
-                error = "Il driver ASIO non accetta la frequenza di campionamento scelta.";
+                error = "The ASIO driver does not accept the sample rate chosen.";
                 return false;
             }
         }
@@ -3519,7 +3519,7 @@ namespace
             session.driver->setSampleRate(48000.0);
             if (session.driver->getSampleRate(&sampleRate) != ASE_OK || sampleRate <= 0.0)
             {
-                error = "Il driver ASIO non ha una frequenza di campionamento valida.";
+                error = "The ASIO driver has no valid sample rate.";
                 return false;
             }
         }
@@ -3529,7 +3529,7 @@ namespace
         channelInfo.isInput = ASIOFalse;
         if (session.driver->getChannelInfo(&channelInfo) != ASE_OK)
         {
-            error = "Impossibile leggere il formato dei campioni del driver ASIO.";
+            error = "Could not read the ASIO driver's sample format.";
             return false;
         }
         switch (channelInfo.type)
@@ -3541,7 +3541,7 @@ namespace
             session.sampleType = channelInfo.type;
             break;
         default:
-            error = "Formato dei campioni del driver ASIO non supportato in questa versione.";
+            error = "This version does not support the ASIO driver's sample format.";
             return false;
         }
 
@@ -3591,17 +3591,17 @@ namespace
         HRESULT hr = CLSIDFromString(engine->deviceId.c_str(), &driverClsid);
         if (FAILED(hr))
         {
-            fail("Identificatore del driver ASIO non valido.");
+            fail("The ASIO driver's identifier is not valid.");
         }
         else if (FAILED(hr = CoCreateInstance(driverClsid, nullptr, CLSCTX_INPROC_SERVER, driverClsid, reinterpret_cast<void**>(&driver))) || driver == nullptr)
         {
-            fail("Impossibile aprire il driver ASIO: " + FormatWin32Error(static_cast<DWORD>(hr)));
+            fail("Could not open the ASIO driver: " + FormatWin32Error(static_cast<DWORD>(hr)));
         }
         else if (!driver->init(GetDesktopWindow()))
         {
             char message[256]{};
             driver->getErrorMessage(message);
-            fail(std::string("Il driver ASIO non si è inizializzato: ") + message);
+            fail(std::string("The ASIO driver did not start up: ") + message);
         }
         else
         {
@@ -3645,7 +3645,7 @@ namespace
                         AsioSession* noSession = nullptr;
                         if (!g_asioSession.compare_exchange_strong(noSession, &session))
                         {
-                            fail("Un'altra uscita ASIO è già aperta.");
+                            fail("Another ASIO output is open already.");
                         }
                         else
                         {
@@ -3663,7 +3663,7 @@ namespace
 
                             if (!created)
                             {
-                                fail("IASIO::createBuffers fallita.");
+                                fail("IASIO::createBuffers failed.");
                             }
                             else
                             {
@@ -3680,7 +3680,7 @@ namespace
                             engine->asioHasInput = session.hasInput;
                             if (driver->start() != ASE_OK)
                             {
-                                fail("IASIO::start fallita.");
+                                fail("IASIO::start failed.");
                             }
                             else
                             {
@@ -3743,7 +3743,7 @@ namespace
 {
     void RunAsioEngineThread(AudioEngineState* engine)
     {
-        engine->SetInitError("Questa build di VstHostBridge non include il supporto ASIO.");
+        engine->SetInitError("This build of VstHostBridge has no ASIO support.");
         engine->initResult = -1;
     }
 }
@@ -3760,13 +3760,13 @@ static int StartAudioEngine(void* moduleHandle, const wchar_t* deviceId, bool us
 {
     if (moduleHandle == nullptr)
     {
-        SetBridgeError("Handle del modulo non valido.");
+        SetBridgeError("The module handle is not valid.");
         return 0;
     }
 
     if (useAsio && !AsioBuiltIn())
     {
-        SetBridgeError("Questa build di VstHostBridge non include il supporto ASIO.");
+        SetBridgeError("This build of VstHostBridge has no ASIO support.");
         return 0;
     }
 
@@ -3774,7 +3774,7 @@ static int StartAudioEngine(void* moduleHandle, const wchar_t* deviceId, bool us
     const bool isClip = module->component == nullptr && module->clipChannels > 0;
     if (module->component == nullptr && !isClip)
     {
-        SetBridgeError("Nessun IComponent disponibile: impossibile avviare l'audio.");
+        SetBridgeError("No IComponent: the audio cannot start.");
         return 0;
     }
 
@@ -3795,7 +3795,7 @@ static int StartAudioEngine(void* moduleHandle, const wchar_t* deviceId, bool us
             || voice->processor == nullptr))
     {
         voice->processor = nullptr;
-        SetBridgeError("Il plug-in non espone IAudioProcessor: impossibile avviare l'audio.");
+        SetBridgeError("The plug-in has no IAudioProcessor: the audio cannot start.");
         return 0;
     }
 
@@ -3838,7 +3838,7 @@ static int StartAudioEngine(void* moduleHandle, const wchar_t* deviceId, bool us
         if (engine->initResult.load() != 1)
         {
             std::string error = engine->GetInitError();
-            SetBridgeError(error.empty() ? "Avvio del motore audio fallito (timeout o errore sconosciuto)." : error);
+            SetBridgeError(error.empty() ? "The audio engine did not start (timed out, or an unknown error)." : error);
             StopAudioDevice();
             for (const auto& playing : voices)
             {
@@ -3895,12 +3895,12 @@ static bool BuildAudioOutputList(std::wstring& text)
     bool ok = SUCCEEDED(hr);
     if (!ok)
     {
-        SetBridgeError("Impossibile creare l'enumeratore dei device audio (WASAPI).");
+        SetBridgeError("Could not create the audio device enumerator (WASAPI).");
     }
     else if (FAILED(hr = enumerator->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &collection)))
     {
         ok = false;
-        SetBridgeError("Impossibile elencare i device audio di output: " + FormatWin32Error(static_cast<DWORD>(hr)));
+        SetBridgeError("Could not list the audio output devices: " + FormatWin32Error(static_cast<DWORD>(hr)));
     }
     else
     {
@@ -4010,7 +4010,7 @@ int VstHostBridge_MeasureAsioLatency(void* moduleHandle, double* outMilliseconds
 {
     if (moduleHandle == nullptr || outMilliseconds == nullptr)
     {
-        SetBridgeError("Argomenti non validi.");
+        SetBridgeError("The arguments are not valid.");
         return 0;
     }
 
@@ -4023,7 +4023,7 @@ int VstHostBridge_MeasureAsioLatency(void* moduleHandle, double* outMilliseconds
 
     if (!engine->asioHasInput.load())
     {
-        SetBridgeError("Il driver non espone un ingresso utilizzabile per la misura.");
+        SetBridgeError("The driver has no input to measure with.");
         return 0;
     }
 
@@ -4047,8 +4047,8 @@ int VstHostBridge_MeasureAsioLatency(void* moduleHandle, double* outMilliseconds
         const double peakDb = peak > 0.0f ? 20.0 * std::log10(static_cast<double>(peak)) : -120.0;
         std::ostringstream message;
         const double peakMs = static_cast<double>(engine->measurePeakFrames.load()) * 1000.0 / engine->asioSampleRate.load();
-        message << "Nessun segnale rilevato sull'ingresso 1 (picco " << std::fixed << std::setprecision(1)
-                << peakDb << " dBFS a " << peakMs << " ms dal click). Collega l'uscita 1 all'ingresso 1 con un cavo di loopback e alza il gain dell'ingresso.";
+        message << "No signal came back on input 1 (peak " << std::fixed << std::setprecision(1)
+                << peakDb << " dBFS at " << peakMs << " ms after the click). Connect output 1 to input 1 with a loopback cable and turn the input's gain up.";
         SetBridgeError(message.str());
         return 0;
     }
@@ -4092,17 +4092,17 @@ namespace
             HRESULT hr = CLSIDFromString(clsidText.c_str(), &clsid);
             if (FAILED(hr))
             {
-                probe.error = "Identificatore del driver ASIO non valido.";
+                probe.error = "The ASIO driver's identifier is not valid.";
             }
             else if (FAILED(hr = CoCreateInstance(clsid, nullptr, CLSCTX_INPROC_SERVER, clsid, reinterpret_cast<void**>(&driver))) || driver == nullptr)
             {
-                probe.error = "Impossibile aprire il driver ASIO: " + FormatWin32Error(static_cast<DWORD>(hr));
+                probe.error = "Could not open the ASIO driver: " + FormatWin32Error(static_cast<DWORD>(hr));
             }
             else if (!driver->init(GetDesktopWindow()))
             {
                 char message[256]{};
                 driver->getErrorMessage(message);
-                probe.error = std::string("Il driver ASIO non si è inizializzato: ") + message;
+                probe.error = std::string("The ASIO driver did not start up: ") + message;
             }
             else if (openControlPanel)
             {
@@ -4111,7 +4111,7 @@ namespace
             }
             else if (driver->getBufferSize(&probe.minSize, &probe.maxSize, &probe.preferredSize, &probe.granularity) != ASE_OK)
             {
-                probe.error = "Il driver ASIO non riporta i limiti del buffer.";
+                probe.error = "The ASIO driver reports no buffer limits.";
             }
             else
             {
@@ -4146,7 +4146,7 @@ int VstHostBridge_GetAsioCapabilities(const wchar_t* driverClsid, int32_t* outMi
     if (driverClsid == nullptr || outMinBuffer == nullptr || outMaxBuffer == nullptr || outPreferredBuffer == nullptr
         || outGranularity == nullptr || outCurrentRate == nullptr || outRateCount == nullptr || (outRates == nullptr && rateCapacity > 0))
     {
-        SetBridgeError("Argomenti non validi.");
+        SetBridgeError("The arguments are not valid.");
         return 0;
     }
 
@@ -4177,7 +4177,7 @@ int VstHostBridge_OpenAsioControlPanel(const wchar_t* driverClsid)
 {
     if (driverClsid == nullptr)
     {
-        SetBridgeError("Argomenti non validi.");
+        SetBridgeError("The arguments are not valid.");
         return 0;
     }
 
@@ -4198,13 +4198,13 @@ int VstHostBridge_StartAudioAsioWithFormat(void* moduleHandle, const wchar_t* dr
 #else
 int VstHostBridge_GetAsioCapabilities(const wchar_t*, int32_t*, int32_t*, int32_t*, int32_t*, double*, double*, int32_t, int32_t*)
 {
-    SetBridgeError("Questa build di VstHostBridge non include il supporto ASIO.");
+    SetBridgeError("This build of VstHostBridge has no ASIO support.");
     return 0;
 }
 
 int VstHostBridge_OpenAsioControlPanel(const wchar_t*)
 {
-    SetBridgeError("Questa build di VstHostBridge non include il supporto ASIO.");
+    SetBridgeError("This build of VstHostBridge has no ASIO support.");
     return 0;
 }
 
@@ -4240,17 +4240,17 @@ namespace
             bool buffersCreated = false;
             if (FAILED(hr))
             {
-                probe.error = "Identificatore del driver ASIO non valido.";
+                probe.error = "The ASIO driver's identifier is not valid.";
             }
             else if (FAILED(hr = CoCreateInstance(clsid, nullptr, CLSCTX_INPROC_SERVER, clsid, reinterpret_cast<void**>(&driver))) || driver == nullptr)
             {
-                probe.error = "Impossibile aprire il driver ASIO: " + FormatWin32Error(static_cast<DWORD>(hr));
+                probe.error = "Could not open the ASIO driver: " + FormatWin32Error(static_cast<DWORD>(hr));
             }
             else if (!driver->init(GetDesktopWindow()))
             {
                 char message[256]{};
                 driver->getErrorMessage(message);
-                probe.error = std::string("Il driver ASIO non si è inizializzato: ") + message;
+                probe.error = std::string("The ASIO driver did not start up: ") + message;
             }
             else
             {
@@ -4262,15 +4262,15 @@ namespace
                 long granularity = 0;
                 if (driver->getChannels(&inputChannels, &outputChannels) != ASE_OK || outputChannels <= 0)
                 {
-                    probe.error = "Il driver ASIO non espone canali di uscita.";
+                    probe.error = "The ASIO driver has no output channels.";
                 }
                 else if (driver->getBufferSize(&minSize, &maxSize, &preferredSize, &granularity) != ASE_OK)
                 {
-                    probe.error = "Il driver ASIO non riporta i limiti del buffer.";
+                    probe.error = "The ASIO driver reports no buffer limits.";
                 }
                 else if (bufferFrames > 0 && (bufferFrames < minSize || bufferFrames > maxSize))
                 {
-                    probe.error = "La dimensione del buffer scelta non rientra nei limiti del driver.";
+                    probe.error = "The buffer size chosen is outside the driver's limits.";
                 }
                 else
                 {
@@ -4301,7 +4301,7 @@ namespace
 
                     if (driver->createBuffers(infos.data(), static_cast<long>(infos.size()), size, &callbacks) != ASE_OK)
                     {
-                        probe.error = "Il driver ASIO non accetta questa dimensione di buffer.";
+                        probe.error = "The ASIO driver does not accept this buffer size.";
                     }
                     else
                     {
@@ -4312,7 +4312,7 @@ namespace
                         }
                         else
                         {
-                            probe.error = "Il driver ASIO non riporta le latenze.";
+                            probe.error = "The ASIO driver reports no latencies.";
                         }
                     }
                 }
@@ -4339,7 +4339,7 @@ int VstHostBridge_GetAsioLatency(const wchar_t* driverClsid, int32_t bufferFrame
 {
     if (driverClsid == nullptr || outInputLatency == nullptr || outOutputLatency == nullptr)
     {
-        SetBridgeError("Argomenti non validi.");
+        SetBridgeError("The arguments are not valid.");
         return 0;
     }
 
@@ -4358,7 +4358,7 @@ int VstHostBridge_GetAsioLatency(const wchar_t* driverClsid, int32_t bufferFrame
 #else
 int VstHostBridge_GetAsioLatency(const wchar_t*, int32_t, double, int32_t*, int32_t*)
 {
-    SetBridgeError("Questa build di VstHostBridge non include il supporto ASIO.");
+    SetBridgeError("This build of VstHostBridge has no ASIO support.");
     return 0;
 }
 #endif

@@ -582,8 +582,8 @@
                         <MenuItem Header="_Redo" Command="{Binding RedoCommand}" InputGestureText="Ctrl+Y" />
                         <Separator />
                         <MenuItem Header="Copy _track" Command="{Binding CopyTrackCommand}" />
-                        <MenuItem Header="Incolla tr_ack" Command="{Binding PasteTrackCommand}" />
-                        <MenuItem Header="Cancella cella arrange" Command="{Binding ClearArrangeCellCommand}" />
+                        <MenuItem Header="Paste tr_ack" Command="{Binding PasteTrackCommand}" />
+                        <MenuItem Header="Clear arrange cell" Command="{Binding ClearArrangeCellCommand}" />
                     </MenuItem>
                     <MenuItem Header="_Functions">
                         <MenuItem Header="_Start" Command="{Binding PlayCommand}" />
