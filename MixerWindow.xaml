@@ -359,6 +359,9 @@
                     <Border Margin="4,0,4,0" Background="#151618" CornerRadius="2" BorderBrush="#595959" BorderThickness="0,0,1,1">
                         <ItemsControl ItemsSource="{Binding MasterTrack.Effects}" ItemTemplate="{StaticResource InsertTemplate}" Tag="{Binding MasterTrack}" />
                     </Border>
+                    <!-- Under the inserts, a LED spectrum analyser of what goes out to the audio output. -->
+                    <local:SpectrumAnalyzer Grid.Row="1" Source="{Binding}" Margin="4,6,4,0" MinHeight="40" MaxHeight="150" VerticalAlignment="Top"
+                                            ToolTip="The spectrum of what goes out to the audio output, from 31.5 Hz to 16 kHz" />
                 </Grid>
             </DockPanel>
         </Border>

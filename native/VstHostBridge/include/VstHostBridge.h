@@ -178,6 +178,11 @@ VSTHOSTBRIDGE_API void VstHostBridge_SetClipPlayback(void* moduleHandle, int32_t
 // 0 to 1) whatever gain it plays at.
 VSTHOSTBRIDGE_API void VstHostBridge_SetClipMonitor(void* moduleHandle, int32_t monitorOnly, float meterPeak);
 
+// Copies the last count samples (at most 8192) that went out to the audio output, both sides averaged, the
+// latest last, for a spectrum analyser; sets outSampleRate to their rate. Returns how many were copied, 0
+// before any sound has gone out or when none has since the last call.
+VSTHOSTBRIDGE_API int VstHostBridge_ReadOutputScope(float* buffer, int32_t count, double* outSampleRate);
+
 // Records the mix as it goes out to the audio output, from now on, for exporting the song: at most maxSeconds.
 // Returns 1 when recording.
 VSTHOSTBRIDGE_API int VstHostBridge_StartMixCapture(double maxSeconds);

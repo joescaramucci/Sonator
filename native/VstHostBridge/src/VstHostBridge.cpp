@@ -1508,6 +1508,27 @@ namespace
     std::vector<float> g_monitorRight;
     float g_monitorMeterPeak = 0.0f;
 
+    // The last moments of what goes out to the audio output, both sides together, for the master's spectrum
+    // analyser: a ring the audio thread writes and VstHostBridge_ReadOutputScope copies from. A copy taken
+    // while a block is being written may mix two blocks, which a picture of the sound does not mind.
+    constexpr int ScopeLength = 8192;
+    float g_scope[ScopeLength] = {};
+    std::atomic<uint32_t> g_scopeWritten{0};
+    std::atomic<uint32_t> g_scopeLastRead{0};
+    std::atomic<double> g_scopeSampleRate{0.0};
+
+    void WriteScope(const float* left, const float* right, int32 frames, double sampleRate)
+    {
+        auto written = g_scopeWritten.load(std::memory_order_relaxed);
+        for (int32 i = 0; i < frames; ++i)
+        {
+            g_scope[written % ScopeLength] = 0.5f * (left[i] + right[i]);
+            ++written;
+        }
+        g_scopeSampleRate.store(sampleRate, std::memory_order_relaxed);
+        g_scopeWritten.store(written, std::memory_order_release);
+    }
+
     void ApplyMasterEffects(float* left, float* right, int32 frames, double sampleRate)
     {
         std::shared_ptr<son::EffectChain> chain;
@@ -1603,6 +1624,7 @@ namespace
             left[i] += g_monitorLeft[static_cast<size_t>(i)];
             right[i] += g_monitorRight[static_cast<size_t>(i)];
         }
+        WriteScope(left, right, frames, sampleRate);
     }
 
     void MixVoicesInto(float* left, float* right, int32 frames, double sampleRate)
@@ -2339,6 +2361,34 @@ void* VstHostBridge_CreateClipModule(const float* interleaved, int32_t frames, i
     module->clipSampleRate = sampleRate;
     module->clipStartSeconds = startSeconds > 0.0 ? startSeconds : 0.0;
     return module;
+}
+
+int VstHostBridge_ReadOutputScope(float* buffer, int32_t count, double* outSampleRate)
+{
+    if (buffer == nullptr || count <= 0)
+    {
+        return 0;
+    }
+
+    // Nothing new since the last read, as when the output has stopped: the analyser falls back.
+    const auto written = g_scopeWritten.load(std::memory_order_acquire);
+    if (g_scopeLastRead.exchange(written) == written)
+    {
+        return 0;
+    }
+
+    const int32_t available = static_cast<int32_t>(std::min<uint32_t>(written, static_cast<uint32_t>(ScopeLength)));
+    const int32_t copied = std::min(count, available);
+    for (int32_t i = 0; i < copied; ++i)
+    {
+        buffer[i] = g_scope[(written - static_cast<uint32_t>(copied) + static_cast<uint32_t>(i)) % ScopeLength];
+    }
+
+    if (outSampleRate != nullptr)
+    {
+        *outSampleRate = g_scopeSampleRate.load(std::memory_order_relaxed);
+    }
+    return copied;
 }
 
 void VstHostBridge_SetClipMonitor(void* moduleHandle, int32_t monitorOnly, float meterPeak)

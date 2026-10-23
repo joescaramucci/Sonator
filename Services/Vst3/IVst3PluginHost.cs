@@ -187,6 +187,13 @@ public interface IVst3PluginHost
     void SetClipMonitor(Vst3ModuleHandle handle, bool monitorOnly, double meterPeak);
 
     /// <summary>
+    /// Fills buffer with the last samples that went out to the audio output, both sides averaged, the latest
+    /// last, for the master's spectrum analyser. Returns how many it filled: 0 when no sound has gone out
+    /// since the last call.
+    /// </summary>
+    int ReadOutputScope(float[] buffer, out double sampleRate);
+
+    /// <summary>
     /// The plug-in's state (the sound and settings chosen in it), to save with the project: part 0 is the
     /// processor's, part 1 the editor's. Null when the plug-in has none to give.
     /// </summary>

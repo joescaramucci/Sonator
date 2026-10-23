@@ -25,7 +25,7 @@ public sealed record CountInOption(int Bars, string Label);
 
 public sealed record ClickOption(int ClicksPerBeat, string Label);
 
-public sealed class MainViewModel : ViewModelBase, IDisposable
+public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
 {
     private const int ArrangementPatternLength = 8;
     public const double TimelineTrackHeaderWidth = 260;
@@ -4715,6 +4715,23 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         IsMasterClippingRight = now < _clipRightUntil;
         MasterLevelLeft = Math.Max(Math.Max(TrackEffectViewModel.ToMeter(_masterPeakLeft), _masterLevelLeft - MasterMeterFall), MasterSignalLevel);
         MasterLevelRight = Math.Max(Math.Max(TrackEffectViewModel.ToMeter(_masterPeakRight), _masterLevelRight - MasterMeterFall), MasterSignalLevel);
+    }
+
+    // ---- The master's spectrum analyser ----
+
+    private readonly SpectrumAnalysis _spectrum = new();
+    private readonly float[] _scope = new float[SpectrumAnalysis.Size];
+
+    // What goes out to the audio output, as the master's LED analyser shows it: each band's level in dBFS.
+    public bool ReadSpectrum(double[] levelsDb)
+    {
+        if (_liveInstrumentHost.ReadOutputScope(_scope, out var sampleRate) < _scope.Length || sampleRate <= 0)
+        {
+            return false;
+        }
+
+        _spectrum.Analyse(_scope, sampleRate, levelsDb);
+        return true;
     }
 
     // ---- The master's oscillator ----

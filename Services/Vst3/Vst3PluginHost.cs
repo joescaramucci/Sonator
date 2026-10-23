@@ -429,6 +429,26 @@ public sealed class Vst3PluginHost : IVst3PluginHost
         }
     }
 
+    public int ReadOutputScope(float[] buffer, out double sampleRate)
+    {
+        ArgumentNullException.ThrowIfNull(buffer);
+
+        sampleRate = 0;
+        if (!IsNativeBridgeAvailable)
+        {
+            return 0;
+        }
+
+        try
+        {
+            return Vst3HostInterop.VstHostBridge_ReadOutputScope(buffer, buffer.Length, out sampleRate);
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            return 0;
+        }
+    }
+
     public byte[]? TrySaveState(Vst3ModuleHandle handle, int part)
     {
         ArgumentNullException.ThrowIfNull(handle);

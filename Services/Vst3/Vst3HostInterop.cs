@@ -166,6 +166,9 @@ internal static class Vst3HostInterop
     internal static extern void VstHostBridge_SetClipMonitor(IntPtr moduleHandle, int monitorOnly, float meterPeak);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int VstHostBridge_ReadOutputScope(float[] buffer, int count, out double sampleRate);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int VstHostBridge_SaveState(IntPtr moduleHandle, int part);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
