@@ -56,15 +56,15 @@ public static class HelpTexts
         }),
         ["Tempo"] = new("Tempo", new[]
         {
-            "The song's speed, in beats per minute: click to type another. Track > Detect tempo finds it from an audio clip.",
+            "The song's speed, in beats per minute. Double-click to type a value (1 to 999), then Enter or click away; the mouse wheel moves it by 1 BPM, with Shift by 0.1. Track > Detect tempo finds it from an audio clip.",
         }),
         ["Metronome"] = new("Metronome", new[]
         {
-            "ON plays the click while the song plays; CLICK tries it. ALWAYS clicks all along, or only during the count-in before recording. Below, how often it clicks and how many bars of count-in come before a recording.",
+            "ON plays the click while the song plays; CLICK starts or stops a click on its own, to try it. ALWAYS clicks all along under the song; pressed, it becomes COUNT-IN, which only counts you in before recording, then goes quiet. Below, whether it clicks on quarters or eighths, and how many bars of count-in come before a recording: press each to change it.",
         }),
         ["Signature"] = new("Time signature", new[]
         {
-            "How many beats a bar has: click to choose 4/4, 3/4 or any other.",
+            "How many beats a bar has: click to choose 4/4, 3/4 or any other; the mouse wheel changes the beats per bar.",
         }),
         ["Clock"] = new("Position", new[]
         {
