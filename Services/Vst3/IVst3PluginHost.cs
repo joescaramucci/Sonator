@@ -199,6 +199,25 @@ public interface IVst3PluginHost
     /// </summary>
     int ReadOutputScope(float[] buffer, out double sampleRate);
 
+    // ---- Recording from the ASIO driver's input 1, while the ASIO output runs ----
+
+    /// <summary>Where the input is now: the number of samples that have come in since the start.</summary>
+    ulong GetInputPosition();
+
+    /// <summary>
+    /// Copies the input's samples from position on into buffer, moves position past them, and returns how many
+    /// it copied; lostFrames says how many were lost for being read too late.
+    /// </summary>
+    int ReadInput(float[] buffer, ref ulong position, out double sampleRate, out int lostFrames);
+
+    /// <summary>The loudest input sample since the last call.</summary>
+    double TakeInputPeak();
+
+    /// <summary>
+    /// Whether an ASIO output runs, and then whether it has its input 1 and the driver's latencies in frames.
+    /// </summary>
+    bool TryGetAsioInputState(out bool hasInput, out int inputLatencyFrames, out int outputLatencyFrames);
+
     /// <summary>
     /// The plug-in's state (the sound and settings chosen in it), to save with the project: part 0 is the
     /// processor's, part 1 the editor's. Null when the plug-in has none to give.

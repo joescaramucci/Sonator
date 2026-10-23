@@ -250,6 +250,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         AudioOutputDeviceService? audioOutputDeviceService = null)
     {
         _trackEffects = new TrackEffectsHost(_liveInstrumentHost);
+        _inputRecorder = new AudioInputRecorder(_liveInstrumentHost, () => AudioOutputSelection.FromSettings(new AppSettingsService().Load()));
         _trackInstruments = new TrackInstrumentsHost(_liveInstrumentHost, track => _trackEffects.ChainFor(track));
         _trackEffects.UseAsMaster(MasterTrack);
         _engine = engine ?? new SequencerEngine();
@@ -2325,6 +2326,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
     public void Dispose()
     {
         _autosaveTimer.Stop();
+        _inputRecorder.Dispose();
         StopTone();
         StopPreview();
         _audioMeterTimer.Stop();
@@ -3201,18 +3203,104 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         IsRecording = recording;
     }
 
-    // Arming a track turns recording on; recording stops when no track is armed.
+    // Arming a track turns recording on; recording stops when no track is armed. An audio track records from
+    // the sound card's input: arming it opens the input, whose level then shows on the track's meter; one
+    // audio track is armed at a time.
     private void ToggleTrackRecordArm(PatternTrackViewModel? track)
     {
-        if (track is null || !track.SupportsMidiPlayback)
+        if (track is null)
         {
-            StatusMessage = "Only MIDI tracks can be armed for recording.";
             return;
+        }
+
+        var isAudio = track.TrackType == PatternTrackType.AudioInput;
+        if (isAudio && !track.IsRecordArmed)
+        {
+            foreach (var other in Tracks.Where(item => item.IsRecordArmed && item.TrackType == PatternTrackType.AudioInput))
+            {
+                other.IsRecordArmed = false;
+            }
         }
 
         track.IsRecordArmed = !track.IsRecordArmed;
         SetRecording(Tracks.Any(item => item.IsRecordArmed));
         StatusMessage = track.IsRecordArmed ? $"{track.Name} armed for recording" : $"{track.Name} disarmed";
+        if (isAudio)
+        {
+            UpdateInputArming();
+        }
+    }
+
+    // ---- Recording an audio track from the sound card's input ----
+
+    private readonly AudioInputRecorder _inputRecorder;
+
+    // The audio track armed to record, when there is one.
+    private PatternTrackViewModel? AudioRecordTarget =>
+        Tracks.FirstOrDefault(item => item.IsRecordArmed && item.TrackType == PatternTrackType.AudioInput);
+
+    // The input is open while an audio track is armed.
+    private void UpdateInputArming()
+    {
+        if (AudioRecordTarget is { } track)
+        {
+            _inputRecorder.Arm();
+            if (_inputRecorder.Problem is { } problem)
+            {
+                StatusMessage = $"{track.Name}: {problem}";
+            }
+            else if (_inputRecorder.IsArmed)
+            {
+                StatusMessage = $"{track.Name} armed: it records from the input {(AudioOutputSelection.FromSettings(new AppSettingsService().Load()).UseAsio ? "1 of the ASIO driver" : "Windows uses by default")} when RECORD and START are on";
+            }
+        }
+        else
+        {
+            _inputRecorder.Disarm();
+        }
+    }
+
+    // A take starts with playback, while recording, when an audio track is armed.
+    private void BeginAudioTake()
+    {
+        if (IsRecording && AudioRecordTarget is not null && _inputRecorder.IsArmed)
+        {
+            _inputRecorder.StartTake();
+        }
+    }
+
+    // When playback stops, the take becomes the armed track's clip, where playback had started; one undo
+    // brings back the clip the track had. False when nothing was recorded.
+    private bool FinishAudioTake()
+    {
+        if (!_inputRecorder.IsRecording)
+        {
+            return false;
+        }
+
+        var clip = _inputRecorder.EndTake();
+        if (clip is null || AudioRecordTarget is not { } track)
+        {
+            return false;
+        }
+
+        if (!_recordTakeHasNotes)
+        {
+            CaptureUndoStateIfNeeded();
+            _recordTakeHasNotes = true;
+        }
+
+        var path = AudioClipLoader.SaveToLibrary(clip);
+        _decodedClips[path] = clip;
+        _audioWaveforms[path] = AudioWaveformSummary.FromClip(clip);
+        track.AudioClipPath = path;
+        track.AudioClipStartStep = _playbackStartStep;
+        track.Instrument = "Audio clip";
+        LengthenPatternForClip(track);
+        RebuildTimeline();
+        StatusMessage = $"{track.Name}: recorded {clip.Duration.TotalSeconds:0.0} s from bar {_playbackStartStep / StepsPerBar + 1}"
+            + (_inputRecorder.Problem is { } problem ? $" ({problem})" : string.Empty);
+        return true;
     }
 
     // While recording, a key played becomes a note of the selected track: it starts at the playhead and lasts until it is released.
@@ -3738,7 +3826,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         var selection = AudioOutputSelection.FromSettings(new AppSettingsService().Load());
         var fallback = new List<(AudioClip Clip, NativeEffectChain? Effects)>();
         // Muted and unsoloed clips start too, silent, so they come in when unmuted or soloed while playing.
-        foreach (var track in Tracks.Where(track => !string.IsNullOrEmpty(track.AudioClipPath)))
+        // The clip of the track about to be recorded on is not played under the new take.
+        var recording = IsRecording && _inputRecorder.IsArmed ? AudioRecordTarget : null;
+        foreach (var track in Tracks.Where(track => !string.IsNullOrEmpty(track.AudioClipPath) && !ReferenceEquals(track, recording)))
         {
             AudioClip clip;
             try
@@ -4133,7 +4223,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         {
             IsPlaying = true;
             StatusMessage = $"Count-in: {SelectedCountIn.Bars} bar(s)";
-            _ = _engine.StartAfterCountInAsync(SelectedCountIn.Bars, StartAudioTracks);
+            _ = _engine.StartAfterCountInAsync(SelectedCountIn.Bars, () =>
+            {
+                StartAudioTracks();
+                BeginAudioTake();
+            });
             return;
         }
 
@@ -4144,25 +4238,36 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         }
 
         StartAudioTracks();
+        BeginAudioTake();
         _engine.Start();
         IsPlaying = true;
-        StatusMessage = "Playback started";
+        StatusMessage = _inputRecorder.IsRecording ? $"Recording {AudioRecordTarget?.Name}..." : "Playback started";
     }
 
     private void StopPlayback()
     {
         var stopPosition = _engine.LivePosition;
+        var audioTake = FinishAudioTake();
         var recordedTake = _recordTakeHasNotes || _recordingNotes.Count > 0;
         StopAudioTracks();
         _engine.Stop();
         ReleaseAllPluginNotes();
         RaisePropertyChanged(nameof(IsClickLoopRunning));
         IsPlaying = false;
-        StatusMessage = "Playback paused";
+        if (!audioTake)
+        {
+            StatusMessage = "Playback paused";
+        }
+
         if (recordedTake)
         {
+            var takeMessage = StatusMessage;
             FinishRecordingTake(stopPosition);
             SeekToStep(_playbackStartStep); // back to where the take began, ready to listen to it
+            if (audioTake)
+            {
+                StatusMessage = takeMessage;
+            }
         }
     }
 
@@ -4961,6 +5066,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
 
         (MasterPeakLeft, MasterPeakRight) = _trackEffects.TakeMasterPeaks();
         ShowMasterLevels();
+
+        // The armed audio track's meter shows what comes in; a take collects it as it comes.
+        if (_inputRecorder.IsArmed && AudioRecordTarget is { } armed)
+        {
+            _inputRecorder.Collect();
+            TrackMeterCalculator.ShowAudioLevel(armed, _inputRecorder.PeakSinceLastAsked());
+        }
     }
 
     private double _masterPeakLeft;

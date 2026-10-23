@@ -448,6 +448,73 @@ public sealed class Vst3PluginHost : IVst3PluginHost
         }
     }
 
+    public ulong GetInputPosition() => CallBridge(() => Vst3HostInterop.VstHostBridge_GetInputPosition(), 0UL);
+
+    public int ReadInput(float[] buffer, ref ulong position, out double sampleRate, out int lostFrames)
+    {
+        ArgumentNullException.ThrowIfNull(buffer);
+        sampleRate = 0;
+        lostFrames = 0;
+        if (!IsNativeBridgeAvailable)
+        {
+            return 0;
+        }
+
+        try
+        {
+            return Vst3HostInterop.VstHostBridge_ReadInput(buffer, buffer.Length, ref position, out sampleRate, out lostFrames);
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            return 0;
+        }
+    }
+
+    public double TakeInputPeak() => CallBridge(() => (double)Vst3HostInterop.VstHostBridge_TakeInputPeak(), 0.0);
+
+    public bool TryGetAsioInputState(out bool hasInput, out int inputLatencyFrames, out int outputLatencyFrames)
+    {
+        hasInput = false;
+        inputLatencyFrames = 0;
+        outputLatencyFrames = 0;
+        if (!IsNativeBridgeAvailable)
+        {
+            return false;
+        }
+
+        try
+        {
+            if (Vst3HostInterop.VstHostBridge_GetAsioInputState(out var input, out inputLatencyFrames, out outputLatencyFrames) == 0)
+            {
+                return false;
+            }
+
+            hasInput = input != 0;
+            return true;
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            return false;
+        }
+    }
+
+    private T CallBridge<T>(Func<T> call, T fallback)
+    {
+        if (!IsNativeBridgeAvailable)
+        {
+            return fallback;
+        }
+
+        try
+        {
+            return call();
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            return fallback;
+        }
+    }
+
     public int ReadOutputScope(float[] buffer, out double sampleRate)
     {
         ArgumentNullException.ThrowIfNull(buffer);

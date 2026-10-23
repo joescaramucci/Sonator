@@ -172,6 +172,18 @@ internal static class Vst3HostInterop
     internal static extern int VstHostBridge_ReadOutputScope(float[] buffer, int count, out double sampleRate);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern ulong VstHostBridge_GetInputPosition();
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int VstHostBridge_ReadInput(float[] buffer, int capacity, ref ulong position, out double sampleRate, out int lostFrames);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern float VstHostBridge_TakeInputPeak();
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int VstHostBridge_GetAsioInputState(out int hasInput, out int inputLatencyFrames, out int outputLatencyFrames);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int VstHostBridge_SaveState(IntPtr moduleHandle, int part);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]

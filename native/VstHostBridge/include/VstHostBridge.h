@@ -187,6 +187,20 @@ VSTHOSTBRIDGE_API void VstHostBridge_SetClipMonitor(void* moduleHandle, int32_t 
 // before any sound has gone out or when none has since the last call.
 VSTHOSTBRIDGE_API int VstHostBridge_ReadOutputScope(float* buffer, int32_t count, double* outSampleRate);
 
+// Recording from the ASIO driver's input 1, while the ASIO output runs. Every sample that comes in is numbered
+// from the start; GetInputPosition says where the input is now, and ReadInput copies up to capacity samples
+// from *inOutPosition on, moves it past them, sets the input's rate and how many samples were lost for being
+// read too late (about 90 s are kept), and returns how many it copied.
+VSTHOSTBRIDGE_API uint64_t VstHostBridge_GetInputPosition(void);
+VSTHOSTBRIDGE_API int VstHostBridge_ReadInput(float* buffer, int32_t capacity, uint64_t* inOutPosition, double* outSampleRate, int32_t* outLostFrames);
+
+// The loudest input sample since the last call, for the armed track's meter.
+VSTHOSTBRIDGE_API float VstHostBridge_TakeInputPeak(void);
+
+// Whether the running ASIO output has its input 1, and the driver's input and output latencies in frames.
+// Returns 0 when no ASIO output runs.
+VSTHOSTBRIDGE_API int VstHostBridge_GetAsioInputState(int32_t* outHasInput, int32_t* outInputLatencyFrames, int32_t* outOutputLatencyFrames);
+
 // Records the mix as it goes out to the audio output, from now on, for exporting the song: at most maxSeconds.
 // Returns 1 when recording.
 VSTHOSTBRIDGE_API int VstHostBridge_StartMixCapture(double maxSeconds);

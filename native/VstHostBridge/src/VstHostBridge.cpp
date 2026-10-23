@@ -1535,6 +1535,34 @@ namespace
     std::atomic<uint32_t> g_scopeLastRead{0};
     std::atomic<double> g_scopeSampleRate{0.0};
 
+    // What comes in on the ASIO driver's input 1, for recording an audio track: a ring the audio thread writes
+    // and VstHostBridge_ReadInput copies from, each sample numbered from the start (g_inputWritten counts them
+    // all), with the loudest sample since VstHostBridge_TakeInputPeak last asked, for the armed track's meter.
+    constexpr uint32_t InputRingLength = 1u << 22; // about a minute and a half at 48 kHz, read ten times a second
+    std::vector<float> g_inputRing(InputRingLength);
+    std::atomic<uint64_t> g_inputWritten{0};
+    std::atomic<double> g_inputSampleRate{0.0};
+    std::atomic<float> g_inputPeak{0.0f};
+
+    void WriteInput(const float* samples, long frames, double sampleRate)
+    {
+        auto written = g_inputWritten.load(std::memory_order_relaxed);
+        float peak = 0.0f;
+        for (long i = 0; i < frames; ++i)
+        {
+            g_inputRing[static_cast<size_t>(written % InputRingLength)] = samples[i];
+            peak = (std::max)(peak, std::fabs(samples[i]));
+            ++written;
+        }
+
+        g_inputSampleRate.store(sampleRate, std::memory_order_relaxed);
+        g_inputWritten.store(written, std::memory_order_release);
+        float previous = g_inputPeak.load(std::memory_order_relaxed);
+        while (peak > previous && !g_inputPeak.compare_exchange_weak(previous, peak))
+        {
+        }
+    }
+
     void WriteScope(const float* left, const float* right, int32 frames, double sampleRate)
     {
         auto written = g_scopeWritten.load(std::memory_order_relaxed);
@@ -1728,6 +1756,7 @@ namespace
         // ASIO timing, set once the driver's buffers exist and cleared when the engine stops.
         std::atomic<long> asioBufferFrames{0};
         std::atomic<long> asioOutputLatencyFrames{0};
+        std::atomic<long> asioInputLatencyFrames{0};
         std::atomic<double> asioSampleRate{0.0};
         std::atomic<bool> asioHasInput{false};
 
@@ -2379,6 +2408,75 @@ void* VstHostBridge_CreateClipModule(const float* interleaved, int32_t frames, i
     module->clipSampleRate = sampleRate;
     module->clipStartSeconds = std::isfinite(startSeconds) ? startSeconds : 0.0; // negative: the clip starts that much later
     return module;
+}
+
+uint64_t VstHostBridge_GetInputPosition(void)
+{
+    return g_inputWritten.load(std::memory_order_acquire);
+}
+
+int VstHostBridge_ReadInput(float* buffer, int32_t capacity, uint64_t* inOutPosition, double* outSampleRate, int32_t* outLostFrames)
+{
+    if (buffer == nullptr || capacity <= 0 || inOutPosition == nullptr)
+    {
+        return 0;
+    }
+
+    const auto written = g_inputWritten.load(std::memory_order_acquire);
+    auto position = *inOutPosition;
+    int32_t lost = 0;
+    if (written > position + InputRingLength)
+    {
+        // Read too late: what was overwritten is lost; go on from the oldest sample still there.
+        lost = static_cast<int32_t>((std::min)(written - InputRingLength - position, static_cast<uint64_t>(INT32_MAX)));
+        position = written - InputRingLength;
+    }
+
+    const auto available = written > position ? written - position : 0;
+    const auto count = static_cast<int32_t>((std::min)(available, static_cast<uint64_t>(capacity)));
+    for (int32_t i = 0; i < count; ++i)
+    {
+        buffer[i] = g_inputRing[static_cast<size_t>((position + static_cast<uint64_t>(i)) % InputRingLength)];
+    }
+
+    *inOutPosition = position + static_cast<uint64_t>(count);
+    if (outSampleRate != nullptr)
+    {
+        *outSampleRate = g_inputSampleRate.load(std::memory_order_relaxed);
+    }
+    if (outLostFrames != nullptr)
+    {
+        *outLostFrames = lost;
+    }
+    return count;
+}
+
+float VstHostBridge_TakeInputPeak(void)
+{
+    return g_inputPeak.exchange(0.0f);
+}
+
+int VstHostBridge_GetAsioInputState(int32_t* outHasInput, int32_t* outInputLatencyFrames, int32_t* outOutputLatencyFrames)
+{
+    auto* engine = g_engine;
+    if (engine == nullptr || !engine->useAsio || engine->asioBufferFrames.load() == 0)
+    {
+        return 0;
+    }
+
+    if (outHasInput != nullptr)
+    {
+        *outHasInput = engine->asioHasInput.load() ? 1 : 0;
+    }
+    if (outInputLatencyFrames != nullptr)
+    {
+        *outInputLatencyFrames = static_cast<int32_t>(engine->asioInputLatencyFrames.load());
+    }
+    if (outOutputLatencyFrames != nullptr)
+    {
+        *outOutputLatencyFrames = static_cast<int32_t>(engine->asioOutputLatencyFrames.load());
+    }
+    return 1;
 }
 
 int VstHostBridge_ReadOutputScope(float* buffer, int32_t count, double* outSampleRate)
@@ -3324,6 +3422,11 @@ namespace
                 session->clickFrame = -1;
                 session->detectedFrame = -1;
             }
+
+            // Input 1 goes to the recording ring too, for an audio track armed to record.
+            ReadFloatSamples(session->bufferInfos[static_cast<size_t>(session->deviceChannels)].buffers[doubleBufferIndex],
+                session->inputScratch.data(), session->bufferSize, session->inputSampleType);
+            WriteInput(session->inputScratch.data(), session->bufferSize, session->sampleRate);
         }
 
         for (int32 devCh = 0; devCh < session->deviceChannels; ++devCh)
@@ -3570,6 +3673,7 @@ namespace
                             if (driver->getLatencies(&inputLatency, &outputLatency) == ASE_OK)
                             {
                                 engine->asioOutputLatencyFrames = outputLatency;
+                                engine->asioInputLatencyFrames = inputLatency;
                             }
                             engine->asioBufferFrames = session.bufferSize;
                             engine->asioSampleRate = sampleRate;
@@ -3607,6 +3711,7 @@ namespace
         g_asioSession.compare_exchange_strong(owned, nullptr);
         engine->asioBufferFrames = 0;
         engine->asioOutputLatencyFrames = 0;
+        engine->asioInputLatencyFrames = 0;
         engine->asioSampleRate = 0.0;
         if (buffersCreated)
         {
