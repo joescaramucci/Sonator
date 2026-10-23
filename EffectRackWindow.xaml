@@ -108,7 +108,7 @@
 
     <DockPanel Margin="14,10,14,14">
         <!-- The rack's title, and + ADD to put another effect at the bottom of it. -->
-        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,10,10"><!-- room on the right for the help's "?" -->
             <Button DockPanel.Dock="Right" Style="{StaticResource RackButton}" Content="+ ADD" Click="Add_Click"
                     AutomationProperties.Name="ADD EFFECT" ToolTip="Add an effect at the bottom of the rack" />
             <Border Margin="0,0,12,0" Padding="12,5" CornerRadius="2" Background="{StaticResource NamePlate}" BorderBrush="#5C5C5C" BorderThickness="1">
