@@ -4,16 +4,16 @@
         Title="Instrument icon"
         Width="560"
         SizeToContent="Height"
-        Background="#1B2330"
-        Foreground="#C4CFDA"
+        Background="#28292B"
+        Foreground="#D2D3D5"
         FontFamily="Consolas"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         ShowInTaskbar="False">
     <Window.Resources>
         <Style x:Key="DialogButton" TargetType="Button">
-            <Setter Property="Background" Value="#2A3948" />
-            <Setter Property="Foreground" Value="#C4CFDA" />
+            <Setter Property="Background" Value="#3D3E40" />
+            <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="BorderBrush" Value="#5C7A99" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Height" Value="26" />
@@ -23,7 +23,7 @@
             <Setter Property="Template" Value="{StaticResource Raised3D}" />
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#354D69" />
+                    <Setter Property="Background" Value="#555658" />
                     <Setter Property="BorderBrush" Value="#7EB2FF" />
                 </Trigger>
             </Style.Triggers>
@@ -33,16 +33,16 @@
             <Setter Property="Width" Value="76" />
             <Setter Property="Height" Value="72" />
             <Setter Property="Margin" Value="3" />
-            <Setter Property="Background" Value="#212D3A" />
-            <Setter Property="BorderBrush" Value="#3A4D63" />
-            <Setter Property="Foreground" Value="#D6E1EC" />
+            <Setter Property="Background" Value="#303133" />
+            <Setter Property="BorderBrush" Value="#535456" />
+            <Setter Property="Foreground" Value="#E4E5E7" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding IsCurrent}" Value="True">
                     <Setter Property="BorderBrush" Value="#E6C45B" />
                     <Setter Property="BorderThickness" Value="2" />
                 </DataTrigger>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#354D69" />
+                    <Setter Property="Background" Value="#555658" />
                     <Setter Property="Foreground" Value="#FFFFFF" />
                 </Trigger>
             </Style.Triggers>

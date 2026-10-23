@@ -4,15 +4,15 @@
         Title="ASIO driver settings"
         Width="480"
         Height="340"
-        Background="#1B2330"
-        Foreground="#C4CFDA"
+        Background="#28292B"
+        Foreground="#D2D3D5"
         FontFamily="Consolas"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         ShowInTaskbar="False">
     <Window.Resources>
         <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#C4CFDA" />
+            <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="FontFamily" Value="Consolas" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
@@ -20,8 +20,8 @@
             <Setter Property="Margin" Value="0,4,0,12" />
         </Style>
         <Style TargetType="Button">
-            <Setter Property="Background" Value="#212D3A" />
-            <Setter Property="Foreground" Value="#C4CFDA" />
+            <Setter Property="Background" Value="#303133" />
+            <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="BorderBrush" Value="#607A96" />
             <Setter Property="FontFamily" Value="Consolas" />
             <Setter Property="FontWeight" Value="SemiBold" />

@@ -7,20 +7,20 @@
         Height="680"
         MinWidth="700"
         MinHeight="400"
-        Background="#1B2330"
-        Foreground="#C4CFDA"
+        Background="#28292B"
+        Foreground="#D2D3D5"
         FontFamily="Consolas"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False">
     <Window.Resources>
         <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#C4CFDA" />
+            <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="FontFamily" Value="Consolas" />
             <Setter Property="FontSize" Value="12" />
         </Style>
         <Style TargetType="Button">
-            <Setter Property="Background" Value="#2A3948" />
-            <Setter Property="Foreground" Value="#C4CFDA" />
+            <Setter Property="Background" Value="#3D3E40" />
+            <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="BorderBrush" Value="#5C7A99" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Height" Value="28" />
@@ -30,7 +30,7 @@
             <Setter Property="Template" Value="{StaticResource Raised3D}" />
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#354D69" />
+                    <Setter Property="Background" Value="#555658" />
                     <Setter Property="BorderBrush" Value="#7EB2FF" />
                 </Trigger>
                 <Trigger Property="IsEnabled" Value="False">
@@ -40,7 +40,7 @@
         </Style>
         <!-- Rows of the category and sound lists: dark, with the selection in the accent colour. -->
         <Style x:Key="DarkRow" TargetType="ListBoxItem">
-            <Setter Property="Foreground" Value="#C4CFDA" />
+            <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="Padding" Value="6,3" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="Template">
@@ -51,7 +51,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Row" Property="Background" Value="#263445" />
+                                <Setter TargetName="Row" Property="Background" Value="#393A3C" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="Row" Property="Background" Value="#2F5A7A" />
@@ -79,7 +79,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="local:SoundBrowserWindow.IsComingUp" Value="True">
-                                <Setter TargetName="Row" Property="Background" Value="#1E3040" />
+                                <Setter TargetName="Row" Property="Background" Value="#333436" />
                                 <Setter TargetName="Row" Property="BorderBrush" Value="#E6C45B" />
                             </Trigger>
                             <Trigger Property="local:SoundBrowserWindow.IsReady" Value="True">
@@ -89,7 +89,7 @@
                                 <Setter TargetName="FavoriteStar" Property="Visibility" Value="Visible" />
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Row" Property="Background" Value="#263445" />
+                                <Setter TargetName="Row" Property="Background" Value="#393A3C" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="Row" Property="Background" Value="#2F5A7A" />
@@ -104,16 +104,16 @@
     <DockPanel Margin="14,12">
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
             <StackPanel DockPanel.Dock="Left">
-                <TextBlock Text="SOUNDS" FontFamily="Segoe UI Semibold" FontSize="20" Foreground="#E8EEF4" />
-                <TextBlock x:Name="TargetText" Foreground="#7F93A8" FontSize="11" />
+                <TextBlock Text="SOUNDS" FontFamily="Segoe UI Semibold" FontSize="20" Foreground="#EFF0F2" />
+                <TextBlock x:Name="TargetText" Foreground="#98999B" FontSize="11" />
             </StackPanel>
-            <TextBlock x:Name="CountText" DockPanel.Dock="Right" VerticalAlignment="Bottom" Foreground="#7F93A8" FontSize="11" />
-            <Border Margin="24,4,16,0" Height="30" CornerRadius="5" Background="#0F1720" BorderBrush="#4C657F" BorderThickness="1" VerticalAlignment="Center">
+            <TextBlock x:Name="CountText" DockPanel.Dock="Right" VerticalAlignment="Bottom" Foreground="#98999B" FontSize="11" />
+            <Border Margin="24,4,16,0" Height="30" CornerRadius="5" Background="#1A1B1D" BorderBrush="#6C6D6F" BorderThickness="1" VerticalAlignment="Center">
                 <Grid>
                     <TextBox x:Name="SearchBox"
                              Background="Transparent"
-                             Foreground="#E8EEF4"
-                             CaretBrush="#E8EEF4"
+                             Foreground="#EFF0F2"
+                             CaretBrush="#EFF0F2"
                              BorderThickness="0"
                              FontSize="14"
                              Padding="8,4"
@@ -121,7 +121,7 @@
                              TextChanged="SearchBox_TextChanged"
                              PreviewKeyDown="SearchBox_PreviewKeyDown"
                              AutomationProperties.Name="SEARCH SOUNDS" />
-                    <TextBlock Text="Search: sax, violin, piano, warm pad, motown, ballad fill..." Margin="10,0" VerticalAlignment="Center" Foreground="#5F7286" IsHitTestVisible="False">
+                    <TextBlock Text="Search: sax, violin, piano, warm pad, motown, ballad fill..." Margin="10,0" VerticalAlignment="Center" Foreground="#77787A" IsHitTestVisible="False">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
                                 <Setter Property="Visibility" Value="Collapsed" />
@@ -147,8 +147,8 @@
                           ToolTip="Hear each sound as it is selected, with the arrows or a click. The sounds coming up are got ready ahead, lit in the list">
                 <ToggleButton.Style>
                     <Style TargetType="ToggleButton">
-                        <Setter Property="Background" Value="#2A3948" />
-                        <Setter Property="Foreground" Value="#C4CFDA" />
+                        <Setter Property="Background" Value="#3D3E40" />
+                        <Setter Property="Foreground" Value="#D2D3D5" />
                         <Setter Property="Template" Value="{StaticResource Raised3D}" />
                         <Style.Triggers>
                             <Trigger Property="IsChecked" Value="True">
@@ -159,7 +159,7 @@
                     </Style>
                 </ToggleButton.Style>
             </ToggleButton>
-            <TextBlock x:Name="StatusText" VerticalAlignment="Center" Foreground="#9FB4C9" TextTrimming="CharacterEllipsis" />
+            <TextBlock x:Name="StatusText" VerticalAlignment="Center" Foreground="#B9BABC" TextTrimming="CharacterEllipsis" />
         </DockPanel>
 
         <Grid>
@@ -169,7 +169,7 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <Border Background="#18212C" BorderBrush="#2E3F52" BorderThickness="1" CornerRadius="5">
+            <Border Background="#242527" BorderBrush="#444547" BorderThickness="1" CornerRadius="5">
                 <ListBox x:Name="CategoryList"
                          Background="Transparent"
                          BorderThickness="0"
@@ -180,7 +180,7 @@
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <DockPanel>
-                                <TextBlock DockPanel.Dock="Right" Text="{Binding Count}" Foreground="#7F93A8" />
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding Count}" Foreground="#98999B" />
                                 <TextBlock Text="{Binding Label}" FontSize="13" />
                             </DockPanel>
                         </DataTemplate>
@@ -188,7 +188,7 @@
                 </ListBox>
             </Border>
 
-            <Border Grid.Column="2" Background="#18212C" BorderBrush="#2E3F52" BorderThickness="1" CornerRadius="5">
+            <Border Grid.Column="2" Background="#242527" BorderBrush="#444547" BorderThickness="1" CornerRadius="5">
                 <DockPanel Margin="4">
                     <Grid x:Name="SortHeaders" DockPanel.Dock="Top" Margin="6,2,22,4">
                         <Grid.ColumnDefinitions>
@@ -198,11 +198,11 @@
                             <ColumnDefinition Width="1.5*" />
                             <ColumnDefinition Width="1.2*" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="NAME" Tag="Name" FontWeight="Bold" Foreground="#8FA6BD" Cursor="Hand" MouseLeftButtonDown="SortHeader_MouseLeftButtonDown" ToolTip="Sort by name, grouping the sounds; click again for the other way" />
-                        <TextBlock Grid.Column="1" Text="CATEGORY" Tag="Category" FontWeight="Bold" Foreground="#8FA6BD" Cursor="Hand" MouseLeftButtonDown="SortHeader_MouseLeftButtonDown" ToolTip="Sort by category, grouping the sounds; click again for the other way" />
-                        <TextBlock Grid.Column="2" Text="INSTRUMENT" Tag="Instrument" FontWeight="Bold" Foreground="#8FA6BD" Cursor="Hand" MouseLeftButtonDown="SortHeader_MouseLeftButtonDown" ToolTip="Sort by instrument, grouping the sounds; click again for the other way" />
-                        <TextBlock Grid.Column="3" Text="BANK" Tag="Bank" FontWeight="Bold" Foreground="#8FA6BD" Cursor="Hand" MouseLeftButtonDown="SortHeader_MouseLeftButtonDown" ToolTip="Sort by bank, grouping the sounds; click again for the other way" />
-                        <TextBlock Grid.Column="4" Text="DESIGNER" Tag="Designer" FontWeight="Bold" Foreground="#8FA6BD" Cursor="Hand" MouseLeftButtonDown="SortHeader_MouseLeftButtonDown" ToolTip="Sort by designer, grouping the sounds; click again for the other way" />
+                        <TextBlock Text="NAME" Tag="Name" FontWeight="Bold" Foreground="#ACADAF" Cursor="Hand" MouseLeftButtonDown="SortHeader_MouseLeftButtonDown" ToolTip="Sort by name, grouping the sounds; click again for the other way" />
+                        <TextBlock Grid.Column="1" Text="CATEGORY" Tag="Category" FontWeight="Bold" Foreground="#ACADAF" Cursor="Hand" MouseLeftButtonDown="SortHeader_MouseLeftButtonDown" ToolTip="Sort by category, grouping the sounds; click again for the other way" />
+                        <TextBlock Grid.Column="2" Text="INSTRUMENT" Tag="Instrument" FontWeight="Bold" Foreground="#ACADAF" Cursor="Hand" MouseLeftButtonDown="SortHeader_MouseLeftButtonDown" ToolTip="Sort by instrument, grouping the sounds; click again for the other way" />
+                        <TextBlock Grid.Column="3" Text="BANK" Tag="Bank" FontWeight="Bold" Foreground="#ACADAF" Cursor="Hand" MouseLeftButtonDown="SortHeader_MouseLeftButtonDown" ToolTip="Sort by bank, grouping the sounds; click again for the other way" />
+                        <TextBlock Grid.Column="4" Text="DESIGNER" Tag="Designer" FontWeight="Bold" Foreground="#ACADAF" Cursor="Hand" MouseLeftButtonDown="SortHeader_MouseLeftButtonDown" ToolTip="Sort by designer, grouping the sounds; click again for the other way" />
                     </Grid>
                     <ListBox x:Name="SoundList"
                              Background="Transparent"
@@ -228,11 +228,11 @@
                                         <ColumnDefinition Width="1.5*" />
                                         <ColumnDefinition Width="1.2*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#E8EEF4" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#EFF0F2" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
                                     <TextBlock Grid.Column="1" Text="{Binding Category}" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
                                     <TextBlock Grid.Column="2" Text="{Binding PluginName}" Foreground="#9FD3F2" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
-                                    <TextBlock Grid.Column="3" Text="{Binding Bank}" Foreground="#9FB4C9" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
-                                    <TextBlock Grid.Column="4" Text="{Binding Designer}" Foreground="#7F93A8" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="3" Text="{Binding Bank}" Foreground="#B9BABC" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
+                                    <TextBlock Grid.Column="4" Text="{Binding Designer}" Foreground="#98999B" TextTrimming="CharacterEllipsis" />
                                 </Grid>
                             </DataTemplate>
                         </ListBox.ItemTemplate>

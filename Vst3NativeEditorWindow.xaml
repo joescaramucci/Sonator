@@ -6,14 +6,14 @@
         Height="320"
         MinWidth="200"
         MinHeight="150"
-        Background="#1B2330"
+        Background="#28292B"
         WindowStartupLocation="CenterOwner"
         SizeToContent="Manual"
         ShowInTaskbar="False">
     <Grid>
         <ContentControl x:Name="EditorHostContainer" />
         <TextBlock x:Name="FallbackText"
-                   Foreground="#C4CFDA"
+                   Foreground="#D2D3D5"
                    FontFamily="Consolas"
                    FontSize="12"
                    TextWrapping="Wrap"

@@ -4,22 +4,22 @@
         Title="Time signature"
         Width="420"
         SizeToContent="Height"
-        Background="#1B2330"
-        Foreground="#C4CFDA"
+        Background="#28292B"
+        Foreground="#D2D3D5"
         FontFamily="Consolas"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         ShowInTaskbar="False">
     <Window.Resources>
         <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#C4CFDA" />
+            <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="FontFamily" Value="Consolas" />
             <Setter Property="FontSize" Value="12" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
         <Style TargetType="Button">
-            <Setter Property="Background" Value="#2A3948" />
-            <Setter Property="Foreground" Value="#C4CFDA" />
+            <Setter Property="Background" Value="#3D3E40" />
+            <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="BorderBrush" Value="#5C7A99" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Height" Value="28" />
@@ -30,7 +30,7 @@
             <Setter Property="Template" Value="{StaticResource Raised3D}" />
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#354D69" />
+                    <Setter Property="Background" Value="#555658" />
                     <Setter Property="BorderBrush" Value="#7EB2FF" />
                 </Trigger>
             </Style.Triggers>
@@ -58,7 +58,7 @@
             <ComboBox x:Name="NumeratorBox" Width="70" ItemsSource="{Binding Numerators}" AutomationProperties.Name="BEATS PER BAR" />
             <TextBlock Text="/" FontSize="18" FontWeight="Bold" Margin="10,0" />
             <ComboBox x:Name="DenominatorBox" Width="70" ItemsSource="{Binding Denominators}" AutomationProperties.Name="BEAT NOTE" />
-            <TextBlock Text="beats per bar / note of the beat" Foreground="#7F93A8" FontSize="11" Margin="12,0,0,0" />
+            <TextBlock Text="beats per bar / note of the beat" Foreground="#98999B" FontSize="11" Margin="12,0,0,0" />
         </StackPanel>
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">

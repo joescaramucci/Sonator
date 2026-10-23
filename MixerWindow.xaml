@@ -6,8 +6,8 @@
         Width="900"
         Height="700"
         MinHeight="560"
-        Background="#0E1114"
-        Foreground="#1C1F23"
+        Background="#121315"
+        Foreground="#202123"
         FontFamily="Arial"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False">
@@ -21,23 +21,23 @@
         <Style x:Key="Legend" TargetType="TextBlock">
             <Setter Property="FontSize" Value="7.5" />
             <Setter Property="FontWeight" Value="Bold" />
-            <Setter Property="Foreground" Value="#D6DADF" />
+            <Setter Property="Foreground" Value="#DCDDDF" />
             <Setter Property="HorizontalAlignment" Value="Center" />
         </Style>
 
         <!-- A cross-head screw holding the module in the frame. -->
         <DataTemplate x:Key="Screw">
             <Grid Width="7" Height="7" HorizontalAlignment="Center">
-                <Ellipse Stroke="#16181B" StrokeThickness="0.6">
+                <Ellipse Stroke="#191A1C" StrokeThickness="0.6">
                     <Ellipse.Fill>
                         <RadialGradientBrush GradientOrigin="0.3,0.3">
-                            <GradientStop Color="#B9BEC4" Offset="0" />
-                            <GradientStop Color="#4A5056" Offset="1" />
+                            <GradientStop Color="#C0C1C3" Offset="0" />
+                            <GradientStop Color="#515254" Offset="1" />
                         </RadialGradientBrush>
                     </Ellipse.Fill>
                 </Ellipse>
-                <Line X1="1.6" Y1="3.5" X2="5.4" Y2="3.5" Stroke="#202326" StrokeThickness="0.9" />
-                <Line X1="3.5" Y1="1.6" X2="3.5" Y2="5.4" Stroke="#202326" StrokeThickness="0.9" />
+                <Line X1="1.6" Y1="3.5" X2="5.4" Y2="3.5" Stroke="#242527" StrokeThickness="0.9" />
+                <Line X1="3.5" Y1="1.6" X2="3.5" Y2="5.4" Stroke="#242527" StrokeThickness="0.9" />
             </Grid>
         </DataTemplate>
 
@@ -53,8 +53,8 @@
             <Setter Property="Background">
                 <Setter.Value>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                        <GradientStop Color="#5B6168" Offset="0" />
-                        <GradientStop Color="#2C3035" Offset="1" />
+                        <GradientStop Color="#636466" Offset="0" />
+                        <GradientStop Color="#323335" Offset="1" />
                     </LinearGradientBrush>
                 </Setter.Value>
             </Setter>
@@ -63,20 +63,20 @@
 
         <!-- The fader's cap: grey with a white line across, as on the classic desks; the master's is red. -->
         <ControlTemplate x:Key="FaderCap" TargetType="Thumb">
-            <Border CornerRadius="2" BorderBrush="#0A0B0C" BorderThickness="1">
+            <Border CornerRadius="2" BorderBrush="#0B0C0E" BorderThickness="1">
                 <Border.Background>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                        <GradientStop Color="#8A9097" Offset="0" />
-                        <GradientStop Color="#3E4349" Offset="0.45" />
-                        <GradientStop Color="#2A2E33" Offset="0.55" />
-                        <GradientStop Color="#5A6067" Offset="1" />
+                        <GradientStop Color="#929395" Offset="0" />
+                        <GradientStop Color="#454648" Offset="0.45" />
+                        <GradientStop Color="#303133" Offset="0.55" />
+                        <GradientStop Color="#626365" Offset="1" />
                     </LinearGradientBrush>
                 </Border.Background>
                 <Rectangle Height="2" Fill="#F4F4F0" VerticalAlignment="Center" />
             </Border>
         </ControlTemplate>
         <ControlTemplate x:Key="MasterFaderCap" TargetType="Thumb">
-            <Border CornerRadius="2" BorderBrush="#0A0B0C" BorderThickness="1">
+            <Border CornerRadius="2" BorderBrush="#0B0C0E" BorderThickness="1">
                 <Border.Background>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
                         <GradientStop Color="#E0574E" Offset="0" />
@@ -101,7 +101,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Slider">
                         <Grid>
-                            <Border Width="5" Margin="0,10" CornerRadius="2" Background="#08090A" BorderBrush="#4E555D" BorderThickness="0,0,1,1" HorizontalAlignment="Center" />
+                            <Border Width="5" Margin="0,10" CornerRadius="2" Background="#090A0C" BorderBrush="#57585A" BorderThickness="0,0,1,1" HorizontalAlignment="Center" />
                             <Track x:Name="PART_Track" Orientation="Vertical" IsDirectionReversed="False">
                                 <Track.Thumb>
                                     <Thumb Height="26" Width="20" Cursor="SizeNS" Template="{StaticResource FaderCap}" />
@@ -117,7 +117,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Slider">
                         <Grid>
-                            <Border Width="5" Margin="0,10" CornerRadius="2" Background="#08090A" BorderBrush="#4E555D" BorderThickness="0,0,1,1" HorizontalAlignment="Center" />
+                            <Border Width="5" Margin="0,10" CornerRadius="2" Background="#090A0C" BorderBrush="#57585A" BorderThickness="0,0,1,1" HorizontalAlignment="Center" />
                             <Track x:Name="PART_Track" Orientation="Vertical" IsDirectionReversed="False">
                                 <Track.Thumb>
                                     <Thumb Height="26" Width="24" Cursor="SizeNS" Template="{StaticResource MasterFaderCap}" />
@@ -138,7 +138,7 @@
                         <Setter Property="Foreground" Value="#7FD4FF" />
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding IsEnabled}" Value="False">
-                                <Setter Property="Foreground" Value="#5A6B7D" />
+                                <Setter Property="Foreground" Value="#707173" />
                             </DataTrigger>
                             <DataTrigger Binding="{Binding IsPluginMissing}" Value="True">
                                 <Setter Property="Foreground" Value="#E6C45B" />
@@ -155,14 +155,14 @@
             <Setter Property="Margin" Value="0,0,2,0" />
             <Setter Property="CornerRadius" Value="2" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="#3C4147" />
+            <Setter Property="BorderBrush" Value="#434446" />
             <Setter Property="Background" Value="{x:Static local:BrushedMetal.Brush}" />
         </Style>
 
         <!-- A send, a knob with its bus's cap colour, and the bus's name under it. -->
         <DataTemplate x:Key="SendTemplate">
             <StackPanel Margin="0,0,0,2">
-                <local:Knob Width="30" Height="30" Look="Console" Accent="{Binding Cap}" DefaultPosition="0.75" Position="{Binding Level}">
+                <local:Knob ScaleBrush="#C8CDD2" Width="30" Height="30" Look="Console" Accent="{Binding Cap}" DefaultPosition="0.75" Position="{Binding Level}">
                     <local:Knob.ToolTip>
                         <TextBlock>
                             <Run Text="{Binding Bus.Name, Mode=OneWay}" /><Run Text=" send: " /><Run Text="{Binding LevelDisplay, Mode=OneWay}" />
@@ -185,7 +185,7 @@
                     <TextBlock Style="{StaticResource Legend}" Text="INSERT" Margin="0,4,0,1" />
                 </StackPanel>
                 <StackPanel DockPanel.Dock="Bottom">
-                    <Border Height="15" Margin="4,4,4,0" Background="#0C0F12" CornerRadius="2">
+                    <Border Height="15" Margin="4,4,4,0" Background="#101113" CornerRadius="2">
                         <TextBlock Text="{Binding MasterVolume, StringFormat={}{0:P0}}" FontFamily="Consolas" FontSize="9" Foreground="#FF8A3D"
                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
@@ -212,7 +212,7 @@
                     <local:VuMeter Label="L" Height="50" Margin="3,0" Peak="{Binding MasterPeakLeft}" ToolTip="Left: 0 VU is -18 dBFS" />
                     <local:VuMeter Label="R" Height="50" Margin="3,3,3,0" Peak="{Binding MasterPeakRight}" ToolTip="Right: 0 VU is -18 dBFS" />
                 </StackPanel>
-                    <Border Margin="4,0,4,0" Background="#111417" CornerRadius="2" BorderBrush="#4E555D" BorderThickness="0,0,1,1">
+                    <Border Margin="4,0,4,0" Background="#151618" CornerRadius="2" BorderBrush="#57585A" BorderThickness="0,0,1,1">
                         <ItemsControl ItemsSource="{Binding MasterTrack.Effects}" ItemTemplate="{StaticResource InsertTemplate}" Tag="{Binding MasterTrack}" />
                     </Border>
             </DockPanel>
@@ -247,7 +247,7 @@
                                     <TextBlock Style="{StaticResource Legend}" Text="INSERT" Margin="0,4,0,1" />
                                 </StackPanel>
                                 <StackPanel DockPanel.Dock="Bottom">
-                                    <Border Height="15" Margin="4,4,4,0" Background="#0C0F12" CornerRadius="2">
+                                    <Border Height="15" Margin="4,4,4,0" Background="#101113" CornerRadius="2">
                                         <TextBlock Text="{Binding VolumeDisplay}" FontFamily="Consolas" FontSize="8.5" Foreground="#FF8A3D"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
                                     </Border>
@@ -298,7 +298,7 @@
                                         </TextBlock>
                                     </Grid>
                                     <TextBlock Style="{StaticResource Legend}" Text="PAN" Margin="0,4,0,0" />
-                                    <local:Knob Width="32" Height="32" Look="Console" IsCentred="True" Accent="#8C96A0" DefaultPosition="0.5"
+                                    <local:Knob ScaleBrush="#C8CDD2" Width="32" Height="32" Look="Console" IsCentred="True" Accent="#98999B" DefaultPosition="0.5"
                                                 Position="{Binding PanPosition}">
                                         <local:Knob.ToolTip>
                                             <TextBlock>
@@ -343,7 +343,7 @@
                                         </Button>
                                     </Grid>
                                 </StackPanel>
-                                    <Border Margin="4,0,4,0" Background="#111417" CornerRadius="2" BorderBrush="#4E555D" BorderThickness="0,0,1,1">
+                                    <Border Margin="4,0,4,0" Background="#151618" CornerRadius="2" BorderBrush="#57585A" BorderThickness="0,0,1,1">
                                         <ItemsControl ItemsSource="{Binding Effects}" ItemTemplate="{StaticResource InsertTemplate}" Tag="{Binding}" />
                                     </Border>
                             </DockPanel>
@@ -373,7 +373,7 @@
                                     <TextBlock Style="{StaticResource Legend}" Text="INSERT" Margin="0,4,0,1" />
                                 </StackPanel>
                                 <StackPanel DockPanel.Dock="Bottom">
-                                    <Border Height="15" Margin="4,4,4,0" Background="#0C0F12" CornerRadius="2">
+                                    <Border Height="15" Margin="4,4,4,0" Background="#101113" CornerRadius="2">
                                         <TextBlock Text="{Binding VolumeDisplay}" FontFamily="Consolas" FontSize="8.5" Foreground="#FF8A3D"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
                                     </Border>
@@ -399,7 +399,7 @@
                                     <TextBlock Style="{StaticResource Legend}" Text="RETURN" Margin="0,6,0,1" />
                                     <Border Height="94" />
                                     <TextBlock Style="{StaticResource Legend}" Text="PAN" Margin="0,4,0,0" />
-                                    <local:Knob Width="32" Height="32" Look="Console" IsCentred="True" Accent="#8C96A0" DefaultPosition="0.5"
+                                    <local:Knob ScaleBrush="#C8CDD2" Width="32" Height="32" Look="Console" IsCentred="True" Accent="#98999B" DefaultPosition="0.5"
                                                 Position="{Binding PanPosition}" ToolTip="Pan: drag up or down; double-click to centre" />
                                     <DockPanel Margin="10,-6,10,0">
                                         <TextBlock DockPanel.Dock="Right" Style="{StaticResource Legend}" Text="R" FontSize="7" />
@@ -418,7 +418,7 @@
                                         </Button.Style>
                                     </Button>
                                 </StackPanel>
-                                    <Border Margin="4,0,4,0" Background="#111417" CornerRadius="2" BorderBrush="#4E555D" BorderThickness="0,0,1,1">
+                                    <Border Margin="4,0,4,0" Background="#151618" CornerRadius="2" BorderBrush="#57585A" BorderThickness="0,0,1,1">
                                         <ItemsControl ItemsSource="{Binding Effects}" ItemTemplate="{StaticResource InsertTemplate}" Tag="{Binding}" />
                                     </Border>
                             </DockPanel>
@@ -432,8 +432,8 @@
                     ToolTip="Add a bus (an effect return): tracks send part of their sound to it, as to a shared reverb">
                 <Button.Template>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Slot" Background="#15191D" BorderBrush="#2A2F35" BorderThickness="1" CornerRadius="2">
-                            <TextBlock Text="+ BUS" Foreground="#8A939C" FontFamily="Arial" FontWeight="Bold" FontSize="10"
+                        <Border x:Name="Slot" Background="#1A1B1D" BorderBrush="#313234" BorderThickness="1" CornerRadius="2">
+                            <TextBlock Text="+ BUS" Foreground="#959698" FontFamily="Arial" FontWeight="Bold" FontSize="10"
                                        HorizontalAlignment="Center" VerticalAlignment="Center">
                                 <TextBlock.LayoutTransform>
                                     <RotateTransform Angle="-90" />
@@ -442,7 +442,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Slot" Property="BorderBrush" Value="#8A939C" />
+                                <Setter TargetName="Slot" Property="BorderBrush" Value="#959698" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>

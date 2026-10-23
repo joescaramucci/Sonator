@@ -15,9 +15,15 @@ public static class BrushedMetal
 
     private static ImageBrush? _brush;
 
-    public static ImageBrush Brush => _brush ??= Make();
+    public static ImageBrush Brush => _brush ??= Make(0.215, 5);
 
-    private static ImageBrush Make()
+    private static ImageBrush? _light;
+
+    // The light grey satin aluminium of SSL's plug-in panels, for the FX racks.
+    public static ImageBrush Light => _light ??= Make(0.76, 3);
+
+    // base: the metal's shade from 0 to 1; tint: how much bluer than grey it is.
+    private static ImageBrush Make(double baseShade, int tint)
     {
         var random = new Random(4000); // the same streaks every time
         var pixels = new byte[TileWidth * TileHeight * 4];
@@ -47,10 +53,10 @@ public static class BrushedMetal
             for (var x = 0; x < TileWidth; x++)
             {
                 var drift = Math.Sin((y + x * 7) * 2 * Math.PI / TileHeight);
-                var shade = 0.215 + smoothed[x] * 0.055 + scratches[x] + drift * 0.008 + (random.NextDouble() - 0.5) * 0.03;
+                var shade = baseShade + smoothed[x] * 0.055 * (baseShade > 0.5 ? 0.6 : 1) + scratches[x] * (baseShade > 0.5 ? 0.4 : 1) + drift * 0.008 + (random.NextDouble() - 0.5) * 0.03;
                 var value = (byte)Math.Clamp(shade * 255, 0, 255);
                 var index = (y * TileWidth + x) * 4;
-                pixels[index] = (byte)Math.Clamp(value + 5, 0, 255); // anthracite, a touch blue, as on SSL desks
+                pixels[index] = (byte)Math.Clamp(value + tint, 0, 255); // a touch blue, as SSL's metal
                 pixels[index + 1] = (byte)Math.Clamp(value + 2, 0, 255);
                 pixels[index + 2] = value;
                 pixels[index + 3] = 255;

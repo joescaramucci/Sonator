@@ -13,22 +13,22 @@
         Height="860"
         WindowState="Maximized"
         
-        Background="#DDE7F2"
-        Foreground="#FF263241"
+        Background="#EAEBED"
+        Foreground="#FF37383A"
         PreviewKeyDown="Window_PreviewKeyDown"
         WindowStartupLocation="CenterScreen">
     <Window.Resources>
-        <SolidColorBrush x:Key="Paper" Color="#1B2330" />
-        <SolidColorBrush x:Key="PaperHigh" Color="#212D3A" />
-        <SolidColorBrush x:Key="Ink" Color="#BCC9D8" />
+        <SolidColorBrush x:Key="Paper" Color="#28292B" />
+        <SolidColorBrush x:Key="PaperHigh" Color="#303133" />
+        <SolidColorBrush x:Key="Ink" Color="#CDCED0" />
         <!-- The edge of the boxes on the panels: they read as sunk in, dark where the light does not reach and lit below. -->
         <LinearGradientBrush x:Key="Line" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#0A0E13" Offset="0" />
-            <GradientStop Color="#263242" Offset="0.5" />
-            <GradientStop Color="#566A80" Offset="1" />
+            <GradientStop Color="#101113" Offset="0" />
+            <GradientStop Color="#37383A" Offset="0.5" />
+            <GradientStop Color="#707173" Offset="1" />
         </LinearGradientBrush>
-        <SolidColorBrush x:Key="Shade" Color="#2B3949" />
-        <SolidColorBrush x:Key="DarkShade" Color="#3A4F68" />
+        <SolidColorBrush x:Key="Shade" Color="#3E3F41" />
+        <SolidColorBrush x:Key="DarkShade" Color="#57585A" />
         <SolidColorBrush x:Key="Accent" Color="#7AA6D8" />
         <SolidColorBrush x:Key="AccentSoft" Color="#1F3D66" />
         <SolidColorBrush x:Key="Success" Color="#49B88D" />
@@ -40,9 +40,9 @@
         <local:StepOffsetConverter x:Key="StepOffsetConverter" />
 
         <Style TargetType="ComboBox">
-            <Setter Property="Background" Value="#263545" />
-            <Setter Property="Foreground" Value="#C4CFDA" />
-            <Setter Property="BorderBrush" Value="#586E86" />
+            <Setter Property="Background" Value="#393A3C" />
+            <Setter Property="Foreground" Value="#D2D3D5" />
+            <Setter Property="BorderBrush" Value="#757678" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="FontFamily" Value="Consolas" />
             <Setter Property="FontSize" Value="12" />
@@ -54,12 +54,12 @@
                         <Setter Property="FontFamily" Value="Consolas" />
                         <Setter Property="FontSize" Value="12" />
                         <Setter Property="FontWeight" Value="SemiBold" />
-                        <Setter Property="Background" Value="#1F2A38" />
-                        <Setter Property="Foreground" Value="#C4CFDA" />
+                        <Setter Property="Background" Value="#2E2F31" />
+                        <Setter Property="Foreground" Value="#D2D3D5" />
                         <Setter Property="Padding" Value="6,3" />
                         <Style.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
-                                <Setter Property="Background" Value="#3A4F68" />
+                                <Setter Property="Background" Value="#57585A" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter Property="Background" Value="#2D745D" />
@@ -94,14 +94,14 @@
                                                   VerticalAlignment="Center"
                                                   Margin="0,0,6,0"
                                                   Data="M 0 0 L 4 4 L 8 0 Z"
-                                                  Fill="#C4CFDA" />
+                                                  Fill="#D2D3D5" />
                                         </Grid>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="Body" Property="Background" Value="#2F4A63" />
+                                                <Setter TargetName="Body" Property="Background" Value="#4F5052" />
                                             </Trigger>
                                             <Trigger Property="IsChecked" Value="True">
-                                                <Setter TargetName="Body" Property="Background" Value="#2F4A63" />
+                                                <Setter TargetName="Body" Property="Background" Value="#4F5052" />
                                             </Trigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
@@ -124,8 +124,8 @@
                                 <Border MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
                                         MaxHeight="260"
                                         Margin="0,2,0,0"
-                                        Background="#1F2A38"
-                                        BorderBrush="#586E86"
+                                        Background="#2E2F31"
+                                        BorderBrush="#757678"
                                         BorderThickness="1"
                                         CornerRadius="5">
                                     <ScrollViewer SnapsToDevicePixels="True">
@@ -146,12 +146,12 @@
             <Setter Property="CornerRadius" Value="5" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="BorderBrush" Value="{StaticResource Inset.Edge}" />
-            <Setter Property="Background" Value="#161E28" />
+            <Setter Property="Background" Value="#212224" />
         </Style>
 
         <Style x:Key="MetronomeToggleStyle" TargetType="ToggleButton">
-            <Setter Property="Background" Value="#2A3948" />
-            <Setter Property="Foreground" Value="#C4CFDA" />
+            <Setter Property="Background" Value="#3D3E40" />
+            <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="BorderBrush" Value="#5C7A99" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="FontFamily" Value="Consolas" />
@@ -169,8 +169,8 @@
 
         <!-- The recessed dark panel and glowing digits of the position clocks in the top bar. -->
         <Style x:Key="ClockPanel" TargetType="Border">
-            <Setter Property="Background" Value="#0C1219" />
-            <Setter Property="BorderBrush" Value="#2E3F52" />
+            <Setter Property="Background" Value="#141517" />
+            <Setter Property="BorderBrush" Value="#444547" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="4" />
             <Setter Property="Padding" Value="8,4" />
@@ -194,19 +194,19 @@
             <Setter Property="FontFamily" Value="Consolas" />
             <Setter Property="FontSize" Value="11" />
             <Setter Property="FontWeight" Value="Bold" />
-            <Setter Property="Background" Value="#3A4F68" />
+            <Setter Property="Background" Value="#57585A" />
             <Setter Property="BorderBrush" Value="#6F87A0" />
-            <Setter Property="Foreground" Value="#E4ECF4" />
+            <Setter Property="Foreground" Value="#EEEFF1" />
         </Style>
 
         <Style TargetType="MenuItem">
-            <Setter Property="Foreground" Value="#1B2330" />
+            <Setter Property="Foreground" Value="#28292B" />
             <Style.Triggers>
                 <Trigger Property="Role" Value="TopLevelHeader">
-                    <Setter Property="Foreground" Value="#C4CFDA" />
+                    <Setter Property="Foreground" Value="#D2D3D5" />
                 </Trigger>
                 <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Foreground" Value="#8A93A0" />
+                    <Setter Property="Foreground" Value="#98999B" />
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -214,8 +214,8 @@
         <Style TargetType="Button">
             <Setter Property="Margin" Value="1" />
             <Setter Property="Padding" Value="6,4" />
-            <Setter Property="Background" Value="#2A3948" />
-            <Setter Property="Foreground" Value="#C4CFDA" />
+            <Setter Property="Background" Value="#3D3E40" />
+            <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="BorderBrush" Value="#5C7A99" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="FontWeight" Value="SemiBold" />
@@ -226,17 +226,17 @@
         </Style>
 
         <Style x:Key="TrackRecordArmButton" TargetType="ToggleButton">
-            <Setter Property="Background" Value="#3E536B" />
+            <Setter Property="Background" Value="#5A5B5D" />
             <Setter Property="BorderBrush" Value="#6F87A0" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Foreground" Value="#BCC9D8" />
+            <Setter Property="Foreground" Value="#CDCED0" />
             <Setter Property="FontFamily" Value="Consolas" />
             <Setter Property="FontWeight" Value="Bold" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template" Value="{StaticResource Raised3D}" />
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="BorderBrush" Value="#8DA8C2" />
+                    <Setter Property="BorderBrush" Value="#AEAFB1" />
                 </Trigger>
                 <Trigger Property="IsChecked" Value="True">
                     <Setter Property="Background" Value="#D94C4C" />
@@ -249,8 +249,8 @@
         <Style TargetType="TextBox">
             <Setter Property="Margin" Value="1" />
             <Setter Property="Padding" Value="4,2" />
-            <Setter Property="Background" Value="#212D3A" />
-            <Setter Property="Foreground" Value="#C4CFDA" />
+            <Setter Property="Background" Value="#303133" />
+            <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="BorderBrush" Value="#607A96" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="FontFamily" Value="Consolas" />
@@ -278,7 +278,7 @@
             <EventSetter Event="PreviewMouseWheel" Handler="EditableTextBox_PreviewMouseWheel" />
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#27374A" />
+                    <Setter Property="Background" Value="#3D3E40" />
                     <Setter Property="BorderBrush" Value="#7EB2FF" />
                 </Trigger>
                 <Trigger Property="IsReadOnly" Value="False">
@@ -290,9 +290,9 @@
         <Style TargetType="GroupBox">
             <Setter Property="Margin" Value="1" />
             <Setter Property="Padding" Value="3" />
-            <Setter Property="BorderBrush" Value="#485B72" />
-            <Setter Property="Background" Value="#212D3A" />
-            <Setter Property="Foreground" Value="#C4CFDA" />
+            <Setter Property="BorderBrush" Value="#626365" />
+            <Setter Property="Background" Value="#303133" />
+            <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="FontFamily" Value="Segoe UI Semibold" />
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Template">
@@ -310,7 +310,7 @@
                                         <RowDefinition Height="*" />
                                     </Grid.RowDefinitions>
                                     <Border Background="{StaticResource Panel.Header}"
-                                            BorderBrush="#05080B"
+                                            BorderBrush="#090A0C"
                                             BorderThickness="0,0,0,1"
                                             Padding="7,3"
                                             CornerRadius="5,5,0,0">
@@ -334,12 +334,12 @@
             <Setter Property="Height" Value="132" />
             <Setter Property="Minimum" Value="0" />
             <Setter Property="Maximum" Value="1" />
-            <Setter Property="Background" Value="#111922" />
+            <Setter Property="Background" Value="#1C1D1F" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ProgressBar">
                         <Border Background="{TemplateBinding Background}"
-                                BorderBrush="#2F3D4D"
+                                BorderBrush="#424345"
                                 BorderThickness="1"
                                 CornerRadius="4"
                                 Padding="2">
@@ -383,7 +383,7 @@
             <Setter Property="Minimum" Value="0" />
             <Setter Property="Maximum" Value="1" />
             <Setter Property="Foreground" Value="#52C7A1" />
-            <Setter Property="Background" Value="#1A2430" />
+            <Setter Property="Background" Value="#28292B" />
             <Setter Property="LayoutTransform">
                 <Setter.Value>
                     <RotateTransform Angle="-90" />
@@ -400,13 +400,13 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Slider">
-                        <Border Background="#1F2933"
-                                BorderBrush="#667A8F"
+                        <Border Background="#2B2C2E"
+                                BorderBrush="#7F8082"
                                 BorderThickness="1"
                                 CornerRadius="4"
                                 Padding="2">
                             <Grid>
-                                <Border Background="#151D26"
+                                <Border Background="#202123"
                                         CornerRadius="2"
                                         Margin="6,5,6,5" />
                                 <Track x:Name="PART_Track"
@@ -426,8 +426,8 @@
                                         </RepeatButton>
                                     </Track.DecreaseRepeatButton>
                                     <Track.IncreaseRepeatButton>
-                                        <RepeatButton Background="#34414E"
-                                                      BorderBrush="#34414E"
+                                        <RepeatButton Background="#444547"
+                                                      BorderBrush="#444547"
                                                       BorderThickness="0">
                                             <RepeatButton.Template>
                                                 <ControlTemplate TargetType="RepeatButton">
@@ -445,13 +445,13 @@
                                                Cursor="Hand">
                                             <Thumb.Template>
                                                 <ControlTemplate TargetType="Thumb">
-                                                    <Border BorderBrush="#8EA9C7"
+                                                    <Border BorderBrush="#B1B2B4"
                                                             BorderThickness="1"
                                                             CornerRadius="2">
                                                         <Border.Background>
                                                             <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
                                                                 <GradientStop Color="#F5F8FB" Offset="0" />
-                                                                <GradientStop Color="#C7D0DA" Offset="1" />
+                                                                <GradientStop Color="#D3D4D6" Offset="1" />
                                                             </LinearGradientBrush>
                                                         </Border.Background>
                                                     </Border>
@@ -474,12 +474,12 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Slider">
-                        <Border Background="#1F2C3A"
-                                BorderBrush="#6F869C"
+                        <Border Background="#303133"
+                                BorderBrush="#8B8C8E"
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 Padding="4,2">
-                            <Grid Background="#1F2C3A">
+                            <Grid Background="#303133">
                                 <Track x:Name="PART_Track">
                                     <Track.DecreaseRepeatButton>
                                         <RepeatButton Background="#41AF8B"
@@ -496,8 +496,8 @@
                                         </RepeatButton>
                                     </Track.DecreaseRepeatButton>
                                     <Track.IncreaseRepeatButton>
-                                        <RepeatButton Background="#425A72"
-                                                      BorderBrush="#425A72"
+                                        <RepeatButton Background="#606163"
+                                                      BorderBrush="#606163"
                                                       BorderThickness="0">
                                             <RepeatButton.Template>
                                                 <ControlTemplate TargetType="RepeatButton">
@@ -513,8 +513,8 @@
                                         <Thumb Width="12" Height="22" Cursor="Hand">
                                             <Thumb.Template>
                                                 <ControlTemplate TargetType="Thumb">
-                                                    <Border Background="#BEC9D5"
-                                                            BorderBrush="#8EA9C7"
+                                                    <Border Background="#CCCDCF"
+                                                            BorderBrush="#B1B2B4"
                                                             BorderThickness="1"
                                                             CornerRadius="4" />
                                                 </ControlTemplate>
@@ -539,7 +539,7 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Background="#34475C" BorderBrush="#5D7A98" BorderThickness="0,0,0,1" Padding="5,4" MinHeight="42">
+        <Border Grid.Row="0" Background="#4D4E50" BorderBrush="#5D7A98" BorderThickness="0,0,0,1" Padding="5,4" MinHeight="42">
             <Grid>
                 <Image Source="pack://application:,,,/Assets/sonator-logo-22.png"
                        Width="22" Height="22"
@@ -549,8 +549,8 @@
                        ToolTip="Sonator" />
                 <Menu Margin="30,0,0,0" HorizontalAlignment="Left"
                       VerticalAlignment="Top"
-                      Background="#2A3948"
-                      Foreground="#C4CFDA"
+                      Background="#3D3E40"
+                      Foreground="#D2D3D5"
                       BorderBrush="#5C7A99"
                       BorderThickness="1"
                       FontFamily="Segoe UI Semibold"
@@ -672,12 +672,12 @@
                            FontFamily="Segoe UI Semibold"
                            FontSize="15"
                            FontWeight="Bold"
-                           Foreground="#CDD6E0"
+                           Foreground="#D9DADC"
                            Margin="0,2,0,0" />
             </Grid>
         </Border>
 
-        <Border Grid.Row="1" Background="{StaticResource Panel.Header}" BorderBrush="#05080B" BorderThickness="0,0,0,1" Padding="3">
+        <Border Grid.Row="1" Background="{StaticResource Panel.Header}" BorderBrush="#090A0C" BorderThickness="0,0,0,1" Padding="3">
             <!-- The top bar's boxes share its width; the one with MIXER, WAVE, ARRANGE and SOUNDS gets more, to fit its four buttons. -->
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -697,8 +697,8 @@
                             Padding="2,0">
                         <Button.Style>
                             <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                                <Setter Property="Background" Value="#263545" />
-                                <Setter Property="BorderBrush" Value="#586E86" />
+                                <Setter Property="Background" Value="#393A3C" />
+                                <Setter Property="BorderBrush" Value="#757678" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsLoopEnabled}" Value="True">
                                         <Setter Property="Background" Value="#2D745D" />
@@ -708,8 +708,8 @@
                             </Style>
                         </Button.Style>
                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                            <TextBlock Text="{Binding LoopModeText}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#E4ECF4" />
-                            <TextBlock Text="LOOP" FontSize="11" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                            <TextBlock Text="{Binding LoopModeText}" FontWeight="Bold" HorizontalAlignment="Center" />
+                            <TextBlock Text="LOOP" FontSize="11" HorizontalAlignment="Center" />
                         </StackPanel>
                     </Button>
                 </Border>
@@ -719,8 +719,8 @@
                             Padding="2,0">
                         <Button.Style>
                             <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                                <Setter Property="Background" Value="#263545" />
-                                <Setter Property="BorderBrush" Value="#586E86" />
+                                <Setter Property="Background" Value="#393A3C" />
+                                <Setter Property="BorderBrush" Value="#757678" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsArrangeMode}" Value="True">
                                         <Setter Property="Background" Value="#2D745D" />
@@ -730,8 +730,8 @@
                             </Style>
                         </Button.Style>
                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                            <TextBlock Text="{Binding ArrangeModeText}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#E4ECF4" />
-                            <TextBlock Text="ARRANGE" FontSize="11" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                            <TextBlock Text="{Binding ArrangeModeText}" FontWeight="Bold" HorizontalAlignment="Center" />
+                            <TextBlock Text="ARRANGE" FontSize="11" HorizontalAlignment="Center" />
                         </StackPanel>
                     </Button>
                 </Border>
@@ -745,14 +745,14 @@
                                 <Setter Property="Background" Value="{StaticResource Inset.Face}" />
                                 <Style.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Background" Value="#22344A" />
+                                        <Setter Property="Background" Value="#3B3C3E" />
                                     </Trigger>
                                 </Style.Triggers>
                             </Style>
                         </Border.Style>
                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                            <TextBox Text="{Binding Tempo, StringFormat=0.000, UpdateSourceTrigger=LostFocus}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA"  Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Center" IsReadOnly="True" Cursor="Hand" MouseDoubleClick="Tempo_MouseDoubleClick" MouseWheel="Tempo_MouseWheel" LostFocus="Tempo_LostFocus" KeyDown="Tempo_KeyDown" />
-                            <TextBlock Text="TEMPO" FontSize="11" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                            <TextBox Text="{Binding Tempo, StringFormat=0.000, UpdateSourceTrigger=LostFocus}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#D2D3D5"  Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Center" IsReadOnly="True" Cursor="Hand" MouseDoubleClick="Tempo_MouseDoubleClick" MouseWheel="Tempo_MouseWheel" LostFocus="Tempo_LostFocus" KeyDown="Tempo_KeyDown" />
+                            <TextBlock Text="TEMPO" FontSize="11" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#D2D3D5" />
                         </StackPanel>
                     </Border>
                 </Border>
@@ -801,14 +801,14 @@
                             <Button Width="88" Height="20" Margin="2,0,0,0" FontSize="11" Content="{Binding SelectedCountIn.Label}"
                                     Command="{Binding CycleCountInCommand}" ToolTip="Bars of clicks before recording starts. Press to change." />
                         </StackPanel>
-                        <TextBlock Text="METRONOME" FontSize="11" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                        <TextBlock Text="METRONOME" FontSize="11" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#D2D3D5" />
                     </StackPanel>
                 </Border>
                 <Border Grid.Column="4" Style="{StaticResource BarCell}" Cursor="Hand"
                         ToolTipService.InitialShowDelay="0"
                         ToolTipService.ShowDuration="30000"
                         ToolTip="SIGNATURE: click to choose the time signature. Mouse wheel: beats per bar.">
-                    <Border BorderBrush="#586E86" BorderThickness="1" CornerRadius="5" Padding="2" Cursor="Hand"
+                    <Border BorderBrush="#757678" BorderThickness="1" CornerRadius="5" Padding="2" Cursor="Hand"
                             AutomationProperties.Name="TIME SIGNATURE"
                             MouseLeftButtonUp="TimeSignature_MouseLeftButtonUp"
                             MouseWheel="TimeSignature_MouseWheel">
@@ -817,14 +817,14 @@
                                 <Setter Property="Background" Value="{StaticResource Inset.Face}" />
                                 <Style.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Background" Value="#22344A" />
+                                        <Setter Property="Background" Value="#3B3C3E" />
                                     </Trigger>
                                 </Style.Triggers>
                             </Style>
                         </Border.Style>
                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                            <TextBlock Text="{Binding TimeSignature}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
-                            <TextBlock Text="SIGNATURE" FontSize="11" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                            <TextBlock Text="{Binding TimeSignature}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#D2D3D5" />
+                            <TextBlock Text="SIGNATURE" FontSize="11" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#D2D3D5" />
                         </StackPanel>
                     </Border>
                 </Border>
@@ -835,7 +835,7 @@
                             <local:SevenSegmentDisplay Text="{Binding TransportPosition}" Style="{StaticResource ClockDigits}"
                                                        AutomationProperties.Name="POSITION MIN SEC" />
                         </Border>
-                        <TextBlock Text="HR:MIN:SEC" FontSize="11" Margin="0,2,0,0" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                        <TextBlock Text="HR:MIN:SEC" FontSize="11" Margin="0,2,0,0" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#D2D3D5" />
                     </StackPanel>
                 </Border>
                 <!-- The same position as bar and beat, counted from 1. -->
@@ -845,7 +845,7 @@
                             <local:SevenSegmentDisplay Text="{Binding CurrentStepBar}" Style="{StaticResource ClockDigits}"
                                                        AutomationProperties.Name="POSITION BARS" />
                         </Border>
-                        <TextBlock Text="BAR . BEAT" FontSize="11" Margin="0,2,0,0" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
+                        <TextBlock Text="BAR . BEAT" FontSize="11" Margin="0,2,0,0" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#D2D3D5" />
                     </StackPanel>
                 </Border>
                 <Border Grid.Column="7" Style="{StaticResource BarCell}">
@@ -872,7 +872,7 @@
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <ControlTemplate TargetType="ProgressBar">
-                                        <Border Background="#16202B" BorderBrush="#3A4D63" BorderThickness="1" CornerRadius="3">
+                                        <Border Background="#232426" BorderBrush="#535456" BorderThickness="1" CornerRadius="3">
                                             <Grid>
                                                 <Border x:Name="PART_Track" />
                                                 <Border x:Name="PART_Indicator" HorizontalAlignment="Left" Background="{TemplateBinding Foreground}" CornerRadius="2" />
@@ -885,7 +885,7 @@
                         <Style TargetType="TextBlock">
                             <Setter Property="FontFamily" Value="Consolas" />
                             <Setter Property="FontSize" Value="11" />
-                            <Setter Property="Foreground" Value="#C4CFDA" />
+                            <Setter Property="Foreground" Value="#D2D3D5" />
                             <Setter Property="VerticalAlignment" Value="Center" />
                         </Style>
                     </Border.Resources>
@@ -917,7 +917,7 @@
                                    MouseLeftButtonDown="DropoutsText_MouseLeftButtonDown">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-                                    <Setter Property="Foreground" Value="#7F93A8" />
+                                    <Setter Property="Foreground" Value="#98999B" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding HasDropouts}" Value="True">
                                             <Setter Property="Foreground" Value="#F07070" />
@@ -1034,12 +1034,12 @@
                                     <ColumnDefinition Width="0.62*" />
                                     <ColumnDefinition Width="0.62*" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="BAR" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" FontFamily="Consolas" Foreground="#C4CFDA" />
-                                <TextBlock Grid.Column="1" Text="ARRANGE" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" Foreground="#C4CFDA" />
-                                <TextBlock Grid.Column="2" Text="a" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" Foreground="#C4CFDA" />
-                                <TextBlock Grid.Column="3" Text="b" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" Foreground="#C4CFDA" />
-                                <TextBlock Grid.Column="4" Text="c" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" Foreground="#C4CFDA" />
-                                <TextBlock Grid.Column="5" Text="d" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" Foreground="#C4CFDA" />
+                                <TextBlock Text="BAR" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" FontFamily="Consolas" Foreground="#D2D3D5" />
+                                <TextBlock Grid.Column="1" Text="ARRANGE" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" Foreground="#D2D3D5" />
+                                <TextBlock Grid.Column="2" Text="a" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" Foreground="#D2D3D5" />
+                                <TextBlock Grid.Column="3" Text="b" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" Foreground="#D2D3D5" />
+                                <TextBlock Grid.Column="4" Text="c" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" Foreground="#D2D3D5" />
+                                <TextBlock Grid.Column="5" Text="d" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" FontFamily="Consolas" Foreground="#D2D3D5" />
                             </Grid>
                             <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0">
                             <ItemsControl x:Name="SongArrangeRowsItemsControl"
@@ -1067,13 +1067,13 @@
                                                     PreviewMouseDown="ArrangeBar_PreviewMouseDown">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
-                                                       <Setter Property="Background" Value="#2A3748" />
+                                                       <Setter Property="Background" Value="#3D3E40" />
                                                         <Style.Triggers>
                                                            <DataTrigger Binding="{Binding IsPointerOver}" Value="True">
-                                                               <Setter Property="Background" Value="#3D536D" />
+                                                               <Setter Property="Background" Value="#5B5C5E" />
                                                            </DataTrigger>
                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                               <Setter Property="Background" Value="#4A6E97" />
+                                                               <Setter Property="Background" Value="#7A7B7D" />
                                                            </DataTrigger>
                                                            <DataTrigger Binding="{Binding IsPlaying}" Value="True">
                                                                <Setter Property="Background" Value="#2D745D" />
@@ -1084,13 +1084,13 @@
                                                 <TextBlock Text="{Binding DisplayBarNumber}" HorizontalAlignment="Center" VerticalAlignment="Center" FontFamily="Consolas" FontSize="11" FontWeight="Bold">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
-                                                            <Setter Property="Foreground" Value="#C4CFDA" />
+                                                            <Setter Property="Foreground" Value="#D2D3D5" />
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding IsPointerOver}" Value="True">
-                                                                    <Setter Property="Foreground" Value="#CAD4DE" />
+                                                                    <Setter Property="Foreground" Value="#D6D7D9" />
                                                                 </DataTrigger>
                                                                 <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                                    <Setter Property="Foreground" Value="#CAD4DE" />
+                                                                    <Setter Property="Foreground" Value="#D6D7D9" />
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
@@ -1105,13 +1105,13 @@
                                                     PreviewMouseLeftButtonUp="ArrangePatternListItem_PreviewMouseLeftButtonUp">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
-                                                       <Setter Property="Background" Value="#2A3748" />
+                                                       <Setter Property="Background" Value="#3D3E40" />
                                                        <Style.Triggers>
                                                            <DataTrigger Binding="{Binding IsPointerOver}" Value="True">
-                                                               <Setter Property="Background" Value="#3D536D" />
+                                                               <Setter Property="Background" Value="#5B5C5E" />
                                                            </DataTrigger>
                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                               <Setter Property="Background" Value="#4A6E97" />
+                                                               <Setter Property="Background" Value="#7A7B7D" />
                                                            </DataTrigger>
                                                            <DataTrigger Binding="{Binding IsPlaying}" Value="True">
                                                                <Setter Property="Background" Value="#2D745D" />
@@ -1125,13 +1125,13 @@
                                                 <TextBlock Text="{Binding DisplayPatternName}" Margin="4,0" VerticalAlignment="Center" FontFamily="Consolas" FontWeight="Bold">
                                                     <TextBlock.Style>
                                                        <Style TargetType="TextBlock">
-                                                           <Setter Property="Foreground" Value="#C4CFDA" />
+                                                           <Setter Property="Foreground" Value="#D2D3D5" />
                                                            <Style.Triggers>
                                                                <DataTrigger Binding="{Binding IsPointerOver}" Value="True">
-                                                                   <Setter Property="Foreground" Value="#CAD4DE" />
+                                                                   <Setter Property="Foreground" Value="#D6D7D9" />
                                                                </DataTrigger>
                                                                <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                                   <Setter Property="Foreground" Value="#CAD4DE" />
+                                                                   <Setter Property="Foreground" Value="#D6D7D9" />
                                                                </DataTrigger>
                                                            </Style.Triggers>
                                                        </Style>
@@ -1153,16 +1153,16 @@
                                                                PreviewMouseDown="ArrangeCell_PreviewMouseDown">
                                                            <Border.Style>
                                                                <Style TargetType="Border">
-                                                                   <Setter Property="Background" Value="#2F3F54" />
+                                                                   <Setter Property="Background" Value="#464749" />
                                                                    <Style.Triggers>
                                                                        <DataTrigger Binding="{Binding DataContext.IsPointerOver, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="True">
-                                                                           <Setter Property="Background" Value="#405E81" />
+                                                                           <Setter Property="Background" Value="#68696B" />
                                                                        </DataTrigger>
                                                                        <DataTrigger Binding="{Binding DataContext.IsSelected, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="True">
-                                                                           <Setter Property="Background" Value="#4A6E97" />
+                                                                           <Setter Property="Background" Value="#7A7B7D" />
                                                                        </DataTrigger>
                                                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                                           <Setter Property="Background" Value="#4A6E97" />
+                                                                           <Setter Property="Background" Value="#7A7B7D" />
                                                                        </DataTrigger>
                                                                    </Style.Triggers>
                                                                </Style>
@@ -1170,16 +1170,16 @@
                                                            <TextBlock Text="{Binding DisplayLabel}" HorizontalAlignment="Center" VerticalAlignment="Center" FontFamily="Consolas" FontSize="11">
                                                                <TextBlock.Style>
                                                                    <Style TargetType="TextBlock">
-                                                                       <Setter Property="Foreground" Value="#C4CFDA" />
+                                                                       <Setter Property="Foreground" Value="#D2D3D5" />
                                                                        <Style.Triggers>
                                                                            <DataTrigger Binding="{Binding DataContext.IsPointerOver, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="True">
-                                                                               <Setter Property="Foreground" Value="#CAD4DE" />
+                                                                               <Setter Property="Foreground" Value="#D6D7D9" />
                                                                            </DataTrigger>
                                                                            <DataTrigger Binding="{Binding DataContext.IsSelected, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="True">
-                                                                               <Setter Property="Foreground" Value="#CAD4DE" />
+                                                                               <Setter Property="Foreground" Value="#D6D7D9" />
                                                                            </DataTrigger>
                                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                                               <Setter Property="Foreground" Value="#CAD4DE" />
+                                                                               <Setter Property="Foreground" Value="#D6D7D9" />
                                                                            </DataTrigger>
                                                                        </Style.Triggers>
                                                                    </Style>
@@ -1197,8 +1197,8 @@
                             <Border Height="26"
                                     Margin="0,4,1,0"
                                     AllowDrop="True"
-                                    Background="#1E2B39"
-                                    BorderBrush="#55708C"
+                                    Background="#2F3032"
+                                    BorderBrush="#77787A"
                                     BorderThickness="1"
                                     DragOver="ArrangePatternEndDrop_DragOver"
                                     Drop="ArrangePatternEndDrop_Drop">
@@ -1207,7 +1207,7 @@
                                            VerticalAlignment="Center"
                                            FontFamily="Consolas"
                                            FontSize="10"
-                                           Foreground="#9FB4C9" />
+                                           Foreground="#B9BABC" />
                             </Border>
                         </StackPanel>
                     </ScrollViewer>
@@ -1227,7 +1227,7 @@
                                        VerticalAlignment="Center"
                                        FontSize="10"
                                        Margin="0,0,4,0"
-                                       Foreground="#BCC9D8" />
+                                       Foreground="#CDCED0" />
                             <Slider Width="90"
                                     Height="18"
                                     Minimum="80"
@@ -1397,7 +1397,7 @@
                                             <ContextMenu>
                                                 <MenuItem Header="Default" Tag="" Click="TrackColorMenuItem_Click">
                                                     <MenuItem.Icon>
-                                                        <Border Width="12" Height="12" Background="#263545" BorderBrush="#6F87A0" BorderThickness="1" />
+                                                        <Border Width="12" Height="12" Background="#393A3C" BorderBrush="#6F87A0" BorderThickness="1" />
                                                     </MenuItem.Icon>
                                                 </MenuItem>
                                                 <MenuItem Header="Red" Tag="#FFD94C4C" Click="TrackColorMenuItem_Click">
@@ -1435,9 +1435,9 @@
                                                         <Border Width="12" Height="12" Background="#FF9C72D8" BorderBrush="#6F4F9D" BorderThickness="1" />
                                                     </MenuItem.Icon>
                                                 </MenuItem>
-                                                <MenuItem Header="Gray" Tag="#FF7D8B99" Click="TrackColorMenuItem_Click">
+                                                <MenuItem Header="Gray" Tag="#FF8E8F91" Click="TrackColorMenuItem_Click">
                                                     <MenuItem.Icon>
-                                                        <Border Width="12" Height="12" Background="#FF7D8B99" BorderBrush="#5C6570" BorderThickness="1" />
+                                                        <Border Width="12" Height="12" Background="#FF8E8F91" BorderBrush="#68696B" BorderThickness="1" />
                                                     </MenuItem.Icon>
                                                 </MenuItem>
                                             </ContextMenu>
@@ -1460,9 +1460,9 @@
                                                         CommandParameter="{Binding SourceTrack}">
                                                     <Button.Style>
                                                         <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                                                            <Setter Property="Background" Value="#3E536B" />
+                                                            <Setter Property="Background" Value="#5A5B5D" />
                                                             <Setter Property="BorderBrush" Value="#6F87A0" />
-                                                            <Setter Property="Foreground" Value="#BCC9D8" />
+                                                            <Setter Property="Foreground" Value="#CDCED0" />
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding SourceTrack.IsMuted}" Value="True">
                                                                     <Setter Property="Background" Value="#49B88D" />
@@ -1479,9 +1479,9 @@
                                                         CommandParameter="{Binding SourceTrack}">
                                                     <Button.Style>
                                                         <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                                                            <Setter Property="Background" Value="#365864" />
-                                                            <Setter Property="BorderBrush" Value="#63808B" />
-                                                            <Setter Property="Foreground" Value="#BCC9D8" />
+                                                            <Setter Property="Background" Value="#535456" />
+                                                            <Setter Property="BorderBrush" Value="#7C7D7F" />
+                                                            <Setter Property="Foreground" Value="#CDCED0" />
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding SourceTrack.IsSolo}" Value="True">
                                                                     <Setter Property="Background" Value="#49B88D" />
@@ -1496,9 +1496,9 @@
                                             <StackPanel Grid.Column="1">
                                                 <TextBlock Text="{Binding SourceTrack.Name}"
                                                            FontWeight="Bold"
-                                                           Foreground="#E4ECF4"
+                                                           Foreground="#EEEFF1"
                                                            TextTrimming="CharacterEllipsis" />
-                                                <TextBlock FontSize="10" Foreground="#8FA6BD">
+                                                <TextBlock FontSize="10" Foreground="#ACADAF">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
                                                             <Style.Triggers>
@@ -1642,7 +1642,7 @@
                                                                     <DataTrigger Binding="{Binding IsActive}" Value="True">
                                                                         <Setter Property="Background" Value="{Binding DataContext.SourceTrack.TrackColorBrush, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" />
                                                                         <Setter Property="BorderThickness" Value="1" />
-                                                                        <Setter Property="BorderBrush" Value="#EAF2FF" />
+                                                                        <Setter Property="BorderBrush" Value="#F7F8FA" />
                                                                     </DataTrigger>
                                                                 </Style.Triggers>
                                                             </Style>
@@ -1707,7 +1707,7 @@
                                                               Y1="0"
                                                               Y2="52"
                                                               HorizontalAlignment="Left"
-                                                              Stroke="#D9E2EA"
+                                                              Stroke="#E4E5E7"
                                                               StrokeThickness="1"
                                                               StrokeDashArray="1 2">
                                                             <Line.Style>
@@ -1749,7 +1749,7 @@
                                                 <Style TargetType="Border">
                                                     <!-- Opaque, so the block reads as one colour over the beat lines and steps behind it. -->
                                                     <Setter Property="Background" Value="{StaticResource Paper}" />
-                                                    <Setter Property="BorderBrush" Value="#EAF2FF" />
+                                                    <Setter Property="BorderBrush" Value="#F7F8FA" />
                                                     <Setter Property="BorderThickness" Value="0.5" />
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding HasBlock}" Value="False">
@@ -1768,14 +1768,14 @@
                                                 <Border HorizontalAlignment="Left"
                                                         Width="10"
                                                         Background="Transparent"
-                                                        BorderBrush="#EAF2FF"
+                                                        BorderBrush="#F7F8FA"
                                                         BorderThickness="1.5,0,0,0"
                                                         Cursor="SizeWE"
                                                         Tag="NoteBlockStartEdge" />
                                                 <Border HorizontalAlignment="Right"
                                                         Width="10"
                                                         Background="Transparent"
-                                                        BorderBrush="#EAF2FF"
+                                                        BorderBrush="#F7F8FA"
                                                         BorderThickness="0,0,1.5,0"
                                                         Cursor="SizeWE"
                                                         Tag="NoteBlockEdge" />
@@ -1908,7 +1908,7 @@
                                             <Separator />
                                             <MenuItem Header="Default" Tag="" Click="TrackColorMenuItem_Click">
                                                 <MenuItem.Icon>
-                                                    <Border Width="12" Height="12" Background="#263545" BorderBrush="#6F87A0" BorderThickness="1" />
+                                                    <Border Width="12" Height="12" Background="#393A3C" BorderBrush="#6F87A0" BorderThickness="1" />
                                                 </MenuItem.Icon>
                                             </MenuItem>
                                             <MenuItem Header="Red" Tag="#FFD94C4C" Click="TrackColorMenuItem_Click">
@@ -1946,9 +1946,9 @@
                                                     <Border Width="12" Height="12" Background="#FF9C72D8" BorderBrush="#6F4F9D" BorderThickness="1" />
                                                 </MenuItem.Icon>
                                             </MenuItem>
-                                            <MenuItem Header="Gray" Tag="#FF7D8B99" Click="TrackColorMenuItem_Click">
+                                            <MenuItem Header="Gray" Tag="#FF8E8F91" Click="TrackColorMenuItem_Click">
                                                 <MenuItem.Icon>
-                                                    <Border Width="12" Height="12" Background="#FF7D8B99" BorderBrush="#5C6570" BorderThickness="1" />
+                                                    <Border Width="12" Height="12" Background="#FF8E8F91" BorderBrush="#68696B" BorderThickness="1" />
                                                 </MenuItem.Icon>
                                             </MenuItem>
                                         </ContextMenu>
@@ -1974,9 +1974,9 @@
                                                     CommandParameter="{Binding SourceTrack}">
                                                 <Button.Style>
                                                     <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                                                        <Setter Property="Background" Value="#3E536B" />
+                                                        <Setter Property="Background" Value="#5A5B5D" />
                                                         <Setter Property="BorderBrush" Value="#6F87A0" />
-                                                        <Setter Property="Foreground" Value="#BCC9D8" />
+                                                        <Setter Property="Foreground" Value="#CDCED0" />
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding SourceTrack.IsMuted}" Value="True">
                                                                 <Setter Property="Background" Value="#49B88D" />
@@ -1995,9 +1995,9 @@
                                                     CommandParameter="{Binding SourceTrack}">
                                                 <Button.Style>
                                                     <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                                                        <Setter Property="Background" Value="#365864" />
-                                                        <Setter Property="BorderBrush" Value="#63808B" />
-                                                        <Setter Property="Foreground" Value="#BCC9D8" />
+                                                        <Setter Property="Background" Value="#535456" />
+                                                        <Setter Property="BorderBrush" Value="#7C7D7F" />
+                                                        <Setter Property="Foreground" Value="#CDCED0" />
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding SourceTrack.IsSolo}" Value="True">
                                                                 <Setter Property="Background" Value="#49B88D" />
@@ -2012,14 +2012,14 @@
                                         <StackPanel Grid.Column="1">
                                             <TextBlock Text="{Binding SourceTrack.Name}"
                                                        FontWeight="Bold"
-                                                       Foreground="#E4ECF4"
+                                                       Foreground="#EEEFF1"
                                                        TextTrimming="CharacterEllipsis"
                                                        HorizontalAlignment="Left"
                                                        Cursor="Hand"
                                                        Tag="TrackName"
                                                        ToolTip="Click to set the track's name and MIDI channel"
                                                        MouseLeftButtonDown="TrackName_MouseLeftButtonDown" />
-                                            <TextBlock FontSize="10" Foreground="#8FA6BD">
+                                            <TextBlock FontSize="10" Foreground="#ACADAF">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
                                                         <Style.Triggers>
@@ -2084,12 +2084,12 @@
                                                     Click="TrackFxButton_Click">
                                                 <Button.Style>
                                                     <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                                                        <Setter Property="Background" Value="#3E536B" />
+                                                        <Setter Property="Background" Value="#5A5B5D" />
                                                         <Setter Property="BorderBrush" Value="#6F87A0" />
                                                         <Setter Property="Foreground" Value="#9FD3F2" />
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding SourceTrack.Effects.Count}" Value="0">
-                                                                <Setter Property="Foreground" Value="#BCC9D8" />
+                                                                <Setter Property="Foreground" Value="#CDCED0" />
                                                             </DataTrigger>
                                                             <DataTrigger Binding="{Binding SourceTrack.HasActiveEffects}" Value="True">
                                                                 <Setter Property="Background" Value="#49B88D" />
@@ -2111,7 +2111,7 @@
                                                 Focusable="False"
                                                 Cursor="Hand"
                                                 Tag="InstrumentIcon"
-                                                Foreground="#EEF3F8"
+                                                Foreground="#F4F5F7"
                                                 AutomationProperties.Name="INSTRUMENT ICON"
                                                 ToolTip="Click to choose the instrument icon"
                                                 Click="TrackInstrumentIcon_Click">
@@ -2141,8 +2141,8 @@
                                                             </Style.Triggers>
                                                         </Style>
                                                     </Grid.Style>
-                                                    <Rectangle Stroke="#EEF3F8" StrokeThickness="1" StrokeDashArray="2 2" RadiusX="3" RadiusY="3" />
-                                                    <TextBlock Text="+" FontSize="12" FontWeight="Bold" Foreground="#EEF3F8"
+                                                    <Rectangle Stroke="#F4F5F7" StrokeThickness="1" StrokeDashArray="2 2" RadiusX="3" RadiusY="3" />
+                                                    <TextBlock Text="+" FontSize="12" FontWeight="Bold" Foreground="#F4F5F7"
                                                                HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0" />
                                                 </Grid>
                                             </Grid>
@@ -2201,8 +2201,8 @@
                         PreviewMouseLeftButtonUp="ArrangePatternDragHandle_PreviewMouseLeftButtonUp"
                         Panel.ZIndex="11">
                     <StackPanel Margin="5,2">
-                        <TextBlock Text="{Binding SelectedPattern.Name}" FontWeight="Bold" FontFamily="Consolas" Foreground="#E4ECF4" />
-                        <TextBlock Text="{Binding SelectedPattern.Summary}" FontSize="10" FontFamily="Consolas" Foreground="#8FA6BD" />
+                        <TextBlock Text="{Binding SelectedPattern.Name}" FontWeight="Bold" FontFamily="Consolas" Foreground="#EEEFF1" />
+                        <TextBlock Text="{Binding SelectedPattern.Summary}" FontSize="10" FontFamily="Consolas" Foreground="#ACADAF" />
                     </StackPanel>
                 </Border>
                 </Grid>
@@ -2279,7 +2279,7 @@
                                 Click="AddEffectButton_Click" />
                         <TextBlock Text="EFFECTS" FontSize="11" VerticalAlignment="Center" />
                     </DockPanel>
-                    <TextBlock Text="No effects. Press + ADD." FontSize="11" Foreground="#7F93A8" Margin="2,2,0,4">
+                    <TextBlock Text="No effects. Press + ADD." FontSize="11" Foreground="#98999B" Margin="2,2,0,4">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
                                 <Setter Property="Visibility" Value="Collapsed" />
@@ -2294,7 +2294,7 @@
                     <ItemsControl ItemsSource="{Binding SelectedTrack.Effects}" Margin="0,0,0,4">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Margin="0,2" Padding="4,3" CornerRadius="5" Background="#212D3A" BorderBrush="#3A4D63" BorderThickness="1">
+                                <Border Margin="0,2" Padding="4,3" CornerRadius="5" Background="#303133" BorderBrush="#535456" BorderThickness="1">
                                     <DockPanel>
                                         <ToggleButton DockPanel.Dock="Left"
                                                       Content="ON"
@@ -2313,7 +2313,7 @@
                                                    Margin="8,0,4,0"
                                                    VerticalAlignment="Center"
                                                    FontWeight="Bold"
-                                                   Foreground="#E4ECF4"
+                                                   Foreground="#EEEFF1"
                                                    Cursor="Hand"
                                                    ToolTip="Click to open the effect's knobs"
                                                    MouseLeftButtonUp="EffectName_MouseLeftButtonUp" />
@@ -2324,7 +2324,7 @@
                     </ItemsControl>
                     <Border BorderBrush="{StaticResource Line}"
                             BorderThickness="1"
-                            Background="#2A313A"
+                            Background="#343537"
                             CornerRadius="4"
                             Padding="4"
                             Margin="0,6,0,0">
@@ -2334,7 +2334,7 @@
                                 <RowDefinition Height="*" />
                                 <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
-                            <Border Background="#333B46"
+                            <Border Background="#3F4042"
                                     BorderBrush="{StaticResource Line}"
                                     BorderThickness="0,0,0,1"
                                     CornerRadius="3,3,0,0"
@@ -2355,9 +2355,9 @@
                                             Click="MasterFxButton_Click">
                                         <Button.Style>
                                             <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                                                <Setter Property="Background" Value="#3E536B" />
+                                                <Setter Property="Background" Value="#5A5B5D" />
                                                 <Setter Property="BorderBrush" Value="#6F87A0" />
-                                                <Setter Property="Foreground" Value="#BCC9D8" />
+                                                <Setter Property="Foreground" Value="#CDCED0" />
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding HasActiveEffects}" Value="True">
                                                         <Setter Property="Background" Value="#49B88D" />
@@ -2551,7 +2551,7 @@
                                                 DragLeave="VstPluginThumbnail_DragLeave"
                                                 Drop="VstPluginThumbnail_Drop">
                                             <Grid>
-                                                <Border Background="#1F2A39">
+                                                <Border Background="#2F3032">
                                                     <TextBlock Text="{Binding Badge}"
                                                                HorizontalAlignment="Center"
                                                                VerticalAlignment="Center"
@@ -2590,7 +2590,7 @@
                                                     </TextBlock.Effect>
                                                 </TextBlock>
                                                 <Border VerticalAlignment="Bottom"
-                                                        Background="#CC111820"
+                                                        Background="#CC1A1B1D"
                                                         Padding="4,2">
                                                     <TextBlock Text="{Binding Name}"
                                                                FontSize="11"
@@ -2611,8 +2611,8 @@
         </Grid>
 
         <Border Grid.Row="3"
-                Background="#2A3748"
-                BorderBrush="#4C657F"
+                Background="#3D3E40"
+                BorderBrush="#6C6D6F"
                 BorderThickness="0,1,0,0"
                 Padding="10,6,10,8">
             <Grid>
@@ -2640,7 +2640,7 @@
                         Height="12"
                         Margin="10,0,0,0"
                         CornerRadius="6"
-                        BorderBrush="#1B2330"
+                        BorderBrush="#28292B"
                         BorderThickness="1"
                         VerticalAlignment="Center"
                         ToolTip="Lights up when the MIDI keyboard sends data"
@@ -2663,8 +2663,8 @@
              a click brings the window back. Shown only while there is one. -->
         <Border x:Name="PluginDock"
                 Grid.Row="4"
-                Background="#1F2A37"
-                BorderBrush="#4C657F"
+                Background="#2E2F31"
+                BorderBrush="#6C6D6F"
                 BorderThickness="0,1,0,0"
                 Padding="8,4"
                 Visibility="Collapsed">
@@ -2675,7 +2675,7 @@
                            VerticalAlignment="Center"
                            FontFamily="Consolas"
                            FontSize="11"
-                           Foreground="#8FA6BD" />
+                           Foreground="#ACADAF" />
                 <ItemsControl x:Name="PluginDockItems">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>

@@ -5,29 +5,29 @@
         Title="Track"
         Width="420"
         Height="330"
-        Background="#1B2330"
-        Foreground="#C4CFDA"
+        Background="#28292B"
+        Foreground="#D2D3D5"
         FontFamily="Consolas"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         ShowInTaskbar="False">
     <Window.Resources>
         <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#C4CFDA" />
+            <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="FontFamily" Value="Consolas" />
         </Style>
         <Style TargetType="TextBox">
-            <Setter Property="Background" Value="#212D3A" />
-            <Setter Property="Foreground" Value="#C4CFDA" />
+            <Setter Property="Background" Value="#303133" />
+            <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="BorderBrush" Value="#607A96" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="4,2" />
             <Setter Property="FontFamily" Value="Consolas" />
         </Style>
         <Style TargetType="Button">
-            <Setter Property="Background" Value="#2A3948" />
-            <Setter Property="Foreground" Value="#C4CFDA" />
+            <Setter Property="Background" Value="#3D3E40" />
+            <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="BorderBrush" Value="#5C7A99" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="6,3" />
@@ -36,7 +36,7 @@
             <Setter Property="Template" Value="{StaticResource Raised3D}" />
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#354D69" />
+                    <Setter Property="Background" Value="#555658" />
                     <Setter Property="BorderBrush" Value="#7EB2FF" />
                 </Trigger>
             </Style.Triggers>

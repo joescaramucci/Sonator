@@ -1869,7 +1869,7 @@ public partial class MainWindow : Window
     private static bool IsPluginWindow(Window window) => window is Vst3NativeEditorWindow or VstPluginEditorDialog;
 
     // Plug-in windows minimized with their own button go to the dock as well: minimized, Windows shows them as
-    // small bars with no room for their name. So does the mixer.
+    // small bars with no room for their name. So do the mixer and the FX racks.
     private void FollowPluginWindow(Window window)
     {
         // Pictured each time it loses the focus, while it is surely in view and in front, so the dock has a
@@ -2154,8 +2154,8 @@ public partial class MainWindow : Window
         viewModel.SelectedTrack = timelineTrack.SourceTrack;
         if (_fxRacks.TryGetValue(timelineTrack.SourceTrack, out var open))
         {
-            // Minimized, it is out of sight: the button brings it back rather than closing it.
-            if (open.WindowState == WindowState.Minimized)
+            // Minimized or in the dock, it is out of sight: the button brings it back rather than closing it.
+            if (open.WindowState == WindowState.Minimized || !open.IsVisible)
             {
                 BringBack(open);
             }
@@ -2225,8 +2225,8 @@ public partial class MainWindow : Window
 
         if (_fxRacks.TryGetValue(viewModel.MasterTrack, out var open))
         {
-            // Minimized, it is out of sight: the button brings it back rather than closing it.
-            if (open.WindowState == WindowState.Minimized)
+            // Minimized or in the dock, it is out of sight: the button brings it back rather than closing it.
+            if (open.WindowState == WindowState.Minimized || !open.IsVisible)
             {
                 BringBack(open);
             }
@@ -2283,6 +2283,7 @@ public partial class MainWindow : Window
             rack = new EffectRackWindow(viewModel, track) { Owner = this };
             rack.Closed += (_, _) => _fxRacks.Remove(track);
             _fxRacks[track] = rack;
+            FollowPluginWindow(rack); // minimized, it goes to the dock with its picture
             rack.Show();
         }
 

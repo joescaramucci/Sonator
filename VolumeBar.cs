@@ -117,14 +117,14 @@ public sealed class VolumeBar : FrameworkElement
                 drawingContext.DrawRectangle(fill, null, new Rect(from, bounds.Top, width, bounds.Height));
             }
             drawingContext.DrawLine(OutlinePen, new Point(centre, bounds.Top - 1), new Point(centre, bounds.Bottom + 1));
-            drawingContext.DrawLine(EdgePen, new Point(end, bounds.Top - 1), new Point(end, bounds.Bottom + 1));
+            DrawThumb(drawingContext, end);
             return;
         }
 
         if (end > 0.5)
         {
             drawingContext.DrawRoundedRectangle(fill, null, new Rect(0, bounds.Top, end, bounds.Height), radius, radius);
-            drawingContext.DrawLine(EdgePen, new Point(end, bounds.Top - 1), new Point(end, bounds.Bottom + 1));
+            DrawThumb(drawingContext, end);
         }
     }
 
@@ -225,6 +225,42 @@ public sealed class VolumeBar : FrameworkElement
         child.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         _bubble.HorizontalOffset = Position * ActualWidth - child.DesiredSize.Width / 2;
         _bubble.VerticalOffset = -child.DesiredSize.Height - 3;
+    }
+
+    private static readonly Brush ThumbFace = VerticalStops(
+        (Color.FromRgb(0xF6, 0xF7, 0xF8), 0), (Color.FromRgb(0xD5, 0xD8, 0xDB), 0.4), (Color.FromRgb(0x9C, 0xA0, 0xA5), 1));
+    private static readonly Pen ThumbEdgePen = FrozenPen(0x1A, 0x1C, 0x1E);
+    private static readonly Pen ThumbLinePen = FrozenPen(0x1A, 0x1C, 0x1E);
+    private static readonly Brush ThumbShadow = Frozen(0x00, 0x00, 0x00, 0x80);
+
+    // The bar's knob, as a small fader cap of light grey metal standing on it: lit from above, with a shadow
+    // and a black line across it where the value is.
+    private void DrawThumb(DrawingContext drawingContext, double x)
+    {
+        var width = Math.Max(7, ActualHeight * 0.62);
+        var height = ActualHeight;
+        var left = Math.Clamp(x - width / 2, 0, Math.Max(0, ActualWidth - width));
+        drawingContext.DrawRoundedRectangle(ThumbShadow, null, new Rect(left + 0.8, 1.5, width, height - 1.5), 2, 2);
+        drawingContext.DrawRoundedRectangle(ThumbFace, ThumbEdgePen, new Rect(left, 0.5, width, height - 1.5), 2, 2);
+        drawingContext.DrawLine(ThumbLinePen, new Point(left + width / 2, 2.5), new Point(left + width / 2, height - 3));
+    }
+
+    private static Brush VerticalStops(params (Color Color, double Offset)[] stops)
+    {
+        var brush = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(0, 1) };
+        foreach (var (color, offset) in stops)
+        {
+            brush.GradientStops.Add(new GradientStop(color, offset));
+        }
+        brush.Freeze();
+        return brush;
+    }
+
+    private static Brush Frozen(byte r, byte g, byte b, byte a)
+    {
+        var brush = new SolidColorBrush(Color.FromArgb(a, r, g, b));
+        brush.Freeze();
+        return brush;
     }
 
     private static Brush Vertical(Color top, Color bottom)

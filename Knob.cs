@@ -138,8 +138,20 @@ public sealed class Knob : FrameworkElement
         return brush;
     }
 
-    // A console knob: the scale's dots printed around it, a dark knurled body, the Accent as its cap, lit
-    // from the top left, and a white line showing where it points.
+    // The colour of the scale's printed dots: dark on a light panel, as SSL's; light on a dark one.
+    public static readonly DependencyProperty ScaleBrushProperty = DependencyProperty.Register(
+        nameof(ScaleBrush), typeof(Brush), typeof(Knob),
+        new FrameworkPropertyMetadata(Frozen(0x3E, 0x42, 0x46), FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public Brush ScaleBrush
+    {
+        get => (Brush)GetValue(ScaleBrushProperty);
+        set => SetValue(ScaleBrushProperty, value);
+    }
+
+    // A knob as on SSL's panels, seen a little from the front: a light grey metal cone standing on the panel,
+    // lit from the top left and casting a soft shadow, a coloured dome cap (the Accent) on its top, and a line
+    // from the cap down the cone to where it points, over a printed scale of dots.
     private void DrawConsoleKnob(DrawingContext drawingContext, Point center, double radius)
     {
         var dotRadius = radius - 1.5;
@@ -148,33 +160,87 @@ public sealed class Knob : FrameworkElement
             var angle = (StartAngle + Sweep * i / 10) * Math.PI / 180;
             var dot = new Point(center.X + Math.Cos(angle) * dotRadius, center.Y + Math.Sin(angle) * dotRadius);
             var big = i == 0 || i == 10 || (IsCentred && i == 5);
-            drawingContext.DrawEllipse(ScaleDotBrush, null, dot, big ? 1.3 : 0.8, big ? 1.3 : 0.8);
+            drawingContext.DrawEllipse(ScaleBrush, null, dot, big ? 1.4 : 0.9, big ? 1.4 : 0.9);
         }
 
-        // Its shadow on the panel, then a chrome skirt lit from above, then the knurled body on it.
-        var skirtRadius = radius - 4;
-        drawingContext.DrawEllipse(KnobShadow, null, new Point(center.X, center.Y + 1.5), skirtRadius + 0.5, skirtRadius + 0.5);
-        drawingContext.DrawEllipse(ChromeSkirt, KnobEdgePen, center, skirtRadius, skirtRadius);
-        var bodyRadius = skirtRadius * 0.84;
-        drawingContext.DrawEllipse(KnurledBody, KnobEdgePen, center, bodyRadius, bodyRadius);
-        var capColor = Accent is SolidColorBrush solid ? solid.Color : Colors.SteelBlue;
-        var cap = new RadialGradientBrush(Lighten(capColor, 0.45), capColor)
-        {
-            GradientOrigin = new Point(0.35, 0.3),
-            Center = new Point(0.45, 0.4),
-            RadiusX = 0.7,
-            RadiusY = 0.7,
-        };
-        cap.Freeze();
-        var capRadius = bodyRadius * 0.62;
-        drawingContext.DrawEllipse(cap, KnobEdgePen, center, capRadius, capRadius);
+        var baseRadius = radius * 0.72;
+        var baseCentre = new Point(center.X, center.Y + radius * 0.05);
+        var capRadius = radius * 0.47;
+        var capCentre = new Point(center.X, center.Y - radius * 0.08);
 
+        drawingContext.DrawEllipse(ConeShadow, null, new Point(baseCentre.X + radius * 0.04, baseCentre.Y + radius * 0.14), baseRadius * 1.04, baseRadius * 1.02);
+        drawingContext.DrawEllipse(ConeMetal, ConeEdgePen, baseCentre, baseRadius, baseRadius);
+        drawingContext.DrawEllipse(ConeSideLight, null, baseCentre, baseRadius, baseRadius);
+
+        var capColour = Accent is SolidColorBrush solid ? solid.Color : Colors.LightGray;
+        var dome = new RadialGradientBrush
+        {
+            GradientOrigin = new Point(0.36, 0.28),
+            Center = new Point(0.45, 0.4),
+            RadiusX = 0.75,
+            RadiusY = 0.75,
+        };
+        dome.GradientStops.Add(new GradientStop(Lighten(capColour, 0.55), 0));
+        dome.GradientStops.Add(new GradientStop(capColour, 0.55));
+        dome.GradientStops.Add(new GradientStop(Darken(capColour, 0.4), 1));
+        dome.Freeze();
+        var capEdge = new Pen(new SolidColorBrush(Darken(capColour, 0.55)), 0.8);
+        capEdge.Freeze();
+        drawingContext.DrawEllipse(dome, capEdge, capCentre, capRadius, capRadius);
+        drawingContext.DrawEllipse(Specular, null, new Point(capCentre.X - capRadius * 0.32, capCentre.Y - capRadius * 0.38), capRadius * 0.34, capRadius * 0.22);
+
+        // The pointer: dark on a light cap, white on a dark or coloured one.
         var angleNow = (StartAngle + Sweep * Math.Clamp(Position, 0, 1)) * Math.PI / 180;
-        var tip = new Point(center.X + Math.Cos(angleNow) * (skirtRadius - 1), center.Y + Math.Sin(angleNow) * (skirtRadius - 1));
-        var inner = new Point(center.X + Math.Cos(angleNow) * capRadius * 0.2, center.Y + Math.Sin(angleNow) * capRadius * 0.2);
-        drawingContext.DrawLine(ConsolePointerPen, inner, tip);
+        var direction = new Vector(Math.Cos(angleNow), Math.Sin(angleNow));
+        var luminance = (0.299 * capColour.R + 0.587 * capColour.G + 0.114 * capColour.B) / 255;
+        var pointer = new Pen(luminance > 0.62 ? DarkPointer : LightPointer, Math.Max(1.6, radius * 0.075))
+        {
+            StartLineCap = PenLineCap.Round,
+            EndLineCap = PenLineCap.Round,
+        };
+        pointer.Freeze();
+        drawingContext.DrawLine(pointer, capCentre + direction * capRadius * 0.15, baseCentre + direction * (baseRadius - 1.2));
     }
 
+    private static readonly Brush ConeMetal = FrozenLinearVertical(
+        (Color.FromRgb(0xFA, 0xFB, 0xFB), 0), (Color.FromRgb(0xDA, 0xDD, 0xE0), 0.35), (Color.FromRgb(0xA0, 0xA5, 0xAA), 0.72), (Color.FromRgb(0x6A, 0x6F, 0x74), 1));
+    private static readonly Brush ConeSideLight = FrozenLinearHorizontal(
+        (Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF), 0), (Color.FromArgb(0x00, 0xFF, 0xFF, 0xFF), 0.45), (Color.FromArgb(0x40, 0x00, 0x00, 0x00), 1));
+    private static readonly Pen ConeEdgePen = FrozenPen(0x3A, 0x3D, 0x40, 0.8);
+    private static readonly Brush ConeShadow = FrozenShadow();
+    private static readonly Brush Specular = FrozenSolid(Color.FromArgb(0x59, 0xFF, 0xFF, 0xFF));
+    private static readonly Brush DarkPointer = FrozenSolid(Color.FromRgb(0x14, 0x15, 0x17));
+    private static readonly Brush LightPointer = FrozenSolid(Color.FromRgb(0xF6, 0xF6, 0xF4));
+
+    private static Brush FrozenShadow()
+    {
+        var brush = new RadialGradientBrush();
+        brush.GradientStops.Add(new GradientStop(Color.FromArgb(0x99, 0, 0, 0), 0.55));
+        brush.GradientStops.Add(new GradientStop(Color.FromArgb(0x00, 0, 0, 0), 1));
+        brush.Freeze();
+        return brush;
+    }
+
+    private static Brush FrozenLinearVertical(params (Color Color, double Offset)[] stops) =>
+        FrozenStops(new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(0, 1) }, stops);
+
+    private static Brush FrozenLinearHorizontal(params (Color Color, double Offset)[] stops) =>
+        FrozenStops(new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 0) }, stops);
+
+    private static Brush FrozenStops(GradientBrush brush, (Color Color, double Offset)[] stops)
+    {
+        foreach (var (color, offset) in stops)
+        {
+            brush.GradientStops.Add(new GradientStop(color, offset));
+        }
+        brush.Freeze();
+        return brush;
+    }
+
+    private static Color Darken(Color color, double amount) => Color.FromRgb(
+        (byte)(color.R * (1 - amount)),
+        (byte)(color.G * (1 - amount)),
+        (byte)(color.B * (1 - amount)));
     private static Color Lighten(Color color, double amount) => Color.FromRgb(
         (byte)(color.R + (255 - color.R) * amount),
         (byte)(color.G + (255 - color.G) * amount),
