@@ -148,6 +148,18 @@ public interface IVst3PluginHost
     /// with <see cref="TryStartAudio"/> and goes with <see cref="StopAudio"/> and <see cref="UnloadModule"/>.
     /// Null when the bridge is not available.
     /// </summary>
+    /// <summary>
+    /// Starts recording the mix of every plug-in and clip as it goes out, for exporting the song, for at
+    /// most maxSeconds. False when the bridge is not available.
+    /// </summary>
+    bool TryStartMixCapture(double maxSeconds);
+
+    /// <summary>
+    /// Stops recording the mix and returns it: interleaved stereo floats, at sampleRate. Null when nothing
+    /// was recorded, as when no plug-in or clip was playing.
+    /// </summary>
+    float[]? StopMixCapture(out int sampleRate);
+
     Vst3ModuleHandle? TryCreateClip(float[] interleaved, int channels, int sampleRate, double startSeconds);
 
     /// <summary>

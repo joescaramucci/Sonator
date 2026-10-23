@@ -1781,6 +1781,145 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         return preset;
     }
 
+    // ---- Export ----
+
+    // How long the song lasts, in steps: in arrange mode to its last bar in the arrangement; otherwise to the
+    // end of the selected pattern's last note, step or audio clip, at least a bar. Rounded up to the bar.
+    internal int ExportLengthSteps()
+    {
+        double end;
+        if (IsArrangeMode)
+        {
+            var lastBar = SongArrangeRows.Select((row, index) => (row, index))
+                .LastOrDefault(item => item.row.Cells.Any(cell => !string.IsNullOrWhiteSpace(cell.Label)));
+            end = lastBar.row is null ? 0 : (lastBar.index + 1) * StepsPerBar;
+        }
+        else
+        {
+            end = Tracks.Select(TrackEndSteps).DefaultIfEmpty(0).Max();
+        }
+
+        var bars = Math.Max(1, (int)Math.Ceiling(end / StepsPerBar));
+        return bars * StepsPerBar;
+    }
+
+    private double TrackEndSteps(PatternTrackViewModel track)
+    {
+        if (track.IsMuted)
+        {
+            return 0;
+        }
+
+        var notes = track.MidiNoteEvents.Select(note => note.StepIndex + note.StartOffset + note.DurationSteps + note.LengthFraction)
+            .DefaultIfEmpty(0).Max();
+        var steps = track.Steps.Where(step => step.IsActive).Select(step => step.Index + (double)Math.Max(1, step.DurationSteps))
+            .DefaultIfEmpty(0).Max();
+        var clip = 0.0;
+        if (track.AudioClipPath is { } path && File.Exists(path))
+        {
+            try
+            {
+                using var reader = new NAudio.Wave.MediaFoundationReader(path);
+                clip = reader.TotalTime.TotalSeconds * Tempo / 60.0 * 4;
+            }
+            catch (Exception ex) when (ex is IOException or System.Runtime.InteropServices.COMException or InvalidOperationException)
+            {
+                // A clip that cannot be read does not make the song longer.
+            }
+        }
+
+        return Math.Max(notes, Math.Max(steps, clip));
+    }
+
+    // True while the song is being exported.
+    public bool IsExporting { get; private set; }
+
+    // Plays the song from its start to its end, and two seconds more for reverb and releases to ring out,
+    // recording the mix that comes out of the audio output (every plug-in and audio clip, through their
+    // effects and volumes), then writes it to path as a 24-bit WAV. A real-time export, as plug-ins play live.
+    // Instruments outside Sonator (on the MIDI output) are not heard in it.
+    public async Task<bool> ExportAudioAsync(string path)
+    {
+        if (IsExporting)
+        {
+            return false;
+        }
+
+        if (IsPlaying)
+        {
+            StopPlayback();
+        }
+
+        var lengthSteps = ExportLengthSteps();
+        var seconds = lengthSteps * 60.0 / Tempo / 4.0;
+        const double tail = 2.0;
+        var wasLooping = IsLoopEnabled;
+        var startStep = CurrentStepIndex;
+        IsExporting = true;
+        try
+        {
+            IsLoopEnabled = false;
+            SeekToStep(0);
+
+            // The plug-ins start first, so the recording begins with the song and not with their loading.
+            foreach (var pluginTrack in PlaybackInstrumentTracks(Patterns.SelectMany(pattern => pattern.Tracks), SelectedTrack, recording: false))
+            {
+                EnsureTrackInstrument(pluginTrack);
+            }
+
+            if (!_liveInstrumentHost.TryStartMixCapture(seconds + tail + 5))
+            {
+                StatusMessage = "Export: the audio engine is not available";
+                return false;
+            }
+
+            StartPlayback();
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            while (clock.Elapsed.TotalSeconds < seconds && IsPlaying)
+            {
+                StatusMessage = $"Exporting... {clock.Elapsed.TotalSeconds:0} of {seconds:0} s";
+                await Task.Delay(250);
+            }
+
+            if (IsPlaying)
+            {
+                StopPlayback(); // the notes are released and ring out in the tail
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(tail));
+            var mix = _liveInstrumentHost.StopMixCapture(out var sampleRate);
+            if (mix is null)
+            {
+                StatusMessage = "Export: nothing was heard. Only plug-in and audio tracks are exported";
+                return false;
+            }
+
+            await Task.Run(() => WriteWav(path, mix, sampleRate));
+            StatusMessage = $"Exported {seconds + tail:0} s to {path}";
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _liveInstrumentHost.StopMixCapture(out _);
+            StatusMessage = $"Export failed: {ex.Message}";
+            return false;
+        }
+        finally
+        {
+            IsExporting = false;
+            IsLoopEnabled = wasLooping;
+            var message = StatusMessage;
+            SeekToStep(startStep);
+            StatusMessage = message; // the export's outcome, not the playhead's new place
+        }
+    }
+
+    private static void WriteWav(string path, float[] interleaved, int sampleRate)
+    {
+        using var writer = new NAudio.Wave.WaveFileWriter(path, new NAudio.Wave.WaveFormat(sampleRate, 24, 2));
+        writer.WriteSamples(interleaved, 0, interleaved.Length);
+    }
+
     // ---- Sounds ----
 
     // The sounds of the installed plug-ins, read once in the background the first time they are asked for.

@@ -300,6 +300,39 @@ public sealed class Vst3PluginHost : IVst3PluginHost
         return Vst3HostInterop.VstHostBridge_SendNoteEvent(handle.NativeHandle, channel, noteNumber, velocity, isOn ? 1 : 0) != 0;
     }
 
+    public bool TryStartMixCapture(double maxSeconds)
+    {
+        try
+        {
+            return IsNativeBridgeAvailable && Vst3HostInterop.VstHostBridge_StartMixCapture(maxSeconds) != 0;
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            return false;
+        }
+    }
+
+    public float[]? StopMixCapture(out int sampleRate)
+    {
+        sampleRate = 0;
+        try
+        {
+            var frames = Vst3HostInterop.VstHostBridge_StopMixCapture(out var rate);
+            sampleRate = (int)Math.Round(rate);
+            if (frames <= 0 || sampleRate <= 0)
+            {
+                return null;
+            }
+
+            var samples = new float[frames * 2];
+            return Vst3HostInterop.VstHostBridge_ReadMixCapture(samples, frames) != 0 ? samples : null;
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            return null;
+        }
+    }
+
     public Vst3ModuleHandle? TryCreateClip(float[] interleaved, int channels, int sampleRate, double startSeconds)
     {
         ArgumentNullException.ThrowIfNull(interleaved);

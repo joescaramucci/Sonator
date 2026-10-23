@@ -1035,8 +1035,48 @@ namespace
         double sampleRate_ = 0.0;
     };
 
-    // Sums every running plug-in into one stereo block. Called by the audio thread for each block.
+    // A recording of the mix as it goes out, for exporting the song: a stereo buffer made before it starts,
+    // so the audio thread only copies into it, and the frames written so far.
+    struct MixCapture
+    {
+        std::vector<float> samples; // interleaved left and right
+        std::atomic<int64> frames{0};
+        std::atomic<bool> recording{false};
+        std::atomic<double> sampleRate{0.0};
+    };
+
+    MixCapture g_capture;
+
+    void CaptureBlock(const float* left, const float* right, int32 frames, double sampleRate)
+    {
+        if (!g_capture.recording.load(std::memory_order_acquire))
+        {
+            return;
+        }
+
+        g_capture.sampleRate.store(sampleRate, std::memory_order_relaxed);
+        const auto start = g_capture.frames.load(std::memory_order_relaxed);
+        const auto room = static_cast<int64>(g_capture.samples.size() / 2) - start;
+        const auto count = static_cast<int64>(frames) < room ? static_cast<int64>(frames) : room;
+        for (int64 i = 0; i < count; ++i)
+        {
+            g_capture.samples[static_cast<size_t>((start + i) * 2)] = left[i];
+            g_capture.samples[static_cast<size_t>((start + i) * 2 + 1)] = right[i];
+        }
+        g_capture.frames.store(start + (count > 0 ? count : 0), std::memory_order_release);
+    }
+
+    void MixVoicesInto(float* left, float* right, int32 frames, double sampleRate);
+
+    // Sums every running plug-in into one stereo block, and records it when the song is being exported.
+    // Called by the audio thread for each block.
     void MixVoices(float* left, float* right, int32 frames, double sampleRate)
+    {
+        MixVoicesInto(left, right, frames, sampleRate);
+        CaptureBlock(left, right, frames, sampleRate);
+    }
+
+    void MixVoicesInto(float* left, float* right, int32 frames, double sampleRate)
     {
         {
             std::unique_lock<std::mutex> lock(g_voicesMutex, std::try_to_lock);
@@ -3522,6 +3562,57 @@ int VstHostBridge_SendNoteEvent(void* moduleHandle, int32_t channel, int32_t pit
             count = 0; // one note-off releases the pitch, however many times it was struck
         }
     }
+    return 1;
+}
+
+int VstHostBridge_StartMixCapture(double maxSeconds)
+{
+    if (maxSeconds <= 0.0)
+    {
+        return 0;
+    }
+
+    g_capture.recording.store(false, std::memory_order_release);
+    // Room at the output's sample rate (96 kHz when no output is open yet: it may open with the playback);
+    // the audio thread never grows the buffer.
+    double rate = 96000.0;
+    {
+        std::lock_guard<std::mutex> lock(g_mixerMutex);
+        if (g_engine != nullptr && g_engine->sampleRate > 0.0)
+        {
+            rate = g_engine->sampleRate;
+        }
+    }
+    g_capture.samples.assign(static_cast<size_t>(maxSeconds * rate) * 2, 0.0f);
+    g_capture.frames.store(0, std::memory_order_relaxed);
+    g_capture.sampleRate.store(0.0, std::memory_order_relaxed);
+    g_capture.recording.store(true, std::memory_order_release);
+    return 1;
+}
+
+int64_t VstHostBridge_StopMixCapture(double* outSampleRate)
+{
+    g_capture.recording.store(false, std::memory_order_release);
+    // A block being copied right now finishes within a block's time.
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    if (outSampleRate != nullptr)
+    {
+        *outSampleRate = g_capture.sampleRate.load();
+    }
+    return g_capture.frames.load(std::memory_order_acquire);
+}
+
+int VstHostBridge_ReadMixCapture(float* interleaved, int64_t frames)
+{
+    if (interleaved == nullptr || frames < 0 || frames > g_capture.frames.load())
+    {
+        return 0;
+    }
+
+    std::memcpy(interleaved, g_capture.samples.data(), static_cast<size_t>(frames) * 2 * sizeof(float));
+    g_capture.samples.clear();
+    g_capture.samples.shrink_to_fit();
+    g_capture.frames.store(0);
     return 1;
 }
 

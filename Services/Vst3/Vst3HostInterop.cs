@@ -124,6 +124,15 @@ internal static class Vst3HostInterop
     internal static extern int VstHostBridge_ReleaseAllNotes(IntPtr moduleHandle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int VstHostBridge_StartMixCapture(double maxSeconds);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern long VstHostBridge_StopMixCapture(out double sampleRate);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int VstHostBridge_ReadMixCapture(float[] interleaved, long frames);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern IntPtr VstHostBridge_CreateClipModule(float[] interleaved, int frames, int channels, double sampleRate, double startSeconds);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]

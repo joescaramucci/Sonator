@@ -153,6 +153,16 @@ VSTHOSTBRIDGE_API int VstHostBridge_LoadState(void* moduleHandle, int32_t part, 
 // VstHostBridge_UnloadModule. Null if the clip is empty.
 VSTHOSTBRIDGE_API void* VstHostBridge_CreateClipModule(const float* interleaved, int32_t frames, int32_t channels, double sampleRate, double startSeconds);
 
+// Records the mix as it goes out to the audio output, from now on, for exporting the song: at most maxSeconds.
+// Returns 1 when recording.
+VSTHOSTBRIDGE_API int VstHostBridge_StartMixCapture(double maxSeconds);
+
+// Stops recording the mix. Returns the frames recorded, with the sample rate they were recorded at.
+VSTHOSTBRIDGE_API int64_t VstHostBridge_StopMixCapture(double* outSampleRate);
+
+// Copies the frames recorded (interleaved stereo floats) and frees the recording. Returns 1 when copied.
+VSTHOSTBRIDGE_API int VstHostBridge_ReadMixCapture(float* interleaved, int64_t frames);
+
 // Releases every note the module's plug-in is holding: those sent with VstHostBridge_SendNoteEvent and not
 // released since. Returns 1 if done, 0 if audio is not running.
 VSTHOSTBRIDGE_API int VstHostBridge_ReleaseAllNotes(void* moduleHandle);

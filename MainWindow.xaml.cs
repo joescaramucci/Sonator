@@ -674,6 +674,13 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (e.Key == Key.E && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+        {
+            _ = ExportAudioAsync();
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key == Key.B && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
         {
             ShowSoundBrowser();
@@ -1199,6 +1206,33 @@ public partial class MainWindow : Window
     private void MixerMenuItem_Click(object sender, RoutedEventArgs e)
     {
         ShowMixerWindow();
+    }
+
+    // File > Export audio: the song played through and written to a WAV file.
+    private async void ExportAudioMenuItem_Click(object sender, RoutedEventArgs e) => await ExportAudioAsync();
+
+    private async Task ExportAudioAsync()
+    {
+        if (DataContext is not MainViewModel viewModel || viewModel.IsExporting)
+        {
+            return;
+        }
+
+        var name = viewModel.CurrentProjectPath is { } project
+            ? Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(project))
+            : "Sonator song";
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "Export audio",
+            Filter = "WAV audio (*.wav)|*.wav",
+            FileName = $"{name}.wav",
+        };
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        await viewModel.ExportAudioAsync(dialog.FileName);
     }
 
     private SoundBrowserWindow? _soundBrowser;

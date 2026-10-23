@@ -573,6 +573,7 @@
                         <MenuItem Header="Save _As..." Command="{Binding SaveProjectAsCommand}" InputGestureText="Ctrl+Shift+S" />
                         <Separator />
                         <MenuItem Header="Import _MIDI..." Command="{Binding ImportMidiCommand}" />
+                        <MenuItem Header="_Export audio (WAV)..." Click="ExportAudioMenuItem_Click" InputGestureText="Ctrl+E" />
                         <MenuItem Header="Close _project" Click="CloseProjectMenuItem_Click" />
                         <Separator />
                         <MenuItem Header="_Exit" Click="CloseMenuItem_Click" InputGestureText="Alt+F4" />
