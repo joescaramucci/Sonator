@@ -38,25 +38,8 @@ public sealed class ArrangeTimelineTrackViewModel : ViewModelBase
 
     public string AudioPathData => AudioWaveform?.PathData ?? string.Empty;
 
-    // The recorded notes of the track as one block, in sixteenth steps from the start of the pattern.
-    public bool HasBlock => BlockLengthSteps > 0;
-
-    // True while this track's block is the one being worked on: it is drawn highlighted.
-    private bool _isBlockSelected;
-
-    public bool IsBlockSelected
-    {
-        get => _isBlockSelected;
-        set => SetProperty(ref _isBlockSelected, value);
-    }
-
-    public int BlockStartStep => SourceTrack.MidiNoteEvents.Count == 0
-        ? 0
-        : SourceTrack.MidiNoteEvents.Min(note => note.StepIndex);
-
-    public double BlockLengthSteps => SourceTrack.MidiNoteEvents.Count == 0
-        ? 0
-        : SourceTrack.MidiNoteEvents.Max(note => note.StepIndex + Math.Max(1, note.DurationSteps)) - BlockStartStep;
+    // The track's blocks of notes along the timeline, each pattern's own where the pattern plays.
+    public IReadOnlyList<TimelineBlockViewModel> Blocks { get; init; } = Array.Empty<TimelineBlockViewModel>();
 
     // The clip's length in sixteenth-note steps at the song tempo.
     public double AudioLengthSteps { get; }

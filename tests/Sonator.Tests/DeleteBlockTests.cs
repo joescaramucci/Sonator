@@ -77,7 +77,7 @@ public sealed class DeleteBlockTests
             Assert.True(viewModel.DeleteSelectedBlock());
 
             Assert.Empty(track.MidiNoteEvents);
-            Assert.DoesNotContain(viewModel.TimelineTracks, lane => lane.IsBlockSelected);
+            Assert.DoesNotContain(viewModel.TimelineTracks.SelectMany(lane => lane.Blocks), block => block.IsSelected);
 
             viewModel.UndoCommand.Execute(null);
             var restored = viewModel.Tracks[0];

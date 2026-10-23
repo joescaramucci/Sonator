@@ -2,6 +2,7 @@ using System.IO;
 using System.Windows;
 using System.Globalization;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.ComponentModel;
@@ -29,7 +30,7 @@ public partial class MainWindow : Window
     private bool _isDraggingTimelineRuler;
     private bool _isPanningTimeline;
     private Border? _blockBorder;
-    private ArrangeTimelineTrackViewModel? _blockTimeline;
+    private TimelineBlockViewModel? _blockTimeline;
     private Point _blockPressPoint;
     private bool _blockResizing;
     private bool _blockResizingStart;
@@ -350,7 +351,7 @@ public partial class MainWindow : Window
     // A block moves when grabbed, and changes length when its right edge is grabbed. Both snap to the SNAP grid.
     private void NoteBlock_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (sender is not Border block || block.DataContext is not ArrangeTimelineTrackViewModel timeline)
+        if (sender is not Border block || block.DataContext is not TimelineBlockViewModel timeline)
         {
             return;
         }
@@ -358,8 +359,16 @@ public partial class MainWindow : Window
         // A double-click opens the block's notes in the piano roll.
         if (e.ClickCount == 2 && DataContext is MainViewModel model)
         {
-            model.SelectBlock(timeline.SourceTrack);
-            OpenPianoRoll(model, timeline.SourceTrack);
+            model.SelectBlock(timeline.Track, timeline.Block);
+            OpenPianoRoll(model, timeline.Track);
+            e.Handled = true;
+            return;
+        }
+
+        // Ctrl+click adds the block to the blocks selected, or takes it from them.
+        if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control && DataContext is MainViewModel adding)
+        {
+            adding.SelectBlock(timeline.Track, timeline.Block, add: true);
             e.Handled = true;
             return;
         }
@@ -373,7 +382,7 @@ public partial class MainWindow : Window
         block.CaptureMouse();
         if (DataContext is MainViewModel viewModel)
         {
-            viewModel.SelectBlock(timeline.SourceTrack);
+            viewModel.SelectBlock(timeline.Track, timeline.Block);
         }
 
         e.Handled = true;
@@ -391,7 +400,7 @@ public partial class MainWindow : Window
         var steps = (int)Math.Round((e.GetPosition(this).X - _blockPressPoint.X) / stepWidth);
         if (!_blockResizing && !_blockResizingStart)
         {
-            _blockMoveSteps = viewModel.SnapStep(_blockTimeline.BlockStartStep + steps) - _blockTimeline.BlockStartStep;
+            _blockMoveSteps = viewModel.SnapStep(_blockTimeline.Block.StartStep + steps) - _blockTimeline.Block.StartStep;
             _blockBorder.RenderTransform = new TranslateTransform(_blockMoveSteps * stepWidth, 0);
         }
 
@@ -418,29 +427,26 @@ public partial class MainWindow : Window
         block.ReleaseMouseCapture();
         block.RenderTransform = Transform.Identity;
 
+        var current = timeline.Block;
         if (resizingStart)
         {
-            var start = timeline.BlockStartStep;
-            var end = start + (int)timeline.BlockLengthSteps;
-            var newStart = viewModel.SnapStep(start + steps);
-            if (newStart != start && newStart < end)
+            var newStart = viewModel.SnapStep(current.StartStep + steps);
+            if (newStart != current.StartStep && newStart < current.EndStep)
             {
-                viewModel.StretchBlock(timeline.SourceTrack, newStart, end);
+                viewModel.StretchBlock(timeline.Track, current, newStart, current.EndStep);
             }
         }
         else if (resizing)
         {
-            var currentLength = (int)timeline.BlockLengthSteps;
-            var newEnd = viewModel.SnapStep(timeline.BlockStartStep + currentLength + steps);
-            var newLength = newEnd - timeline.BlockStartStep;
-            if (newLength > 0 && newLength != currentLength)
+            var newEnd = viewModel.SnapStep(current.EndStep + steps);
+            if (newEnd > current.StartStep && newEnd != current.EndStep)
             {
-                viewModel.ResizeBlock(timeline.SourceTrack, newLength);
+                viewModel.StretchBlock(timeline.Track, current, current.StartStep, newEnd);
             }
         }
         else
         {
-            viewModel.MoveBlock(timeline.SourceTrack, moveSteps);
+            viewModel.MoveBlock(timeline.Track, current, moveSteps);
         }
 
         e.Handled = true;
@@ -556,7 +562,8 @@ public partial class MainWindow : Window
     }
 
     // Dragging the timeline with the middle button, or with the left button after a few pixels of movement,
-    // moves it left and right. A left click without movement still reaches the track under the mouse.
+    // moves it left and right. A left click without movement still reaches the track under the mouse. On the
+    // lanes the left button draws a rectangle to select blocks instead.
     private void ArrangeTimelineScrollViewer_PreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
         if (sender is not ScrollViewer viewer || e.ChangedButton is not (MouseButton.Left or MouseButton.Middle))
@@ -569,19 +576,12 @@ public partial class MainWindow : Window
         // on the ruler, which chooses the part to loop.
         if (e.ChangedButton == MouseButton.Left
             && (IsInsideNoteBlock(e.OriginalSource) || IsInsideTagged(e.OriginalSource, "AutomationLane") || IsInsideTagged(e.OriginalSource, "AudioClip")
-                || IsInsideTagged(e.OriginalSource, "TimelineRuler")))
+                || IsInsideTagged(e.OriginalSource, "TimelineRuler") || IsOnLaneArea(e)))
         {
             return;
         }
 
         _timelinePanStart = e.GetPosition(viewer);
-        _timelinePanStartOffset = viewer.HorizontalOffset;
-        _timelinePanPending = true;
-        if (e.ChangedButton == MouseButton.Middle)
-        {
-            BeginTimelinePan(viewer);
-            e.Handled = true;
-        }
         _timelinePanStartOffset = viewer.HorizontalOffset;
         _timelinePanPending = true;
         if (e.ChangedButton == MouseButton.Middle)
@@ -857,6 +857,13 @@ public partial class MainWindow : Window
         }
 
         // Delete (Canc) removes the recorded block clicked on the timeline.
+        if (e.Key == Key.J && Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            viewModel.JoinSelectedBlocks();
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key == Key.Delete && Keyboard.Modifiers == ModifierKeys.None && viewModel.DeleteSelectedBlock())
         {
             e.Handled = true;
@@ -2225,16 +2232,183 @@ public partial class MainWindow : Window
         {
             DockPluginWindow(window);
         }
+
+        StartBlockRectangle(e);
     }
+
+    // ---- A rectangle drawn on the lanes selects the blocks it touches (with Ctrl, adds them) ----
+
+    private Point? _rectangleStart;
+    private BlockRectangleAdorner? _rectangle;
+
+    private static T? AncestorOf<T>(object source) where T : DependencyObject
+    {
+        for (var element = source as DependencyObject; element is not null; element = element is Visual or System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(element) : LogicalTreeHelper.GetParent(element))
+        {
+            if (element is T found)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
+    // True for a press on a lane past its header, where the left button draws a rectangle.
+    private static bool IsOnLaneArea(MouseButtonEventArgs e) =>
+        AncestorOf<ListBoxItem>(e.OriginalSource) is { DataContext: ArrangeTimelineTrackViewModel } item
+        && e.GetPosition(item).X >= MainViewModel.TimelineTrackHeaderWidth;
+
+    // A press on the empty part of a lane, past its header and off its blocks and clips, selects the lane's track
+    // and starts a rectangle. A double-click there still opens the piano roll.
+    private void StartBlockRectangle(MouseButtonEventArgs e)
+    {
+        if (e.ClickCount != 1 || DataContext is not MainViewModel viewModel || !IsOnLaneArea(e)
+            || AncestorOf<ListBoxItem>(e.OriginalSource) is not { DataContext: ArrangeTimelineTrackViewModel lane }
+            || IsInsideTagged(e.OriginalSource, "NoteBlock") || IsInsideTagged(e.OriginalSource, "AudioClip")
+            || IsInsideTagged(e.OriginalSource, "AutomationLane"))
+        {
+            return;
+        }
+
+        if ((Keyboard.Modifiers & ModifierKeys.Control) != ModifierKeys.Control)
+        {
+            viewModel.SelectedTrack = lane.SourceTrack;
+            viewModel.SelectBlocks(Array.Empty<(PatternTrackViewModel, NoteBlock)>());
+        }
+
+        _rectangleStart = e.GetPosition(TimelineBodyListBox);
+        TimelineBodyListBox.CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void TimelineBodyListBox_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (_rectangleStart is not { } start || e.LeftButton != MouseButtonState.Pressed)
+        {
+            return;
+        }
+
+        var now = e.GetPosition(TimelineBodyListBox);
+        if (_rectangle is null && (Math.Abs(now.X - start.X) > 4 || Math.Abs(now.Y - start.Y) > 4)
+            && AdornerLayer.GetAdornerLayer(TimelineBodyListBox) is { } layer)
+        {
+            _rectangle = new BlockRectangleAdorner(TimelineBodyListBox);
+            layer.Add(_rectangle);
+        }
+
+        _rectangle?.Show(new Rect(start, now));
+        e.Handled = true;
+    }
+
+    private void TimelineBodyListBox_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_rectangleStart is not { } start)
+        {
+            return;
+        }
+
+        _rectangleStart = null;
+        TimelineBodyListBox.ReleaseMouseCapture();
+        if (_rectangle is not null)
+        {
+            AdornerLayer.GetAdornerLayer(TimelineBodyListBox)?.Remove(_rectangle);
+            _rectangle = null;
+            if (DataContext is MainViewModel viewModel)
+            {
+                var area = new Rect(start, e.GetPosition(TimelineBodyListBox));
+                viewModel.SelectBlocks(
+                    BlockElements()
+                        .Where(element => element.TransformToAncestor(TimelineBodyListBox).TransformBounds(new Rect(element.RenderSize)).IntersectsWith(area))
+                        .Select(element => (TimelineBlockViewModel)element.DataContext)
+                        .Select(block => (block.Track, block.Block)),
+                    add: (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control);
+            }
+        }
+
+        e.Handled = true;
+    }
+
+    // The blocks drawn on the lanes.
+    private IEnumerable<FrameworkElement> BlockElements()
+    {
+        var pending = new Stack<DependencyObject>();
+        pending.Push(TimelineBodyListBox);
+        while (pending.Count > 0)
+        {
+            var element = pending.Pop();
+            if (element is FrameworkElement { Tag: "NoteBlock", DataContext: TimelineBlockViewModel, IsVisible: true } block)
+            {
+                yield return block;
+                continue;
+            }
+
+            for (var i = 0; i < VisualTreeHelper.GetChildrenCount(element); i++)
+            {
+                pending.Push(VisualTreeHelper.GetChild(element, i));
+            }
+        }
+    }
+
+    // The blocks' menu: Join is there when two blocks or more of a track are selected.
+    private void NoteBlock_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+    {
+        if (sender is FrameworkElement { ContextMenu: { } menu } && DataContext is MainViewModel viewModel)
+        {
+            foreach (var item in menu.Items.OfType<MenuItem>().Where(item => item.Tag is "Join"))
+            {
+                item.IsEnabled = viewModel.CanJoinSelectedBlocks;
+            }
+        }
+    }
+
+    private void JoinBlocksMenuItem_Click(object sender, RoutedEventArgs e) => (DataContext as MainViewModel)?.JoinSelectedBlocks();
+
+    private void CopyBlocksMenuItem_Click(object sender, RoutedEventArgs e) => (DataContext as MainViewModel)?.CopySelectedNotes();
+
+    private void PasteBlocksMenuItem_Click(object sender, RoutedEventArgs e) => (DataContext as MainViewModel)?.PasteNotes();
+
+    private void DeleteBlocksMenuItem_Click(object sender, RoutedEventArgs e) => (DataContext as MainViewModel)?.DeleteSelectedBlock();
 
     // The block selected when the right button went down, copied over and over by left clicks while it is held.
     private PatternTrackViewModel? _repeatBlock;
     private bool _repeatedBlock;
 
+    // The right button keeps the blocks selected, so their menu (Join) acts on them: a block right-clicked
+    // outside the selection becomes the one selected.
     private void TimelineBodyListBox_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
-        _repeatBlock = (DataContext as MainViewModel)?.SelectedBlockTrack;
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        _repeatBlock = viewModel.SelectedBlockTrack;
         _repeatedBlock = false;
+        if (AncestorOf<FrameworkElement>(e.OriginalSource) is { } source
+            && FindTagged(source, "NoteBlock") is { DataContext: TimelineBlockViewModel { IsSelected: false } block })
+        {
+            viewModel.SelectBlock(block.Track, block.Block);
+            _repeatBlock = block.Track;
+        }
+
+        if (viewModel.SelectedBlocks.Count > 0)
+        {
+            e.Handled = true; // the lane's track stays as it is, and with it the blocks selected
+        }
+    }
+
+    private static FrameworkElement? FindTagged(DependencyObject source, string tag)
+    {
+        for (var element = source; element is not null; element = VisualTreeHelper.GetParent(element))
+        {
+            if (element is FrameworkElement { Tag: string elementTag } found && elementTag == tag)
+            {
+                return found;
+            }
+        }
+
+        return null;
     }
 
     // After copies were laid, letting go of the right button opens no menu.

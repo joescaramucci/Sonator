@@ -267,6 +267,9 @@ public sealed class PatternTrackViewModel : ViewModelBase
     // The controllers played with the notes, as recorded: sustain pedal, mod wheel, pitch bend...
     public IReadOnlyList<MidiControllerEventViewModel> MidiControllerEvents { get; set; } = Array.Empty<MidiControllerEventViewModel>();
 
+    // The blocks the notes are kept in on the timeline (see NoteBlocks.Of, which fills in any the notes need).
+    public IReadOnlyList<NoteBlock> NoteBlocks { get; set; } = Array.Empty<NoteBlock>();
+
     public IReadOnlyList<MidiNoteEventViewModel> MidiNoteEvents
     {
         get => _midiNoteEvents;

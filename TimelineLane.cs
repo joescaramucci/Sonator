@@ -10,8 +10,8 @@ namespace Sonator;
 /// <summary>
 /// The background of one track's lane on the timeline, drawn at once rather than as an element for every
 /// sixteenth, so a long song (thousands of steps a lane) is laid out and drawn again quickly: a line for each
-/// sixteenth, brighter on the beats and none on the bar lines (drawn over all the lanes), and the track's
-/// active steps in its colour with their note. Steps are the lane's ArrangeTimelineStepViewModels; ShowSteps
+/// sixteenth, brighter on the beats and brightest on the bars, and the track's active steps in its colour with
+/// their note. The track's blocks of notes are drawn over it. Steps are the lane's ArrangeTimelineStepViewModels; ShowSteps
 /// leaves them out, as for an audio track.
 /// </summary>
 public sealed class TimelineLane : FrameworkElement
@@ -35,6 +35,7 @@ public sealed class TimelineLane : FrameworkElement
     public static readonly DependencyProperty ShowStepsProperty = DependencyProperty.Register(
         nameof(ShowSteps), typeof(bool), typeof(TimelineLane), new FrameworkPropertyMetadata(true, FrameworkPropertyMetadataOptions.AffectsRender));
 
+    private static readonly Pen BarPen = FrozenPen(0x4F, 0x8F, 0x83);
     private static readonly Pen BeatPen = FrozenPen(0x3D, 0x56, 0x6D);
     private static readonly Pen SixteenthPen = FrozenPen(0x29, 0x3C, 0x4E);
     private static readonly Pen StepEdgePen = FrozenPen(0xF7, 0xF8, 0xFA);
@@ -104,21 +105,26 @@ public sealed class TimelineLane : FrameworkElement
 
         drawingContext.DrawRectangle(Brushes.Transparent, null, new Rect(0, 0, width, height));
 
-        // The grid: one line a sixteenth, as two figures (beats and the rest), none at the bar lines. Lines
+        // The grid: one line a sixteenth, as three figures (bars, beats and the rest). Beat and sixteenth lines
         // closer than a few pixels are left out, so narrow bars do not turn into a solid colour.
         var stepsPerBar = Math.Max(1, StepsPerBar);
         var stepsPerBeat = Math.Max(1, StepsPerBeat);
+        var bars = new StreamGeometry();
         var beats = new StreamGeometry();
         var sixteenths = new StreamGeometry();
+        using (var barLines = bars.Open())
         using (var beatLines = beats.Open())
         using (var sixteenthLines = sixteenths.Open())
         {
             var count = (int)Math.Ceiling(width / stepWidth);
-            for (var step = 1; step < count; step++)
+            for (var step = 0; step < count; step++)
             {
                 var inBar = step % stepsPerBar;
                 if (inBar == 0)
                 {
+                    var barX = Math.Round(step * stepWidth) + 0.5;
+                    barLines.BeginFigure(new Point(barX, 0), false, false);
+                    barLines.LineTo(new Point(barX, height), true, false);
                     continue;
                 }
 
@@ -135,10 +141,12 @@ public sealed class TimelineLane : FrameworkElement
             }
         }
 
+        bars.Freeze();
         beats.Freeze();
         sixteenths.Freeze();
         drawingContext.DrawGeometry(null, SixteenthPen, sixteenths);
         drawingContext.DrawGeometry(null, BeatPen, beats);
+        drawingContext.DrawGeometry(null, BarPen, bars);
 
         if (!ShowSteps || Steps is not { Count: > 0 } steps)
         {

@@ -70,7 +70,11 @@ public sealed record TrackDocument(
     List<AutomationPointDocument>? PanAutomation = null,
     Guid? BusId = null,
     List<SendDocument>? Sends = null,
-    int AudioClipStartStep = 0);
+    int AudioClipStartStep = 0,
+    List<NoteBlockDocument>? NoteBlocks = null);
+
+// A block of a track's notes on the timeline (see NoteBlock).
+public sealed record NoteBlockDocument(int StartStep, int LengthSteps);
 
 // How much of a track goes to a bus (see PatternTrackViewModel.Sends).
 public sealed record SendDocument(Guid Bus, double Level);

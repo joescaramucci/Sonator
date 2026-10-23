@@ -1152,7 +1152,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         get => _selectedTrack;
         set
         {
-            if (!ReferenceEquals(value, _selectedBlockTrack))
+            if (!_selectedBlocks.Any(item => ReferenceEquals(item.Track, value)))
             {
                 ClearBlockSelection();
             }
@@ -1966,20 +1966,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         return Math.Max(0, rounded);
     }
 
-    // Moves the block of a track by a number of steps.
-    public void MoveBlock(PatternTrackViewModel track, int deltaSteps)
-    {
-        if (track.MidiNoteEvents.Count == 0 || deltaSteps == 0)
-        {
-            return;
-        }
-
-        var notes = track.MidiNoteEvents
-            .Select(note => note with { StepIndex = Math.Max(0, note.StepIndex + deltaSteps) })
-            .ToList();
-        ReplaceTrackNotes(track, notes);
-    }
-
     // Moves a track's audio clip to start at startStep, on the same track or, when target is another empty
     // track, onto that one, which becomes the audio track. False when nothing moved.
     public bool MoveAudioClip(PatternTrackViewModel track, int startStep, PatternTrackViewModel? target = null)
@@ -2012,58 +1998,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         LengthenPatternForClip(destination);
         RebuildTimeline();
         return true;
-    }
-
-    // Moves the start of a block to newStart, keeping its end: the notes stretch in proportion.
-    public void StretchBlock(PatternTrackViewModel track, int newStart, int end)
-    {
-        if (track.MidiNoteEvents.Count == 0 || newStart < 0 || newStart >= end)
-        {
-            return;
-        }
-
-        var start = track.MidiNoteEvents.Min(note => note.StepIndex);
-        var length = track.MidiNoteEvents.Max(note => note.StepIndex + Math.Max(1, note.DurationSteps)) - start;
-        if (length <= 0)
-        {
-            return;
-        }
-
-        var ratio = (end - newStart) / (double)length;
-        var notes = track.MidiNoteEvents
-            .Select(note => note with
-            {
-                StepIndex = newStart + (int)Math.Round((note.StepIndex - start) * ratio),
-                DurationSteps = Math.Max(1, (int)Math.Round(note.DurationSteps * ratio)),
-            })
-            .ToList();
-        ReplaceTrackNotes(track, notes);
-    }
-
-    // Changes the length of a block by stretching its notes in proportion, keeping its start.
-    public void ResizeBlock(PatternTrackViewModel track, int newLength)
-    {
-        if (track.MidiNoteEvents.Count == 0 || newLength <= 0)
-        {
-            return;
-        }
-
-        var start = track.MidiNoteEvents.Min(note => note.StepIndex);
-        var length = track.MidiNoteEvents.Max(note => note.StepIndex + Math.Max(1, note.DurationSteps)) - start;
-        if (length <= 0)
-        {
-            return;
-        }
-
-        var ratio = newLength / (double)length;
-        var notes = track.MidiNoteEvents
-            .Select(note => note with
-            {
-                StepIndex = start + (int)Math.Round((note.StepIndex - start) * ratio),
-                DurationSteps = Math.Max(1, (int)Math.Round(note.DurationSteps * ratio)),
-            })
-            .ToList();
-        ReplaceTrackNotes(track, notes);
     }
 
     // Sets the bar width so every bar of the timeline fits in the visible part of the track area.
@@ -3115,51 +3049,81 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         _midiActivityTimer.Start();
     }
 
-    // The block of notes copied with Ctrl+C, from the start of its first bar, and its length in whole bars.
+    // ---- Blocks of notes on the timeline ----
+
+    // The blocks a track's notes are in (see NoteBlocks.Of).
+    public IReadOnlyList<NoteBlock> BlocksOf(PatternTrackViewModel track) => NoteBlocks.Of(track.NoteBlocks, track.MidiNoteEvents, StepsPerBar);
+
+    // The notes copied with Ctrl+C, from the start of the first block copied, the blocks they were in, from there
+    // too, and how long they last.
     private IReadOnlyList<MidiNoteEventViewModel>? _copiedNotes;
+    private IReadOnlyList<NoteBlock> _copiedBlocks = Array.Empty<NoteBlock>();
     private int _copiedLengthSteps;
 
-    // Where a note ends, in steps; a very short note counts as one step, as on the timeline.
-    private static double NoteEnd(MidiNoteEventViewModel note) =>
-        note.StepIndex + Math.Max(1, note.StartOffset + note.DurationSteps + note.LengthFraction);
-
-    private static string Bars(int count) => count == 1 ? "1 bar" : $"{count} bars";
-
-    // The step at the start of the first whole bar at or after the step.
-    private int BarAtOrAfter(double step) => (int)Math.Ceiling(step / StepsPerBar - 1e-6) * StepsPerBar;
-
-    // The block the player has clicked. It is highlighted, and copy, cut and the block handles act on it.
-    private PatternTrackViewModel? _selectedBlockTrack;
-
-    public PatternTrackViewModel? SelectedBlockTrack => _selectedBlockTrack;
-
-    // Lays one more copy of the track's block after its end. The first of a run copies the block first, so the
-    // run repeats the block as it was, not what the copies have made of it.
-    public void RepeatBlock(PatternTrackViewModel track, bool first)
+    private string Bars(int steps)
     {
-        if (track.MidiNoteEvents.Count == 0)
-        {
-            return;
-        }
-
-        SelectBlock(track);
-        if (first)
-        {
-            CopySelectedNotes();
-        }
-
-        PasteNotes();
+        var bars = Math.Max(1, (int)Math.Round(steps / (double)StepsPerBar));
+        return bars == 1 ? "1 bar" : $"{bars} bars";
     }
 
-    public void SelectBlock(PatternTrackViewModel? track)
+    private static string Blocks(int count) => count == 1 ? "1 block" : $"{count} blocks";
+
+    // The blocks the player has clicked or drawn a rectangle around. They are highlighted, and copy, cut, delete,
+    // join and the block handles act on them.
+    private readonly List<(PatternTrackViewModel Track, NoteBlock Block)> _selectedBlocks = new();
+
+    public IReadOnlyList<(PatternTrackViewModel Track, NoteBlock Block)> SelectedBlocks => _selectedBlocks;
+
+    // The track of the first block selected, or null when no block is.
+    public PatternTrackViewModel? SelectedBlockTrack => _selectedBlocks.Count > 0 ? _selectedBlocks[0].Track : null;
+
+    // Selects one block of a track, the track's last when none is given. With add, the block is added to the
+    // blocks selected, or taken from them when it is one already.
+    public void SelectBlock(PatternTrackViewModel? track, NoteBlock? block = null, bool add = false)
     {
-        _selectedBlockTrack = track;
-        foreach (var lane in TimelineTracks)
+        if (!add)
         {
-            lane.IsBlockSelected = track is not null && ReferenceEquals(lane.SourceTrack, track);
+            _selectedBlocks.Clear();
         }
 
+        if (track is not null && (block ?? BlocksOf(track).LastOrDefault()) is { LengthSteps: > 0 } chosen)
+        {
+            var index = _selectedBlocks.FindIndex(item => ReferenceEquals(item.Track, track) && item.Block == chosen);
+            if (index < 0)
+            {
+                _selectedBlocks.Add((track, chosen));
+            }
+            else if (add)
+            {
+                _selectedBlocks.RemoveAt(index);
+            }
+        }
+
+        ShowBlockSelection();
         if (track is not null)
+        {
+            SelectedTrack = track;
+        }
+    }
+
+    // Selects the blocks given (a rectangle drawn around them), or with add, adds them to the blocks selected.
+    public void SelectBlocks(IEnumerable<(PatternTrackViewModel Track, NoteBlock Block)> blocks, bool add = false)
+    {
+        if (!add)
+        {
+            _selectedBlocks.Clear();
+        }
+
+        foreach (var item in blocks)
+        {
+            if (!IsBlockSelected(item.Track, item.Block))
+            {
+                _selectedBlocks.Add(item);
+            }
+        }
+
+        ShowBlockSelection();
+        if (SelectedBlockTrack is { } track)
         {
             SelectedTrack = track;
         }
@@ -3167,63 +3131,108 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
 
     private void ClearBlockSelection()
     {
-        _selectedBlockTrack = null;
-        foreach (var lane in TimelineTracks)
+        _selectedBlocks.Clear();
+        ShowBlockSelection();
+    }
+
+    private bool IsBlockSelected(PatternTrackViewModel track, NoteBlock block) =>
+        _selectedBlocks.Any(item => ReferenceEquals(item.Track, track) && item.Block == block);
+
+    private void ShowBlockSelection()
+    {
+        foreach (var block in TimelineTracks.SelectMany(lane => lane.Blocks))
         {
-            lane.IsBlockSelected = false;
+            block.IsSelected = IsBlockSelected(block.Track, block.Block);
         }
     }
 
-    public void CutSelectedNotes()
+    // The blocks copy and cut act on: those selected on the first selected block's track, or with none selected,
+    // every block of the selected track. Null when there are none.
+    private (PatternTrackViewModel Track, IReadOnlyList<NoteBlock> Blocks)? BlocksToCopy()
     {
-        CopySelectedNotes();
-        var track = _selectedBlockTrack ?? SelectedTrack;
-        if (track is null || track.MidiNoteEvents.Count == 0 || _copiedNotes is null)
+        if (SelectedBlockTrack is { } track)
         {
-            return;
+            return (track, _selectedBlocks.Where(item => ReferenceEquals(item.Track, track)).Select(item => item.Block).OrderBy(block => block.StartStep).ToList());
         }
 
-        ReplaceTrackNotes(track, Array.Empty<MidiNoteEventViewModel>());
-        StatusMessage = $"Cut the block from {track.Name}";
-    }
-
-    // Delete removes the recorded block the player clicked on the timeline. Only a block clicked on
-    // the timeline is deleted, never a whole track that is merely selected; Undo brings it back.
-    public bool DeleteSelectedBlock()
-    {
-        var track = _selectedBlockTrack;
-        if (track is null || track.MidiNoteEvents.Count == 0)
-        {
-            return false;
-        }
-
-        var count = track.MidiNoteEvents.Count;
-        ReplaceTrackNotes(track, Array.Empty<MidiNoteEventViewModel>());
-        track.MidiControllerEvents = Array.Empty<MidiControllerEventViewModel>(); // the pedal and wheels played with them go too
-        ClearBlockSelection();
-        StatusMessage = $"Deleted the block of {track.Name} ({count} notes). Undo brings it back.";
-        return true;
+        return SelectedTrack is { } selected && BlocksOf(selected) is { Count: > 0 } all ? (selected, all) : null;
     }
 
     public void CopySelectedNotes()
     {
-        var track = _selectedBlockTrack ?? SelectedTrack;
-        if (track is null || track.MidiNoteEvents.Count == 0)
+        if (BlocksToCopy() is not { } work)
         {
             StatusMessage = "Nothing to copy: the selected track has no notes";
             return;
         }
 
-        // Whole bars, from the bar the block starts in to the bar it ends in, so copies follow on in time.
-        var barStart = track.MidiNoteEvents.Min(note => note.StepIndex) / StepsPerBar * StepsPerBar;
-        _copiedLengthSteps = Math.Max(StepsPerBar, BarAtOrAfter(track.MidiNoteEvents.Max(NoteEnd) - barStart));
-        _copiedNotes = track.MidiNoteEvents.Select(note => note with { StepIndex = note.StepIndex - barStart }).ToList();
-        StatusMessage = $"Copied {_copiedNotes.Count} notes, {Bars(_copiedLengthSteps / StepsPerBar)}, from {track.Name}: Ctrl+V puts them after its end";
+        var (track, blocks) = work;
+        var start = blocks[0].StartStep;
+        _copiedLengthSteps = blocks.Max(block => block.EndStep) - start;
+        _copiedBlocks = blocks.Select(block => block with { StartStep = block.StartStep - start }).ToList();
+        _copiedNotes = track.MidiNoteEvents
+            .Where(note => blocks.Any(block => block.Holds(note)))
+            .Select(note => note with { StepIndex = note.StepIndex - start })
+            .ToList();
+        StatusMessage = $"Copied {Blocks(blocks.Count)}, {Bars(_copiedLengthSteps)}, from {track.Name}: Ctrl+V puts them after its last block";
     }
 
-    // Pastes the copied block on the selected track right after its last bar, so pasting again and again lays the
-    // copies one after the other; on a track with no notes, at the bar the playhead is in. The pattern grows to
-    // play them. One undo step.
+    public void CutSelectedNotes()
+    {
+        if (BlocksToCopy() is not { } work)
+        {
+            return;
+        }
+
+        CopySelectedNotes();
+        RemoveBlocks(work.Track, work.Blocks);
+        ClearBlockSelection();
+        StatusMessage = $"Cut {Blocks(work.Blocks.Count)} from {work.Track.Name}";
+    }
+
+    // Delete removes the blocks the player clicked on the timeline. Only clicked blocks are deleted, never a whole
+    // track that is merely selected; Undo brings them back.
+    public bool DeleteSelectedBlock()
+    {
+        if (_selectedBlocks.Count == 0)
+        {
+            return false;
+        }
+
+        var count = _selectedBlocks.Count;
+        CaptureUndoStateIfNeeded();
+        foreach (var group in _selectedBlocks.GroupBy(item => item.Track).ToList())
+        {
+            RemoveBlocks(group.Key, group.Select(item => item.Block).ToList(), captureUndo: false);
+        }
+
+        ClearBlockSelection();
+        StatusMessage = $"Deleted {Blocks(count)}. Undo brings {(count == 1 ? "it" : "them")} back.";
+        return true;
+    }
+
+    // Takes blocks and their notes out of a track; when no note is left, the pedal and wheels played with them go too.
+    private void RemoveBlocks(PatternTrackViewModel track, IReadOnlyList<NoteBlock> blocks, bool captureUndo = true)
+    {
+        if (captureUndo)
+        {
+            CaptureUndoStateIfNeeded();
+        }
+
+        track.NoteBlocks = BlocksOf(track).Where(block => !blocks.Contains(block)).ToList();
+        track.MidiNoteEvents = track.MidiNoteEvents.Where(note => !blocks.Any(block => block.Holds(note))).ToList();
+        if (track.MidiNoteEvents.Count == 0)
+        {
+            track.MidiControllerEvents = Array.Empty<MidiControllerEventViewModel>();
+        }
+
+        TrackNotesChanged?.Invoke(track);
+        RebuildTimeline();
+    }
+
+    // Pastes the copied blocks on the selected track right after its last block, so pasting again and again lays
+    // the copies one after the other, each a block of its own; on a track with no notes, at the bar the playhead is
+    // in. The pattern grows to play them. One undo step.
     public void PasteNotes()
     {
         var track = SelectedTrack;
@@ -3232,18 +3241,128 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
             return;
         }
 
-        var at = track.MidiNoteEvents.Count > 0
-            ? BarAtOrAfter(track.MidiNoteEvents.Max(NoteEnd))
-            : CurrentStepIndex / StepsPerBar * StepsPerBar;
+        var blocks = BlocksOf(track);
+        var at = blocks.Count > 0 ? blocks.Max(block => block.EndStep) : CurrentStepIndex / StepsPerBar * StepsPerBar;
         CaptureUndoStateIfNeeded();
-        var notes = track.MidiNoteEvents.ToList();
-        notes.AddRange(_copiedNotes.Select(note => note with { StepIndex = note.StepIndex + at }));
-        track.MidiNoteEvents = notes;
+        var pasted = _copiedBlocks.Select(block => block with { StartStep = block.StartStep + at }).ToList();
+        track.NoteBlocks = blocks.Concat(pasted).ToList();
+        track.MidiNoteEvents = track.MidiNoteEvents.Concat(_copiedNotes.Select(note => note with { StepIndex = note.StepIndex + at })).ToList();
         LengthenPatternTo(track, at + _copiedLengthSteps);
         TrackNotesChanged?.Invoke(track);
         RebuildTimeline();
-        SelectBlock(track);
-        StatusMessage = $"Pasted {Bars(_copiedLengthSteps / StepsPerBar)} into {track.Name} at bar {at / StepsPerBar + 1}";
+        SelectBlocks(pasted.Select(block => (track, block)));
+        StatusMessage = $"Pasted {Bars(_copiedLengthSteps)} into {track.Name} at bar {at / StepsPerBar + 1}";
+    }
+
+    // Lays one more copy of the selected blocks of the track (its last block, when none of its blocks is selected)
+    // after its last block. The first of a run copies them first, so the run repeats them as they were, not what
+    // the copies have made of the track.
+    public void RepeatBlock(PatternTrackViewModel track, bool first)
+    {
+        if (track.MidiNoteEvents.Count == 0)
+        {
+            return;
+        }
+
+        if (first)
+        {
+            if (!ReferenceEquals(SelectedBlockTrack, track))
+            {
+                SelectBlock(track);
+            }
+
+            CopySelectedNotes();
+        }
+
+        PasteNotes();
+    }
+
+    // True when two blocks or more of one track are selected, which Join makes one.
+    public bool CanJoinSelectedBlocks => _selectedBlocks.GroupBy(item => item.Track).Any(group => group.Count() > 1);
+
+    // Makes the selected blocks of each track one block, from the first one's start to the last one's end; a block
+    // between them is taken in too. One undo step.
+    public void JoinSelectedBlocks()
+    {
+        var groups = _selectedBlocks.GroupBy(item => item.Track).Where(group => group.Count() > 1).ToList();
+        if (groups.Count == 0)
+        {
+            StatusMessage = "To join blocks, select two or more on a track: draw a rectangle around them";
+            return;
+        }
+
+        CaptureUndoStateIfNeeded();
+        var joined = new List<(PatternTrackViewModel Track, NoteBlock Block)>();
+        foreach (var group in groups)
+        {
+            var start = group.Min(item => item.Block.StartStep);
+            var end = group.Max(item => item.Block.EndStep);
+            var block = new NoteBlock(start, end - start);
+            group.Key.NoteBlocks = BlocksOf(group.Key)
+                .Where(other => other.EndStep <= start || other.StartStep >= end)
+                .Append(block)
+                .OrderBy(other => other.StartStep)
+                .ToList();
+            joined.Add((group.Key, block));
+        }
+
+        RebuildTimeline();
+        SelectBlocks(joined);
+        StatusMessage = joined.Count == 1
+            ? $"Joined into one block of {Bars(joined[0].Block.LengthSteps)} on {joined[0].Track.Name}"
+            : $"Joined the blocks of {joined.Count} tracks";
+    }
+
+    // After a block has changed: the piano roll and the timeline show it, and it stays selected.
+    private void ShowChangedBlock(PatternTrackViewModel track, NoteBlock block)
+    {
+        TrackNotesChanged?.Invoke(track);
+        RebuildTimeline();
+        SelectBlock(track, block);
+    }
+
+    // Moves a block and its notes by a number of steps; the pattern grows to play it. One undo step.
+    public void MoveBlock(PatternTrackViewModel track, NoteBlock block, int deltaSteps)
+    {
+        deltaSteps = Math.Max(deltaSteps, -block.StartStep);
+        if (deltaSteps == 0)
+        {
+            return;
+        }
+
+        CaptureUndoStateIfNeeded();
+        var moved = block with { StartStep = block.StartStep + deltaSteps };
+        track.NoteBlocks = BlocksOf(track).Select(other => other == block ? moved : other).ToList();
+        track.MidiNoteEvents = track.MidiNoteEvents
+            .Select(note => block.Holds(note) ? note with { StepIndex = note.StepIndex + deltaSteps } : note)
+            .ToList();
+        LengthenPatternTo(track, moved.EndStep);
+        ShowChangedBlock(track, moved);
+    }
+
+    // Gives a block new bounds, its notes stretched or squeezed in proportion to fit them. One undo step.
+    public void StretchBlock(PatternTrackViewModel track, NoteBlock block, int newStart, int newEnd)
+    {
+        if (newStart < 0 || newEnd <= newStart || block.LengthSteps <= 0 || (newStart == block.StartStep && newEnd == block.EndStep))
+        {
+            return;
+        }
+
+        CaptureUndoStateIfNeeded();
+        var stretched = new NoteBlock(newStart, newEnd - newStart);
+        var ratio = stretched.LengthSteps / (double)block.LengthSteps;
+        track.NoteBlocks = BlocksOf(track).Select(other => other == block ? stretched : other).ToList();
+        track.MidiNoteEvents = track.MidiNoteEvents
+            .Select(note => block.Holds(note)
+                ? note with
+                {
+                    StepIndex = Math.Min(newEnd - 1, newStart + (int)Math.Round((note.StepIndex - block.StartStep) * ratio)),
+                    DurationSteps = Math.Max(1, (int)Math.Round(note.DurationSteps * ratio)),
+                }
+                : note)
+            .ToList();
+        LengthenPatternTo(track, newEnd);
+        ShowChangedBlock(track, stretched);
     }
 
     // Recording is turned on and off here; playback is started by the transport (space bar or START).
@@ -4570,10 +4689,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
 
         if (track.MidiNoteEvents.Count > 0)
         {
-            // The notes form one block, from the first note started to the last note released.
-            var blockStart = track.MidiNoteEvents.Min(item => item.StepIndex);
-            var blockEnd = track.MidiNoteEvents.Max(item => item.StepIndex + Math.Max(1, item.DurationSteps));
-            return stepIndex >= blockStart && stepIndex < blockEnd ? new StepViewModel(stepIndex, true) : null;
+            return null; // the notes show as blocks, drawn over the lane
         }
 
         return stepIndex < track.Steps.Count ? track.Steps[stepIndex] : null;
@@ -4609,10 +4725,18 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
             }
 
             var timelineSteps = new ObservableCollection<ArrangeTimelineStepViewModel>();
+            var blocks = new List<TimelineBlockViewModel>();
+            var shownPatterns = new HashSet<PatternViewModel>();
             var absoluteStep = 0;
             foreach (var pattern in timelinePatterns)
             {
                 var track = trackIndex < pattern.Tracks.Count ? pattern.Tracks[trackIndex] : null;
+                var isRepeat = !shownPatterns.Add(pattern);
+                if (track is not null)
+                {
+                    blocks.AddRange(BlocksOf(track).Select(block => new TimelineBlockViewModel(track, block, absoluteStep, isRepeat)));
+                }
+
                 var timelineStepCount = PatternBarCount(pattern, StepsPerBar) * StepsPerBar;
                 for (var stepIndex = 0; stepIndex < timelineStepCount; stepIndex++)
                 {
@@ -4621,16 +4745,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
                 }
             }
 
-            TimelineTracks.Add(new ArrangeTimelineTrackViewModel(sourceTrack, timelineSteps, LoadAudioWaveform(sourceTrack), Tempo));
+            TimelineTracks.Add(new ArrangeTimelineTrackViewModel(sourceTrack, timelineSteps, LoadAudioWaveform(sourceTrack), Tempo) { Blocks = blocks });
         }
 
         RaisePropertyChanged(nameof(TimelineContentWidth));
         RaisePropertyChanged(nameof(TimelineWorkspaceWidth));
         UpdateSongTimelinePosition(CurrentStepIndex);
-        foreach (var lane in TimelineTracks)
-        {
-            lane.IsBlockSelected = ReferenceEquals(lane.SourceTrack, _selectedBlockTrack);
-        }
+        ShowBlockSelection();
 
         _lastRebuildMs = Stopwatch.GetElapsedTime(rebuildStart).TotalMilliseconds;
     }

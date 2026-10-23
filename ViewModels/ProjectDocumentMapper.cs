@@ -51,8 +51,12 @@ internal static class ProjectDocumentMapper
             BuildAutomationDocuments(track.PanAutomation),
             track.BusId,
             track.Sends.Count == 0 ? null : track.Sends.Select(send => new SendDocument(send.Key, send.Value)).ToList(),
-            track.AudioClipStartStep);
+            track.AudioClipStartStep,
+            track.NoteBlocks.Count == 0 ? null : track.NoteBlocks.Select(block => new NoteBlockDocument(block.StartStep, block.LengthSteps)).ToList());
     }
+
+    private static IReadOnlyList<NoteBlock> Blocks(IEnumerable<NoteBlockDocument>? documents) =>
+        documents?.Select(block => new NoteBlock(block.StartStep, block.LengthSteps)).ToList() ?? (IReadOnlyList<NoteBlock>)Array.Empty<NoteBlock>();
 
     private static IReadOnlyDictionary<Guid, double> Sends(IEnumerable<SendDocument>? documents) =>
         documents?.GroupBy(send => send.Bus).ToDictionary(group => group.Key, group => group.Last().Level)
@@ -122,6 +126,7 @@ internal static class ProjectDocumentMapper
             targetTrack.Effects.Add(effect.IsPlugin ? effect.AsNewInstance() : effect);
         }
         targetTrack.TrackColorBrush = CreateTrackColorBrush(sourceTrack.TrackColor);
+        targetTrack.NoteBlocks = Blocks(sourceTrack.NoteBlocks);
         targetTrack.MidiNoteEvents = sourceTrack.MidiNoteEvents is null
             ? Array.Empty<MidiNoteEventViewModel>()
             : sourceTrack.MidiNoteEvents
@@ -204,7 +209,8 @@ internal static class ProjectDocumentMapper
             MidiControllerEvents = Controllers(trackDocument.MidiControllerEvents),
             AudioClipPath = trackDocument.AudioClipPath,
             AudioClipStartStep = Math.Max(0, trackDocument.AudioClipStartStep),
-            InstrumentIconKey = trackDocument.InstrumentIcon
+            InstrumentIconKey = trackDocument.InstrumentIcon,
+            NoteBlocks = Blocks(trackDocument.NoteBlocks)
         };
         foreach (var effect in BuildEffects(trackDocument.Effects))
         {

@@ -1371,6 +1371,8 @@
                              PreviewMouseLeftButtonDown="TimelineBodyListBox_PreviewMouseLeftButtonDown"
                              PreviewMouseRightButtonDown="TimelineBodyListBox_PreviewMouseRightButtonDown"
                              PreviewMouseRightButtonUp="TimelineBodyListBox_PreviewMouseRightButtonUp"
+                             PreviewMouseMove="TimelineBodyListBox_PreviewMouseMove"
+                             PreviewMouseLeftButtonUp="TimelineBodyListBox_PreviewMouseLeftButtonUp"
                              AllowDrop="True"
                              DragOver="TimelineBodyListBox_DragOver"
                              Drop="TimelineBodyListBox_Drop"
@@ -1664,62 +1666,84 @@
                                                 </Canvas>
                                             </Viewbox>
                                         </Border>
-                                        <Border CornerRadius="3"
-                                                HorizontalAlignment="Left"
-                                                VerticalAlignment="Stretch"
-                                                Tag="NoteBlock"
-                                                ToolTip="Drag to move the block. Drag its right edge to change its length. SNAP sets the grid."
-                                                PreviewMouseLeftButtonDown="NoteBlock_PreviewMouseLeftButtonDown"
-                                                PreviewMouseMove="NoteBlock_PreviewMouseMove"
-                                                PreviewMouseLeftButtonUp="NoteBlock_PreviewMouseLeftButtonUp">
-                                            <Border.Margin>
-                                                <MultiBinding Converter="{StaticResource StepOffsetConverter}">
-                                                    <Binding Path="BlockStartStep" />
-                                                    <Binding Path="DataContext.TimelineSixteenthWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                </MultiBinding>
-                                            </Border.Margin>
-                                            <Border.Width>
-                                                <MultiBinding Converter="{StaticResource AudioClipWidthConverter}">
-                                                    <Binding Path="BlockLengthSteps" />
-                                                    <Binding Path="DataContext.TimelineSixteenthWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                </MultiBinding>
-                                            </Border.Width>
-                                            <Border.Style>
-                                                <Style TargetType="Border">
-                                                    <!-- Opaque, so the block reads as one colour over the beat lines and steps behind it. -->
-                                                    <Setter Property="Background" Value="{StaticResource Paper}" />
-                                                    <Setter Property="BorderBrush" Value="#F7F8FA" />
-                                                    <Setter Property="BorderThickness" Value="0.5" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding HasBlock}" Value="False">
-                                                            <Setter Property="Visibility" Value="Collapsed" />
-                                                        </DataTrigger>
-                                                        <DataTrigger Binding="{Binding IsBlockSelected}" Value="True">
-                                                            <Setter Property="BorderBrush" Value="#FFD24C" />
-                                                            <Setter Property="BorderThickness" Value="1" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Border.Style>
-                                            <Grid>
-                                                <Border CornerRadius="2" Background="{Binding SourceTrack.TrackColorBrush}" />
-                                                <Border CornerRadius="2" Background="{StaticResource Bevel.Sheen}" IsHitTestVisible="False" />
-                                                <Border HorizontalAlignment="Left"
-                                                        Width="10"
-                                                        Background="Transparent"
-                                                        BorderBrush="#F7F8FA"
-                                                        BorderThickness="1.5,0,0,0"
-                                                        Cursor="SizeWE"
-                                                        Tag="NoteBlockStartEdge" />
-                                                <Border HorizontalAlignment="Right"
-                                                        Width="10"
-                                                        Background="Transparent"
-                                                        BorderBrush="#F7F8FA"
-                                                        BorderThickness="0,0,1.5,0"
-                                                        Cursor="SizeWE"
-                                                        Tag="NoteBlockEdge" />
-                                            </Grid>
-                                        </Border>
+                                        <!-- The track's blocks of notes, opaque over the lane's grid. Each keeps its bounds, so blocks
+                                             side by side show as two until joined. Drag one to move it, drag an edge to stretch it;
+                                             a rectangle drawn on the lane selects the blocks it touches, and the right button's menu
+                                             joins them. -->
+                                        <ItemsControl ItemsSource="{Binding Blocks}" Focusable="False">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate><Grid /></ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border CornerRadius="3"
+                                                            HorizontalAlignment="Left"
+                                                            VerticalAlignment="Stretch"
+                                                            Tag="NoteBlock"
+                                                            PreviewMouseLeftButtonDown="NoteBlock_PreviewMouseLeftButtonDown"
+                                                            PreviewMouseMove="NoteBlock_PreviewMouseMove"
+                                                            PreviewMouseLeftButtonUp="NoteBlock_PreviewMouseLeftButtonUp"
+                                                            ContextMenuOpening="NoteBlock_ContextMenuOpening">
+                                                        <Border.ContextMenu>
+                                                            <ContextMenu>
+                                                                <MenuItem Header="Join" Tag="Join" InputGestureText="Ctrl+J" Click="JoinBlocksMenuItem_Click" />
+                                                                <Separator />
+                                                                <MenuItem Header="Copy" InputGestureText="Ctrl+C" Click="CopyBlocksMenuItem_Click" />
+                                                                <MenuItem Header="Paste after the last block" InputGestureText="Ctrl+V" Click="PasteBlocksMenuItem_Click" />
+                                                                <MenuItem Header="Delete" InputGestureText="Del" Click="DeleteBlocksMenuItem_Click" />
+                                                            </ContextMenu>
+                                                        </Border.ContextMenu>
+                                                        <Border.Margin>
+                                                            <MultiBinding Converter="{StaticResource StepOffsetConverter}">
+                                                                <Binding Path="StartStep" />
+                                                                <Binding Path="DataContext.TimelineSixteenthWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            </MultiBinding>
+                                                        </Border.Margin>
+                                                        <Border.Width>
+                                                            <MultiBinding Converter="{StaticResource AudioClipWidthConverter}">
+                                                                <Binding Path="LengthSteps" />
+                                                                <Binding Path="DataContext.TimelineSixteenthWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            </MultiBinding>
+                                                        </Border.Width>
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <!-- Opaque, so the block reads as one colour over the lane's grid. -->
+                                                                <Setter Property="Background" Value="{StaticResource Paper}" />
+                                                                <Setter Property="BorderBrush" Value="#F7F8FA" />
+                                                                <Setter Property="BorderThickness" Value="0.5" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsRepeat}" Value="True">
+                                                                        <Setter Property="Opacity" Value="0.55" />
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                        <Setter Property="BorderBrush" Value="#FFD24C" />
+                                                                        <Setter Property="BorderThickness" Value="1" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        <Grid>
+                                                            <Border CornerRadius="2" Background="{Binding TrackColorBrush}" />
+                                                            <Border CornerRadius="2" Background="{StaticResource Bevel.Sheen}" IsHitTestVisible="False" />
+                                                            <Border HorizontalAlignment="Left"
+                                                                    Width="10"
+                                                                    Background="Transparent"
+                                                                    BorderBrush="#F7F8FA"
+                                                                    BorderThickness="1.5,0,0,0"
+                                                                    Cursor="SizeWE"
+                                                                    Tag="NoteBlockStartEdge" />
+                                                            <Border HorizontalAlignment="Right"
+                                                                    Width="10"
+                                                                    Background="Transparent"
+                                                                    BorderBrush="#F7F8FA"
+                                                                    BorderThickness="0,0,1.5,0"
+                                                                    Cursor="SizeWE"
+                                                                    Tag="NoteBlockEdge" />
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
                                         <!-- The track's volume or pan automation, over the row while it is shown (Track menu). -->
                                         <local:AutomationLane Tag="AutomationLane"
                                                               Points="{Binding SourceTrack.ShownAutomationPoints}"
@@ -1743,8 +1767,11 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
                 </DockPanel>
+                <!-- The bar lines on the ruler; on the lanes, each lane draws them under its blocks. -->
                 <ItemsControl Margin="260,0,0,0"
                               Width="{Binding TimelineContentWidth}"
+                              Height="45"
+                              VerticalAlignment="Top"
                               HorizontalAlignment="Left"
                               ItemsSource="{Binding TimelineBarNumbers}"
                               IsHitTestVisible="False"
