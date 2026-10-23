@@ -155,7 +155,7 @@ public partial class EffectRackWindow : Window
     // ---- Dragging effects up and down the rack ----
 
     private static readonly Brush DropLineBrush = new SolidColorBrush(Color.FromRgb(0xE6, 0xC4, 0x5B));
-    private static readonly Brush ModuleBorderBrush = new SolidColorBrush(Color.FromRgb(0x3A, 0x4D, 0x63));
+    private static readonly Brush ModuleBorderBrush = new SolidColorBrush(Color.FromRgb(0x1E, 0x1F, 0x21));
 
     private Point? _dragStart;
 
