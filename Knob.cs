@@ -149,10 +149,10 @@ public sealed class Knob : FrameworkElement
         set => SetValue(ScaleBrushProperty, value);
     }
 
-    // A knob as on SSL's panels, seen from above and a little in front: a light grey truncated cone standing on
-    // the panel, its fluted side lit from the left and shaded to the right and below, a flat matte coloured cap
-    // (the Accent) on its top with a thin metal lip, and a pointer across the cap that runs on down the side
-    // when it points to the front; under it all a soft shadow, over a printed scale of dots.
+    // A knob as on SSL's panels, seen from above and a little in front: a light grey fluted barrel standing on
+    // the panel, lit from the left and shaded to the right and below, with a smaller matte coloured cap (the
+    // Accent) on its metal top, and a pointer across the cap that runs on down the side when it points to the
+    // front; under it all a soft shadow, over a printed scale of dots.
     private void DrawConsoleKnob(DrawingContext drawingContext, Point center, double radius)
     {
         var dotRadius = radius - 1.5;
@@ -164,37 +164,55 @@ public sealed class Knob : FrameworkElement
             drawingContext.DrawEllipse(ScaleBrush, null, dot, radius * (big ? 0.06 : 0.045), radius * (big ? 0.06 : 0.045));
         }
 
-        var topCentre = new Point(center.X, center.Y - radius * 0.38); // as a share of the dots' ring, centred in its open arc as SSL's
-        var topRadius = radius * 0.45;
-        var baseCentre = new Point(center.X, center.Y + radius * 0.26);
-        var baseRadiusX = radius * 0.51;
-        var baseRadiusY = radius * 0.24;
+        // A small barrel standing on the panel, as SSL's knobs: its fluted side swells out in the middle and narrows
+        // to its top and to its foot; a smaller coloured cap sits on its top. Sizes as a share of the dots' ring,
+        // the whole centred in the ring's open arc.
+        var topCentre = new Point(center.X, center.Y - radius * 0.38);
+        var topRadius = radius * 0.42;
+        var baseCentre = new Point(center.X, center.Y + radius * 0.24);
+        var baseRadiusX = radius * 0.42;
+        var baseRadiusY = radius * 0.2;
+        var middleCentre = new Point(center.X, (topCentre.Y + baseCentre.Y) / 2 + radius * 0.04);
+        var middleRadiusX = radius * 0.5;
+        var middleRadiusY = (topRadius + baseRadiusY) / 2;
 
-        // The cone's outline: the top circle and the base ellipse joined along their sides.
-        var top = new EllipseGeometry(topCentre, topRadius, topRadius);
-        var bottom = new EllipseGeometry(baseCentre, baseRadiusX, baseRadiusY);
+        // A line down the side at an angle, from the top's rim to the foot's, through the swell in the middle.
+        Point Top(double angle) => OnRim(topCentre, topRadius, topRadius, angle);
+        Point Foot(double angle) => OnRim(baseCentre, baseRadiusX, baseRadiusY, angle);
+        Point Swell(double angle)
+        {
+            var top = Top(angle);
+            var foot = Foot(angle);
+            var middle = OnRim(middleCentre, middleRadiusX, middleRadiusY, angle);
+            return new Point(2 * middle.X - (top.X + foot.X) / 2, 2 * middle.Y - (top.Y + foot.Y) / 2);
+        }
+
+        // The barrel's outline: the top circle and the foot's ellipse joined by its swelling sides.
         var sides = new StreamGeometry();
         using (var context = sides.Open())
         {
-            context.BeginFigure(new Point(topCentre.X - topRadius, topCentre.Y), true, true);
-            context.LineTo(new Point(topCentre.X + topRadius, topCentre.Y), false, false);
-            context.LineTo(new Point(baseCentre.X + baseRadiusX, baseCentre.Y), false, false);
-            context.LineTo(new Point(baseCentre.X - baseRadiusX, baseCentre.Y), false, false);
+            context.BeginFigure(Top(Math.PI), true, true);
+            context.LineTo(Top(0), false, false);
+            context.QuadraticBezierTo(Swell(0), Foot(0), false, false);
+            context.LineTo(Foot(Math.PI), false, false);
+            context.QuadraticBezierTo(Swell(Math.PI), Top(Math.PI), false, false);
         }
+        var top = new EllipseGeometry(topCentre, topRadius, topRadius);
+        var bottom = new EllipseGeometry(baseCentre, baseRadiusX, baseRadiusY);
         var body = Geometry.Combine(Geometry.Combine(top, sides, GeometryCombineMode.Union, null), bottom, GeometryCombineMode.Union, null);
         body.Freeze();
 
         // Its shadow on the panel, to the right and below, where the light from the top left does not reach.
-        drawingContext.DrawEllipse(ConeShadow, null, new Point(baseCentre.X + radius * 0.1, baseCentre.Y + radius * 0.16), baseRadiusX * 1.18, baseRadiusY * 1.6);
+        drawingContext.DrawEllipse(ConeShadow, null, new Point(baseCentre.X + radius * 0.1, baseCentre.Y + radius * 0.14), middleRadiusX * 1.05, baseRadiusY * 1.7);
 
         drawingContext.DrawGeometry(ConeSide, null, body);
         drawingContext.DrawGeometry(ConeShade, null, body);
 
-        // The fluting: small grooves cut down the side all round, as SSL's knurled skirts, each a narrow dark
-        // channel with its far wall lit from the left; those turned away from the eye crowd together towards the edges.
+        // The fluting: a few grooves cut down the side all round, each a narrow dark channel with its far wall lit
+        // from the left; those turned away from the eye crowd together towards the edges.
         drawingContext.PushClip(body);
-        const int Flutes = 28;
-        var halfWidth = Math.PI / Flutes * 0.42;
+        const int Flutes = 16;
+        var halfWidth = Math.PI / Flutes * 0.3;
         for (var k = 0; k < Flutes; k++)
         {
             var centre = (k + 0.5) * 2 * Math.PI / Flutes;
@@ -208,21 +226,26 @@ public sealed class Knob : FrameworkElement
             var groove = new StreamGeometry();
             using (var context = groove.Open())
             {
-                context.BeginFigure(OnRim(topCentre, topRadius, topRadius, left), true, true);
-                context.LineTo(OnRim(topCentre, topRadius, topRadius, right), false, false);
-                context.LineTo(OnRim(baseCentre, baseRadiusX, baseRadiusY, right), false, false);
-                context.LineTo(OnRim(baseCentre, baseRadiusX, baseRadiusY, left), false, false);
+                context.BeginFigure(Top(left), true, true);
+                context.LineTo(Top(right), false, false);
+                context.QuadraticBezierTo(Swell(right), Foot(right), false, false);
+                context.LineTo(Foot(left), false, false);
+                context.QuadraticBezierTo(Swell(left), Top(left), false, false);
             }
             groove.Freeze();
             drawingContext.DrawGeometry(GrooveFill, null, groove);
-            drawingContext.DrawLine(GrooveLightPen, OnRim(topCentre, topRadius, topRadius, right), OnRim(baseCentre, baseRadiusX, baseRadiusY, right));
+            drawingContext.DrawGeometry(null, GrooveLightPen, DownTheSide(Top(right), Swell(right), Foot(right)));
         }
         drawingContext.Pop();
         drawingContext.DrawGeometry(null, ConeEdgePen, body);
 
-        // The flat cap with its metal lip.
+        // The barrel's metal top, and on it the smaller coloured cap, with its side darker beneath it.
         var capColour = Accent is SolidColorBrush solid ? solid.Color : Colors.LightGray;
         drawingContext.DrawEllipse(CapLip, ConeEdgePen, topCentre, topRadius, topRadius);
+        var capRadius = topRadius * 0.78;
+        var capSide = new SolidColorBrush(Darken(capColour, 0.4));
+        capSide.Freeze();
+        drawingContext.DrawEllipse(capSide, null, new Point(topCentre.X, topCentre.Y + radius * 0.04), capRadius, capRadius);
         var cap = new RadialGradientBrush
         {
             GradientOrigin = new Point(0.38, 0.32),
@@ -234,11 +257,11 @@ public sealed class Knob : FrameworkElement
         cap.GradientStops.Add(new GradientStop(capColour, 0.7));
         cap.GradientStops.Add(new GradientStop(Darken(capColour, 0.18), 1));
         cap.Freeze();
-        var capRadius = topRadius * 0.95;
-        drawingContext.DrawEllipse(cap, null, topCentre, capRadius, capRadius);
+        var capCentre = new Point(topCentre.X, topCentre.Y - radius * 0.01);
+        drawingContext.DrawEllipse(cap, null, capCentre, capRadius, capRadius);
 
-        // The pointer: dark on a light cap, white on a coloured or dark one; down the side as well when it
-        // points to the front, where the side is in view.
+        // The pointer: dark on a light cap, white on a coloured or dark one; on across the metal top and down the
+        // side as well when it points to the front, where the side is in view.
         var angleNow = (StartAngle + Sweep * Math.Clamp(Position, 0, 1)) * Math.PI / 180;
         var cos = Math.Cos(angleNow);
         var sin = Math.Sin(angleNow);
@@ -246,17 +269,30 @@ public sealed class Knob : FrameworkElement
         var pointerBrush = luminance > 0.62 ? DarkPointer : LightPointer;
         var pointer = new Pen(pointerBrush, Math.Max(1.6, radius * 0.09)) { StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat };
         pointer.Freeze();
-        drawingContext.DrawLine(pointer, new Point(topCentre.X + cos * capRadius * 0.35, topCentre.Y + sin * capRadius * 0.35),
-            new Point(topCentre.X + cos * capRadius, topCentre.Y + sin * capRadius));
+        drawingContext.DrawLine(pointer, new Point(capCentre.X + cos * capRadius * 0.3, capCentre.Y + sin * capRadius * 0.3),
+            new Point(capCentre.X + cos * capRadius, capCentre.Y + sin * capRadius));
+        var sidePointer = new Pen(DarkPointer, Math.Max(1.4, radius * 0.08));
+        sidePointer.Freeze();
+        drawingContext.DrawLine(sidePointer, new Point(topCentre.X + cos * capRadius * 1.04, topCentre.Y + sin * capRadius * 1.04), Top(angleNow));
         if (sin > 0.05)
         {
-            var sidePointer = new Pen(DarkPointer, Math.Max(1.4, radius * 0.08));
-            sidePointer.Freeze();
             drawingContext.PushClip(body);
-            drawingContext.DrawLine(sidePointer, new Point(topCentre.X + cos * topRadius, topCentre.Y + sin * topRadius),
-                new Point(baseCentre.X + cos * baseRadiusX, baseCentre.Y + sin * baseRadiusY));
+            drawingContext.DrawGeometry(null, sidePointer, DownTheSide(Top(angleNow), Swell(angleNow), Foot(angleNow)));
             drawingContext.Pop();
         }
+    }
+
+    // A line down a knob's side, from its top through its swell to its foot.
+    private static Geometry DownTheSide(Point top, Point swell, Point foot)
+    {
+        var line = new StreamGeometry();
+        using (var context = line.Open())
+        {
+            context.BeginFigure(top, false, false);
+            context.QuadraticBezierTo(swell, foot, true, false);
+        }
+        line.Freeze();
+        return line;
     }
 
     // A point on the rim of an ellipse seen from the front, at an angle clockwise from its right.
