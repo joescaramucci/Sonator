@@ -16,9 +16,9 @@ public sealed class FaderScale : FrameworkElement
         (2.5, "+2"), (0, "0"), (-3, "3"), (-6, "6"), (-10, "10"), (-20, "20"), (double.NegativeInfinity, "∞"),
     };
 
-    private static readonly Brush InkBrush = Frozen(0x1C, 0x1F, 0x23);
-    private static readonly Pen TickPen = FrozenPen(0x1C, 0x1F, 0x23, 1);
-    private static readonly Pen UnityPen = FrozenPen(0x1C, 0x1F, 0x23, 1.6);
+    private static readonly Brush InkBrush = Frozen(0xD2, 0xD6, 0xDB); // printed white on the dark panel
+    private static readonly Pen TickPen = FrozenPen(0xD2, 0xD6, 0xDB, 1);
+    private static readonly Pen UnityPen = FrozenPen(0xF2, 0xF4, 0xF6, 1.6);
 
     public double ThumbLength { get; set; } = 24;
 

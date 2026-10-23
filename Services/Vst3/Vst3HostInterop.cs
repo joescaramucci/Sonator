@@ -64,6 +64,9 @@ internal static class Vst3HostInterop
     internal static extern void VstHostBridge_SetEffectChainSend(IntPtr chain, int bus, double level);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int VstHostBridge_TakeEffectChainStereoPeak(IntPtr chain, out double left, out double right);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern void VstHostBridge_SetBus(int bus, IntPtr chain);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]

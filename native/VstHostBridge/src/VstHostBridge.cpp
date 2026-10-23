@@ -2148,6 +2148,25 @@ double VstHostBridge_TakeEffectChainPeak(void* chainHandle)
     return chain == nullptr ? 0.0 : chain->TakePeak();
 }
 
+int VstHostBridge_TakeEffectChainStereoPeak(void* chainHandle, double* outLeft, double* outRight)
+{
+    float left = 0.0f;
+    float right = 0.0f;
+    if (auto* chain = ChainOf(chainHandle))
+    {
+        chain->TakeStereoPeak(left, right);
+    }
+    if (outLeft != nullptr)
+    {
+        *outLeft = left;
+    }
+    if (outRight != nullptr)
+    {
+        *outRight = right;
+    }
+    return 1;
+}
+
 void VstHostBridge_ProcessEffectChain(void* chainHandle, float* interleaved, int32_t frames, int32_t channels, double sampleRate)
 {
     if (auto* chain = ChainOf(chainHandle))

@@ -135,6 +135,10 @@ internal sealed class TrackEffectsHost : IDisposable
         }
     }
 
+    // The whole mix's left and right peaks since the previous call, as they leave the master's effects.
+    public (double Left, double Right) TakeMasterPeaks() =>
+        _master is not null && ExistingChainFor(_master) is { } chain ? chain.TakeStereoPeak() : (0, 0);
+
     // The track's chain if it has one already, without making it.
     public NativeEffectChain? ExistingChainFor(PatternTrackViewModel track) =>
         _chains.TryGetValue(track, out var chain) ? chain : null;

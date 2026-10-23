@@ -5,8 +5,8 @@ using System.Windows.Media.Imaging;
 namespace Sonator;
 
 /// <summary>
-/// A satin brushed-aluminium texture, as on a mixing console's channel strips: fine streaks running down
-/// the panel, each a touch lighter or darker, made once and tiled.
+/// A satin brushed-metal texture in anthracite, as on an SSL desk's channel strips: fine streaks running
+/// down the panel, each a touch lighter or darker, with a few brighter scratches, made once and tiled.
 /// </summary>
 public static class BrushedMetal
 {
@@ -35,16 +35,23 @@ public static class BrushedMetal
             smoothed[x] = (columns[(x + TileWidth - 1) % TileWidth] + 2 * columns[x] + columns[(x + 1) % TileWidth]) / 4;
         }
 
+        // Here and there a brighter scratch catches the light.
+        var scratches = new double[TileWidth];
+        for (var i = 0; i < 18; i++)
+        {
+            scratches[random.Next(TileWidth)] = 0.02 + random.NextDouble() * 0.035;
+        }
+
         for (var y = 0; y < TileHeight; y++)
         {
             for (var x = 0; x < TileWidth; x++)
             {
-                var drift = Math.Sin((y + x * 7) * 2 * Math.PI / TileHeight) * 0.15;
-                var shade = 0.72 + smoothed[x] * 0.045 + drift * 0.03 + (random.NextDouble() - 0.5) * 0.02;
+                var drift = Math.Sin((y + x * 7) * 2 * Math.PI / TileHeight);
+                var shade = 0.215 + smoothed[x] * 0.055 + scratches[x] + drift * 0.008 + (random.NextDouble() - 0.5) * 0.03;
                 var value = (byte)Math.Clamp(shade * 255, 0, 255);
                 var index = (y * TileWidth + x) * 4;
-                pixels[index] = (byte)Math.Clamp(value + 4, 0, 255); // a cool, slightly blue aluminium
-                pixels[index + 1] = (byte)Math.Clamp(value + 1, 0, 255);
+                pixels[index] = (byte)Math.Clamp(value + 5, 0, 255); // anthracite, a touch blue, as on SSL desks
+                pixels[index + 1] = (byte)Math.Clamp(value + 2, 0, 255);
                 pixels[index + 2] = value;
                 pixels[index + 3] = 255;
             }

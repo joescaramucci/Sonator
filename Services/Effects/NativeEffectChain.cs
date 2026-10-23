@@ -87,6 +87,13 @@ public sealed class NativeEffectChain : IDisposable
     // The highest absolute output sample since the previous call.
     public double TakePeak() => Vst3HostInterop.VstHostBridge_TakeEffectChainPeak(_handle);
 
+    // The highest absolute left and right samples since the previous call, apart from TakePeak's.
+    public (double Left, double Right) TakeStereoPeak()
+    {
+        Vst3HostInterop.VstHostBridge_TakeEffectChainStereoPeak(_handle, out var left, out var right);
+        return (left, right);
+    }
+
     // One effect's highest input and output samples since the previous call.
     public (double Input, double Output) TakeLevels(int slot)
     {

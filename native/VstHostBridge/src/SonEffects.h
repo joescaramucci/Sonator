@@ -98,12 +98,17 @@ namespace son
         // The highest absolute sample since the last call, after the effects and the gain.
         float TakePeak();
 
+        // The same, for the left and the right side apart, as for the master's VU meters. Measured apart
+        // from TakePeak, so reading one leaves the other as it was.
+        void TakeStereoPeak(float& left, float& right);
+
     private:
         std::mutex _mutex;
         std::vector<std::unique_ptr<Effect>> _effects;
         double _sampleRate = 0.0;
         int _maxBlock = 0;
         std::atomic<float> _peak{0.0f};
+        std::atomic<float> _sidePeaks[2]{};
 
         // The gain each channel had at the end of the last block, for gliding to a new one. Negative
         // until the first block.

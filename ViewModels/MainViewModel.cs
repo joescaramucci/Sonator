@@ -4410,6 +4410,25 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             var peak = _trackEffects.ExistingChainFor(track)?.TakePeak() ?? 0;
             TrackMeterCalculator.ShowAudioLevel(track, peak);
         }
+
+        (MasterPeakLeft, MasterPeakRight) = _trackEffects.TakeMasterPeaks();
+    }
+
+    private double _masterPeakLeft;
+    private double _masterPeakRight;
+
+    // The whole mix's highest left and right samples over the last twentieth of a second, for the
+    // master's VU meters.
+    public double MasterPeakLeft
+    {
+        get => _masterPeakLeft;
+        private set => SetProperty(ref _masterPeakLeft, value);
+    }
+
+    public double MasterPeakRight
+    {
+        get => _masterPeakRight;
+        private set => SetProperty(ref _masterPeakRight, value);
     }
 
     // ---- Automation ----

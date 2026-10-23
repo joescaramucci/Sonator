@@ -712,6 +712,7 @@ namespace son
         {
             float* samples = channels[c];
             float channelGain = gain;
+            float channelPeak = 0.0f;
             if (numChannels >= 2 && c == 0 && pan > 0.0f)
             {
                 channelGain *= 1.0f - pan;
@@ -731,7 +732,7 @@ namespace son
                     for (; n < glideFrames; ++n)
                     {
                         samples[n] *= applied + step * static_cast<float>(n + 1);
-                        peak = std::max(peak, std::fabs(samples[n]));
+                        channelPeak = std::max(channelPeak, std::fabs(samples[n]));
                     }
                 }
                 applied = channelGain;
@@ -740,7 +741,14 @@ namespace son
             for (; n < frames; ++n)
             {
                 samples[n] *= channelGain;
-                peak = std::max(peak, std::fabs(samples[n]));
+                channelPeak = std::max(channelPeak, std::fabs(samples[n]));
+            }
+
+            peak = std::max(peak, channelPeak);
+            auto& side = _sidePeaks[std::min(c, 1)];
+            float sideStored = side.load();
+            while (channelPeak > sideStored && !side.compare_exchange_weak(sideStored, channelPeak))
+            {
             }
         }
 
@@ -785,5 +793,11 @@ namespace son
     float EffectChain::TakePeak()
     {
         return _peak.exchange(0.0f);
+    }
+
+    void EffectChain::TakeStereoPeak(float& left, float& right)
+    {
+        left = _sidePeaks[0].exchange(0.0f);
+        right = _sidePeaks[1].exchange(0.0f);
     }
 }

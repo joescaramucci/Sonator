@@ -112,7 +112,7 @@ public sealed class Knob : FrameworkElement
         drawingContext.DrawLine(PointerPen, inner, tip);
     }
 
-    private static readonly Brush ScaleDotBrush = Frozen(0x2A, 0x2E, 0x33);
+    private static readonly Brush ScaleDotBrush = Frozen(0xC8, 0xCD, 0xD2); // printed light on the dark panel
     private static readonly Pen KnobEdgePen = FrozenPen(0x08, 0x09, 0x0A, 1);
     private static readonly Pen ConsolePointerPen = FrozenPen(0xF4, 0xF4, 0xF0, 1.6);
     private static readonly Brush KnurledBody = FrozenRadial(Color.FromRgb(0x5A, 0x60, 0x66), Color.FromRgb(0x14, 0x16, 0x19));

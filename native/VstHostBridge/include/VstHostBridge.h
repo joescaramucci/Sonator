@@ -73,6 +73,8 @@ VSTHOSTBRIDGE_API void VstHostBridge_SetMasterEffectChain(void* chainHandle);
 VSTHOSTBRIDGE_API double VstHostBridge_GetEffectMeter(void* chainHandle, int32_t slot);
 // The highest absolute output sample since the previous call.
 VSTHOSTBRIDGE_API double VstHostBridge_TakeEffectChainPeak(void* chainHandle);
+// The highest absolute left and right samples since the previous call, measured apart from the above.
+VSTHOSTBRIDGE_API int VstHostBridge_TakeEffectChainStereoPeak(void* chainHandle, double* outLeft, double* outRight);
 // One effect's highest input and output samples since the previous call, for its IN and OUT meters.
 VSTHOSTBRIDGE_API int VstHostBridge_TakeEffectLevels(void* chainHandle, int32_t slot, double* outInputPeak, double* outOutputPeak);
 // Runs interleaved audio through the chain in place, for audio the caller plays itself.

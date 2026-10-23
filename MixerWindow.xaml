@@ -11,7 +11,7 @@
         FontFamily="Arial"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False">
-    <!-- A console in the manner of the big studio desks: brushed-aluminium channel modules screwed into a dark
+    <!-- A console in the manner of the big studio desks: anthracite brushed-metal channel modules screwed into a dark
          frame, knurled knobs with coloured caps, long faders with a printed dB scale, lit buttons, and the
          track's name on a strip of tape at the bottom. -->
     <Window.Resources>
@@ -21,23 +21,23 @@
         <Style x:Key="Legend" TargetType="TextBlock">
             <Setter Property="FontSize" Value="7.5" />
             <Setter Property="FontWeight" Value="Bold" />
-            <Setter Property="Foreground" Value="#202429" />
+            <Setter Property="Foreground" Value="#D6DADF" />
             <Setter Property="HorizontalAlignment" Value="Center" />
         </Style>
 
         <!-- A cross-head screw holding the module in the frame. -->
         <DataTemplate x:Key="Screw">
             <Grid Width="7" Height="7" HorizontalAlignment="Center">
-                <Ellipse Stroke="#3C4146" StrokeThickness="0.6">
+                <Ellipse Stroke="#16181B" StrokeThickness="0.6">
                     <Ellipse.Fill>
                         <RadialGradientBrush GradientOrigin="0.3,0.3">
-                            <GradientStop Color="#E6E9EC" Offset="0" />
-                            <GradientStop Color="#7C838A" Offset="1" />
+                            <GradientStop Color="#B9BEC4" Offset="0" />
+                            <GradientStop Color="#4A5056" Offset="1" />
                         </RadialGradientBrush>
                     </Ellipse.Fill>
                 </Ellipse>
-                <Line X1="1.6" Y1="3.5" X2="5.4" Y2="3.5" Stroke="#3C4146" StrokeThickness="0.9" />
-                <Line X1="3.5" Y1="1.6" X2="3.5" Y2="5.4" Stroke="#3C4146" StrokeThickness="0.9" />
+                <Line X1="1.6" Y1="3.5" X2="5.4" Y2="3.5" Stroke="#202326" StrokeThickness="0.9" />
+                <Line X1="3.5" Y1="1.6" X2="3.5" Y2="5.4" Stroke="#202326" StrokeThickness="0.9" />
             </Grid>
         </DataTemplate>
 
@@ -114,7 +114,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Slider">
                         <Grid>
-                            <Border Width="5" Margin="0,10" CornerRadius="2" Background="#08090A" BorderBrush="#9AA1A8" BorderThickness="0,0,1,1" HorizontalAlignment="Center" />
+                            <Border Width="5" Margin="0,10" CornerRadius="2" Background="#08090A" BorderBrush="#4E555D" BorderThickness="0,0,1,1" HorizontalAlignment="Center" />
                             <Track x:Name="PART_Track" Orientation="Vertical" IsDirectionReversed="False">
                                 <Track.Thumb>
                                     <Thumb Height="26" Width="20" Cursor="SizeNS" Template="{StaticResource FaderCap}" />
@@ -130,7 +130,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Slider">
                         <Grid>
-                            <Border Width="5" Margin="0,10" CornerRadius="2" Background="#08090A" BorderBrush="#9AA1A8" BorderThickness="0,0,1,1" HorizontalAlignment="Center" />
+                            <Border Width="5" Margin="0,10" CornerRadius="2" Background="#08090A" BorderBrush="#4E555D" BorderThickness="0,0,1,1" HorizontalAlignment="Center" />
                             <Track x:Name="PART_Track" Orientation="Vertical" IsDirectionReversed="False">
                                 <Track.Thumb>
                                     <Thumb Height="26" Width="24" Cursor="SizeNS" Template="{StaticResource MasterFaderCap}" />
@@ -162,13 +162,13 @@
             </TextBlock>
         </DataTemplate>
 
-        <!-- A module: brushed aluminium, a hairline edge, a little shadow from the frame. -->
+        <!-- A module: anthracite brushed metal with a hairline edge. -->
         <Style x:Key="Module" TargetType="Border">
             <Setter Property="Width" Value="60" />
             <Setter Property="Margin" Value="0,0,2,0" />
             <Setter Property="CornerRadius" Value="2" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="#55595E" />
+            <Setter Property="BorderBrush" Value="#3C4147" />
             <Setter Property="Background" Value="{x:Static local:BrushedMetal.Brush}" />
         </Style>
 
@@ -190,19 +190,21 @@
 
     <DockPanel Margin="6">
         <!-- The master module, at the right end of the desk. -->
-        <Border DockPanel.Dock="Right" Style="{StaticResource Module}" Width="78" Margin="6,0,0,0">
+        <Border DockPanel.Dock="Right" Style="{StaticResource Module}" Width="86" Margin="6,0,0,0">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Top">
                     <ContentControl ContentTemplate="{StaticResource Screw}" Margin="0,3,0,2" Focusable="False" />
                     <Border Height="5" Background="#B8322B" Margin="4,0" />
                     <TextBlock Style="{StaticResource Legend}" Text="INSERT" Margin="0,4,0,1" />
-                    <Border Height="56" Margin="4,0" Background="#111417" CornerRadius="2" BorderBrush="#9AA1A8" BorderThickness="0,0,1,1">
+                    <Border Height="56" Margin="4,0" Background="#111417" CornerRadius="2" BorderBrush="#4E555D" BorderThickness="0,0,1,1">
                         <ItemsControl ItemsSource="{Binding MasterTrack.Effects}" ItemTemplate="{StaticResource InsertTemplate}" Tag="{Binding MasterTrack}" />
                     </Border>
                     <Button Style="{StaticResource ConsoleButton}" Content="FX" Margin="4,3,4,0" Tag="{Binding MasterTrack}" Click="Fx_Click"
                             ToolTip="Open the master's effect rack: its effects run on the whole mix" />
-                    <TextBlock Style="{StaticResource Legend}" Text="MASTER" FontSize="11" Margin="0,14,0,0" />
-                    <TextBlock Style="{StaticResource Legend}" Text="STEREO OUT" FontSize="7" Margin="0,1,0,0" />
+                    <TextBlock Style="{StaticResource Legend}" Text="MASTER" FontSize="11" Margin="0,8,0,4" />
+                    <!-- The mix's left and right levels, on moving-needle meters. -->
+                    <local:VuMeter Label="L" Height="50" Margin="3,0" Peak="{Binding MasterPeakLeft}" ToolTip="Left: 0 VU is -18 dBFS" />
+                    <local:VuMeter Label="R" Height="50" Margin="3,3,3,0" Peak="{Binding MasterPeakRight}" ToolTip="Right: 0 VU is -18 dBFS" />
                 </StackPanel>
                 <StackPanel DockPanel.Dock="Bottom">
                     <Border Height="15" Margin="4,4,4,0" Background="#0C0F12" CornerRadius="2">
@@ -254,7 +256,7 @@
                                     <ContentControl ContentTemplate="{StaticResource Screw}" Margin="0,3,0,2" Focusable="False" />
                                     <Border Height="5" Background="{Binding TrackColorBrush}" Margin="4,0" />
                                     <TextBlock Style="{StaticResource Legend}" Text="INSERT" Margin="0,4,0,1" />
-                                    <Border Height="44" Margin="4,0" Background="#111417" CornerRadius="2" BorderBrush="#9AA1A8" BorderThickness="0,0,1,1">
+                                    <Border Height="44" Margin="4,0" Background="#111417" CornerRadius="2" BorderBrush="#4E555D" BorderThickness="0,0,1,1">
                                         <ItemsControl ItemsSource="{Binding Effects}" ItemTemplate="{StaticResource InsertTemplate}" Tag="{Binding}" />
                                     </Border>
                                     <Button Style="{StaticResource ConsoleButton}" Content="FX" Margin="4,3,4,0" Tag="{Binding}" Click="Fx_Click"
@@ -378,7 +380,7 @@
                                     </Grid>
                                     <Border Height="5" Background="{Binding TrackColorBrush}" Margin="4,0" />
                                     <TextBlock Style="{StaticResource Legend}" Text="INSERT" Margin="0,4,0,1" />
-                                    <Border Height="44" Margin="4,0" Background="#111417" CornerRadius="2" BorderBrush="#9AA1A8" BorderThickness="0,0,1,1">
+                                    <Border Height="44" Margin="4,0" Background="#111417" CornerRadius="2" BorderBrush="#4E555D" BorderThickness="0,0,1,1">
                                         <ItemsControl ItemsSource="{Binding Effects}" ItemTemplate="{StaticResource InsertTemplate}" Tag="{Binding}" />
                                     </Border>
                                     <Button Style="{StaticResource ConsoleButton}" Content="FX" Margin="4,3,4,0" Tag="{Binding}" Click="Fx_Click"
