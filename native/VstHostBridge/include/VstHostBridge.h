@@ -163,6 +163,12 @@ VSTHOSTBRIDGE_API int64_t VstHostBridge_StopMixCapture(double* outSampleRate);
 // Copies the frames recorded (interleaved stereo floats) and frees the recording. Returns 1 when copied.
 VSTHOSTBRIDGE_API int VstHostBridge_ReadMixCapture(float* interleaved, int64_t frames);
 
+// Sends a MIDI controller to the module's plug-in: controller 0-127 is a control change (1 the mod wheel, 64
+// the sustain pedal), 128 aftertouch, 129 pitch bend; value from 0 to 1 (pitch bend centred at 0.5). The
+// plug-in hears it, through its own mapping of controllers to its parameters, at the start of the next block.
+// Returns 1 if queued, 0 if the plug-in has no parameter for it or is not playing.
+VSTHOSTBRIDGE_API int VstHostBridge_SendController(void* moduleHandle, int32_t channel, int32_t controller, double value);
+
 // Releases every note the module's plug-in is holding: those sent with VstHostBridge_SendNoteEvent and not
 // released since. Returns 1 if done, 0 if audio is not running.
 VSTHOSTBRIDGE_API int VstHostBridge_ReleaseAllNotes(void* moduleHandle);

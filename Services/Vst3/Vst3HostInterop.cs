@@ -124,6 +124,9 @@ internal static class Vst3HostInterop
     internal static extern int VstHostBridge_ReleaseAllNotes(IntPtr moduleHandle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int VstHostBridge_SendController(IntPtr moduleHandle, int channel, int controller, double value);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int VstHostBridge_StartMixCapture(double maxSeconds);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]

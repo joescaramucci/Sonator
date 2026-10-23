@@ -201,9 +201,17 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         MidiInputDevices = new ObservableCollection<MidiInputDeviceViewModel>();
         ReloadMidiInputDevices();
         _engine.PluginNoteRouter = RouteSequencerNoteToPlugin;
+        _engine.PluginControllerRouter = (track, channel, controller, value) =>
+        {
+            if (_trackInstruments.RunningFor(track) is { } instrument)
+            {
+                _liveInstrumentHost.TrySendController(instrument, channel, controller, value);
+            }
+        };
         _clickPlayer.Start();
         _engine.ClickSound = _clickPlayer.Trigger;
         _midiInput.NoteReceived += OnKeyboardNote;
+        _midiInput.ControllerReceived += OnKeyboardController;
         _midiInput.MessageReceived += packed => Application.Current?.Dispatcher.BeginInvoke(() => OnMidiMessageReceived(packed));
         _midiActivityTimer.Tick += (_, _) => IsMidiActivityVisible = false;
         _audioMeterTimer.Tick += (_, _) => ShowAudioLevels();
@@ -2503,6 +2511,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
         var count = track.MidiNoteEvents.Count;
         ReplaceTrackNotes(track, Array.Empty<MidiNoteEventViewModel>());
+        track.MidiControllerEvents = Array.Empty<MidiControllerEventViewModel>(); // the pedal and wheels played with them go too
         ClearBlockSelection();
         StatusMessage = $"Deleted the block of {track.Name} ({count} notes). Undo brings it back.";
         return true;
@@ -2646,6 +2655,39 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     // Runs on the MIDI thread. A note for a running plug-in is sent at once, without waiting for the UI thread;
     // recording and the status line are handled on the UI thread.
     private int _keyboardInputDelayMs;
+
+    // Runs on the MIDI thread. A controller (sustain pedal, mod wheel, pitch bend...) goes at once to the
+    // plug-in the keyboard plays; while recording, the UI thread writes it into the track being recorded.
+    private void OnKeyboardController(MidiControllerMessage controller)
+    {
+        var position = _engine.LivePosition;
+        if (IsLiveKeyboardEnabled && LiveInstrumentRegistry.Current is { } instrument)
+        {
+            _liveInstrumentHost.TrySendController(instrument, controller.Channel, controller.Controller, controller.Value);
+        }
+
+        Application.Current?.Dispatcher.BeginInvoke(() => RecordLiveController(controller, position));
+    }
+
+    // While recording, a controller moved becomes part of the take, at the playhead's exact place.
+    private void RecordLiveController(MidiControllerMessage controller, double position)
+    {
+        var track = RecordTarget;
+        if (!IsRecording || !IsPlaying || track is null || !track.SupportsMidiPlayback)
+        {
+            return;
+        }
+
+        if (!_recordTakeHasNotes)
+        {
+            CaptureUndoStateIfNeeded(); // one undo for the whole take, notes and controllers
+            _recordTakeHasNotes = true;
+        }
+
+        track.MidiControllerEvents = track.MidiControllerEvents
+            .Append(new MidiControllerEventViewModel(Math.Max(0, position), controller.Controller, controller.Value))
+            .ToList();
+    }
 
     // The plug-in each key held down on the keyboard was played on, so its release goes there too.
     private readonly System.Collections.Concurrent.ConcurrentDictionary<int, Vst3ModuleHandle> _heldKeys = new();

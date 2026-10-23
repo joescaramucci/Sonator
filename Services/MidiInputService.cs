@@ -5,6 +5,16 @@ namespace Sonator.Services;
 // A note-on or note-off received from a MIDI input device.
 public sealed record MidiNoteMessage(int Channel, int NoteNumber, int Velocity, bool IsOn);
 
+// A controller moved on a MIDI input device: a control change (0-127: 1 the mod wheel, 64 the sustain pedal),
+// channel aftertouch (128) or pitch bend (129), with its value from 0 to 1 (pitch bend centred at 0.5).
+public sealed record MidiControllerMessage(int Channel, int Controller, double Value)
+{
+    public const int ModWheel = 1;
+    public const int Sustain = 64;
+    public const int Aftertouch = 128;
+    public const int PitchBend = 129;
+}
+
 // Reads note messages from a Windows MIDI input device, such as a keyboard controller.
 // Messages arrive on a WinMM thread, so subscribers must marshal to their own thread.
 public sealed class MidiInputService : IDisposable
@@ -13,6 +23,9 @@ public sealed class MidiInputService : IDisposable
     private const uint MimData = 0x3C3;
     private const int StatusNoteOff = 0x80;
     private const int StatusNoteOn = 0x90;
+    private const int StatusControlChange = 0xB0;
+    private const int StatusChannelPressure = 0xD0;
+    private const int StatusPitchBend = 0xE0;
 
     // Kept as a field so the callback is not collected while WinMM still holds it.
     private readonly MidiInProc _callback;
@@ -25,6 +38,8 @@ public sealed class MidiInputService : IDisposable
     }
 
     public event Action<MidiNoteMessage>? NoteReceived;
+
+    public event Action<MidiControllerMessage>? ControllerReceived;
 
     // Raised for every short message from the device, notes or not. The argument is the packed message: status, data1, data2.
     public event Action<int>? MessageReceived;
@@ -109,7 +124,28 @@ public sealed class MidiInputService : IDisposable
             case StatusNoteOff:
                 NoteReceived?.Invoke(new MidiNoteMessage(channel, data1, 0, IsOn: false));
                 break;
+            default:
+                if (ToController(status, data1, data2) is { } controller)
+                {
+                    ControllerReceived?.Invoke(controller);
+                }
+                break;
         }
+    }
+
+    // A control change, channel aftertouch or pitch bend as a controller with its value from 0 to 1. Null for
+    // any other message.
+    internal static MidiControllerMessage? ToController(int status, int data1, int data2)
+    {
+        var channel = status & 0x0F;
+        return (status & 0xF0) switch
+        {
+            StatusControlChange => new MidiControllerMessage(channel, data1, data2 / 127.0),
+            StatusChannelPressure => new MidiControllerMessage(channel, MidiControllerMessage.Aftertouch, data1 / 127.0),
+            // 14 bits, least significant byte first: 8192 is the centre.
+            StatusPitchBend => new MidiControllerMessage(channel, MidiControllerMessage.PitchBend, ((data2 << 7) | data1) / 16383.0),
+            _ => null,
+        };
     }
 
     private delegate void MidiInProc(IntPtr handle, uint message, IntPtr instance, IntPtr param1, IntPtr param2);

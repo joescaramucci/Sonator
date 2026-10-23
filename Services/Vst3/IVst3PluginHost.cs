@@ -144,6 +144,12 @@ public interface IVst3PluginHost
     void ReleaseAllNotes(Vst3ModuleHandle handle);
 
     /// <summary>
+    /// Sends a MIDI controller to a running module's plug-in: 0-127 a control change (64 sustain, 1 mod
+    /// wheel), 128 aftertouch, 129 pitch bend; value from 0 to 1. False when the plug-in has no parameter for it.
+    /// </summary>
+    bool TrySendController(Vst3ModuleHandle handle, int channel, int controller, double value);
+
+    /// <summary>
     /// A module that plays an audio track's clip in the plug-ins' mix, from startSeconds into it. It starts
     /// with <see cref="TryStartAudio"/> and goes with <see cref="StopAudio"/> and <see cref="UnloadModule"/>.
     /// Null when the bridge is not available.

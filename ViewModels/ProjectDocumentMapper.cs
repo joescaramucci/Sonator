@@ -46,8 +46,15 @@ internal static class ProjectDocumentMapper
                     .ToList(),
             track.PluginState,
             track.PluginEditorState,
-            track.SoundName);
+            track.SoundName,
+            track.MidiControllerEvents.Count == 0
+                ? null
+                : track.MidiControllerEvents.Select(e => new MidiControllerEventDocument(e.Step, e.Controller, e.Value)).ToList());
     }
+
+    private static IReadOnlyList<MidiControllerEventViewModel> Controllers(IEnumerable<MidiControllerEventDocument>? documents) =>
+        documents?.Select(e => new MidiControllerEventViewModel(e.Step, e.Controller, e.Value)).ToList()
+        ?? (IReadOnlyList<MidiControllerEventViewModel>)Array.Empty<MidiControllerEventViewModel>();
 
     // Effects whose name Sonator does not know (saved by a newer version) are left out.
     internal static IEnumerable<TrackEffectViewModel> BuildEffects(IEnumerable<EffectDocument>? documents) =>
@@ -71,6 +78,7 @@ internal static class ProjectDocumentMapper
         targetTrack.PluginState = sourceTrack.PluginState;
         targetTrack.PluginEditorState = sourceTrack.PluginEditorState;
         targetTrack.SoundName = sourceTrack.SoundName;
+        targetTrack.MidiControllerEvents = Controllers(sourceTrack.MidiControllerEvents);
         targetTrack.AudioClipPath = sourceTrack.AudioClipPath;
         targetTrack.InstrumentIconKey = sourceTrack.InstrumentIcon;
         targetTrack.Effects.Clear();
@@ -153,6 +161,7 @@ internal static class ProjectDocumentMapper
             PluginState = trackDocument.PluginState,
             PluginEditorState = trackDocument.PluginEditorState,
             SoundName = trackDocument.SoundName,
+            MidiControllerEvents = Controllers(trackDocument.MidiControllerEvents),
             AudioClipPath = trackDocument.AudioClipPath,
             InstrumentIconKey = trackDocument.InstrumentIcon
         };

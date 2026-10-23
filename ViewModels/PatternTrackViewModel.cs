@@ -245,6 +245,9 @@ public sealed class PatternTrackViewModel : ViewModelBase
 
     public ObservableCollection<StepViewModel> Steps { get; }
 
+    // The controllers played with the notes, as recorded: sustain pedal, mod wheel, pitch bend...
+    public IReadOnlyList<MidiControllerEventViewModel> MidiControllerEvents { get; set; } = Array.Empty<MidiControllerEventViewModel>();
+
     public IReadOnlyList<MidiNoteEventViewModel> MidiNoteEvents
     {
         get => _midiNoteEvents;

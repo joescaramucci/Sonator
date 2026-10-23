@@ -71,6 +71,9 @@ internal sealed class SequencerEngine : IDisposable
 
     // Offered each note of a track that has a plug-in. Returns true when the plug-in took the note, so the MIDI output is skipped.
     public Func<PatternTrackViewModel, int, int, int, bool, bool>? PluginNoteRouter { get; set; }
+
+    // Offered each recorded controller of a track (channel, controller, value from 0 to 1), for its plug-in.
+    public Action<PatternTrackViewModel, int, int, double>? PluginControllerRouter { get; set; }
     private readonly List<PatternViewModel> _songPatterns = new();
     private PatternViewModel? _pattern;
     private int _currentStep;
@@ -702,6 +705,29 @@ internal sealed class SequencerEngine : IDisposable
         _ = PlayScheduledNoteAsync(track, channel, noteNumber, velocity, startOffset * stepSeconds, Math.Max(0.05, lengthSteps) * stepSeconds, token);
     }
 
+    private void ScheduleController(PatternTrackViewModel track, int channel, int controller, double value, double startOffset)
+    {
+        if (PluginControllerRouter is not { } route)
+        {
+            return;
+        }
+
+        var token = _playbackCts?.Token ?? CancellationToken.None;
+        var start = Stopwatch.GetTimestamp() + (long)(startOffset * GetInterval(TempoBpm).TotalSeconds * Stopwatch.Frequency);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await WaitUntilAsync(start, token).ConfigureAwait(false);
+                route(track, channel, controller, value);
+            }
+            catch (OperationCanceledException)
+            {
+                // Playback stopped first.
+            }
+        });
+    }
+
     private async Task PlayScheduledNoteAsync(PatternTrackViewModel track, int channel, int noteNumber, int velocity, double startSeconds, double lengthSeconds, CancellationToken token)
     {
         var sounding = false;
@@ -798,6 +824,12 @@ internal sealed class SequencerEngine : IDisposable
                 if (!track.SupportsMidiPlayback || !IsTrackAudible(track))
                 {
                     continue;
+                }
+
+                // Recorded controllers (sustain pedal, mod wheel, pitch bend) go out at their exact place in the step.
+                foreach (var controller in track.MidiControllerEvents.Where(e => (int)Math.Floor(e.Step) == stepIndex))
+                {
+                    ScheduleController(track, track.Channel - 1, controller.Controller, controller.Value, controller.Step - stepIndex);
                 }
 
                 if (track.MidiNoteEvents.Count > 0)

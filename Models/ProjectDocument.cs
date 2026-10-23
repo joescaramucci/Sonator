@@ -49,7 +49,11 @@ public sealed record TrackDocument(
     List<EffectDocument>? Effects = null,
     byte[]? PluginState = null,
     byte[]? PluginEditorState = null,
-    string? SoundName = null);
+    string? SoundName = null,
+    List<MidiControllerEventDocument>? MidiControllerEvents = null);
+
+// A controller recorded on a track (see MidiControllerEventViewModel).
+public sealed record MidiControllerEventDocument(double Step, int Controller, double Value);
 
 // One insert effect of a track: its name (SonVerb, SonDelay...), whether it is on, and its knobs in order.
 public sealed record EffectDocument(

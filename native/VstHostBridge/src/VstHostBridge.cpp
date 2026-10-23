@@ -42,6 +42,8 @@
 #include "pluginterfaces/vst/ivstmessage.h"
 #include "pluginterfaces/vst/ivstaudioprocessor.h"
 #include "pluginterfaces/vst/ivstevents.h"
+#include "pluginterfaces/vst/ivstmidicontrollers.h"
+#include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "pluginterfaces/vst/vstspeaker.h"
 #include "pluginterfaces/gui/iplugview.h"
 #include "pluginterfaces/gui/iplugviewcontentscalesupport.h"
@@ -53,6 +55,7 @@
 #include <propidl.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <iomanip>
 #include <atomic>
@@ -665,10 +668,188 @@ namespace
         std::vector<Event> events;
     };
 
+    // One parameter's changes within a block, here MIDI controllers mapped to the plug-in's parameters.
+    class BlockParamQueue final : public IParamValueQueue
+    {
+    public:
+        tresult PLUGIN_API queryInterface(const TUID iid, void** obj) override
+        {
+            if (obj == nullptr)
+            {
+                return kInvalidArgument;
+            }
+
+            if (TuidEquals(iid, FUnknown_iid) || TuidEquals(iid, IParamValueQueue_iid))
+            {
+                *obj = static_cast<IParamValueQueue*>(this);
+                return kResultOk;
+            }
+
+            *obj = nullptr;
+            return kNoInterface;
+        }
+
+        uint32 PLUGIN_API addRef() override { return 1; }
+        uint32 PLUGIN_API release() override { return 1; }
+
+        ParamID PLUGIN_API getParameterId() override { return id; }
+        int32 PLUGIN_API getPointCount() override { return count; }
+
+        tresult PLUGIN_API getPoint(int32 index, int32& sampleOffset, ParamValue& value) override
+        {
+            if (index < 0 || index >= count)
+            {
+                return kInvalidArgument;
+            }
+
+            sampleOffset = offsets[index];
+            value = values[index];
+            return kResultOk;
+        }
+
+        tresult PLUGIN_API addPoint(int32 sampleOffset, ParamValue value, int32& index) override
+        {
+            if (count >= kMaxPoints)
+            {
+                return kResultFalse;
+            }
+
+            offsets[count] = sampleOffset;
+            values[count] = value;
+            index = count++;
+            return kResultOk;
+        }
+
+        static constexpr int32 kMaxPoints = 16;
+        ParamID id = 0;
+        int32 count = 0;
+        int32 offsets[kMaxPoints]{};
+        ParamValue values[kMaxPoints]{};
+    };
+
+    // The parameter changes handed to a plug-in with one block. Its queues are made once, so the audio thread
+    // never allocates.
+    class BlockParameterChanges final : public IParameterChanges
+    {
+    public:
+        tresult PLUGIN_API queryInterface(const TUID iid, void** obj) override
+        {
+            if (obj == nullptr)
+            {
+                return kInvalidArgument;
+            }
+
+            if (TuidEquals(iid, FUnknown_iid) || TuidEquals(iid, IParameterChanges_iid))
+            {
+                *obj = static_cast<IParameterChanges*>(this);
+                return kResultOk;
+            }
+
+            *obj = nullptr;
+            return kNoInterface;
+        }
+
+        uint32 PLUGIN_API addRef() override { return 1; }
+        uint32 PLUGIN_API release() override { return 1; }
+
+        int32 PLUGIN_API getParameterCount() override { return used; }
+
+        IParamValueQueue* PLUGIN_API getParameterData(int32 index) override
+        {
+            return index >= 0 && index < used ? &queues[static_cast<size_t>(index)] : nullptr;
+        }
+
+        IParamValueQueue* PLUGIN_API addParameterData(const ParamID& id, int32& index) override
+        {
+            for (int32 i = 0; i < used; ++i)
+            {
+                if (queues[static_cast<size_t>(i)].id == id)
+                {
+                    index = i;
+                    return &queues[static_cast<size_t>(i)];
+                }
+            }
+
+            if (used >= kMaxQueues)
+            {
+                return nullptr;
+            }
+
+            auto& queue = queues[static_cast<size_t>(used)];
+            queue.id = id;
+            queue.count = 0;
+            index = used++;
+            return &queue;
+        }
+
+        void Clear() { used = 0; }
+
+        static constexpr int32 kMaxQueues = 32;
+        std::array<BlockParamQueue, kMaxQueues> queues{};
+        int32 used = 0;
+    };
+
+    // A MIDI controller (or pitch bend, as controller 129) mapped to a plug-in parameter, waiting for the next block.
+    struct ControllerChange
+    {
+        ParamID id;
+        ParamValue value;
+    };
+
     // One running plug-in in the mixer: its processor, the notes waiting for its next block, and the
     // buffers it renders into before its sound is added to the mix.
     struct MixerVoice
     {
+        // Controllers waiting for the next block, guarded by midiMutex, and the block's changes. The plug-in's
+        // own mapping of MIDI controllers to its parameters, by channel and controller (kNoParamId when none),
+        // is read once when it starts.
+        std::vector<ControllerChange> pendingControllers;
+        std::vector<ControllerChange> blockControllers;
+        BlockParameterChanges parameterChanges;
+        std::vector<ParamID> controllerParams; // 16 channels x kCountCtrlNumber
+        bool sustainHeld[16]{};
+
+        void ReadControllerMapping()
+        {
+            controllerParams.assign(16 * kCountCtrlNumber, kNoParamId);
+            IMidiMapping* mapping = nullptr;
+            if (module->controller == nullptr
+                || module->controller->queryInterface(IMidiMapping_iid, reinterpret_cast<void**>(&mapping)) != kResultOk
+                || mapping == nullptr)
+            {
+                return;
+            }
+
+            for (int16 channel = 0; channel < 16; ++channel)
+            {
+                for (int16 controller = 0; controller < kCountCtrlNumber; ++controller)
+                {
+                    ParamID id = kNoParamId;
+                    if (mapping->getMidiControllerAssignment(0, channel, static_cast<CtrlNumber>(controller), id) == kResultTrue)
+                    {
+                        controllerParams[static_cast<size_t>(channel * kCountCtrlNumber + controller)] = id;
+                    }
+                }
+            }
+            mapping->release();
+        }
+
+        // Hands the block's controllers to the plug-in as parameter changes at its start. Audio thread only.
+        void PrepareControllers()
+        {
+            parameterChanges.Clear();
+            for (const auto& change : blockControllers)
+            {
+                int32 index = 0;
+                if (auto* queue = parameterChanges.addParameterData(change.id, index))
+                {
+                    int32 point = 0;
+                    queue->addPoint(0, change.value, point);
+                }
+            }
+            processData.inputParameterChanges = parameterChanges.used > 0 ? &parameterChanges : nullptr;
+        }
+
         BridgeModule* module = nullptr;
         IAudioProcessor* processor = nullptr; // addRef'd; released by Deactivate
 
@@ -756,6 +937,9 @@ namespace
                 return false;
             }
             startedProcessing = true;
+            ReadControllerMapping();
+            pendingControllers.reserve(256);
+            blockControllers.reserve(256);
 
             planar.assign(static_cast<size_t>(channels), std::vector<float>(static_cast<size_t>(maxBlock)));
             pointers.assign(static_cast<size_t>(channels), nullptr);
@@ -807,7 +991,9 @@ namespace
                 std::lock_guard<std::mutex> lock(midiMutex);
                 blockEvents.events.swap(pendingMidi);
                 pendingMidi.clear();
-                notesHeld = heldNotes > 0;
+                blockControllers.swap(pendingControllers);
+                pendingControllers.clear();
+                notesHeld = heldNotes > 0 || std::any_of(std::begin(sustainHeld), std::end(sustainHeld), [](bool held) { return held; });
             }
             processData.inputEvents = &blockEvents;
 
@@ -817,7 +1003,8 @@ namespace
                 return;
             }
 
-            const bool hasEvents = !blockEvents.events.empty();
+            PrepareControllers();
+            const bool hasEvents = !blockEvents.events.empty() || !blockControllers.empty();
             if (asleep && !hasEvents)
             {
                 return; // silent: AddTo leaves it out of the mix
@@ -3616,6 +3803,39 @@ int VstHostBridge_ReadMixCapture(float* interleaved, int64_t frames)
     return 1;
 }
 
+int VstHostBridge_SendController(void* moduleHandle, int32_t channel, int32_t controller, double value)
+{
+    if (moduleHandle == nullptr || channel < 0 || channel >= 16 || controller < 0 || controller >= kCountCtrlNumber)
+    {
+        return 0;
+    }
+
+    auto* module = static_cast<BridgeModule*>(moduleHandle);
+    std::shared_ptr<MixerVoice> voice;
+    {
+        std::lock_guard<std::mutex> lock(module->voiceMutex);
+        voice = module->voice;
+    }
+    if (voice == nullptr || voice->isClip || voice->controllerParams.empty())
+    {
+        return 0;
+    }
+
+    const auto id = voice->controllerParams[static_cast<size_t>(channel * kCountCtrlNumber + controller)];
+    if (id == kNoParamId)
+    {
+        return 0; // the plug-in has no parameter for this controller
+    }
+
+    std::lock_guard<std::mutex> lock(voice->midiMutex);
+    voice->pendingControllers.push_back({ id, std::clamp(value, 0.0, 1.0) });
+    if (controller == kCtrlSustainOnOff)
+    {
+        voice->sustainHeld[channel] = value >= 0.5;
+    }
+    return 1;
+}
+
 int VstHostBridge_ReleaseAllNotes(void* moduleHandle)
 {
     if (moduleHandle == nullptr)
@@ -3659,6 +3879,22 @@ int VstHostBridge_ReleaseAllNotes(void* moduleHandle)
         }
     }
     voice->heldNotes = 0;
+
+    // A sustain pedal left down would keep the notes sounding: it comes up too.
+    for (int32 channel = 0; channel < 16; ++channel)
+    {
+        if (!voice->sustainHeld[channel] || voice->controllerParams.empty())
+        {
+            continue;
+        }
+
+        const auto id = voice->controllerParams[static_cast<size_t>(channel * kCountCtrlNumber + kCtrlSustainOnOff)];
+        if (id != kNoParamId)
+        {
+            voice->pendingControllers.push_back({ id, 0.0 });
+        }
+        voice->sustainHeld[channel] = false;
+    }
     return 1;
 }
 

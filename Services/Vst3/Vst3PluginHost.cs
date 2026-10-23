@@ -300,6 +300,24 @@ public sealed class Vst3PluginHost : IVst3PluginHost
         return Vst3HostInterop.VstHostBridge_SendNoteEvent(handle.NativeHandle, channel, noteNumber, velocity, isOn ? 1 : 0) != 0;
     }
 
+    public bool TrySendController(Vst3ModuleHandle handle, int channel, int controller, double value)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+        if (handle.NativeHandle == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        try
+        {
+            return Vst3HostInterop.VstHostBridge_SendController(handle.NativeHandle, channel, controller, value) != 0;
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            return false;
+        }
+    }
+
     public bool TryStartMixCapture(double maxSeconds)
     {
         try
