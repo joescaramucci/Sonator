@@ -12,8 +12,8 @@ namespace Sonator;
 // Edits work on a copy and are committed to the track once per gesture, so each gesture is one undo step.
 public partial class PianoRollWindow : Window
 {
-    private const double StepWidth = 14;
-    private const double RowHeight = 10;
+    private const double MinStepWidth = 14;
+    private const double MinRowHeight = 10;
     private const double KeyboardWidth = 72;
     private const double VelocityLaneHeight = 90;
     private const int HighestNote = 96;
@@ -27,7 +27,11 @@ public partial class PianoRollWindow : Window
     private readonly MainViewModel _viewModel;
     private readonly PatternTrackViewModel _track;
     private readonly List<MidiNoteEventViewModel> _notes;
-    private readonly double _gridHeight = (HighestNote - LowestNote + 1) * RowHeight;
+    // The height of a key and the width of a step, grown with the window so a short pattern fills it.
+    private double _rowHeight = MinRowHeight;
+    private double _stepWidth = MinStepWidth;
+
+    private double GridHeight => (HighestNote - LowestNote + 1) * _rowHeight;
     private int _stepCount;
 
     // The playback position, moved as the sequencer plays. The view pages along with it.
@@ -75,11 +79,8 @@ public partial class PianoRollWindow : Window
         QuantizeSwingBox.ItemsSource = NoteQuantizer.Swings;
         QuantizeSwingBox.SelectedIndex = 0;
 
-        Loaded += (_, _) =>
-        {
-            Redraw();
-            FitHeightToRoll();
-        };
+        Loaded += (_, _) => Redraw();
+        PianoRollScroller.SizeChanged += (_, _) => FitToWindow();
         PreviewKeyDown += OnPreviewKeyDown;
         viewModel.TrackNotesChanged += OnTrackNotesChanged;
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
@@ -109,7 +110,7 @@ public partial class PianoRollWindow : Window
         }
 
         var step = _viewModel.CurrentStepIndex % _stepCount;
-        var x = KeyboardWidth + step * StepWidth;
+        var x = KeyboardWidth + step * _stepWidth;
         _playhead.X1 = x;
         _playhead.X2 = x;
 
@@ -120,9 +121,9 @@ public partial class PianoRollWindow : Window
 
         var left = PianoRollScroller.HorizontalOffset;
         var right = left + PianoRollScroller.ViewportWidth;
-        if (x > right - 4 * StepWidth || x < left + KeyboardWidth)
+        if (x > right - 4 * _stepWidth || x < left + KeyboardWidth)
         {
-            PianoRollScroller.ScrollToHorizontalOffset(Math.Max(0, x - KeyboardWidth - 2 * StepWidth));
+            PianoRollScroller.ScrollToHorizontalOffset(Math.Max(0, x - KeyboardWidth - 2 * _stepWidth));
         }
     }
 
@@ -141,14 +142,29 @@ public partial class PianoRollWindow : Window
         return notes;
     }
 
+    // Makes the keys as tall and the steps as wide as the window allows, whole pixels, never below the smallest.
+    private void FitToWindow()
+    {
+        var height = PianoRollScroller.ActualHeight - SystemParameters.HorizontalScrollBarHeight - VelocityLaneHeight - 10;
+        var width = PianoRollScroller.ActualWidth - SystemParameters.VerticalScrollBarWidth - KeyboardWidth - 2;
+        var rowHeight = Math.Max(MinRowHeight, Math.Floor(height / (HighestNote - LowestNote + 1)));
+        var stepWidth = Math.Max(MinStepWidth, Math.Floor(width / Math.Max(1, _stepCount)));
+        if (rowHeight != _rowHeight || stepWidth != _stepWidth)
+        {
+            _rowHeight = rowHeight;
+            _stepWidth = stepWidth;
+            Redraw();
+        }
+    }
+
     private void Redraw()
     {
         // The track can grow after the roll is opened (playback lengthens a short pattern), so the roll follows it.
         _stepCount = Math.Max(_stepCount, _track.Steps.Count);
         PianoRollCanvas.Children.Clear();
-        var width = KeyboardWidth + _stepCount * StepWidth;
+        var width = KeyboardWidth + _stepCount * _stepWidth;
         PianoRollCanvas.Width = width;
-        PianoRollCanvas.Height = _gridHeight + VelocityLaneHeight + 8;
+        PianoRollCanvas.Height = GridHeight + VelocityLaneHeight + 8;
 
         DrawRowsAndKeys(width);
         DrawGridLines();
@@ -156,7 +172,7 @@ public partial class PianoRollWindow : Window
         DrawNotes();
 
         _playhead.Y1 = 0;
-        _playhead.Y2 = _gridHeight;
+        _playhead.Y2 = GridHeight;
         PianoRollCanvas.Children.Add(_playhead);
         UpdatePlayhead();
     }
@@ -165,11 +181,11 @@ public partial class PianoRollWindow : Window
     {
         for (var note = LowestNote; note <= HighestNote; note++)
         {
-            var y = (HighestNote - note) * RowHeight;
+            var y = (HighestNote - note) * _rowHeight;
             var black = IsBlackKey(note);
 
-            AddRect(KeyboardWidth, y, width - KeyboardWidth, RowHeight, black ? "#1F2935" : "#243142", "#2C3A4B");
-            AddRect(0, y, KeyboardWidth, RowHeight, black ? "#0F151C" : "#E8EEF4", "#5A6B7D");
+            AddRect(KeyboardWidth, y, width - KeyboardWidth, _rowHeight, black ? "#1F2935" : "#243142", "#2C3A4B");
+            AddRect(0, y, KeyboardWidth, _rowHeight, black ? "#0F151C" : "#E8EEF4", "#5A6B7D");
 
             if (note % 12 == 0)
             {
@@ -180,24 +196,25 @@ public partial class PianoRollWindow : Window
                     Foreground = Brushes.Black,
                 };
                 Canvas.SetLeft(label, 4);
-                Canvas.SetTop(label, y - 1);
+                Canvas.SetTop(label, y + (_rowHeight - 13) / 2);
                 PianoRollCanvas.Children.Add(label);
             }
 
             // The drum on this key, by the General MIDI map, at the key's right end.
             if (DrumMapToggle.IsChecked == true && GeneralMidiDrums.ShortName(note) is { } drum)
             {
+                var fontSize = Math.Clamp(_rowHeight - 4, 8, 11);
                 var drumLabel = new TextBlock
                 {
                     Text = drum,
-                    FontSize = 8,
+                    FontSize = fontSize,
                     Width = KeyboardWidth - 24,
                     TextAlignment = TextAlignment.Right,
                     Foreground = black ? new SolidColorBrush(Color.FromRgb(0xC8, 0xD4, 0xE0)) : new SolidColorBrush(Color.FromRgb(0x24, 0x31, 0x42)),
                     IsHitTestVisible = false,
                 };
                 Canvas.SetLeft(drumLabel, 20);
-                Canvas.SetTop(drumLabel, y);
+                Canvas.SetTop(drumLabel, y + (_rowHeight - fontSize * 1.25) / 2);
                 PianoRollCanvas.Children.Add(drumLabel);
             }
         }
@@ -208,7 +225,7 @@ public partial class PianoRollWindow : Window
         // One line per thirty-second note. Bars are the strongest, then beats, sixteenths, and thirty-seconds faintest.
         for (var half = 0; half <= _stepCount * 2; half++)
         {
-            var x = KeyboardWidth + half * StepWidth / 2;
+            var x = KeyboardWidth + half * _stepWidth / 2;
             var barLine = half % (StepsPerBar * 2) == 0;
             var beatLine = half % (StepsPerBeat * 2) == 0;
             var sixteenthLine = half % 2 == 0;
@@ -221,7 +238,7 @@ public partial class PianoRollWindow : Window
                 X1 = x,
                 X2 = x,
                 Y1 = 0,
-                Y2 = _gridHeight,
+                Y2 = GridHeight,
                 Stroke = new SolidColorBrush(color),
                 StrokeThickness = thickness,
             };
@@ -231,7 +248,7 @@ public partial class PianoRollWindow : Window
 
     private void DrawVelocityLane(double width)
     {
-        var laneTop = _gridHeight + 8;
+        var laneTop = GridHeight + 8;
         var laneBottom = laneTop + VelocityLaneHeight;
         AddRect(KeyboardWidth, laneTop, width - KeyboardWidth, VelocityLaneHeight, "#152029", "#2C3A4B");
 
@@ -255,7 +272,7 @@ public partial class PianoRollWindow : Window
 
         for (var step = 0; step <= _stepCount; step += StepsPerBeat)
         {
-            var x = KeyboardWidth + step * StepWidth;
+            var x = KeyboardWidth + step * _stepWidth;
             PianoRollCanvas.Children.Add(new Line
             {
                 X1 = x,
@@ -277,44 +294,34 @@ public partial class PianoRollWindow : Window
             LayoutTransform = new RotateTransform(-90),
         };
         Canvas.SetLeft(label, KeyboardWidth / 2 - 6);
-        Canvas.SetTop(label, _gridHeight + 20);
+        Canvas.SetTop(label, GridHeight + 20);
         PianoRollCanvas.Children.Add(label);
-    }
-
-    // Makes the window tall enough to show the whole keyboard and the velocity lane, within the screen.
-    private void FitHeightToRoll()
-    {
-        UpdateLayout();
-        var chrome = ActualHeight - PianoRollScroller.ViewportHeight;
-        var workArea = SystemParameters.WorkArea;
-        Height = Math.Min(PianoRollCanvas.Height + chrome + 2, workArea.Height);
-        Top = workArea.Top + Math.Max(0, (workArea.Height - Height) / 2);
     }
 
     private void DrawNotes()
     {
-        var laneTop = _gridHeight + 8;
+        var laneTop = GridHeight + 8;
         for (var index = 0; index < _notes.Count; index++)
         {
             var note = _notes[index];
             var selected = index == _selectedIndex;
             var (left, right) = NoteSpan(note);
-            var y = (HighestNote - note.NoteNumber) * RowHeight + 1;
+            var y = (HighestNote - note.NoteNumber) * _rowHeight + 1;
             var noteWidth = Math.Max(3, right - left - 1);
 
-            AddRect(left, y, noteWidth, RowHeight - 2, selected ? "#F2C14E" : "#4FA3D9", "#0E1620");
+            AddRect(left, y, noteWidth, _rowHeight - 2, selected ? "#F2C14E" : "#4FA3D9", "#0E1620");
 
             // Handles: a lighter strip at each end, to grab and change where the note starts or ends.
             if (noteWidth >= 8)
             {
                 var handle = selected ? "#FFF1C2" : "#B9E0F7";
-                AddRect(left, y, 2, RowHeight - 2, handle, handle);
-                AddRect(left + noteWidth - 2, y, 2, RowHeight - 2, handle, handle);
+                AddRect(left, y, 2, _rowHeight - 2, handle, handle);
+                AddRect(left + noteWidth - 2, y, 2, _rowHeight - 2, handle, handle);
             }
 
             var velocityHeight = note.Velocity / 127.0 * (VelocityLaneHeight - 8);
             var barTop = laneTop + VelocityLaneHeight - velocityHeight;
-            AddRect(left + 1, barTop, StepWidth - 6, velocityHeight, selected ? "#F2C14E" : "#4FA3D9", "#0E1620");
+            AddRect(left + 1, barTop, _stepWidth - 6, velocityHeight, selected ? "#F2C14E" : "#4FA3D9", "#0E1620");
 
             if (selected)
             {
@@ -333,10 +340,10 @@ public partial class PianoRollWindow : Window
     }
 
     // Left and right edges of a note in canvas pixels, at its exact start and length.
-    private static (double Left, double Right) NoteSpan(MidiNoteEventViewModel note)
+    private (double Left, double Right) NoteSpan(MidiNoteEventViewModel note)
     {
-        var left = KeyboardWidth + (note.StepIndex + note.StartOffset) * StepWidth + 1;
-        var right = left + Math.Max(0.05, note.DurationSteps + note.LengthFraction) * StepWidth;
+        var left = KeyboardWidth + (note.StepIndex + note.StartOffset) * _stepWidth + 1;
+        var right = left + Math.Max(0.05, note.DurationSteps + note.LengthFraction) * _stepWidth;
         return (left, right);
     }
 
@@ -362,13 +369,13 @@ public partial class PianoRollWindow : Window
 
     private (int Step, int Note)? CellAt(Point point)
     {
-        if (point.X < KeyboardWidth || point.Y < 0 || point.Y >= _gridHeight)
+        if (point.X < KeyboardWidth || point.Y < 0 || point.Y >= GridHeight)
         {
             return null;
         }
 
-        var step = (int)((point.X - KeyboardWidth) / StepWidth);
-        var note = HighestNote - (int)(point.Y / RowHeight);
+        var step = (int)((point.X - KeyboardWidth) / _stepWidth);
+        var note = HighestNote - (int)(point.Y / _rowHeight);
         if (step < 0 || step >= _stepCount || note < LowestNote || note > HighestNote)
         {
             return null;
@@ -379,12 +386,12 @@ public partial class PianoRollWindow : Window
     // Index of the note drawn under this point, or -1.
     private int NoteIndexAt(Point point)
     {
-        if (point.Y < 0 || point.Y >= _gridHeight)
+        if (point.Y < 0 || point.Y >= GridHeight)
         {
             return -1;
         }
 
-        var row = HighestNote - (int)(point.Y / RowHeight);
+        var row = HighestNote - (int)(point.Y / _rowHeight);
         for (var index = _notes.Count - 1; index >= 0; index--)
         {
             var (left, right) = NoteSpan(_notes[index]);
@@ -397,7 +404,7 @@ public partial class PianoRollWindow : Window
     }
 
     // -1 when the point is on a note's left edge, +1 on its right edge, 0 inside it.
-    private static int EdgeAt(MidiNoteEventViewModel note, double x)
+    private int EdgeAt(MidiNoteEventViewModel note, double x)
     {
         var (left, right) = NoteSpan(note);
         var grab = Math.Min(EdgeGrabWidth, (right - left) / 3);
@@ -415,7 +422,7 @@ public partial class PianoRollWindow : Window
         bool Covers(int index)
         {
             var (left, _) = NoteSpan(_notes[index]);
-            return x >= left && x <= left + StepWidth - 4;
+            return x >= left && x <= left + _stepWidth - 4;
         }
 
         if (_selectedIndex >= 0 && _selectedIndex < _notes.Count && Covers(_selectedIndex))
@@ -444,7 +451,7 @@ public partial class PianoRollWindow : Window
         }
 
         _gestureChanged = false;
-        if (point.Y >= _gridHeight)
+        if (point.Y >= GridHeight)
         {
             var index = NoteIndexInVelocityLane(point.X);
             if (index < 0)
@@ -543,7 +550,7 @@ public partial class PianoRollWindow : Window
     {
         var original = _dragOriginal!;
         var grid = QuantizeGridBox.SelectedItem is QuantizeOption option && option.Value > 0 ? option.Value : 1.0;
-        var position = Math.Clamp((x - KeyboardWidth) / StepWidth, 0, _stepCount);
+        var position = Math.Clamp((x - KeyboardWidth) / _stepWidth, 0, _stepCount);
         var target = free ? position : Math.Round(position / grid) * grid;
         var minimum = free ? 0.05 : grid;
         var start = original.StepIndex + original.StartOffset;
@@ -682,7 +689,7 @@ public partial class PianoRollWindow : Window
 
     private void SetVelocityFromPoint(double y)
     {
-        var laneTop = _gridHeight + 8;
+        var laneTop = GridHeight + 8;
         var fraction = Math.Clamp(1.0 - (y - laneTop) / (VelocityLaneHeight - 8), 0.0, 1.0);
         var velocity = Math.Clamp((int)Math.Round(fraction * 127), 1, 127);
         _notes[_dragIndex] = _notes[_dragIndex] with { Velocity = velocity };

@@ -8,6 +8,7 @@
         Foreground="#D2D3D5"
         FontFamily="Consolas"
         WindowStartupLocation="CenterOwner"
+        WindowState="Maximized"
         ShowInTaskbar="False"
         Focusable="True">
     <Window.Resources>
@@ -145,7 +146,6 @@
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="10,6,10,0">
             <Button Content="PLAY" Width="70" Margin="0,0,6,0" Click="PlayButton_Click" />
             <Button Content="STOP" Width="70" Click="StopButton_Click" />
-            <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontSize="12" Opacity="0.85" Text="Space: play / stop" />
             <ToggleButton x:Name="DrumMapToggle" Content="DRUM MAP" Width="80" Height="26" Margin="20,0,0,0"
                           Style="{StaticResource MetronomeToggleStyle}" Click="DrumMapToggle_Click" />
             <TextBlock Margin="28,0,8,0" VerticalAlignment="Center" FontSize="12" FontWeight="Bold" Text="QUANTIZE" />
