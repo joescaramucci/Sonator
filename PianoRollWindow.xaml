@@ -8,7 +8,6 @@
         Foreground="#D2D3D5"
         FontFamily="Consolas"
         WindowStartupLocation="CenterOwner"
-        WindowState="Maximized"
         ShowInTaskbar="False"
         Focusable="True">
     <Window.Resources>

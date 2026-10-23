@@ -79,7 +79,11 @@ public partial class PianoRollWindow : Window
         QuantizeSwingBox.ItemsSource = NoteQuantizer.Swings;
         QuantizeSwingBox.SelectedIndex = 0;
 
-        Loaded += (_, _) => Redraw();
+        Loaded += (_, _) =>
+        {
+            Redraw();
+            FitHeightToRoll();
+        };
         PianoRollScroller.SizeChanged += (_, _) => FitToWindow();
         PreviewKeyDown += OnPreviewKeyDown;
         viewModel.TrackNotesChanged += OnTrackNotesChanged;
@@ -140,6 +144,16 @@ public partial class PianoRollWindow : Window
             }
         }
         return notes;
+    }
+
+    // Makes the window tall enough to show the whole keyboard and the velocity lane, within the screen.
+    private void FitHeightToRoll()
+    {
+        UpdateLayout();
+        var chrome = ActualHeight - PianoRollScroller.ViewportHeight;
+        var workArea = SystemParameters.WorkArea;
+        Height = Math.Min(PianoRollCanvas.Height + chrome + 2, workArea.Height);
+        Top = workArea.Top + Math.Max(0, (workArea.Height - Height) / 2);
     }
 
     // Makes the keys as tall and the steps as wide as the window allows, whole pixels, never below the smallest.
