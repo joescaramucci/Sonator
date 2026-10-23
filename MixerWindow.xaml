@@ -19,6 +19,40 @@
         <local:SameValueConverter x:Key="SameValue" />
         <BooleanToVisibilityConverter x:Key="VisibleWhenLinked" />
 
+        <!-- The overload lamp over a VU meter: a dark red lens, lit bright red with a glow while Tag is true. -->
+        <Style x:Key="ClipLamp" TargetType="Ellipse">
+            <Setter Property="Width" Value="9" />
+            <Setter Property="Height" Value="9" />
+            <Setter Property="Stroke" Value="#2A0A08" />
+            <Setter Property="StrokeThickness" Value="1" />
+            <Setter Property="Fill">
+                <Setter.Value>
+                    <RadialGradientBrush GradientOrigin="0.35,0.3">
+                        <GradientStop Color="#7A2A24" Offset="0" />
+                        <GradientStop Color="#4A120E" Offset="1" />
+                    </RadialGradientBrush>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource Self}}" Value="True">
+                    <Setter Property="Fill">
+                        <Setter.Value>
+                            <RadialGradientBrush GradientOrigin="0.35,0.3">
+                                <GradientStop Color="#FFD8CC" Offset="0" />
+                                <GradientStop Color="#FF3A2A" Offset="0.45" />
+                                <GradientStop Color="#C0100A" Offset="1" />
+                            </RadialGradientBrush>
+                        </Setter.Value>
+                    </Setter>
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <DropShadowEffect Color="#FF3A2A" ShadowDepth="0" BlurRadius="8" Opacity="0.9" />
+                        </Setter.Value>
+                    </Setter>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
         <!-- The ink printed on the aluminium. -->
         <Style x:Key="Legend" TargetType="TextBlock">
             <Setter Property="FontSize" Value="7.5" />
@@ -220,19 +254,21 @@
                 <!-- The two faders stay side by side, however wide the strip, so one hand rides both. -->
                 <Grid DockPanel.Dock="Bottom" Height="230" Margin="4,6,4,0" HorizontalAlignment="Center">
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="20" />
+                        <ColumnDefinition Width="7" />
+                        <ColumnDefinition Width="30" />
+                        <ColumnDefinition Width="30" />
                         <ColumnDefinition Width="7" />
                         <ColumnDefinition Width="20" />
-                        <ColumnDefinition Width="30" />
-                        <ColumnDefinition Width="30" />
-                        <ColumnDefinition Width="7" />
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <!-- A LED meter for each side: the left one outside the left fader, the right one outside the right. -->
-                    <local:LedMeter Segments="30" RedSegments="5" Margin="0,13" Level="{Binding MasterLevelLeft}" ToolTip="Master level, left side" />
-                    <local:FaderScale Grid.Column="1" ThumbLength="26" Margin="2,0,0,0" />
+                    <!-- A LED meter for each side, each just outside its fader, the scale outside the left one; the
+                         empty column on the right keeps the faders in the middle. -->
+                    <local:FaderScale ThumbLength="26" />
+                    <local:LedMeter Grid.Column="1" Segments="30" RedSegments="5" Margin="0,13" Level="{Binding MasterLevelLeft}" ToolTip="Master level, left side" />
                     <Slider Grid.Column="2" Style="{StaticResource MasterFader}" Value="{Binding MasterVolumeLeft}"
                             ToolTip="Master, left side. With LINK on, the right side follows" />
                     <Slider Grid.Column="3" Style="{StaticResource MasterFader}" Value="{Binding MasterVolumeRight}"
@@ -243,7 +279,7 @@
                                         Left="{Binding MasterVolumeLeft}" Right="{Binding MasterVolumeRight}"
                                         Visibility="{Binding IsMasterLinked, Converter={StaticResource VisibleWhenLinked}}"
                                         ToolTip="The link bar: drag it to move both master faders together" />
-                    <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource Legend}" Text="L" FontSize="7" Margin="0,1,0,0" />
+                    <TextBlock Grid.Row="1" Grid.Column="1" Style="{StaticResource Legend}" Text="L" FontSize="7" Margin="0,1,0,0" />
                     <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource Legend}" Text="L" Margin="0,1,0,0" />
                     <TextBlock Grid.Row="1" Grid.Column="3" Style="{StaticResource Legend}" Text="R" Margin="0,1,0,0" />
                     <TextBlock Grid.Row="1" Grid.Column="4" Style="{StaticResource Legend}" Text="R" FontSize="7" Margin="0,1,0,0" />
@@ -251,7 +287,23 @@
                 <StackPanel DockPanel.Dock="Bottom">
                     <Button Style="{StaticResource ConsoleButton}" Content="FX" Margin="4,3,4,0" Tag="{Binding MasterTrack}" Click="Fx_Click"
                             ToolTip="Open the master's effect rack: its effects run on the whole mix" />
-                    <TextBlock Style="{StaticResource Legend}" Text="MASTER" FontSize="11" Margin="0,8,0,4" />
+                    <TextBlock Style="{StaticResource Legend}" Text="MASTER" FontSize="11" Margin="0,8,0,2" />
+                    <!-- Over each VU meter its overload lamp, lit red when that side reaches full scale. -->
+                    <Grid Margin="3,0,3,3">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="3" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" ToolTip="Left side clipping: it reached full scale">
+                            <Ellipse Style="{StaticResource ClipLamp}" Tag="{Binding IsMasterClippingLeft}" />
+                            <TextBlock Style="{StaticResource Legend}" Text="CLIP" FontSize="6.5" Margin="3,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Center" ToolTip="Right side clipping: it reached full scale">
+                            <Ellipse Style="{StaticResource ClipLamp}" Tag="{Binding IsMasterClippingRight}" />
+                            <TextBlock Style="{StaticResource Legend}" Text="CLIP" FontSize="6.5" Margin="3,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Grid>
                     <!-- The mix's left and right levels, on moving-needle meters side by side. -->
                     <Grid x:Name="VuRow" Height="48" Margin="3,0">
                         <Grid.ColumnDefinitions>

@@ -4676,8 +4676,43 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private const double MasterMeterFall = 0.04;
 
+    // A sample this close to full scale (-0.1 dBFS) counts as clipping.
+    internal const double ClipPeak = 0.989;
+    private static readonly TimeSpan ClipHold = TimeSpan.FromSeconds(1.5);
+    private DateTime _clipLeftUntil;
+    private DateTime _clipRightUntil;
+    private bool _isMasterClippingLeft;
+    private bool _isMasterClippingRight;
+
+    // The red overload lamps over the VU meters: lit when that side of the mix reaches full scale, and held
+    // a moment so a short clip is seen.
+    public bool IsMasterClippingLeft
+    {
+        get => _isMasterClippingLeft;
+        private set => SetProperty(ref _isMasterClippingLeft, value);
+    }
+
+    public bool IsMasterClippingRight
+    {
+        get => _isMasterClippingRight;
+        private set => SetProperty(ref _isMasterClippingRight, value);
+    }
+
     private void ShowMasterLevels()
     {
+        var now = DateTime.UtcNow;
+        if (_masterPeakLeft >= ClipPeak)
+        {
+            _clipLeftUntil = now + ClipHold;
+        }
+
+        if (_masterPeakRight >= ClipPeak)
+        {
+            _clipRightUntil = now + ClipHold;
+        }
+
+        IsMasterClippingLeft = now < _clipLeftUntil;
+        IsMasterClippingRight = now < _clipRightUntil;
         MasterLevelLeft = Math.Max(Math.Max(TrackEffectViewModel.ToMeter(_masterPeakLeft), _masterLevelLeft - MasterMeterFall), MasterSignalLevel);
         MasterLevelRight = Math.Max(Math.Max(TrackEffectViewModel.ToMeter(_masterPeakRight), _masterLevelRight - MasterMeterFall), MasterSignalLevel);
     }
