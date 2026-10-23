@@ -103,7 +103,7 @@ public static class HelpTexts
         [typeof(PianoRollWindow)] = new("Piano roll", new[]
         {
             "The notes of a track, pitch up the side, time along the bars. Click an empty cell to add a note, drag a note to move it, drag its end to change its length; right-click or Delete removes it.",
-            "Drag in the lane at the bottom to set how hard each note is played. QUANTIZE moves the notes to the grid chosen, with the strength and swing beside it; APPLY makes it so.",
+            "Drag in the lane at the bottom to set how hard each note is played. QUANTIZE moves the notes to the grid chosen (straight, dotted or triplet), as far as the strength says, with swing delaying every second grid point (100% is a triplet shuffle); ENDS moves where the notes end too, otherwise each keeps its length. APPLY quantizes all the track's notes; Undo reverts it.",
             "DRUM MAP names the keys by the General MIDI drums (BD bass drum, SN snare, HH C / P / O closed, pedal and open hi-hat, CR crash, RD ride, LT MT HT FT toms...). It is on by itself for a drum track.",
             "Space plays and stops.",
         }),

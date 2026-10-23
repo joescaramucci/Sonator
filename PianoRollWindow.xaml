@@ -148,17 +148,12 @@
             <ToggleButton x:Name="DrumMapToggle" Content="DRUM MAP" Width="80" Height="26" Margin="20,0,0,0"
                           Style="{StaticResource MetronomeToggleStyle}" Click="DrumMapToggle_Click" />
             <TextBlock Margin="28,0,8,0" VerticalAlignment="Center" FontSize="12" FontWeight="Bold" Text="QUANTIZE" />
-            <ComboBox x:Name="QuantizeGridBox" Width="130" Height="26" DisplayMemberPath="Label"
-                      ToolTip="Grid the notes move to: straight, dotted or triplet values" />
-            <ComboBox x:Name="QuantizeStrengthBox" Width="80" Height="26" Margin="6,0,0,0" DisplayMemberPath="Label"
-                      ToolTip="Strength: how far each note moves toward the grid" />
-            <ComboBox x:Name="QuantizeSwingBox" Width="110" Height="26" Margin="6,0,0,0" DisplayMemberPath="Label"
-                      ToolTip="Swing: delays every second grid point; 100% is a triplet shuffle" />
+            <ComboBox x:Name="QuantizeGridBox" Width="130" Height="26" DisplayMemberPath="Label" />
+            <ComboBox x:Name="QuantizeStrengthBox" Width="80" Height="26" Margin="6,0,0,0" DisplayMemberPath="Label" />
+            <ComboBox x:Name="QuantizeSwingBox" Width="110" Height="26" Margin="6,0,0,0" DisplayMemberPath="Label" />
             <ToggleButton x:Name="QuantizeEndsToggle" Content="ENDS" Width="56" Height="26" Margin="6,0,0,0"
-                          Style="{StaticResource MetronomeToggleStyle}"
-                          ToolTip="Also move where notes end. Off keeps each note's length" />
-            <Button Content="APPLY" Width="70" Margin="6,0,0,0" Click="QuantizeButton_Click"
-                    ToolTip="Quantize all the notes of this track. Undo reverts it" />
+                          Style="{StaticResource MetronomeToggleStyle}" />
+            <Button Content="APPLY" Width="70" Margin="6,0,0,0" Click="QuantizeButton_Click" />
         </StackPanel>
         <ScrollViewer x:Name="PianoRollScroller" Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
             <Canvas x:Name="PianoRollCanvas" Background="Transparent" HorizontalAlignment="Left" VerticalAlignment="Top"
