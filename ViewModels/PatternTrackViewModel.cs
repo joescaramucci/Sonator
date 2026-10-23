@@ -142,7 +142,9 @@ public sealed class PatternTrackViewModel : ViewModelBase
 
     private string? _pluginFilePath;
 
-    // The VST3 plug-in this track plays through. Null when the track has no plug-in assigned.
+    // The VST3 plug-in this track plays through. Null when the track has no plug-in assigned. Given a plug-in,
+    // a MIDI track, or an audio track with no clip, becomes a VST track, its instrument named after the plug-in
+    // while it still bore its type's default name.
     public string? PluginFilePath
     {
         get => _pluginFilePath;
@@ -150,6 +152,20 @@ public sealed class PatternTrackViewModel : ViewModelBase
         {
             if (SetProperty(ref _pluginFilePath, string.IsNullOrWhiteSpace(value) ? null : value))
             {
+                if (_pluginFilePath is not null
+                    && (TrackType == PatternTrackType.MidiChannel
+                        || (TrackType == PatternTrackType.AudioInput && string.IsNullOrEmpty(AudioClipPath))))
+                {
+                    var defaultName = string.IsNullOrWhiteSpace(Instrument)
+                        || Instrument == NewTrackDefaults.InstrumentName(TrackType)
+                        || Instrument == NewTrackDefaults.InstrumentName(PatternTrackType.VstInstrument);
+                    TrackType = PatternTrackType.VstInstrument;
+                    if (defaultName)
+                    {
+                        Instrument = PluginName ?? Instrument;
+                    }
+                }
+
                 RaisePropertyChanged(nameof(PluginName));
                 RaisePropertyChanged(nameof(PluginAndSoundName));
                 RaisePropertyChanged(nameof(HasPlugin));

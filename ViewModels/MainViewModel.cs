@@ -3913,7 +3913,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
             track.SoundName = null;
         }
 
-        track.PluginFilePath = pluginPath;
+        track.PluginFilePath = pluginPath; // the track becomes a VST track
+        UpdateInputArming(); // an armed audio track that took a plug-in no longer records from the input
         ReleaseUnusedInstruments();
         StartSelectedTrackInstrumentSoon();
         StatusMessage = $"{track.Name} now plays through {Path.GetFileNameWithoutExtension(pluginPath)}";
