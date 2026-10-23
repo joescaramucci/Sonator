@@ -4766,7 +4766,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
     }
 
-    // The tone's level, in dBFS at its peak.
+    // How loud the tone is heard, in dBFS at its peak. The meters see it at TestTone.ReferenceLevelDbfs
+    // whatever this is, so turning it never moves the needles.
     public double ToneLevelDbfs
     {
         get => _toneLevelDbfs;
@@ -4840,6 +4841,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         _liveInstrumentHost.SetClipPlayback(module, true, TestTone.GainOf(_toneLevelDbfs));
+        _liveInstrumentHost.SetClipMonitor(module, true, TestTone.GainOf(TestTone.ReferenceLevelDbfs));
         if (!_liveInstrumentHost.TryStartAudio(module, AudioOutputSelection.FromSettings(new AppSettingsService().Load()), out var error))
         {
             _liveInstrumentHost.UnloadModule(module);
@@ -4849,7 +4851,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         _toneModule = module;
-        StatusMessage = $"Test tone: {TestTone.Label(_toneFrequency)}Hz at {_toneLevelDbfs:0.0} dBFS";
+        StatusMessage = $"Test tone: {TestTone.Label(_toneFrequency)}Hz, at {TestTone.ReferenceLevelDbfs:0} dBFS on the meters: turn CAL until they read 0";
     }
 
     private void StopTone()

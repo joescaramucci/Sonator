@@ -316,8 +316,8 @@
                                   ToolTip="Link the two master faders, so they move together. Off, each sets its own side" />
                 </StackPanel>
                 <!-- The oscillator, as on a studio desk's master section, to line the VU meters up: a steady tone at
-                     100 Hz, 1 kHz, 10 kHz or 20 kHz and its LEVEL; with the tone at the level 0 VU stands for (-18 dBFS
-                     the usual way), CAL is turned until the needles sit on 0. -->
+                     100 Hz, 1 kHz, 10 kHz or 20 kHz, which the meters always see at the reference level (-18 dBFS);
+                     CAL is turned until the needles sit on 0. LEVEL only sets how loud the tone is heard. -->
                 <StackPanel DockPanel.Dock="Bottom" Margin="0,6,0,0">
                     <TextBlock Style="{StaticResource Legend}" Text="OSCILLATOR" Margin="0,0,0,3" />
                     <UniformGrid Columns="4" Margin="3,0">
@@ -338,7 +338,7 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel>
                             <local:Knob Width="30" Height="30" Look="Console" Accent="#383838" DefaultPosition="0.4" Position="{Binding ToneLevelPosition}"
-                                        ToolTip="{Binding ToneLevelDisplay}" />
+                                        ToolTip="{Binding ToneLevelDisplay, StringFormat=How loud the tone is heard: {0}. The meters see it at -18 dBFS}" />
                             <TextBlock Style="{StaticResource Legend}" Text="LEVEL" FontSize="7" />
                         </StackPanel>
                         <ToggleButton Grid.Column="1" Style="{StaticResource ConsoleToggle}" Content="TONE" Width="38" VerticalAlignment="Top" Margin="0,7,0,0"

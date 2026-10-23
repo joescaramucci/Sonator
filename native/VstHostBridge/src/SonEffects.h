@@ -102,6 +102,10 @@ namespace son
         // from TakePeak, so reading one leaves the other as it was.
         void TakeStereoPeak(float& left, float& right);
 
+        // Raises the left and right peaks to at least these, as for the master's test tone, which the VU
+        // meters see at its reference level whatever it is heard at.
+        void NoteStereoPeak(float left, float right);
+
     private:
         std::mutex _mutex;
         std::vector<std::unique_ptr<Effect>> _effects;

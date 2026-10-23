@@ -467,6 +467,12 @@ namespace
         std::atomic<bool> clipLoops{false};
         std::atomic<float> clipGain{1.0f};
 
+        // A clip only to be heard, as the master's test tone: it joins the output after the master's effects
+        // and after the mix is recorded for exporting, and the master's meters see it at clipMeterPeak instead
+        // of the level it plays at.
+        std::atomic<bool> clipMonitorOnly{false};
+        std::atomic<float> clipMeterPeak{0.0f};
+
         // The module's ExitDll, when it exports one: called before the DLL is freed.
         bool (PLUGIN_API* exitDll)() = nullptr;
 
@@ -1496,6 +1502,12 @@ namespace
     std::mutex g_masterEffectsMutex;
     std::shared_ptr<son::EffectChain> g_masterEffects;
 
+    // What only the player hears, as the master's test tone, mixed apart by the audio thread (see
+    // clipMonitorOnly), and the peak the master's meters see for it.
+    std::vector<float> g_monitorLeft;
+    std::vector<float> g_monitorRight;
+    float g_monitorMeterPeak = 0.0f;
+
     void ApplyMasterEffects(float* left, float* right, int32 frames, double sampleRate)
     {
         std::shared_ptr<son::EffectChain> chain;
@@ -1510,6 +1522,10 @@ namespace
         {
             float* channels[2] = {left, right};
             chain->Process(channels, 2, frames, sampleRate);
+            if (g_monitorMeterPeak > 0.0f)
+            {
+                chain->NoteStereoPeak(g_monitorMeterPeak, g_monitorMeterPeak);
+            }
         }
     }
 
@@ -1582,6 +1598,11 @@ namespace
         MixBuses(left, right, frames, sampleRate);
         ApplyMasterEffects(left, right, frames, sampleRate);
         CaptureBlock(left, right, frames, sampleRate);
+        for (int32 i = 0; i < frames; ++i)
+        {
+            left[i] += g_monitorLeft[static_cast<size_t>(i)];
+            right[i] += g_monitorRight[static_cast<size_t>(i)];
+        }
     }
 
     void MixVoicesInto(float* left, float* right, int32 frames, double sampleRate)
@@ -1596,6 +1617,14 @@ namespace
 
         std::fill(left, left + frames, 0.0f);
         std::fill(right, right + frames, 0.0f);
+        if (g_monitorLeft.size() < static_cast<size_t>(frames))
+        {
+            g_monitorLeft.resize(static_cast<size_t>(frames));
+            g_monitorRight.resize(static_cast<size_t>(frames));
+        }
+        std::fill(g_monitorLeft.begin(), g_monitorLeft.begin() + frames, 0.0f);
+        std::fill(g_monitorRight.begin(), g_monitorRight.begin() + frames, 0.0f);
+        g_monitorMeterPeak = 0.0f;
         if (g_audioThreadVoices == nullptr || g_audioThreadVoices->empty())
         {
             return; // the buses still play out what they hold, such as a reverb's tail
@@ -1621,6 +1650,13 @@ namespace
 
         for (const auto& voice : voices)
         {
+            if (voice->module->clipMonitorOnly.load())
+            {
+                voice->AddTo(g_monitorLeft.data(), g_monitorRight.data(), frames);
+                g_monitorMeterPeak = std::max(g_monitorMeterPeak, voice->module->clipMeterPeak.load());
+                continue;
+            }
+
             voice->AddTo(left, right, frames);
             for (int bus = 0; bus < son::MaxBuses; ++bus)
             {
@@ -2303,6 +2339,18 @@ void* VstHostBridge_CreateClipModule(const float* interleaved, int32_t frames, i
     module->clipSampleRate = sampleRate;
     module->clipStartSeconds = startSeconds > 0.0 ? startSeconds : 0.0;
     return module;
+}
+
+void VstHostBridge_SetClipMonitor(void* moduleHandle, int32_t monitorOnly, float meterPeak)
+{
+    if (moduleHandle == nullptr)
+    {
+        return;
+    }
+
+    auto* module = static_cast<BridgeModule*>(moduleHandle);
+    module->clipMeterPeak = std::isfinite(meterPeak) ? std::max(meterPeak, 0.0f) : 0.0f;
+    module->clipMonitorOnly = monitorOnly != 0;
 }
 
 void VstHostBridge_SetClipPlayback(void* moduleHandle, int32_t loops, float gain)

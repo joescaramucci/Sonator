@@ -800,4 +800,10 @@ namespace son
         left = _sidePeaks[0].exchange(0.0f);
         right = _sidePeaks[1].exchange(0.0f);
     }
+
+    void EffectChain::NoteStereoPeak(float left, float right)
+    {
+        StorePeak(_sidePeaks[0], left);
+        StorePeak(_sidePeaks[1], right);
+    }
 }

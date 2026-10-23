@@ -180,6 +180,13 @@ public interface IVst3PluginHost
     void SetClipPlayback(Vst3ModuleHandle handle, bool loops, double gain);
 
     /// <summary>
+    /// Makes a clip only to be heard, as the master's test tone: it joins the output after the master's
+    /// effects, is left out of the recorded mix, and the master's meters see it at meterPeak (linear) whatever
+    /// gain it plays at.
+    /// </summary>
+    void SetClipMonitor(Vst3ModuleHandle handle, bool monitorOnly, double meterPeak);
+
+    /// <summary>
     /// The plug-in's state (the sound and settings chosen in it), to save with the project: part 0 is the
     /// processor's, part 1 the editor's. Null when the plug-in has none to give.
     /// </summary>

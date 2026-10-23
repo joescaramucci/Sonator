@@ -173,6 +173,11 @@ VSTHOSTBRIDGE_API void* VstHostBridge_CreateClipModule(const float* interleaved,
 // change while it plays, as for the master's test tone.
 VSTHOSTBRIDGE_API void VstHostBridge_SetClipPlayback(void* moduleHandle, int32_t loops, float gain);
 
+// Makes a clip only to be heard (monitorOnly 1), as the master's test tone: it joins the output after the
+// master's effects and is left out of the recorded mix, and the master's meters see it at meterPeak (linear,
+// 0 to 1) whatever gain it plays at.
+VSTHOSTBRIDGE_API void VstHostBridge_SetClipMonitor(void* moduleHandle, int32_t monitorOnly, float meterPeak);
+
 // Records the mix as it goes out to the audio output, from now on, for exporting the song: at most maxSeconds.
 // Returns 1 when recording.
 VSTHOSTBRIDGE_API int VstHostBridge_StartMixCapture(double maxSeconds);
