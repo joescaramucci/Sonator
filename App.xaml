@@ -57,9 +57,9 @@
              the light spills into the well; the label turns dark. Tag "LightCap" gives a light top face with a
              dark label, as SSL's power switches. -->
         <LinearGradientBrush x:Key="Key.Well" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#1A1A1A" Offset="0" />
-            <GradientStop Color="#070707" Offset="0.6" />
-            <GradientStop Color="#020202" Offset="1" />
+            <GradientStop Color="#4C4E51" Offset="0" />
+            <GradientStop Color="#3E4043" Offset="0.6" />
+            <GradientStop Color="#36383B" Offset="1" />
         </LinearGradientBrush>
         <LinearGradientBrush x:Key="Key.Body" StartPoint="0,0" EndPoint="0,1">
             <GradientStop Color="#D6D6D6" Offset="0" />
@@ -104,8 +104,8 @@
                     </Border.Effect>
                 </Border>
                 <!-- The keycap: its body (the front side shows as the lighter band under the face), then its face. -->
-                <Grid x:Name="Cap" Margin="2,1.5,2,3">
-                    <Border CornerRadius="2.5" Background="{StaticResource Key.Body}" BorderBrush="#141414" BorderThickness="0.6" />
+                <Grid x:Name="Cap" Margin="1,0.8,1,1.8">
+                    <Border CornerRadius="2.5" Background="{StaticResource Key.Body}" BorderBrush="#3A3C3F" BorderThickness="0.5" />
                     <Border x:Name="Face" CornerRadius="2" Margin="1.2,1.2,1.2,3.2" Background="{StaticResource Key.Face}" />
                     <!-- The lamp: the face lit in the button's colour, under its glass. -->
                     <Border x:Name="LampFace" CornerRadius="2" Margin="1.2,1.2,1.2,3.2">
@@ -154,7 +154,7 @@
                     <Setter TargetName="Edge" Property="BorderBrush" Value="#FFFFFF" />
                 </Trigger>
                 <Trigger Property="IsPressed" Value="True">
-                    <Setter TargetName="Cap" Property="Margin" Value="2,3,2,1.5" />
+                    <Setter TargetName="Cap" Property="Margin" Value="1,1.8,1,0.8" />
                     <Setter TargetName="Face" Property="Margin" Value="1.2,1.2,1.2,1.4" />
                     <Setter TargetName="LampFace" Property="Margin" Value="1.2,1.2,1.2,1.4" />
                     <Setter TargetName="Face" Property="Background" Value="{StaticResource Key.FacePressed}" />
