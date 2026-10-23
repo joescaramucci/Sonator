@@ -20,7 +20,8 @@ internal sealed class SequencerEngine : IDisposable
     private CancellationTokenSource? _countInCts;
     private CancellationTokenSource? _clickLoopCts;
 
-    public bool IsMetronomeOn { get; set; } = true;
+    // Off until switched on: the click is heard only when asked for.
+    public bool IsMetronomeOn { get; set; }
 
     // True when the metronome only counts in and then goes quiet; false when it keeps clicking under the song.
     public bool IsClickCountInOnly { get; set; }
