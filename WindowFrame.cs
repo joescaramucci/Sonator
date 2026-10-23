@@ -7,7 +7,8 @@ namespace Sonator;
 /// <summary>
 /// Gives a window's title bar and border Sonator's dark colours instead of
 /// the white Windows default. Windows 10 shows its dark frame; Windows 11
-/// also takes the exact caption, border and title colours below.
+/// also takes the exact caption, border and title colours below. Every Sonator
+/// window calls this, so it also gives the window its "Always on top" option.
 /// </summary>
 internal static class WindowFrame
 {
@@ -19,6 +20,7 @@ internal static class WindowFrame
     public static void UseDarkFrame(Window window)
     {
         window.SourceInitialized += (_, _) => Apply(new WindowInteropHelper(window).Handle);
+        AlwaysOnTop.Attach(window);
     }
 
     private static void Apply(IntPtr hwnd)
