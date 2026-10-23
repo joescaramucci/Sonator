@@ -16,6 +16,7 @@
          track's name on a strip of tape at the bottom. -->
     <Window.Resources>
         <local:SendControlsConverter x:Key="SendControls" />
+        <local:SameValueConverter x:Key="SameValue" />
 
         <!-- The ink printed on the aluminium. -->
         <Style x:Key="Legend" TargetType="TextBlock">
@@ -196,8 +197,8 @@
     </Window.Resources>
 
     <DockPanel Margin="6">
-        <!-- The master module, at the right end of the desk. -->
-        <Border DockPanel.Dock="Right" Style="{StaticResource Module}" Width="132" Margin="6,0,0,0">
+        <!-- The master module, at the right end of the desk; drag its left edge to make it wider. -->
+        <Border x:Name="MasterStrip" DockPanel.Dock="Right" Style="{StaticResource Module}" Width="132" Margin="0" SizeChanged="MasterStrip_SizeChanged">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Top">
                     <ContentControl ContentTemplate="{StaticResource Screw}" Margin="0,3,0,2" Focusable="False" />
@@ -215,8 +216,9 @@
                     <ContentControl ContentTemplate="{StaticResource Screw}" Margin="0,4,0,3" Focusable="False" />
                 </StackPanel>
                 <!-- The stereo master: a fader for each side, moving together while LINK is on. -->
-                <Grid DockPanel.Dock="Bottom" Height="230" Margin="2,6,4,0">
+                <Grid DockPanel.Dock="Bottom" Height="230" Margin="4,6,4,0">
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="7" />
                         <ColumnDefinition Width="20" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="*" />
@@ -226,31 +228,70 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <local:FaderScale ThumbLength="26" />
-                    <Slider Grid.Column="1" Style="{StaticResource MasterFader}" Value="{Binding MasterVolumeLeft}"
+                    <!-- A LED meter for each side: the left one outside the left fader, the right one outside the right. -->
+                    <local:LedMeter Segments="30" RedSegments="5" Margin="0,13" Level="{Binding MasterLevelLeft}" ToolTip="Master level, left side" />
+                    <local:FaderScale Grid.Column="1" ThumbLength="26" Margin="2,0,0,0" />
+                    <Slider Grid.Column="2" Style="{StaticResource MasterFader}" Value="{Binding MasterVolumeLeft}"
                             ToolTip="Master, left side. With LINK on, the right side follows" />
-                    <Slider Grid.Column="2" Style="{StaticResource MasterFader}" Value="{Binding MasterVolumeRight}"
+                    <Slider Grid.Column="3" Style="{StaticResource MasterFader}" Value="{Binding MasterVolumeRight}"
                             ToolTip="Master, right side. With LINK on, the left side follows" />
-                    <local:LedMeter Grid.Column="3" Segments="30" RedSegments="5" Margin="0,13" Level="{Binding MasterSignalLevel}" ToolTip="Master level" />
-                    <TextBlock Grid.Row="1" Grid.Column="1" Style="{StaticResource Legend}" Text="L" Margin="0,1,0,0" />
-                    <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource Legend}" Text="R" Margin="0,1,0,0" />
+                    <local:LedMeter Grid.Column="4" Segments="30" RedSegments="5" Margin="0,13" Level="{Binding MasterLevelRight}" ToolTip="Master level, right side" />
+                    <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource Legend}" Text="L" FontSize="7" Margin="0,1,0,0" />
+                    <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource Legend}" Text="L" Margin="0,1,0,0" />
+                    <TextBlock Grid.Row="1" Grid.Column="3" Style="{StaticResource Legend}" Text="R" Margin="0,1,0,0" />
+                    <TextBlock Grid.Row="1" Grid.Column="4" Style="{StaticResource Legend}" Text="R" FontSize="7" Margin="0,1,0,0" />
                 </Grid>
                 <StackPanel DockPanel.Dock="Bottom">
                     <Button Style="{StaticResource ConsoleButton}" Content="FX" Margin="4,3,4,0" Tag="{Binding MasterTrack}" Click="Fx_Click"
                             ToolTip="Open the master's effect rack: its effects run on the whole mix" />
                     <TextBlock Style="{StaticResource Legend}" Text="MASTER" FontSize="11" Margin="0,8,0,4" />
                     <!-- The mix's left and right levels, on moving-needle meters side by side. -->
-                    <Grid Height="48" Margin="3,0">
+                    <Grid x:Name="VuRow" Height="48" Margin="3,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="3" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <local:VuMeter Label="L" Peak="{Binding MasterPeakLeft}" ToolTip="Left: 0 VU is -18 dBFS" />
-                        <local:VuMeter Grid.Column="2" Label="R" Peak="{Binding MasterPeakRight}" ToolTip="Right: 0 VU is -18 dBFS" />
+                        <local:VuMeter Label="L" Peak="{Binding MasterPeakLeft}" ReferenceDbfs="{Binding VuReferenceDbfs}" ToolTip="{Binding VuReferenceDisplay}" />
+                        <local:VuMeter Grid.Column="2" Label="R" Peak="{Binding MasterPeakRight}" ReferenceDbfs="{Binding VuReferenceDbfs}" ToolTip="{Binding VuReferenceDisplay}" />
                     </Grid>
                     <ToggleButton Style="{StaticResource ConsoleToggle}" Content="LINK" Margin="22,8,10,0" IsChecked="{Binding IsMasterLinked}"
                                   ToolTip="Link the two master faders, so they move together. Off, each sets its own side" />
+                </StackPanel>
+                <!-- The oscillator, as on a studio desk's master section, to line the VU meters up: a steady tone at
+                     100 Hz, 1 kHz, 10 kHz or 20 kHz and its LEVEL; with the tone at the level 0 VU stands for (-18 dBFS
+                     the usual way), CAL is turned until the needles sit on 0. -->
+                <StackPanel DockPanel.Dock="Bottom" Margin="0,6,0,0">
+                    <TextBlock Style="{StaticResource Legend}" Text="OSCILLATOR" Margin="0,0,0,3" />
+                    <UniformGrid Columns="4" Margin="3,0">
+                        <RadioButton Style="{StaticResource ConsoleToggle}" GroupName="ToneFrequency" Content="100" Margin="1,0" FontSize="8"
+                                     IsChecked="{Binding ToneFrequency, Converter={StaticResource SameValue}, ConverterParameter=100}" ToolTip="Tone at 100 Hz" />
+                        <RadioButton Style="{StaticResource ConsoleToggle}" GroupName="ToneFrequency" Content="1k" Margin="1,0" FontSize="8"
+                                     IsChecked="{Binding ToneFrequency, Converter={StaticResource SameValue}, ConverterParameter=1000}" ToolTip="Tone at 1 kHz, the usual line-up tone" />
+                        <RadioButton Style="{StaticResource ConsoleToggle}" GroupName="ToneFrequency" Content="10k" Margin="1,0" FontSize="8"
+                                     IsChecked="{Binding ToneFrequency, Converter={StaticResource SameValue}, ConverterParameter=10000}" ToolTip="Tone at 10 kHz" />
+                        <RadioButton Style="{StaticResource ConsoleToggle}" GroupName="ToneFrequency" Content="20k" Margin="1,0" FontSize="8"
+                                     IsChecked="{Binding ToneFrequency, Converter={StaticResource SameValue}, ConverterParameter=20000}" ToolTip="Tone at 20 kHz" />
+                    </UniformGrid>
+                    <Grid Margin="3,5,3,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <local:Knob Width="30" Height="30" Look="Console" Accent="#383838" DefaultPosition="0.4" Position="{Binding ToneLevelPosition}"
+                                        ToolTip="{Binding ToneLevelDisplay}" />
+                            <TextBlock Style="{StaticResource Legend}" Text="LEVEL" FontSize="7" />
+                        </StackPanel>
+                        <ToggleButton Grid.Column="1" Style="{StaticResource ConsoleToggle}" Content="TONE" Width="38" VerticalAlignment="Top" Margin="0,7,0,0"
+                                      IsChecked="{Binding IsToneOn}" ToolTip="Send the test tone through the master" />
+                        <StackPanel Grid.Column="2">
+                            <local:Knob Width="30" Height="30" Look="Console" Accent="#9C1C22" DefaultPosition="0.5" Position="{Binding VuReferencePosition}"
+                                        ToolTip="{Binding VuReferenceDisplay}" />
+                            <TextBlock Style="{StaticResource Legend}" Text="CAL" FontSize="7" />
+                        </StackPanel>
+                    </Grid>
                 </StackPanel>
                 <!-- The inserts stop at ten effects' worth, as on the other strips; the panel shows below them. -->
                 <Grid>
@@ -265,6 +306,17 @@
             </DockPanel>
         </Border>
 
+        <!-- The master strip's left edge, to drag. -->
+        <Thumb DockPanel.Dock="Right" Width="6" Cursor="SizeWE" Focusable="False" ToolTip="Drag to make the master strip wider or narrower"
+               DragDelta="MasterGrip_DragDelta" DragCompleted="MasterGrip_DragCompleted">
+            <Thumb.Template>
+                <ControlTemplate TargetType="Thumb">
+                    <Border Background="Transparent">
+                        <Border Width="2" Margin="0,40" CornerRadius="1" Background="#3A3C3F" HorizontalAlignment="Center" />
+                    </Border>
+                </ControlTemplate>
+            </Thumb.Template>
+        </Thumb>
         <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
           <StackPanel Orientation="Horizontal">
             <ItemsControl ItemsSource="{Binding Tracks}">

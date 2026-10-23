@@ -462,6 +462,11 @@ namespace
         double clipSampleRate = 0.0;
         double clipStartSeconds = 0.0;
 
+        // A clip that plays round and round, as the master's test tone, instead of once; and the gain it plays
+        // at, which can change while it plays.
+        std::atomic<bool> clipLoops{false};
+        std::atomic<float> clipGain{1.0f};
+
         // The module's ExitDll, when it exports one: called before the DLL is freed.
         bool (PLUGIN_API* exitDll)() = nullptr;
 
@@ -1265,18 +1270,26 @@ namespace
             const int32 clipChannels = module->clipChannels;
             const int64 clipFrames = clipChannels > 0 ? static_cast<int64>(samples.size()) / clipChannels : 0;
             const double step = module->clipSampleRate / sampleRate;
+            const bool loops = module->clipLoops.load() && clipFrames > 1;
+            const float gain = module->clipGain.load();
             float* left = planar[0].data();
             float* right = planar[1].data();
             for (int32 i = 0; i < frames; ++i)
             {
-                const auto frame = static_cast<int64>(clipPosition);
-                if (frame + 1 < clipFrames)
+                if (loops && clipPosition >= static_cast<double>(clipFrames))
                 {
+                    clipPosition -= static_cast<double>(clipFrames) * std::floor(clipPosition / static_cast<double>(clipFrames));
+                }
+
+                const auto frame = static_cast<int64>(clipPosition);
+                if (frame + 1 < clipFrames || (loops && frame < clipFrames))
+                {
+                    // A looping clip's last frame leads into its first.
                     const auto fraction = static_cast<float>(clipPosition - static_cast<double>(frame));
                     const float* a = &samples[static_cast<size_t>(frame * clipChannels)];
-                    const float* b = a + clipChannels;
-                    left[i] = a[0] + (b[0] - a[0]) * fraction;
-                    right[i] = clipChannels > 1 ? a[1] + (b[1] - a[1]) * fraction : left[i];
+                    const float* b = frame + 1 < clipFrames ? a + clipChannels : samples.data();
+                    left[i] = (a[0] + (b[0] - a[0]) * fraction) * gain;
+                    right[i] = (clipChannels > 1 ? a[1] + (b[1] - a[1]) * fraction : a[0] + (b[0] - a[0]) * fraction) * gain;
                 }
                 else
                 {
@@ -1290,7 +1303,7 @@ namespace
             pointers[1] = right;
             ApplyEffects(module, pointers.data(), 2, frames, sampleRate, sends);
 
-            if (static_cast<int64>(clipPosition) >= clipFrames)
+            if (!loops && static_cast<int64>(clipPosition) >= clipFrames)
             {
                 clipTailFrames -= frames;
                 if (clipTailFrames <= 0)
@@ -2290,6 +2303,18 @@ void* VstHostBridge_CreateClipModule(const float* interleaved, int32_t frames, i
     module->clipSampleRate = sampleRate;
     module->clipStartSeconds = startSeconds > 0.0 ? startSeconds : 0.0;
     return module;
+}
+
+void VstHostBridge_SetClipPlayback(void* moduleHandle, int32_t loops, float gain)
+{
+    if (moduleHandle == nullptr)
+    {
+        return;
+    }
+
+    auto* module = static_cast<BridgeModule*>(moduleHandle);
+    module->clipLoops = loops != 0;
+    module->clipGain = std::isfinite(gain) ? std::max(gain, 0.0f) : 1.0f;
 }
 
 void* VstHostBridge_LoadModule(const wchar_t* filePath)

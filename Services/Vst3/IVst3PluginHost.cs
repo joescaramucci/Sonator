@@ -174,6 +174,12 @@ public interface IVst3PluginHost
     Vst3ModuleHandle? TryCreateClip(float[] interleaved, int channels, int sampleRate, double startSeconds);
 
     /// <summary>
+    /// Makes a clip play round and round (loops) or once, at gain (1 as recorded); either can change while it
+    /// plays, as for the master's test tone.
+    /// </summary>
+    void SetClipPlayback(Vst3ModuleHandle handle, bool loops, double gain);
+
+    /// <summary>
     /// The plug-in's state (the sound and settings chosen in it), to save with the project: part 0 is the
     /// processor's, part 1 the editor's. Null when the plug-in has none to give.
     /// </summary>

@@ -1,6 +1,8 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using Sonator.Services;
 using Sonator.ViewModels;
 
 namespace Sonator;
@@ -17,7 +19,31 @@ public partial class MixerWindow : Window
         WindowFrame.UseDarkFrame(this);
         _viewModel = viewModel;
         DataContext = viewModel;
+        if (new AppSettingsService().Load().MixerMasterWidth is { } width)
+        {
+            MasterStrip.Width = Math.Clamp(width, MasterMinWidth, MasterMaxWidth);
+        }
     }
+
+    // ---- The master strip's width, dragged at its left edge and kept in the settings ----
+
+    private const double MasterMinWidth = 120;
+    private const double MasterMaxWidth = 420;
+
+    private void MasterGrip_DragDelta(object sender, DragDeltaEventArgs e) =>
+        MasterStrip.Width = Math.Clamp(MasterStrip.Width - e.HorizontalChange, MasterMinWidth, MasterMaxWidth);
+
+    private void MasterGrip_DragCompleted(object sender, DragCompletedEventArgs e)
+    {
+        var settingsService = new AppSettingsService();
+        var settings = settingsService.Load();
+        settings.MixerMasterWidth = MasterStrip.Width;
+        settingsService.Save(settings);
+    }
+
+    // The VU meters keep their shape as the strip widens, each a little wider than it is tall.
+    private void MasterStrip_SizeChanged(object sender, SizeChangedEventArgs e) =>
+        VuRow.Height = Math.Clamp(Math.Round((e.NewSize.Width - 9) / 2 * 0.78), 48, 130);
 
     private void Fx_Click(object sender, RoutedEventArgs e)
     {

@@ -35,6 +35,12 @@ public sealed class AppSettings
 
     // How often the open project is autosaved, in minutes; 0 is off. Null means the default, 5.
     public int? AutosaveMinutes { get; set; }
+
+    // The level in dBFS that reads 0 on the master's VU meters, as set with their CAL knob. Null means -18.
+    public double? VuReferenceDbfs { get; set; }
+
+    // The width of the mixer's master strip, as dragged. Null means its default.
+    public double? MixerMasterWidth { get; set; }
 }
 
 public static class RecentProjectList

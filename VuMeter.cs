@@ -8,8 +8,8 @@ namespace Sonator;
 /// <summary>
 /// A moving-needle VU meter, as on the master section of a studio desk: a backlit amber face with the VU
 /// scale from -20 to +3 (red above 0), and a needle that takes about 300 ms to get where the sound is and
-/// falls back as slowly. 0 VU is at -18 dBFS, the usual calibration. Peak is the sound's highest sample
-/// since the last update (0 to 1).
+/// falls back as slowly. 0 VU is at ReferenceDbfs, -18 dBFS unless calibrated otherwise with the master's
+/// oscillator. Peak is the sound's highest sample since the last update (0 to 1).
 /// </summary>
 public sealed class VuMeter : FrameworkElement
 {
@@ -20,7 +20,10 @@ public sealed class VuMeter : FrameworkElement
         nameof(Label), typeof(string), typeof(VuMeter),
         new FrameworkPropertyMetadata("VU", FrameworkPropertyMetadataOptions.AffectsRender));
 
-    private const double ReferenceDbfs = -18;
+    public static readonly DependencyProperty ReferenceDbfsProperty = DependencyProperty.Register(
+        nameof(ReferenceDbfs), typeof(double), typeof(VuMeter), new PropertyMetadata(DefaultReferenceDbfs));
+
+    internal const double DefaultReferenceDbfs = -18;
     private const double MinVu = -20;
     private const double MaxVu = 3;
     private const double SweepDegrees = 90; // from the needle's rest at the left to full scale at the right
@@ -65,9 +68,16 @@ public sealed class VuMeter : FrameworkElement
         set => SetValue(LabelProperty, value);
     }
 
+    // The level that reads 0 VU, in dBFS.
+    public double ReferenceDbfs
+    {
+        get => (double)GetValue(ReferenceDbfsProperty);
+        set => SetValue(ReferenceDbfsProperty, value);
+    }
+
     // Where the sound puts the needle, in VU, from its peak.
-    internal static double VuOf(double peak) =>
-        peak <= 0 ? MinVu : Math.Clamp(20 * Math.Log10(peak) - ReferenceDbfs, MinVu - 2, MaxVu + 1);
+    internal static double VuOf(double peak, double referenceDbfs = DefaultReferenceDbfs) =>
+        peak <= 0 ? MinVu : Math.Clamp(20 * Math.Log10(peak) - referenceDbfs, MinVu - 2, MaxVu + 1);
 
     // The needle moves toward the sound's level by the share of the integration time that has passed.
     private void Move()
@@ -75,7 +85,7 @@ public sealed class VuMeter : FrameworkElement
         var now = DateTime.UtcNow;
         var elapsed = Math.Min(0.2, (now - _lastTick).TotalSeconds);
         _lastTick = now;
-        var target = VuOf(Peak);
+        var target = VuOf(Peak, ReferenceDbfs);
         var moved = _needleVu + (target - _needleVu) * (1 - Math.Exp(-elapsed / IntegrationSeconds * 2.2));
         if (Math.Abs(moved - _needleVu) > 0.005)
         {

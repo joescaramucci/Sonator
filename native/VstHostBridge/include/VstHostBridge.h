@@ -169,6 +169,10 @@ VSTHOSTBRIDGE_API int VstHostBridge_LoadState(void* moduleHandle, int32_t part, 
 // VstHostBridge_UnloadModule. Null if the clip is empty.
 VSTHOSTBRIDGE_API void* VstHostBridge_CreateClipModule(const float* interleaved, int32_t frames, int32_t channels, double sampleRate, double startSeconds);
 
+// Makes a clip module play round and round (loops 1) rather than once, at gain (1 as recorded); either can
+// change while it plays, as for the master's test tone.
+VSTHOSTBRIDGE_API void VstHostBridge_SetClipPlayback(void* moduleHandle, int32_t loops, float gain);
+
 // Records the mix as it goes out to the audio output, from now on, for exporting the song: at most maxSeconds.
 // Returns 1 when recording.
 VSTHOSTBRIDGE_API int VstHostBridge_StartMixCapture(double maxSeconds);

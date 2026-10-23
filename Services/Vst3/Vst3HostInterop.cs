@@ -160,6 +160,9 @@ internal static class Vst3HostInterop
     internal static extern IntPtr VstHostBridge_CreateClipModule(float[] interleaved, int frames, int channels, double sampleRate, double startSeconds);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void VstHostBridge_SetClipPlayback(IntPtr moduleHandle, int loops, float gain);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int VstHostBridge_SaveState(IntPtr moduleHandle, int part);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]

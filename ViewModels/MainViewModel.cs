@@ -2213,6 +2213,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public void Dispose()
     {
         _autosaveTimer.Stop();
+        StopTone();
         _audioMeterTimer.Stop();
         _automationTimer.Stop();
         _previewer?.Dispose();
@@ -4635,6 +4636,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         (MasterPeakLeft, MasterPeakRight) = _trackEffects.TakeMasterPeaks();
+        ShowMasterLevels();
     }
 
     private double _masterPeakLeft;
@@ -4652,6 +4654,177 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     {
         get => _masterPeakRight;
         private set => SetProperty(ref _masterPeakRight, value);
+    }
+
+    private double _masterLevelLeft;
+    private double _masterLevelRight;
+
+    // The master's LED meters, left and right, from 0 to 1 on the meters' dB scale: what the mix's two sides
+    // measure, or the level worked out for the MIDI tracks when that is higher. They jump up at once and fall
+    // back gently, as the effects' meters.
+    public double MasterLevelLeft
+    {
+        get => _masterLevelLeft;
+        private set => SetProperty(ref _masterLevelLeft, value);
+    }
+
+    public double MasterLevelRight
+    {
+        get => _masterLevelRight;
+        private set => SetProperty(ref _masterLevelRight, value);
+    }
+
+    private const double MasterMeterFall = 0.04;
+
+    private void ShowMasterLevels()
+    {
+        MasterLevelLeft = Math.Max(Math.Max(TrackEffectViewModel.ToMeter(_masterPeakLeft), _masterLevelLeft - MasterMeterFall), MasterSignalLevel);
+        MasterLevelRight = Math.Max(Math.Max(TrackEffectViewModel.ToMeter(_masterPeakRight), _masterLevelRight - MasterMeterFall), MasterSignalLevel);
+    }
+
+    // ---- The master's oscillator ----
+
+    // The test tone, as a clip of the bridge's playing round and round through the master, while it is on.
+    private Vst3ModuleHandle? _toneModule;
+    private bool _isToneOn;
+    private int _toneFrequency = 1000;
+    private double _toneLevelDbfs = TestTone.DefaultLevelDbfs;
+    private double _vuReferenceDbfs = new AppSettingsService().Load().VuReferenceDbfs ?? VuMeter.DefaultReferenceDbfs;
+
+    public const double MinVuReferenceDbfs = -24;
+    public const double MaxVuReferenceDbfs = -12;
+
+    // Sends the oscillator's tone through the master, to line the VU meters up: with the tone at the level 0 VU
+    // stands for, the CAL knob is turned until the needles sit on 0.
+    public bool IsToneOn
+    {
+        get => _isToneOn;
+        set
+        {
+            if (!SetProperty(ref _isToneOn, value))
+            {
+                return;
+            }
+
+            if (value)
+            {
+                StartTone();
+            }
+            else
+            {
+                StopTone();
+                StatusMessage = "Test tone off";
+            }
+        }
+    }
+
+    // The tone's frequency: 100, 1000, 10000 or 20000 Hz.
+    public int ToneFrequency
+    {
+        get => _toneFrequency;
+        set
+        {
+            if (TestTone.Frequencies.Contains(value) && SetProperty(ref _toneFrequency, value) && _isToneOn)
+            {
+                StartTone();
+            }
+        }
+    }
+
+    // The tone's level, in dBFS at its peak.
+    public double ToneLevelDbfs
+    {
+        get => _toneLevelDbfs;
+        set
+        {
+            var level = Math.Round(Math.Clamp(value, TestTone.MinLevelDbfs, TestTone.MaxLevelDbfs), 1);
+            if (!SetProperty(ref _toneLevelDbfs, level))
+            {
+                return;
+            }
+
+            RaisePropertyChanged(nameof(ToneLevelPosition));
+            RaisePropertyChanged(nameof(ToneLevelDisplay));
+            if (_toneModule is { } module)
+            {
+                _liveInstrumentHost.SetClipPlayback(module, true, TestTone.GainOf(level));
+            }
+        }
+    }
+
+    // The level knob's travel, 0 to 1.
+    public double ToneLevelPosition
+    {
+        get => (_toneLevelDbfs - TestTone.MinLevelDbfs) / (TestTone.MaxLevelDbfs - TestTone.MinLevelDbfs);
+        set => ToneLevelDbfs = TestTone.MinLevelDbfs + Math.Clamp(value, 0, 1) * (TestTone.MaxLevelDbfs - TestTone.MinLevelDbfs);
+    }
+
+    public string ToneLevelDisplay => $"{_toneLevelDbfs:0.0} dBFS";
+
+    // The level in dBFS that reads 0 on the master's VU meters, as the CAL knob sets it; kept in the settings,
+    // as a calibration is.
+    public double VuReferenceDbfs
+    {
+        get => _vuReferenceDbfs;
+        set
+        {
+            var reference = Math.Round(Math.Clamp(value, MinVuReferenceDbfs, MaxVuReferenceDbfs), 1);
+            if (!SetProperty(ref _vuReferenceDbfs, reference))
+            {
+                return;
+            }
+
+            RaisePropertyChanged(nameof(VuReferencePosition));
+            RaisePropertyChanged(nameof(VuReferenceDisplay));
+            var settingsService = new AppSettingsService();
+            var settings = settingsService.Load();
+            settings.VuReferenceDbfs = reference;
+            settingsService.Save(settings);
+        }
+    }
+
+    // The CAL knob's travel, 0 to 1, its middle at -18 dBFS.
+    public double VuReferencePosition
+    {
+        get => (_vuReferenceDbfs - MinVuReferenceDbfs) / (MaxVuReferenceDbfs - MinVuReferenceDbfs);
+        set => VuReferenceDbfs = MinVuReferenceDbfs + Math.Clamp(value, 0, 1) * (MaxVuReferenceDbfs - MinVuReferenceDbfs);
+    }
+
+    public string VuReferenceDisplay => $"0 VU = {_vuReferenceDbfs:0.0} dBFS";
+
+    // Starts the tone at its frequency and level, in place of the one playing, in the same output as the
+    // plug-ins; it opens that output when nothing else plays.
+    private void StartTone()
+    {
+        StopTone();
+        if (_liveInstrumentHost.TryCreateClip(TestTone.Cycle(_toneFrequency), 2, TestTone.SampleRate, 0) is not { } module)
+        {
+            StatusMessage = "The test tone needs Sonator's audio engine (VstHostBridge.dll)";
+            SetProperty(ref _isToneOn, false, nameof(IsToneOn));
+            return;
+        }
+
+        _liveInstrumentHost.SetClipPlayback(module, true, TestTone.GainOf(_toneLevelDbfs));
+        if (!_liveInstrumentHost.TryStartAudio(module, AudioOutputSelection.FromSettings(new AppSettingsService().Load()), out var error))
+        {
+            _liveInstrumentHost.UnloadModule(module);
+            StatusMessage = $"The test tone did not start: {error}";
+            SetProperty(ref _isToneOn, false, nameof(IsToneOn));
+            return;
+        }
+
+        _toneModule = module;
+        StatusMessage = $"Test tone: {TestTone.Label(_toneFrequency)}Hz at {_toneLevelDbfs:0.0} dBFS";
+    }
+
+    private void StopTone()
+    {
+        if (_toneModule is { } module)
+        {
+            _toneModule = null;
+            _liveInstrumentHost.StopAudio(module);
+            _liveInstrumentHost.UnloadModule(module);
+        }
     }
 
     // ---- Automation ----

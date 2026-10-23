@@ -391,6 +391,25 @@ public sealed class Vst3PluginHost : IVst3PluginHost
         }
     }
 
+    public void SetClipPlayback(Vst3ModuleHandle handle, bool loops, double gain)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+
+        if (handle.NativeHandle == IntPtr.Zero)
+        {
+            return;
+        }
+
+        try
+        {
+            Vst3HostInterop.VstHostBridge_SetClipPlayback(handle.NativeHandle, loops ? 1 : 0, (float)gain);
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            // Without the bridge no clip plays at all.
+        }
+    }
+
     public byte[]? TrySaveState(Vst3ModuleHandle handle, int part)
     {
         ArgumentNullException.ThrowIfNull(handle);
