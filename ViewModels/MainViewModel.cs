@@ -88,6 +88,82 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     // The master: not a track of any pattern, but it has an FX rack like one, run on the whole mix.
     public PatternTrackViewModel MasterTrack { get; } = NewMasterTrack();
 
+    // The buses (effect returns) the tracks send to, as the mixer shows them between the tracks and the master.
+    public ObservableCollection<PatternTrackViewModel> Buses { get; } = new();
+
+    private int _busesVersion;
+
+    // Changes whenever the buses are added, removed or replaced, so the mixer's send controls are made again.
+    public int BusesVersion
+    {
+        get => _busesVersion;
+        private set => SetProperty(ref _busesVersion, value);
+    }
+
+    // Adds a bus with a reverb all wet in it, ready to be sent to: the tracks keep their own dry sound.
+    public PatternTrackViewModel? AddBus()
+    {
+        if (Buses.Count >= NativeEffectChain.MaxBuses)
+        {
+            StatusMessage = $"There is room for {NativeEffectChain.MaxBuses} buses";
+            return null;
+        }
+
+        CaptureUndoStateIfNeeded();
+        var number = 1;
+        while (Buses.Any(bus => bus.Name == $"Bus {number}"))
+        {
+            number++;
+        }
+
+        var added = PatternFactory.CreateTrack($"Bus {number}", "Bus", 1, 60, Array.Empty<bool>());
+        added.Effects.Clear();
+        var verb = new TrackEffectViewModel(EffectCatalog.Get(EffectKind.Verb));
+        verb.Parameters[4].Value = 100; // Mix: only the reverb comes back from the bus
+        added.Effects.Add(verb);
+        added.TrackColorBrush = new SolidColorBrush(Color.FromRgb(0x2F, 0x8F, 0x83));
+        Buses.Add(added);
+        ApplyBuses();
+        StatusMessage = $"{added.Name} added: turn up a track's send to it in the mixer";
+        return added;
+    }
+
+    // Removes a bus, and every track's send to it.
+    public void RemoveBus(PatternTrackViewModel bus)
+    {
+        if (!Buses.Contains(bus))
+        {
+            return;
+        }
+
+        _trackEffects.CaptureStates();
+        CaptureUndoStateIfNeeded();
+        Buses.Remove(bus);
+        foreach (var track in Patterns.SelectMany(pattern => pattern.Tracks))
+        {
+            track.SetSend(bus.BusId, 0);
+        }
+        ApplyBuses();
+        _trackEffects.ReleaseUnusedPlugins(Patterns.SelectMany(pattern => pattern.Tracks));
+        StatusMessage = $"{bus.Name} removed";
+    }
+
+    private void ApplyBuses()
+    {
+        _trackEffects.SetBuses(Buses);
+        BusesVersion++;
+    }
+
+    private void RestoreBuses(IEnumerable<TrackDocument>? documents)
+    {
+        Buses.Clear();
+        foreach (var document in documents ?? Enumerable.Empty<TrackDocument>())
+        {
+            Buses.Add(ApplyTrackDocument(document));
+        }
+        ApplyBuses();
+    }
+
     // Unlike a new track, the master starts with an empty rack.
     private static PatternTrackViewModel NewMasterTrack()
     {
@@ -2344,6 +2420,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             Tempo = 120;
             MasterVolume = 0.75;
             RestoreMasterEffects(null);
+            RestoreBuses(null);
             BarCount = 32;
             LoopStartStep = 0;
             LoopEndStep = 15;
@@ -4953,7 +5030,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             GetSongArrangeAssignments(),
             GetSongArrangeBlocks(),
             MasterVolume,
-            BuildEffectDocuments(MasterTrack.Effects));
+            BuildEffectDocuments(MasterTrack.Effects),
+            Buses.Count == 0 ? null : Buses.Select(BuildTrackDocument).ToList());
     }
 
     private void RestoreMasterEffects(IEnumerable<EffectDocument>? documents)
@@ -4984,6 +5062,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             TimeSignature = document.TimeSignature;
             MasterVolume = document.MasterVolume;
             RestoreMasterEffects(document.MasterEffects);
+            RestoreBuses(document.Buses);
 
             Patterns.Clear();
             foreach (var patternDocument in document.Patterns)

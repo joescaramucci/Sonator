@@ -471,8 +471,9 @@ namespace
         std::shared_ptr<son::EffectChain> effects;
     };
 
-    // Runs the module's effects on a block of the plug-in's planar output.
-    void ApplyEffects(BridgeModule* module, float** channels, int numChannels, int frames, double sampleRate)
+    // Runs the module's effects on a block of the plug-in's planar output, and reads how much of it goes to
+    // each bus (all zero when the module has no chain).
+    void ApplyEffects(BridgeModule* module, float** channels, int numChannels, int frames, double sampleRate, float* sends)
     {
         std::shared_ptr<son::EffectChain> chain;
         {
@@ -481,6 +482,10 @@ namespace
             {
                 chain = module->effects;
             }
+        }
+        for (int bus = 0; bus < son::MaxBuses; ++bus)
+        {
+            sends[bus] = chain != nullptr ? chain->sends[bus].load(std::memory_order_relaxed) : 0.0f;
         }
         if (chain != nullptr)
         {
@@ -1066,6 +1071,9 @@ namespace
         bool asleep = false;
 
         int32 channels = 2;
+
+        // How much of the last block goes to each bus, read from the track's chain with the block.
+        float sends[son::MaxBuses]{};
         std::vector<std::vector<float>> planar;
         std::vector<Sample32*> pointers;
         AudioBusBuffers outputBus{};
@@ -1216,7 +1224,7 @@ namespace
             outputBus.channelBuffers32 = pointers.data();
             processData.numSamples = frames;
             processor->process(processData);
-            ApplyEffects(module, pointers.data(), channels, frames, sampleRate);
+            ApplyEffects(module, pointers.data(), channels, frames, sampleRate, sends);
 
             // Silent after its effects, with no note held and none just played: it may go to sleep. About
             // -100 dBFS counts as silence, well below anything heard.
@@ -1280,7 +1288,7 @@ namespace
 
             pointers[0] = left;
             pointers[1] = right;
-            ApplyEffects(module, pointers.data(), 2, frames, sampleRate);
+            ApplyEffects(module, pointers.data(), 2, frames, sampleRate, sends);
 
             if (static_cast<int64>(clipPosition) >= clipFrames)
             {
@@ -1306,6 +1314,24 @@ namespace
             {
                 left[i] += sourceLeft[i];
                 right[i] += sourceRight[i];
+            }
+        }
+
+        // Adds the block last rendered to a bus, at the track's send level for it.
+        void SendTo(int bus, float* left, float* right, int32 frames) const
+        {
+            const float level = sends[bus];
+            if (asleep || level <= 0.0f)
+            {
+                return;
+            }
+
+            const float* sourceLeft = planar[0].data();
+            const float* sourceRight = channels > 1 ? planar[1].data() : sourceLeft;
+            for (int32 i = 0; i < frames; ++i)
+            {
+                left[i] += sourceLeft[i] * level;
+                right[i] += sourceRight[i] * level;
             }
         }
     };
@@ -1474,11 +1500,73 @@ namespace
         }
     }
 
-    // Sums every running plug-in into one stereo block, runs the master's effects on it, and records it
-    // when the song is being exported. Called by the audio thread for each block.
+    // The buses (effect returns), by slot: each a chain the tracks send part of their sound to, whose output
+    // joins the mix ahead of the master's effects. The audio thread takes its own copy without waiting, and
+    // keeps one stereo buffer per slot that the sends are summed into.
+    std::mutex g_busesMutex;
+    std::array<std::shared_ptr<son::EffectChain>, son::MaxBuses> g_buses;
+    std::array<std::shared_ptr<son::EffectChain>, son::MaxBuses> g_audioThreadBuses;
+    std::array<std::vector<float>, son::MaxBuses * 2> g_busBuffers;
+
+    // Takes the buses for this block and clears their buffers. Audio thread only.
+    void PrepareBuses(int32 frames)
+    {
+        {
+            std::unique_lock<std::mutex> lock(g_busesMutex, std::try_to_lock);
+            if (lock.owns_lock())
+            {
+                g_audioThreadBuses = g_buses;
+            }
+        }
+
+        for (int bus = 0; bus < son::MaxBuses; ++bus)
+        {
+            if (g_audioThreadBuses[bus] == nullptr)
+            {
+                continue;
+            }
+            for (int side = 0; side < 2; ++side)
+            {
+                auto& buffer = g_busBuffers[static_cast<size_t>(bus * 2 + side)];
+                if (static_cast<int32>(buffer.size()) < frames)
+                {
+                    buffer.resize(static_cast<size_t>(frames)); // only when the block grows
+                }
+                std::fill(buffer.begin(), buffer.begin() + frames, 0.0f);
+            }
+        }
+    }
+
+    // Runs each bus through its effects, fader and pan, and adds it to the mix.
+    void MixBuses(float* left, float* right, int32 frames, double sampleRate)
+    {
+        for (int bus = 0; bus < son::MaxBuses; ++bus)
+        {
+            auto& chain = g_audioThreadBuses[bus];
+            if (chain == nullptr)
+            {
+                continue;
+            }
+
+            float* busLeft = g_busBuffers[static_cast<size_t>(bus * 2)].data();
+            float* busRight = g_busBuffers[static_cast<size_t>(bus * 2 + 1)].data();
+            float* channels[2] = {busLeft, busRight};
+            chain->Process(channels, 2, frames, sampleRate);
+            for (int32 i = 0; i < frames; ++i)
+            {
+                left[i] += busLeft[i];
+                right[i] += busRight[i];
+            }
+        }
+    }
+
+    // Sums every running plug-in into one stereo block, with the buses they send to, runs the master's
+    // effects on it, and records it when the song is being exported. Called by the audio thread for each block.
     void MixVoices(float* left, float* right, int32 frames, double sampleRate)
     {
+        PrepareBuses(frames);
         MixVoicesInto(left, right, frames, sampleRate);
+        MixBuses(left, right, frames, sampleRate);
         ApplyMasterEffects(left, right, frames, sampleRate);
         CaptureBlock(left, right, frames, sampleRate);
     }
@@ -1497,7 +1585,7 @@ namespace
         std::fill(right, right + frames, 0.0f);
         if (g_audioThreadVoices == nullptr || g_audioThreadVoices->empty())
         {
-            return;
+            return; // the buses still play out what they hold, such as a reverb's tail
         }
 
         const auto& voices = *g_audioThreadVoices;
@@ -1521,6 +1609,14 @@ namespace
         for (const auto& voice : voices)
         {
             voice->AddTo(left, right, frames);
+            for (int bus = 0; bus < son::MaxBuses; ++bus)
+            {
+                if (g_audioThreadBuses[bus] != nullptr)
+                {
+                    voice->SendTo(bus, g_busBuffers[static_cast<size_t>(bus * 2)].data(),
+                                  g_busBuffers[static_cast<size_t>(bus * 2 + 1)].data(), frames);
+                }
+            }
         }
     }
 
@@ -1982,6 +2078,31 @@ void VstHostBridge_SetEffectChainPan(void* chainHandle, double pan)
     {
         chain->pan.store(static_cast<float>(pan));
     }
+}
+
+void VstHostBridge_SetEffectChainSend(void* chainHandle, int32_t bus, double level)
+{
+    if (auto* chain = ChainOf(chainHandle); chain != nullptr && bus >= 0 && bus < son::MaxBuses)
+    {
+        chain->sends[bus].store(static_cast<float>(std::max(0.0, level)));
+    }
+}
+
+void VstHostBridge_SetBus(int32_t bus, void* chainHandle)
+{
+    if (bus < 0 || bus >= son::MaxBuses)
+    {
+        return;
+    }
+
+    std::shared_ptr<son::EffectChain> chain;
+    if (chainHandle != nullptr)
+    {
+        chain = *static_cast<std::shared_ptr<son::EffectChain>*>(chainHandle);
+    }
+
+    std::lock_guard<std::mutex> lock(g_busesMutex);
+    g_buses[static_cast<size_t>(bus)].swap(chain);
 }
 
 void VstHostBridge_SetMasterEffectChain(void* chainHandle)

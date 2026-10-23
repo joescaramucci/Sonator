@@ -62,6 +62,11 @@ VSTHOSTBRIDGE_API void VstHostBridge_SetEffectChainLayoutWithPlugins(void* chain
 VSTHOSTBRIDGE_API int32_t VstHostBridge_GetPluginKind(void* moduleHandle);
 // Stereo balance after the gain: -1 is hard left, 0 the centre, +1 hard right.
 VSTHOSTBRIDGE_API void VstHostBridge_SetEffectChainPan(void* chainHandle, double pan);
+// How much of the chain's track goes to a bus (0 to 15), after its effects, gain and pan: linear, 0 for none.
+VSTHOSTBRIDGE_API void VstHostBridge_SetEffectChainSend(void* chainHandle, int32_t bus, double level);
+// Makes a chain a bus: the tracks' sends to it are summed, run through it and added to the mix ahead of the
+// master's effects. A null chain removes the bus.
+VSTHOSTBRIDGE_API void VstHostBridge_SetBus(int32_t bus, void* chainHandle);
 // Runs the chain on the whole mix, after every plug-in is summed and before it goes out. A null chain removes it.
 VSTHOSTBRIDGE_API void VstHostBridge_SetMasterEffectChain(void* chainHandle);
 // The effect's own meter, such as a compressor's gain reduction in dB.

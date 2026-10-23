@@ -59,11 +59,48 @@ internal sealed class TrackEffectsHost : IDisposable
         }
     }
 
+    private List<PatternTrackViewModel> _buses = new();
+
+    // The buses, in their slots in the mix. Each runs through its own chain and joins the mix ahead of the
+    // master's effects; every track's sends follow the slots.
+    public void SetBuses(IReadOnlyList<PatternTrackViewModel> buses)
+    {
+        _buses = buses.Take(NativeEffectChain.MaxBuses).ToList();
+        for (var slot = 0; slot < NativeEffectChain.MaxBuses; slot++)
+        {
+            if (slot < _buses.Count && ChainFor(_buses[slot]) is { } busChain)
+            {
+                busChain.UseAsBus(slot);
+            }
+            else
+            {
+                NativeEffectChain.ClearBus(slot);
+            }
+        }
+
+        foreach (var (track, chain) in _chains)
+        {
+            ApplyMix(track, chain);
+        }
+    }
+
+    private bool IsBus(PatternTrackViewModel track) => _buses.Contains(track);
+
+    // A track's gain takes the master volume in; a bus's does not, since what reaches it already has it.
+    // A bus has no sends of its own, nor does the master.
     private void ApplyMix(PatternTrackViewModel track, NativeEffectChain chain)
     {
         var isMaster = ReferenceEquals(track, _master);
-        chain.SetGain(isMaster ? 1.0 : Gain(track.MixVolume, _masterVolume));
+        var isBus = IsBus(track);
+        chain.SetGain(isMaster ? 1.0
+            : isBus ? (track.IsMuted ? 0.0 : Gain(track.MixVolume, UnityVolume))
+            : Gain(track.MixVolume, _masterVolume));
         chain.SetPan(isMaster ? 0.0 : track.MixPan);
+        for (var slot = 0; slot < NativeEffectChain.MaxBuses; slot++)
+        {
+            var level = !isMaster && !isBus && slot < _buses.Count ? track.SendLevel(_buses[slot].BusId) : 0;
+            chain.SetSend(slot, Gain(level, UnityVolume));
+        }
     }
 
     // The track's chain, made on first use. Null when the native bridge is not available.
@@ -91,6 +128,7 @@ internal sealed class TrackEffectsHost : IDisposable
     private void OnTrackPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(PatternTrackViewModel.MixVolume) or nameof(PatternTrackViewModel.MixPan)
+                or nameof(PatternTrackViewModel.Sends) or nameof(PatternTrackViewModel.IsMuted)
             && sender is PatternTrackViewModel track && _chains.TryGetValue(track, out var chain))
         {
             ApplyMix(track, chain);
@@ -168,7 +206,7 @@ internal sealed class TrackEffectsHost : IDisposable
     // track uses any more. Called when the tracks are replaced, as by undo or opening a project.
     public void KeepOnly(IEnumerable<PatternTrackViewModel> tracks)
     {
-        var kept = tracks.ToHashSet();
+        var kept = tracks.Concat(_buses).ToHashSet();
         foreach (var track in _chains.Keys.Where(track => !kept.Contains(track) && !ReferenceEquals(track, _master)).ToList())
         {
             var chain = _chains[track];
@@ -185,7 +223,7 @@ internal sealed class TrackEffectsHost : IDisposable
     // Unloads the plug-ins of effects no longer on any of these tracks or the master, as after one is removed.
     public void ReleaseUnusedPlugins(IEnumerable<PatternTrackViewModel> tracks)
     {
-        var used = tracks.Append(_master).OfType<PatternTrackViewModel>()
+        var used = tracks.Concat(_buses).Append(_master).OfType<PatternTrackViewModel>()
             .SelectMany(track => track.Effects)
             .Where(effect => effect.IsPlugin)
             .Select(effect => effect.InstanceId)
@@ -247,6 +285,10 @@ internal sealed class TrackEffectsHost : IDisposable
         if (_master is not null && _chains.ContainsKey(_master))
         {
             NativeEffectChain.ClearMaster();
+        }
+        for (var slot = 0; slot < _buses.Count; slot++)
+        {
+            NativeEffectChain.ClearBus(slot);
         }
 
         ReleaseAllPlugins();

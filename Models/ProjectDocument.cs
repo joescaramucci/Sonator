@@ -14,7 +14,8 @@ public sealed record ProjectDocument(
         List<string[]> SongGrid,
             List<SongArrangeBlockDocument>? ArrangeBlocks = null,
         double MasterVolume = 0.75,
-        List<EffectDocument>? MasterEffects = null);
+        List<EffectDocument>? MasterEffects = null,
+        List<TrackDocument>? Buses = null);
 
 public sealed record SongArrangeBlockDocument(
     int Row,
@@ -54,7 +55,12 @@ public sealed record TrackDocument(
     List<MidiControllerEventDocument>? MidiControllerEvents = null,
     double Pan = 0,
     List<AutomationPointDocument>? VolumeAutomation = null,
-    List<AutomationPointDocument>? PanAutomation = null);
+    List<AutomationPointDocument>? PanAutomation = null,
+    Guid? BusId = null,
+    List<SendDocument>? Sends = null);
+
+// How much of a track goes to a bus (see PatternTrackViewModel.Sends).
+public sealed record SendDocument(Guid Bus, double Level);
 
 // A point of a track's automation (see AutomationPoint).
 public sealed record AutomationPointDocument(double Step, double Value);

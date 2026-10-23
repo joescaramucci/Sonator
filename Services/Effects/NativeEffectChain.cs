@@ -60,6 +60,27 @@ public sealed class NativeEffectChain : IDisposable
 
     public static void ClearMaster() => Vst3HostInterop.VstHostBridge_SetMasterEffectChain(IntPtr.Zero);
 
+    // The most buses the mix has room for.
+    public const int MaxBuses = 16;
+
+    // How much of the track goes to a bus, after its effects, gain and pan: linear gain, 0 for none.
+    public void SetSend(int bus, double level) => Vst3HostInterop.VstHostBridge_SetEffectChainSend(_handle, bus, level);
+
+    // The chain is the bus in this slot from now on: the sends to it run through it and join the mix.
+    public void UseAsBus(int bus) => Vst3HostInterop.VstHostBridge_SetBus(bus, _handle);
+
+    // Takes the bus out of the mix. Nothing to do without the native bridge.
+    public static void ClearBus(int bus)
+    {
+        try
+        {
+            Vst3HostInterop.VstHostBridge_SetBus(bus, IntPtr.Zero);
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or BadImageFormatException)
+        {
+        }
+    }
+
     // The effect's own meter, such as a compressor's gain reduction in dB.
     public double Meter(int slot) => Vst3HostInterop.VstHostBridge_GetEffectMeter(_handle, slot);
 

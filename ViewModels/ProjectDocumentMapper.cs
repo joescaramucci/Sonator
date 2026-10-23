@@ -48,8 +48,14 @@ internal static class ProjectDocumentMapper
                 : track.MidiControllerEvents.Select(e => new MidiControllerEventDocument(e.Step, e.Controller, e.Value)).ToList(),
             track.Pan,
             BuildAutomationDocuments(track.VolumeAutomation),
-            BuildAutomationDocuments(track.PanAutomation));
+            BuildAutomationDocuments(track.PanAutomation),
+            track.BusId,
+            track.Sends.Count == 0 ? null : track.Sends.Select(send => new SendDocument(send.Key, send.Value)).ToList());
     }
+
+    private static IReadOnlyDictionary<Guid, double> Sends(IEnumerable<SendDocument>? documents) =>
+        documents?.GroupBy(send => send.Bus).ToDictionary(group => group.Key, group => group.Last().Level)
+        ?? new Dictionary<Guid, double>();
 
     private static List<AutomationPointDocument>? BuildAutomationDocuments(IReadOnlyList<AutomationPoint> points) =>
         points.Count == 0 ? null : points.Select(point => new AutomationPointDocument(point.Step, point.Value)).ToList();
@@ -98,6 +104,7 @@ internal static class ProjectDocumentMapper
         targetTrack.Pan = sourceTrack.Pan;
         targetTrack.VolumeAutomation = AutomationPoints(sourceTrack.VolumeAutomation);
         targetTrack.PanAutomation = AutomationPoints(sourceTrack.PanAutomation);
+        targetTrack.Sends = Sends(sourceTrack.Sends);
         targetTrack.IsRecordArmed = sourceTrack.IsRecordArmed;
         targetTrack.PluginFilePath = sourceTrack.PluginFilePath;
         targetTrack.PluginState = sourceTrack.PluginState;
@@ -186,6 +193,8 @@ internal static class ProjectDocumentMapper
             Pan = trackDocument.Pan,
             VolumeAutomation = AutomationPoints(trackDocument.VolumeAutomation),
             PanAutomation = AutomationPoints(trackDocument.PanAutomation),
+            BusId = trackDocument.BusId ?? Guid.NewGuid(),
+            Sends = Sends(trackDocument.Sends),
             PluginFilePath = trackDocument.PluginFilePath,
             PluginState = trackDocument.PluginState,
             PluginEditorState = trackDocument.PluginEditorState,

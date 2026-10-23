@@ -26,6 +26,9 @@ namespace son
 
     constexpr int MaxParameters = 8;
 
+    // How many buses (effect returns) the mix has room for.
+    constexpr int MaxBuses = 16;
+
     class Effect
     {
     public:
@@ -80,6 +83,10 @@ namespace son
         // Stereo balance applied with the gain: -1 hard left, 0 centre, +1 hard right. The side the
         // sound moves to stays as it is and the other side is turned down, so the centre loses nothing.
         std::atomic<float> pan{0.0f};
+
+        // How much of the track's sound, after its effects, gain and pan, goes to each bus (linear, 0 for none).
+        // The chain only keeps the levels; the mixer does the sending.
+        std::atomic<float> sends[MaxBuses]{};
 
         // Processes planar audio in place. Called on the audio thread; if the UI is replacing the
         // effects at that moment the block passes through untouched rather than waiting.

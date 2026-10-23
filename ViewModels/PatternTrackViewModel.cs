@@ -311,6 +311,43 @@ public sealed class PatternTrackViewModel : ViewModelBase
         var right => $"R{right:0}",
     };
 
+    // ---- Buses and sends ----
+
+    // Who this is when it is a bus, for the tracks' sends to name it. Kept through undo and saving.
+    public Guid BusId { get; init; } = Guid.NewGuid();
+
+    private IReadOnlyDictionary<Guid, double> _sends = new Dictionary<Guid, double>();
+
+    // How much of the track goes to each bus, after its fader and pan, by the bus's id. A level is a fader
+    // position, as Volume: 0.75 sends the sound as it is, 0 nothing. Buses with no send are left out.
+    public IReadOnlyDictionary<Guid, double> Sends
+    {
+        get => _sends;
+        set => SetProperty(ref _sends, value);
+    }
+
+    public double SendLevel(Guid bus) => _sends.TryGetValue(bus, out var level) ? level : 0;
+
+    public void SetSend(Guid bus, double level)
+    {
+        level = Math.Clamp(level, 0.0, 1.0);
+        if (SendLevel(bus) == level)
+        {
+            return;
+        }
+
+        var sends = _sends.ToDictionary(entry => entry.Key, entry => entry.Value);
+        if (level <= 0)
+        {
+            sends.Remove(bus);
+        }
+        else
+        {
+            sends[bus] = level;
+        }
+        Sends = sends;
+    }
+
     // ---- Automation ----
 
     private IReadOnlyList<AutomationPoint> _volumeAutomation = Array.Empty<AutomationPoint>();

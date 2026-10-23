@@ -6,7 +6,7 @@ using Sonator.ViewModels;
 namespace Sonator;
 
 // The mixing console: one channel strip per track of the pattern, as the sound goes through it (inserts,
-// pan, fader with its meter, mute and solo), and the master strip at the right.
+// sends, pan, fader with its meter, mute and solo), then the buses, and the master strip at the right.
 public partial class MixerWindow : Window
 {
     private readonly MainViewModel _viewModel;
@@ -73,6 +73,24 @@ public partial class MixerWindow : Window
         if (sender is FrameworkElement { Tag: PatternTrackViewModel track })
         {
             _viewModel.ToggleTrackSoloCommand.Execute(track);
+        }
+    }
+
+    private void AddBus_Click(object sender, RoutedEventArgs e) => _viewModel.AddBus();
+
+    private void RemoveBus_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: PatternTrackViewModel bus })
+        {
+            _viewModel.RemoveBus(bus);
+        }
+    }
+
+    private void BusMute_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: PatternTrackViewModel bus })
+        {
+            bus.IsMuted = !bus.IsMuted;
         }
     }
 
