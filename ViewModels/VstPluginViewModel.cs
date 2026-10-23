@@ -39,6 +39,15 @@ public sealed class VstPluginViewModel : ViewModelBase
 
     public bool IsEffect => _role == Services.Vst3.PluginKind.Effect;
 
+    private bool _isFavorite;
+
+    // Marked as a favorite: it comes first in the list, with a star.
+    public bool IsFavorite
+    {
+        get => _isFavorite;
+        set => SetProperty(ref _isFavorite, value);
+    }
+
     public ImageSource? Thumbnail
     {
         get => _thumbnail;

@@ -1633,6 +1633,62 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
+    // ---- Arranging the plug-in list by dragging ----
+
+    private static readonly System.Windows.Media.Brush DropLineBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE6, 0xC4, 0x5B));
+
+    // The plug-in dragged, read from the drag (a plug-in file) among the listed ones.
+    private VstPluginViewModel? DraggedPlugin(DragEventArgs e) =>
+        e.Data.GetData(VstPluginDragFormat) is string path && DataContext is MainViewModel viewModel
+            ? viewModel.VstPlugins.FirstOrDefault(plugin => string.Equals(plugin.FilePath, path, StringComparison.OrdinalIgnoreCase))
+            : null;
+
+    // Dropped on the left half of another plug-in it goes before it, on the right half after it, as the
+    // gold line on that side shows.
+    private static bool DropsAfter(DragEventArgs e, FrameworkElement target) => e.GetPosition(target).X > target.ActualWidth / 2;
+
+    private void VstPluginThumbnail_DragOver(object sender, DragEventArgs e)
+    {
+        if (sender is not Border { DataContext: VstPluginViewModel target } border || DraggedPlugin(e) is not { } dragged
+            || ReferenceEquals(dragged, target))
+        {
+            return;
+        }
+
+        border.BorderBrush = DropLineBrush;
+        border.BorderThickness = DropsAfter(e, border) ? new Thickness(1, 1, 4, 1) : new Thickness(4, 1, 1, 1);
+        e.Effects = DragDropEffects.Copy;
+        e.Handled = true;
+    }
+
+    private void VstPluginThumbnail_DragLeave(object sender, DragEventArgs e)
+    {
+        if (sender is Border border)
+        {
+            border.BorderBrush = (System.Windows.Media.Brush)FindResource("Line");
+            border.BorderThickness = new Thickness(1);
+        }
+    }
+
+    private void VstPluginThumbnail_Drop(object sender, DragEventArgs e)
+    {
+        if (sender is not Border { DataContext: VstPluginViewModel target } border || DataContext is not MainViewModel viewModel
+            || DraggedPlugin(e) is not { } dragged)
+        {
+            return;
+        }
+
+        VstPluginThumbnail_DragLeave(border, e);
+        if (!ReferenceEquals(dragged, target))
+        {
+            var index = viewModel.VstPlugins.IndexOf(target) + (DropsAfter(e, border) ? 1 : 0);
+            var before = viewModel.VstPlugins.Where(plugin => !ReferenceEquals(plugin, dragged)).ElementAtOrDefault(
+                index > viewModel.VstPlugins.IndexOf(dragged) ? index - 1 : index);
+            viewModel.MoveVstPlugin(dragged, before);
+        }
+        e.Handled = true;
+    }
+
     // Opens the plug-in's own window: the native GUI for VST3, otherwise the parameter dialog.
     private void OpenPluginWindow(string name, string filePath, string kind)
     {
@@ -1813,7 +1869,7 @@ public partial class MainWindow : Window
     private static bool IsPluginWindow(Window window) => window is Vst3NativeEditorWindow or VstPluginEditorDialog;
 
     // Plug-in windows minimized with their own button go to the dock as well: minimized, Windows shows them as
-    // small bars with no room for their name. So do the mixer and the FX racks.
+    // small bars with no room for their name. So does the mixer.
     private void FollowPluginWindow(Window window)
     {
         // Pictured each time it loses the focus, while it is surely in view and in front, so the dock has a
@@ -1950,6 +2006,10 @@ public partial class MainWindow : Window
 
         if (plugin is not null)
         {
+            var favorite = new MenuItem { Header = plugin.IsFavorite ? "★ Remove from favorites" : "★ Add to favorites" };
+            favorite.Click += (_, _) => viewModel.SetVstPluginFavorite(plugin, !plugin.IsFavorite);
+            menu.Items.Add(favorite);
+
             var remove = new MenuItem
             {
                 Header = $"Remove \"{plugin.Name}\" from the list",
@@ -2089,8 +2149,8 @@ public partial class MainWindow : Window
         viewModel.SelectedTrack = timelineTrack.SourceTrack;
         if (_fxRacks.TryGetValue(timelineTrack.SourceTrack, out var open))
         {
-            // Minimized or in the dock, it is out of sight: the button brings it back rather than closing it.
-            if (open.WindowState == WindowState.Minimized || !open.IsVisible)
+            // Minimized, it is out of sight: the button brings it back rather than closing it.
+            if (open.WindowState == WindowState.Minimized)
             {
                 BringBack(open);
             }
@@ -2160,8 +2220,8 @@ public partial class MainWindow : Window
 
         if (_fxRacks.TryGetValue(viewModel.MasterTrack, out var open))
         {
-            // Minimized or in the dock, it is out of sight: the button brings it back rather than closing it.
-            if (open.WindowState == WindowState.Minimized || !open.IsVisible)
+            // Minimized, it is out of sight: the button brings it back rather than closing it.
+            if (open.WindowState == WindowState.Minimized)
             {
                 BringBack(open);
             }
@@ -2218,7 +2278,6 @@ public partial class MainWindow : Window
             rack = new EffectRackWindow(viewModel, track) { Owner = this };
             rack.Closed += (_, _) => _fxRacks.Remove(track);
             _fxRacks[track] = rack;
-            FollowPluginWindow(rack); // minimized, it goes to the dock with the plug-ins
             rack.Show();
         }
 

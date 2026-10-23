@@ -2552,7 +2552,11 @@
                                                 ContextMenuOpening="VstPluginList_ContextMenuOpening"
                                                 MouseLeftButtonDown="VstPluginThumbnail_MouseLeftButtonDown"
                                                 MouseMove="VstPluginThumbnail_MouseMove"
-                                                MouseLeftButtonUp="VstPluginThumbnail_MouseLeftButtonUp">
+                                                MouseLeftButtonUp="VstPluginThumbnail_MouseLeftButtonUp"
+                                                AllowDrop="True"
+                                                DragOver="VstPluginThumbnail_DragOver"
+                                                DragLeave="VstPluginThumbnail_DragLeave"
+                                                Drop="VstPluginThumbnail_Drop">
                                             <Grid>
                                                 <Border Background="#1F2A39">
                                                     <TextBlock Text="{Binding Badge}"
@@ -2575,6 +2579,23 @@
                                                         </Style>
                                                     </Image.Style>
                                                 </Image>
+                                                <!-- A favorite's star. -->
+                                                <TextBlock Text="★" FontSize="16" Foreground="#F2C94C" Margin="0,2,5,0"
+                                                           HorizontalAlignment="Right" VerticalAlignment="Top" IsHitTestVisible="False">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsFavorite}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                    <TextBlock.Effect>
+                                                        <DropShadowEffect BlurRadius="3" ShadowDepth="0" Color="Black" Opacity="0.9" />
+                                                    </TextBlock.Effect>
+                                                </TextBlock>
                                                 <Border VerticalAlignment="Bottom"
                                                         Background="#CC111820"
                                                         Padding="4,2">

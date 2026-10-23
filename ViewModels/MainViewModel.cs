@@ -476,7 +476,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         var toCheck = new List<VstPluginViewModel>();
         foreach (var (name, filePath, kind) in plugins)
         {
-            var plugin = new VstPluginViewModel(name, filePath, kind);
+            var plugin = new VstPluginViewModel(name, filePath, kind) { IsFavorite = _pluginShelf.IsFavorite(filePath) };
             switch (_vstPluginCheck.KnownResult(filePath))
             {
                 case true:
@@ -492,6 +492,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             }
         }
 
+        ArrangeVstPlugins();
         RemovedVstPluginCount = settings.RemovedVstPlugins.Count;
         if (toCheck.Count > 0)
         {
@@ -552,7 +553,47 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         VstPlugins.Insert(index, plugin);
+        ArrangeVstPlugins();
         LearnPluginRole(plugin);
+    }
+
+    private readonly PluginShelf _pluginShelf = new();
+
+    // Puts the plug-ins in the order the player arranged them, favorites first.
+    private void ArrangeVstPlugins()
+    {
+        var order = _pluginShelf.Arrange(VstPlugins.Select(plugin => plugin.FilePath));
+        for (var target = 0; target < order.Count; target++)
+        {
+            var current = VstPlugins.ToList().FindIndex(plugin => string.Equals(plugin.FilePath, order[target], StringComparison.OrdinalIgnoreCase));
+            if (current >= 0 && current != target)
+            {
+                VstPlugins.Move(current, target);
+            }
+        }
+    }
+
+    // Moves a plug-in in the list to just before another, or to the end when there is none, as dragged there.
+    public void MoveVstPlugin(VstPluginViewModel plugin, VstPluginViewModel? before)
+    {
+        if (ReferenceEquals(plugin, before) || !VstPlugins.Contains(plugin))
+        {
+            return;
+        }
+
+        var order = VstPlugins.Where(other => !ReferenceEquals(other, plugin)).ToList();
+        var index = before is null ? order.Count : Math.Max(0, order.IndexOf(before));
+        order.Insert(index, plugin);
+        _pluginShelf.SetOrder(order.Select(other => other.FilePath));
+        ArrangeVstPlugins();
+    }
+
+    public void SetVstPluginFavorite(VstPluginViewModel plugin, bool favorite)
+    {
+        _pluginShelf.SetFavorite(plugin.FilePath, favorite);
+        plugin.IsFavorite = favorite;
+        ArrangeVstPlugins();
+        StatusMessage = favorite ? $"{plugin.Name} added to the favorites" : $"{plugin.Name} removed from the favorites";
     }
 
     // Finds out, in the background the first time, whether a VST3 plug-in is an instrument or an effect.
