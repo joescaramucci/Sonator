@@ -75,7 +75,7 @@
             <Grid x:Name="Root" SnapsToDevicePixels="True">
                 <!-- The well: black, with the panel's lit lip along its bottom. -->
                 <Border CornerRadius="4" Background="#0B0C0E" BorderBrush="#66FFFFFF" BorderThickness="0,0,0,1" />
-                <Grid x:Name="Cap" Margin="2,1.5,2,3">
+                <Grid x:Name="Cap" Margin="1.5,1,1.5,2.5">
                     <Border x:Name="Glow" CornerRadius="3" Margin="-1">
                         <Border.Background>
                             <MultiBinding Converter="{StaticResource Lamp}" ConverterParameter="brush">
@@ -123,7 +123,7 @@
                 <Trigger Property="IsPressed" Value="True">
                     <Setter TargetName="Face" Property="Background" Value="{StaticResource Cap.Pressed}" />
                     <Setter TargetName="Shine" Property="Visibility" Value="Hidden" />
-                    <Setter TargetName="Cap" Property="Margin" Value="2,3,2,1.5" />
+                    <Setter TargetName="Cap" Property="Margin" Value="1.5,2.5,1.5,1" />
                 </Trigger>
                 <Trigger Property="IsEnabled" Value="False">
                     <Setter TargetName="Root" Property="Opacity" Value="0.4" />
