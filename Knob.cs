@@ -164,11 +164,11 @@ public sealed class Knob : FrameworkElement
             drawingContext.DrawEllipse(ScaleBrush, null, dot, radius * (big ? 0.06 : 0.045), radius * (big ? 0.06 : 0.045));
         }
 
-        var topCentre = new Point(center.X, center.Y - radius * 0.32); // as a share of the dots' ring, centred in its open arc as SSL's
-        var topRadius = radius * 0.48;
-        var baseCentre = new Point(center.X, center.Y + radius * 0.34);
-        var baseRadiusX = radius * 0.55;
-        var baseRadiusY = radius * 0.26;
+        var topCentre = new Point(center.X, center.Y - radius * 0.38); // as a share of the dots' ring, centred in its open arc as SSL's
+        var topRadius = radius * 0.45;
+        var baseCentre = new Point(center.X, center.Y + radius * 0.26);
+        var baseRadiusX = radius * 0.51;
+        var baseRadiusY = radius * 0.24;
 
         // The cone's outline: the top circle and the base ellipse joined along their sides.
         var top = new EllipseGeometry(topCentre, topRadius, topRadius);
@@ -190,16 +190,33 @@ public sealed class Knob : FrameworkElement
         drawingContext.DrawGeometry(ConeSide, null, body);
         drawingContext.DrawGeometry(ConeShade, null, body);
 
-        // The fluting: grooves down the front of the side, each with a lit edge beside it.
+        // The fluting: small grooves cut down the side all round, as SSL's knurled skirts, each a narrow dark
+        // channel with its far wall lit from the left; those turned away from the eye crowd together towards the edges.
         drawingContext.PushClip(body);
-        for (var k = -1; k <= 1; k++)
+        const int Flutes = 28;
+        var halfWidth = Math.PI / Flutes * 0.42;
+        for (var k = 0; k < Flutes; k++)
         {
-            var f = k / 1.75;
-            var depth = Math.Sqrt(1 - f * f);
-            var from = new Point(topCentre.X + f * topRadius, topCentre.Y + depth * topRadius);
-            var to = new Point(baseCentre.X + f * baseRadiusX, baseCentre.Y + depth * baseRadiusY);
-            drawingContext.DrawLine(GroovePen, from, to);
-       }
+            var centre = (k + 0.5) * 2 * Math.PI / Flutes;
+            if (Math.Sin(centre) < 0.02)
+            {
+                continue; // at the back, out of sight
+            }
+
+            var left = centre + halfWidth; // angles run clockwise from the right, so a larger one is further left
+            var right = centre - halfWidth;
+            var groove = new StreamGeometry();
+            using (var context = groove.Open())
+            {
+                context.BeginFigure(OnRim(topCentre, topRadius, topRadius, left), true, true);
+                context.LineTo(OnRim(topCentre, topRadius, topRadius, right), false, false);
+                context.LineTo(OnRim(baseCentre, baseRadiusX, baseRadiusY, right), false, false);
+                context.LineTo(OnRim(baseCentre, baseRadiusX, baseRadiusY, left), false, false);
+            }
+            groove.Freeze();
+            drawingContext.DrawGeometry(GrooveFill, null, groove);
+            drawingContext.DrawLine(GrooveLightPen, OnRim(topCentre, topRadius, topRadius, right), OnRim(baseCentre, baseRadiusX, baseRadiusY, right));
+        }
         drawingContext.Pop();
         drawingContext.DrawGeometry(null, ConeEdgePen, body);
 
@@ -242,12 +259,16 @@ public sealed class Knob : FrameworkElement
         }
     }
 
+    // A point on the rim of an ellipse seen from the front, at an angle clockwise from its right.
+    private static Point OnRim(Point centre, double radiusX, double radiusY, double angle) =>
+        new(centre.X + Math.Cos(angle) * radiusX, centre.Y + Math.Sin(angle) * radiusY);
+
     private static readonly Brush ConeSide = FrozenLinearHorizontal(
         (Color.FromRgb(0xD8, 0xD8, 0xD8), 0), (Color.FromRgb(0xC6, 0xC6, 0xC6), 0.22), (Color.FromRgb(0xA2, 0xA2, 0xA2), 0.5), (Color.FromRgb(0x74, 0x74, 0x74), 0.82), (Color.FromRgb(0x86, 0x86, 0x86), 1));
     private static readonly Brush ConeShade = FrozenLinearVertical(
         (Color.FromArgb(0x00, 0, 0, 0), 0.4), (Color.FromArgb(0x30, 0, 0, 0), 0.75), (Color.FromArgb(0x70, 0, 0, 0), 1));
     private static readonly Brush CapLip = FrozenSolid(Color.FromRgb(0xC8, 0xC8, 0xC8));
-    private static readonly Pen GroovePen = FrozenColourPen(Color.FromArgb(0x40, 0x30, 0x30, 0x30), 0.8);
+    private static readonly Brush GrooveFill = FrozenSolid(Color.FromArgb(0x48, 0x28, 0x28, 0x28));
     private static readonly Pen GrooveLightPen = FrozenColourPen(Color.FromArgb(0x70, 0xFF, 0xFF, 0xFF), 0.6);
 
     private static Pen FrozenColourPen(Color colour, double thickness)
