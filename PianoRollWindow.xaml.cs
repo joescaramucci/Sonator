@@ -193,6 +193,7 @@ public partial class PianoRollWindow : Window
                 {
                     Text = $"C{note / 12 - 1}",
                     FontSize = 10,
+                    FontWeight = FontWeights.Bold,
                     Foreground = Brushes.Black,
                 };
                 Canvas.SetLeft(label, 4);
