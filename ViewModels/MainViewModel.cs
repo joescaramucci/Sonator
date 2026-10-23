@@ -1766,7 +1766,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
                 StopPlayback();
             }
 
-            if (value && _isArrangeMode)
+            // The timeline is drawn again only when the arrangement gives way to the pattern: turning the loop on
+            // or off changes nothing on it, and drawing it again takes seconds with a long clip.
+            var leftArrangeMode = value && _isArrangeMode;
+            if (leftArrangeMode)
             {
                 _isArrangeMode = false;
                 RaisePropertyChanged(nameof(IsArrangeMode));
@@ -1774,8 +1777,14 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
             }
 
             ConfigurePlaybackSource();
-            RebuildTimeline();
+            if (leftArrangeMode)
+            {
+                RebuildTimeline();
+            }
+
             CurrentStepIndex = 0;
+            UpdatePlayhead(0);
+            UpdateSongTimelinePosition(0);
             TransportPosition = TransportClock.Zero;
             RaisePropertyChanged(nameof(LoopModeText));
             StatusMessage = value
