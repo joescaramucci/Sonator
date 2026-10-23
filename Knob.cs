@@ -271,7 +271,7 @@ public sealed class Knob : FrameworkElement
         pointer.Freeze();
         drawingContext.DrawLine(pointer, new Point(capCentre.X + cos * capRadius * 0.3, capCentre.Y + sin * capRadius * 0.3),
             new Point(capCentre.X + cos * capRadius, capCentre.Y + sin * capRadius));
-        var sidePointer = new Pen(DarkPointer, Math.Max(1.4, radius * 0.08));
+        var sidePointer = new Pen(DarkPointer, Math.Max(1.0, radius * 0.05));
         sidePointer.Freeze();
         drawingContext.DrawLine(sidePointer, new Point(topCentre.X + cos * capRadius * 1.04, topCentre.Y + sin * capRadius * 1.04), Top(angleNow));
         if (sin > 0.05)

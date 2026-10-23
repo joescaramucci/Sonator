@@ -19,6 +19,9 @@
             <GradientStop Color="#CDCED0" Offset="0.5" />
             <GradientStop Color="#B3B4B6" Offset="1" />
         </LinearGradientBrush>
+        <!-- Lettering pressed into the panel, as SSL's: a soft anthracite with a light edge under it. -->
+        <SolidColorBrush x:Key="EngravedInk" Color="#3E4043" />
+        <DropShadowEffect x:Key="Engraved" Color="White" Direction="270" ShadowDepth="1" BlurRadius="0" Opacity="0.45" />
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="FontFamily" Value="Consolas" />
@@ -198,7 +201,7 @@
                                         <DataTemplate>
                                             <Border Width="86" Margin="2" Padding="3,4">
                                                 <StackPanel>
-                                                    <TextBlock Text="{Binding Name}" HorizontalAlignment="Center" FontFamily="Arial" FontWeight="Bold" FontSize="12" Foreground="#363636" />
+                                                    <TextBlock Text="{Binding Name}" HorizontalAlignment="Center" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource EngravedInk}" Effect="{StaticResource Engraved}" />
                                                     <Grid Height="62" Margin="0,2">
                                                         <local:Knob Width="60" Height="60"
                                                                     Position="{Binding Position}"
@@ -234,7 +237,7 @@
                                                             </ToggleButton.Style>
                                                         </ToggleButton>
                                                     </Grid>
-                                                    <TextBlock Text="{Binding DisplayValue}" HorizontalAlignment="Center" FontFamily="Arial" FontWeight="Bold" Foreground="#424242">
+                                                    <TextBlock Text="{Binding DisplayValue}" HorizontalAlignment="Center" FontFamily="Segoe UI" FontWeight="SemiBold" Foreground="{StaticResource EngravedInk}" Effect="{StaticResource Engraved}">
                                                         <TextBlock.Style>
                                                             <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
                                                                 <Style.Triggers>
