@@ -2225,10 +2225,13 @@ public partial class MainWindow : Window
         }
 
         PluginDockItems.ItemsSource ??= _dockedPluginWindows;
-        var preview = WindowSnapshot.Take(window, PreviewWidth);
-        if (preview is null || WindowSnapshot.IsBlank(preview))
+        // The last picture taken while it was in view (at most two seconds old) shows it best: as it goes to
+        // the dock, the screen there already shows what is behind it.
+        var preview = _lastPluginPictures.GetValueOrDefault(window);
+        if (preview is null)
         {
-            preview = _lastPluginPictures.GetValueOrDefault(window);
+            var taken = WindowSnapshot.Take(window, PreviewWidth);
+            preview = taken is not null && !WindowSnapshot.IsBlank(taken) ? taken : null;
         }
         window.Hide();
         _dockedPluginWindows.Add(new DockedPluginWindow(window, preview));

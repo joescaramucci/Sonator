@@ -52,24 +52,25 @@ internal static class WindowSnapshot
         return picture;
     }
 
-    // Asks the window to draw itself; a picture of one colour all over means it could not, and the picture is
-    // copied from the screen instead, but only where the window is in view: while it is being minimized, or
-    // has another window over it, the screen there shows something else, and no picture is better.
+    // While the window is in view, the picture is copied from the screen: that is what it shows. A plug-in
+    // drawn by the graphics card cannot draw itself into a picture, and some give back what is behind them
+    // instead. Out of view (being minimized, or another window over it) the window is asked to draw itself,
+    // and a picture of one colour all over means it could not.
     private static BitmapSource? TakeNative(IntPtr hwnd, int maxWidth)
     {
-        var printed = Capture(hwnd, maxWidth, fromScreen: false);
-        if (printed is not null && !IsBlank(printed))
+        if (IsInView(hwnd))
         {
-            return printed;
+            return Capture(hwnd, maxWidth, fromScreen: true);
         }
 
-        return IsInView(hwnd) ? Capture(hwnd, maxWidth, fromScreen: true) : null;
+        var printed = Capture(hwnd, maxWidth, fromScreen: false);
+        return printed is not null && !IsBlank(printed) ? printed : null;
     }
 
     private const uint RootAncestor = 2; // GA_ROOT
 
-    // True when the window's top-level window is not minimized and is the one seen at the middle and near the
-    // corners of the window.
+    // True when the window's top-level window is not minimized and is the one seen at the middle of the window
+    // and around it (the parts that are on the screen).
     private static bool IsInView(IntPtr hwnd)
     {
         var root = GetAncestor(hwnd, RootAncestor);
@@ -80,7 +81,7 @@ internal static class WindowSnapshot
 
         var width = rect.Right - rect.Left;
         var height = rect.Bottom - rect.Top;
-        foreach (var (x, y) in new[] { (0.5, 0.5), (0.1, 0.1), (0.9, 0.1), (0.1, 0.9), (0.9, 0.9) })
+        foreach (var (x, y) in new[] { (0.5, 0.5), (0.25, 0.25), (0.75, 0.25), (0.25, 0.75), (0.75, 0.75) })
         {
             var point = new NativePoint { X = rect.Left + (int)(width * x), Y = rect.Top + (int)(height * y) };
             if (GetAncestor(WindowFromPoint(point), RootAncestor) != root)
