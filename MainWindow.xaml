@@ -2751,24 +2751,42 @@
                                     Height="24"
                                     FontSize="12"
                                     Content="{Binding Title}"
-                                    ToolTipService.InitialShowDelay="300"
-                                    Click="PluginDockButton_Click">
-                                <Button.ToolTip>
-                                    <StackPanel>
-                                        <Image Source="{Binding Preview}"
-                                               MaxWidth="210"
-                                               MaxHeight="150"
-                                               Stretch="Uniform"
-                                               RenderOptions.BitmapScalingMode="HighQuality" />
-                                        <TextBlock Margin="0,4,0,0" Text="{Binding Title}" FontWeight="SemiBold" />
-                                        <TextBlock Text="Click to bring the window back" FontSize="11" />
-                                    </StackPanel>
-                                </Button.ToolTip>
-                            </Button>
+                                    Click="PluginDockButton_Click"
+                                    MouseEnter="PluginDockButton_MouseEnter"
+                                    MouseLeave="PluginDock_MouseLeave" />
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </DockPanel>
         </Border>
+
+        <!-- The picture of a docked window, shown over its button as the mouse rests on it: a click on the
+             picture, as on the button, brings the window back. A popup, not a tooltip, as a tooltip takes no click. -->
+        <Popup x:Name="DockPreview"
+               Placement="Top"
+               AllowsTransparency="True"
+               StaysOpen="True"
+               PopupAnimation="Fade">
+            <Border Background="#2A2C2F"
+                    BorderBrush="#5C5E61"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    Padding="8"
+                    Margin="0,0,0,4"
+                    Cursor="Hand"
+                    MouseEnter="DockPreview_MouseEnter"
+                    MouseLeave="PluginDock_MouseLeave"
+                    MouseLeftButtonUp="DockPreview_MouseLeftButtonUp">
+                <StackPanel>
+                    <Image Source="{Binding Preview}"
+                           MaxWidth="210"
+                           MaxHeight="150"
+                           Stretch="Uniform"
+                           RenderOptions.BitmapScalingMode="HighQuality" />
+                    <TextBlock Margin="0,4,0,0" Text="{Binding Title}" FontWeight="SemiBold" Foreground="#E4E5E7" />
+                    <TextBlock Text="Click to bring the window back" FontSize="11" Foreground="#ACADAF" />
+                </StackPanel>
+            </Border>
+        </Popup>
     </Grid>
 </Window>

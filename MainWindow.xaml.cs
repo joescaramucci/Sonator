@@ -2225,6 +2225,11 @@ public partial class MainWindow : Window
 
     private void UndockPluginWindow(Window window)
     {
+        if (DockPreview.DataContext is DockedPluginWindow { Window: var shown } && ReferenceEquals(shown, window))
+        {
+            DockPreview.IsOpen = false;
+        }
+
         foreach (var docked in _dockedPluginWindows.Where(docked => ReferenceEquals(docked.Window, window)).ToList())
         {
             _dockedPluginWindows.Remove(docked);
@@ -2286,8 +2291,56 @@ public partial class MainWindow : Window
     {
         if (sender is FrameworkElement { DataContext: DockedPluginWindow docked })
         {
+            DockPreview.IsOpen = false;
             ShowPluginWindow(docked.Window);
         }
+    }
+
+    // ---- The docked window's picture, over its button: it stays while the mouse is on either ----
+
+    private System.Windows.Threading.DispatcherTimer? _dockPreviewClose;
+
+    private void PluginDockButton_MouseEnter(object sender, MouseEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: DockedPluginWindow docked } button)
+        {
+            return;
+        }
+
+        _dockPreviewClose?.Stop();
+        DockPreview.DataContext = docked;
+        DockPreview.PlacementTarget = button;
+        DockPreview.IsOpen = true;
+    }
+
+    private void DockPreview_MouseEnter(object sender, MouseEventArgs e) => _dockPreviewClose?.Stop();
+
+    // Leaving the button or the picture closes it a moment later, unless the mouse has gone onto the other.
+    private void PluginDock_MouseLeave(object sender, MouseEventArgs e)
+    {
+        if (_dockPreviewClose is null)
+        {
+            _dockPreviewClose = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+            _dockPreviewClose.Tick += (_, _) =>
+            {
+                _dockPreviewClose.Stop();
+                DockPreview.IsOpen = false;
+            };
+        }
+
+        _dockPreviewClose.Stop();
+        _dockPreviewClose.Start();
+    }
+
+    private void DockPreview_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        DockPreview.IsOpen = false;
+        if (DockPreview.DataContext is DockedPluginWindow docked)
+        {
+            ShowPluginWindow(docked.Window);
+        }
+
+        e.Handled = true;
     }
 
     private void DropoutsText_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
