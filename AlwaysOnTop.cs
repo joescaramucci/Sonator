@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Threading;
 
 namespace Sonator;
 
@@ -31,8 +32,61 @@ internal static class AlwaysOnTop
 
     private static HashSet<string>? _remembered;
 
+    // Dialogs are watched per thread, as ComponentDispatcher reports them.
+    [ThreadStatic]
+    private static bool _watchingDialogs;
+
+    [ThreadStatic]
+    private static List<Window>? _steppedBack;
+
+    // While a dialog waits for an answer (it disables every other window), the windows kept on top step back
+    // so it cannot open hidden behind them, leaving nothing that can be clicked; they come forward again after.
+    private static void WatchDialogs()
+    {
+        if (_watchingDialogs)
+        {
+            return;
+        }
+
+        _watchingDialogs = true;
+        _steppedBack = new List<Window>();
+        var steppedBack = _steppedBack;
+        ComponentDispatcher.EnterThreadModal += (_, _) =>
+        {
+            foreach (var window in Application.Current?.Windows.OfType<Window>().Where(window => window.Topmost).ToList() ?? new())
+            {
+                window.Topmost = false;
+                steppedBack.Add(window);
+            }
+
+            // No longer on top, they would still cover the dialog, as Windows puts a dialog just over the window
+            // that owns it: once it is up, the dialog (the one window the others wait for, still enabled) comes
+            // to the front.
+            Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
+            {
+                foreach (var window in Application.Current?.Windows.OfType<Window>().ToList() ?? new())
+                {
+                    var hwnd = new WindowInteropHelper(window).Handle;
+                    if (window.IsVisible && hwnd != IntPtr.Zero && IsWindowEnabled(hwnd))
+                    {
+                        SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010);
+                    }
+                }
+            });
+        };
+        ComponentDispatcher.LeaveThreadModal += (_, _) =>
+        {
+            foreach (var window in steppedBack)
+            {
+                window.Topmost = true;
+            }
+            steppedBack.Clear();
+        };
+    }
+
     public static void Attach(Window window)
     {
+        WatchDialogs();
         window.SourceInitialized += (_, _) =>
         {
             var hwnd = new WindowInteropHelper(window).Handle;
@@ -138,4 +192,10 @@ internal static class AlwaysOnTop
 
     [DllImport("user32.dll")]
     private static extern uint CheckMenuItem(IntPtr menu, int id, uint check);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsWindowEnabled(IntPtr hwnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetWindowPos(IntPtr hwnd, IntPtr insertAfter, int x, int y, int width, int height, uint flags);
 }

@@ -144,7 +144,7 @@
 
         <!-- The recessed display of a module's inserts: one line per effect, dimmed while it is off. -->
         <DataTemplate x:Key="InsertTemplate">
-            <TextBlock Text="{Binding Name}" FontFamily="Consolas" FontSize="8" Margin="2,0" TextTrimming="CharacterEllipsis"
+            <TextBlock Text="{Binding Name}" FontFamily="Arial Narrow, Arial" FontSize="11" Margin="3,2,2,3" TextTrimming="CharacterEllipsis"
                        Cursor="Hand" ToolTip="{Binding Name}" MouseLeftButtonUp="Insert_MouseLeftButtonUp">
                 <TextBlock.Style>
                     <Style TargetType="TextBlock">
@@ -196,15 +196,6 @@
                     <ContentControl ContentTemplate="{StaticResource Screw}" Margin="0,3,0,2" Focusable="False" />
                     <Border Height="5" Background="#B8322B" Margin="4,0" />
                     <TextBlock Style="{StaticResource Legend}" Text="INSERT" Margin="0,4,0,1" />
-                    <Border Height="56" Margin="4,0" Background="#111417" CornerRadius="2" BorderBrush="#4E555D" BorderThickness="0,0,1,1">
-                        <ItemsControl ItemsSource="{Binding MasterTrack.Effects}" ItemTemplate="{StaticResource InsertTemplate}" Tag="{Binding MasterTrack}" />
-                    </Border>
-                    <Button Style="{StaticResource ConsoleButton}" Content="FX" Margin="4,3,4,0" Tag="{Binding MasterTrack}" Click="Fx_Click"
-                            ToolTip="Open the master's effect rack: its effects run on the whole mix" />
-                    <TextBlock Style="{StaticResource Legend}" Text="MASTER" FontSize="11" Margin="0,8,0,4" />
-                    <!-- The mix's left and right levels, on moving-needle meters. -->
-                    <local:VuMeter Label="L" Height="50" Margin="3,0" Peak="{Binding MasterPeakLeft}" ToolTip="Left: 0 VU is -18 dBFS" />
-                    <local:VuMeter Label="R" Height="50" Margin="3,3,3,0" Peak="{Binding MasterPeakRight}" ToolTip="Right: 0 VU is -18 dBFS" />
                 </StackPanel>
                 <StackPanel DockPanel.Dock="Bottom">
                     <Border Height="15" Margin="4,4,4,0" Background="#0C0F12" CornerRadius="2">
@@ -216,7 +207,7 @@
                     </Border>
                     <ContentControl ContentTemplate="{StaticResource Screw}" Margin="0,4,0,3" Focusable="False" />
                 </StackPanel>
-                <Grid Margin="2,8,4,0">
+                <Grid DockPanel.Dock="Bottom" Height="230" Margin="2,8,4,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="20" />
                         <ColumnDefinition Width="*" />
@@ -226,6 +217,17 @@
                     <Slider Grid.Column="1" Style="{StaticResource MasterFader}" Value="{Binding MasterVolume}" ToolTip="Final mix volume" />
                     <local:LedMeter Grid.Column="2" Segments="30" RedSegments="5" Margin="0,13" Level="{Binding MasterSignalLevel}" ToolTip="Master level" />
                 </Grid>
+                <StackPanel DockPanel.Dock="Bottom">
+                    <Button Style="{StaticResource ConsoleButton}" Content="FX" Margin="4,3,4,0" Tag="{Binding MasterTrack}" Click="Fx_Click"
+                            ToolTip="Open the master's effect rack: its effects run on the whole mix" />
+                    <TextBlock Style="{StaticResource Legend}" Text="MASTER" FontSize="11" Margin="0,8,0,4" />
+                    <!-- The mix's left and right levels, on moving-needle meters. -->
+                    <local:VuMeter Label="L" Height="50" Margin="3,0" Peak="{Binding MasterPeakLeft}" ToolTip="Left: 0 VU is -18 dBFS" />
+                    <local:VuMeter Label="R" Height="50" Margin="3,3,3,0" Peak="{Binding MasterPeakRight}" ToolTip="Right: 0 VU is -18 dBFS" />
+                </StackPanel>
+                    <Border Margin="4,0,4,0" Background="#111417" CornerRadius="2" BorderBrush="#4E555D" BorderThickness="0,0,1,1">
+                        <ItemsControl ItemsSource="{Binding MasterTrack.Effects}" ItemTemplate="{StaticResource InsertTemplate}" Tag="{Binding MasterTrack}" />
+                    </Border>
             </DockPanel>
         </Border>
 
@@ -256,9 +258,32 @@
                                     <ContentControl ContentTemplate="{StaticResource Screw}" Margin="0,3,0,2" Focusable="False" />
                                     <Border Height="5" Background="{Binding TrackColorBrush}" Margin="4,0" />
                                     <TextBlock Style="{StaticResource Legend}" Text="INSERT" Margin="0,4,0,1" />
-                                    <Border Height="44" Margin="4,0" Background="#111417" CornerRadius="2" BorderBrush="#4E555D" BorderThickness="0,0,1,1">
-                                        <ItemsControl ItemsSource="{Binding Effects}" ItemTemplate="{StaticResource InsertTemplate}" Tag="{Binding}" />
+                                </StackPanel>
+                                <StackPanel DockPanel.Dock="Bottom">
+                                    <Border Height="15" Margin="4,4,4,0" Background="#0C0F12" CornerRadius="2">
+                                        <TextBlock Text="{Binding VolumeDisplay}" FontFamily="Consolas" FontSize="8.5" Foreground="#FF8A3D"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
                                     </Border>
+                                    <!-- The scribble strip: the track's name on a strip of tape. -->
+                                    <Border Height="18" Margin="3,4,3,0" Background="#EFE6C8" CornerRadius="1" Cursor="Hand"
+                                            ToolTip="{Binding Name}" MouseLeftButtonUp="TrackName_MouseLeftButtonUp">
+                                        <TextBlock Text="{Binding Name}" FontFamily="Segoe Print" FontSize="9" Foreground="#1E2A6B"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="2,0" />
+                                    </Border>
+                                    <ContentControl ContentTemplate="{StaticResource Screw}" Margin="0,4,0,3" Focusable="False" />
+                                </StackPanel>
+                                <Grid DockPanel.Dock="Bottom" Height="230" Margin="1,6,3,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="17" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="5" />
+                                    </Grid.ColumnDefinitions>
+                                    <local:FaderScale ThumbLength="26" />
+                                    <Slider Grid.Column="1" Style="{StaticResource ConsoleFader}" Value="{Binding MixVolume}"
+                                            ToolTip="Track volume (double-click: 0 dB)" MouseDoubleClick="Fader_MouseDoubleClick" />
+                                    <local:LedMeter Grid.Column="2" Segments="30" RedSegments="5" Margin="0,13" Level="{Binding SignalLevel}" ToolTip="Track level" />
+                                </Grid>
+                                <StackPanel DockPanel.Dock="Bottom">
                                     <Button Style="{StaticResource ConsoleButton}" Content="FX" Margin="4,3,4,0" Tag="{Binding}" Click="Fx_Click"
                                             ToolTip="Open the track's effect rack, to add Sonator's or VST effects" />
                                     <TextBlock Style="{StaticResource Legend}" Text="SEND" Margin="0,6,0,1" />
@@ -331,30 +356,9 @@
                                         </Button>
                                     </Grid>
                                 </StackPanel>
-                                <StackPanel DockPanel.Dock="Bottom">
-                                    <Border Height="15" Margin="4,4,4,0" Background="#0C0F12" CornerRadius="2">
-                                        <TextBlock Text="{Binding VolumeDisplay}" FontFamily="Consolas" FontSize="8.5" Foreground="#FF8A3D"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    <Border Margin="4,0,4,0" Background="#111417" CornerRadius="2" BorderBrush="#4E555D" BorderThickness="0,0,1,1">
+                                        <ItemsControl ItemsSource="{Binding Effects}" ItemTemplate="{StaticResource InsertTemplate}" Tag="{Binding}" />
                                     </Border>
-                                    <!-- The scribble strip: the track's name on a strip of tape. -->
-                                    <Border Height="18" Margin="3,4,3,0" Background="#EFE6C8" CornerRadius="1" Cursor="Hand"
-                                            ToolTip="{Binding Name}" MouseLeftButtonUp="TrackName_MouseLeftButtonUp">
-                                        <TextBlock Text="{Binding Name}" FontFamily="Segoe Print" FontSize="9" Foreground="#1E2A6B"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="2,0" />
-                                    </Border>
-                                    <ContentControl ContentTemplate="{StaticResource Screw}" Margin="0,4,0,3" Focusable="False" />
-                                </StackPanel>
-                                <Grid Margin="1,6,3,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="17" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="5" />
-                                    </Grid.ColumnDefinitions>
-                                    <local:FaderScale ThumbLength="26" />
-                                    <Slider Grid.Column="1" Style="{StaticResource ConsoleFader}" Value="{Binding MixVolume}"
-                                            ToolTip="Track volume (double-click: 0 dB)" MouseDoubleClick="Fader_MouseDoubleClick" />
-                                    <local:LedMeter Grid.Column="2" Segments="30" RedSegments="5" Margin="0,13" Level="{Binding SignalLevel}" ToolTip="Track level" />
-                                </Grid>
                             </DockPanel>
                         </Border>
                     </DataTemplate>
@@ -380,13 +384,33 @@
                                     </Grid>
                                     <Border Height="5" Background="{Binding TrackColorBrush}" Margin="4,0" />
                                     <TextBlock Style="{StaticResource Legend}" Text="INSERT" Margin="0,4,0,1" />
-                                    <Border Height="44" Margin="4,0" Background="#111417" CornerRadius="2" BorderBrush="#4E555D" BorderThickness="0,0,1,1">
-                                        <ItemsControl ItemsSource="{Binding Effects}" ItemTemplate="{StaticResource InsertTemplate}" Tag="{Binding}" />
+                                </StackPanel>
+                                <StackPanel DockPanel.Dock="Bottom">
+                                    <Border Height="15" Margin="4,4,4,0" Background="#0C0F12" CornerRadius="2">
+                                        <TextBlock Text="{Binding VolumeDisplay}" FontFamily="Consolas" FontSize="8.5" Foreground="#FF8A3D"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
                                     </Border>
+                                    <!-- The bus's name, on tape too: it can be written on. -->
+                                    <TextBox Height="18" Margin="3,4,3,0" Background="#DCEFE9" BorderThickness="0" Padding="0"
+                                             Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" FontFamily="Segoe Print" FontSize="9" Foreground="#0F4A42"
+                                             HorizontalContentAlignment="Center" VerticalContentAlignment="Center" ToolTip="The bus's name: click to write it" />
+                                    <ContentControl ContentTemplate="{StaticResource Screw}" Margin="0,4,0,3" Focusable="False" />
+                                </StackPanel>
+                                <Grid DockPanel.Dock="Bottom" Height="230" Margin="1,6,3,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="17" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="5" />
+                                    </Grid.ColumnDefinitions>
+                                    <local:FaderScale ThumbLength="26" />
+                                    <Slider Grid.Column="1" Style="{StaticResource ConsoleFader}" Value="{Binding MixVolume}"
+                                            ToolTip="Bus volume (double-click: 0 dB)" MouseDoubleClick="Fader_MouseDoubleClick" />
+                                </Grid>
+                                <StackPanel DockPanel.Dock="Bottom">
                                     <Button Style="{StaticResource ConsoleButton}" Content="FX" Margin="4,3,4,0" Tag="{Binding}" Click="Fx_Click"
                                             ToolTip="Open the bus's effect rack" />
                                     <TextBlock Style="{StaticResource Legend}" Text="RETURN" Margin="0,6,0,1" />
-                                    <Border Height="88" />
+                                    <Border Height="94" />
                                     <TextBlock Style="{StaticResource Legend}" Text="PAN" Margin="0,4,0,0" />
                                     <local:Knob Width="32" Height="32" Look="Console" IsCentred="True" Accent="#8C96A0" DefaultPosition="0.5"
                                                 Position="{Binding PanPosition}" ToolTip="Pan: drag up or down; double-click to centre" />
@@ -407,27 +431,9 @@
                                         </Button.Style>
                                     </Button>
                                 </StackPanel>
-                                <StackPanel DockPanel.Dock="Bottom">
-                                    <Border Height="15" Margin="4,4,4,0" Background="#0C0F12" CornerRadius="2">
-                                        <TextBlock Text="{Binding VolumeDisplay}" FontFamily="Consolas" FontSize="8.5" Foreground="#FF8A3D"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    <Border Margin="4,0,4,0" Background="#111417" CornerRadius="2" BorderBrush="#4E555D" BorderThickness="0,0,1,1">
+                                        <ItemsControl ItemsSource="{Binding Effects}" ItemTemplate="{StaticResource InsertTemplate}" Tag="{Binding}" />
                                     </Border>
-                                    <!-- The bus's name, on tape too: it can be written on. -->
-                                    <TextBox Height="18" Margin="3,4,3,0" Background="#DCEFE9" BorderThickness="0" Padding="0"
-                                             Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" FontFamily="Segoe Print" FontSize="9" Foreground="#0F4A42"
-                                             HorizontalContentAlignment="Center" VerticalContentAlignment="Center" ToolTip="The bus's name: click to write it" />
-                                    <ContentControl ContentTemplate="{StaticResource Screw}" Margin="0,4,0,3" Focusable="False" />
-                                </StackPanel>
-                                <Grid Margin="1,6,3,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="17" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="5" />
-                                    </Grid.ColumnDefinitions>
-                                    <local:FaderScale ThumbLength="26" />
-                                    <Slider Grid.Column="1" Style="{StaticResource ConsoleFader}" Value="{Binding MixVolume}"
-                                            ToolTip="Bus volume (double-click: 0 dB)" MouseDoubleClick="Fader_MouseDoubleClick" />
-                                </Grid>
                             </DockPanel>
                         </Border>
                     </DataTemplate>
