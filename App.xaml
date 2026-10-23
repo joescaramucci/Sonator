@@ -20,6 +20,95 @@
             </Viewbox>
         </DataTemplate>
 
+        <!-- ==== The 3D look, in the manner of hardware panels such as SSL's ====
+             Light falls from above: a raised control is lit at its top edge and shaded at its bottom, and casts a
+             short shadow on the panel; pressed or switched on, it sinks in. The control keeps its own colour
+             (Background) under the light, so a green lit button or a red record button stay what they are. -->
+        <LinearGradientBrush x:Key="Bevel.Sheen" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#40FFFFFF" Offset="0" />
+            <GradientStop Color="#12FFFFFF" Offset="0.45" />
+            <GradientStop Color="#00000000" Offset="0.55" />
+            <GradientStop Color="#47000000" Offset="1" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="Bevel.Pressed" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#66000000" Offset="0" />
+            <GradientStop Color="#1F000000" Offset="0.35" />
+            <GradientStop Color="#0DFFFFFF" Offset="1" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="Bevel.Lit" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#40000000" Offset="0" />
+            <GradientStop Color="#00000000" Offset="0.3" />
+            <GradientStop Color="#26FFFFFF" Offset="0.85" />
+            <GradientStop Color="#10FFFFFF" Offset="1" />
+        </LinearGradientBrush>
+        <SolidColorBrush x:Key="Bevel.Rim" Color="#73FFFFFF" />
+        <SolidColorBrush x:Key="Bevel.RimHot" Color="#C0FFFFFF" />
+        <SolidColorBrush x:Key="Bevel.Outline" Color="#0A0D11" />
+        <SolidColorBrush x:Key="Bevel.CastShadow" Color="#99000000" />
+
+        <!-- A raised push-button or switch. Its Background is its colour; Padding and the content alignments are
+             honoured. -->
+        <ControlTemplate x:Key="Raised3D" TargetType="ButtonBase">
+            <Grid x:Name="Root" SnapsToDevicePixels="True">
+                <Border x:Name="Shadow" CornerRadius="4" Background="{StaticResource Bevel.CastShadow}" Margin="0,1,0,-2" />
+                <Border x:Name="Body" CornerRadius="4" Background="{TemplateBinding Background}"
+                        BorderBrush="{StaticResource Bevel.Outline}" BorderThickness="1" />
+                <Border x:Name="Sheen" CornerRadius="3" Margin="1" Background="{StaticResource Bevel.Sheen}" />
+                <Border x:Name="Rim" CornerRadius="3" Margin="1" BorderThickness="0,1,0,0" BorderBrush="{StaticResource Bevel.Rim}" />
+                <ContentPresenter x:Name="Content"
+                                  Margin="{TemplateBinding Padding}"
+                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                  RecognizesAccessKey="True" />
+            </Grid>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Rim" Property="BorderBrush" Value="{StaticResource Bevel.RimHot}" />
+                </Trigger>
+                <Trigger Property="ToggleButton.IsChecked" Value="True">
+                    <Setter TargetName="Sheen" Property="Background" Value="{StaticResource Bevel.Lit}" />
+                    <Setter TargetName="Rim" Property="Visibility" Value="Hidden" />
+                    <Setter TargetName="Shadow" Property="Margin" Value="0,0,0,-1" />
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter TargetName="Sheen" Property="Background" Value="{StaticResource Bevel.Pressed}" />
+                    <Setter TargetName="Rim" Property="Visibility" Value="Hidden" />
+                    <Setter TargetName="Shadow" Property="Margin" Value="0" />
+                    <Setter TargetName="Content" Property="RenderTransform">
+                        <Setter.Value>
+                            <TranslateTransform Y="1" />
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter TargetName="Root" Property="Opacity" Value="0.45" />
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
+        <!-- A panel's face: lit at the top, a little darker at the bottom. -->
+        <LinearGradientBrush x:Key="Panel.Face" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#26303D" Offset="0" />
+            <GradientStop Color="#1C2530" Offset="1" />
+        </LinearGradientBrush>
+        <!-- A panel's title strip, like the engraved header of a hardware module. -->
+        <LinearGradientBrush x:Key="Panel.Header" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#46566A" Offset="0" />
+            <GradientStop Color="#2D3A4A" Offset="0.5" />
+            <GradientStop Color="#253141" Offset="1" />
+        </LinearGradientBrush>
+        <!-- The edge of something sunk into the panel: dark above, where the light cannot reach, light below. -->
+        <LinearGradientBrush x:Key="Inset.Edge" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#05080B" Offset="0" />
+            <GradientStop Color="#1A222C" Offset="0.5" />
+            <GradientStop Color="#5F738A" Offset="1" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="Inset.Face" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#0D131A" Offset="0" />
+            <GradientStop Color="#18212C" Offset="0.25" />
+            <GradientStop Color="#1C2633" Offset="1" />
+        </LinearGradientBrush>
+
         <!-- Dark rounded drop-downs, for the windows that have no drop-down style of their own. -->
         <Style x:Key="DarkComboBox" TargetType="ComboBox">
             <Setter Property="Background" Value="#263545" />
@@ -62,17 +151,11 @@
                                           IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
                                 <ToggleButton.Template>
                                     <ControlTemplate TargetType="ToggleButton">
-                                        <Border x:Name="Body"
-                                                Background="{TemplateBinding Background}"
-                                                BorderBrush="{TemplateBinding BorderBrush}"
-                                                BorderThickness="{TemplateBinding BorderThickness}"
-                                                CornerRadius="5">
-                                            <Path HorizontalAlignment="Right"
+                                        <Grid><Border CornerRadius="4" Background="{StaticResource Bevel.CastShadow}" Margin="0,1,0,-2" /><Border x:Name="Body" Background="{TemplateBinding Background}" BorderBrush="{StaticResource Bevel.Outline}" BorderThickness="1" CornerRadius="4" /><Border CornerRadius="3" Margin="1" Background="{StaticResource Bevel.Sheen}" /><Border CornerRadius="3" Margin="1" BorderThickness="0,1,0,0" BorderBrush="{StaticResource Bevel.Rim}" /><Path HorizontalAlignment="Right"
                                                   VerticalAlignment="Center"
                                                   Margin="0,0,6,0"
                                                   Data="M 0 0 L 4 4 L 8 0 Z"
-                                                  Fill="#C4CFDA" />
-                                        </Border>
+                                                  Fill="#C4CFDA" /></Grid>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
                                                 <Setter TargetName="Body" Property="Background" Value="#2F4A63" />

@@ -28,30 +28,17 @@
             <Setter Property="FontSize" Value="12" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ButtonBase">
-                        <Border x:Name="Body"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="5"
-                                Padding="7,0">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Body" Property="Background" Value="#354D69" />
-                                <Setter TargetName="Body" Property="BorderBrush" Value="#7EB2FF" />
-                            </Trigger>
-                            <Trigger Property="ToggleButton.IsChecked" Value="True">
-                                <Setter TargetName="Body" Property="Background" Value="#2D745D" />
-                                <Setter TargetName="Body" Property="BorderBrush" Value="#5FB87B" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
+            <Setter Property="Padding" Value="7,0" />
+            <Setter Property="Template" Value="{StaticResource Raised3D}" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#354D69" />
+                </Trigger>
+                <Trigger Property="ToggleButton.IsChecked" Value="True">
+                    <Setter Property="Background" Value="#2D9A6E" />
+                    <Setter Property="Foreground" Value="#0F1A14" />
+                </Trigger>
+            </Style.Triggers>
         </Style>
     </Window.Resources>
 
@@ -84,7 +71,7 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <!-- One effect of the rack: its switch, name and controls on top, its knobs below. -->
-                        <Border Margin="0,0,0,8" Padding="10,8" CornerRadius="7" Background="#212D3A" BorderBrush="#3A4D63" BorderThickness="1"
+                        <Border Margin="0,0,0,8" Padding="10,8" CornerRadius="6" Background="{StaticResource Panel.Face}" BorderBrush="{StaticResource Bevel.Outline}" BorderThickness="1"
                                 AllowDrop="True" DragOver="Module_DragOver" DragLeave="Module_DragLeave" Drop="Module_Drop">
                             <Border.Style>
                                 <Style TargetType="Border">
@@ -177,14 +164,15 @@
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Width="82" Margin="2" Padding="3,5" CornerRadius="6" Background="#1A2431" BorderBrush="#2E3F52" BorderThickness="1">
+                                            <Border Width="82" Margin="2" Padding="3,5" CornerRadius="5" Background="#141B24" BorderBrush="{StaticResource Inset.Edge}" BorderThickness="1">
                                                 <StackPanel>
                                                     <TextBlock Text="{Binding Name}" HorizontalAlignment="Center" FontSize="11" Foreground="#9FB4C9" />
                                                     <Grid Height="50" Margin="0,3">
                                                         <local:Knob Width="46" Height="46"
                                                                     Position="{Binding Position}"
                                                                     DefaultPosition="{Binding DefaultPosition}"
-                                                                    Accent="#5CAFD6"
+                                                                    Look="Console"
+                                                                    Accent="#3A7BD5"
                                                                     AutomationProperties.Name="{Binding Name}"
                                                                     ToolTip="Drag up or down (Shift for fine), mouse wheel, double-click for the default">
                                                             <local:Knob.Style>

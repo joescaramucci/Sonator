@@ -22,10 +22,13 @@ public sealed class VolumeBar : FrameworkElement
     public static readonly DependencyProperty DefaultValueProperty = DependencyProperty.Register(
         nameof(DefaultValue), typeof(double), typeof(VolumeBar), new PropertyMetadata(0.75));
 
-    private static readonly Brush TrackBrush = Frozen(0x12, 0x1A, 0x24);
-    private static readonly Brush FillBrush = Frozen(0x5C, 0xAF, 0xD6);
-    private static readonly Brush HoverFillBrush = Frozen(0x86, 0xC8, 0xE8);
-    private static readonly Pen OutlinePen = FrozenPen(0x3A, 0x4D, 0x63);
+    // A channel sunk into the panel (dark at its top, where the light does not reach) with a lit lower edge,
+    // and a glossy fill lit from above.
+    private static readonly Brush TrackBrush = Vertical(Color.FromRgb(0x03, 0x05, 0x08), Color.FromRgb(0x1A, 0x24, 0x30));
+    private static readonly Brush FillBrush = Vertical(Color.FromRgb(0x9C, 0xD9, 0xF5), Color.FromRgb(0x2F, 0x7F, 0xAD));
+    private static readonly Brush HoverFillBrush = Vertical(Color.FromRgb(0xC2, 0xE8, 0xFA), Color.FromRgb(0x4C, 0x9F, 0xCC));
+    private static readonly Pen OutlinePen = FrozenPen(0x05, 0x08, 0x0B);
+    private static readonly Pen LitEdgePen = FrozenPen(0x5F, 0x73, 0x8A);
     private static readonly Pen EdgePen = FrozenPen(0xE4, 0xEC, 0xF4);
 
     // Each notch of the mouse wheel moves the volume by this much.
@@ -99,6 +102,7 @@ public sealed class VolumeBar : FrameworkElement
 
         var radius = Math.Min(3, bounds.Height / 2);
         drawingContext.DrawRoundedRectangle(TrackBrush, OutlinePen, bounds, radius, radius);
+        drawingContext.DrawLine(LitEdgePen, new Point(bounds.Left + radius, bounds.Bottom + 0.5), new Point(bounds.Right - radius, bounds.Bottom + 0.5));
 
         var fill = IsMouseOver || IsMouseCaptured ? HoverFillBrush : FillBrush;
         var end = Position * bounds.Width;
@@ -221,6 +225,13 @@ public sealed class VolumeBar : FrameworkElement
         child.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         _bubble.HorizontalOffset = Position * ActualWidth - child.DesiredSize.Width / 2;
         _bubble.VerticalOffset = -child.DesiredSize.Height - 3;
+    }
+
+    private static Brush Vertical(Color top, Color bottom)
+    {
+        var brush = new LinearGradientBrush(top, bottom, 90);
+        brush.Freeze();
+        return brush;
     }
 
     private static Brush Frozen(byte r, byte g, byte b)

@@ -21,7 +21,12 @@
         <SolidColorBrush x:Key="Paper" Color="#1B2330" />
         <SolidColorBrush x:Key="PaperHigh" Color="#212D3A" />
         <SolidColorBrush x:Key="Ink" Color="#BCC9D8" />
-        <SolidColorBrush x:Key="Line" Color="#586E86" />
+        <!-- The edge of the boxes on the panels: they read as sunk in, dark where the light does not reach and lit below. -->
+        <LinearGradientBrush x:Key="Line" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#0A0E13" Offset="0" />
+            <GradientStop Color="#263242" Offset="0.5" />
+            <GradientStop Color="#566A80" Offset="1" />
+        </LinearGradientBrush>
         <SolidColorBrush x:Key="Shade" Color="#2B3949" />
         <SolidColorBrush x:Key="DarkShade" Color="#3A4F68" />
         <SolidColorBrush x:Key="Accent" Color="#7AA6D8" />
@@ -76,17 +81,21 @@
                                           IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
                                 <ToggleButton.Template>
                                     <ControlTemplate TargetType="ToggleButton">
-                                        <Border x:Name="Body"
-                                                Background="{TemplateBinding Background}"
-                                                BorderBrush="{TemplateBinding BorderBrush}"
-                                                BorderThickness="{TemplateBinding BorderThickness}"
-                                                CornerRadius="5">
+                                        <Grid>
+                                            <Border CornerRadius="4" Background="{StaticResource Bevel.CastShadow}" Margin="0,1,0,-2" />
+                                            <Border x:Name="Body"
+                                                    Background="{TemplateBinding Background}"
+                                                    BorderBrush="{StaticResource Bevel.Outline}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="4" />
+                                            <Border CornerRadius="3" Margin="1" Background="{StaticResource Bevel.Sheen}" />
+                                            <Border x:Name="Rim" CornerRadius="3" Margin="1" BorderThickness="0,1,0,0" BorderBrush="{StaticResource Bevel.Rim}" />
                                             <Path HorizontalAlignment="Right"
                                                   VerticalAlignment="Center"
                                                   Margin="0,0,6,0"
                                                   Data="M 0 0 L 4 4 L 8 0 Z"
                                                   Fill="#C4CFDA" />
-                                        </Border>
+                                        </Grid>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
                                                 <Setter TargetName="Body" Property="Background" Value="#2F4A63" />
@@ -130,6 +139,16 @@
             </Setter>
         </Style>
 
+        <!-- A bay of the top bar: a shallow recess in the panel that a control or a display sits in. -->
+        <Style x:Key="BarCell" TargetType="Border">
+            <Setter Property="Margin" Value="2" />
+            <Setter Property="Padding" Value="3" />
+            <Setter Property="CornerRadius" Value="5" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{StaticResource Inset.Edge}" />
+            <Setter Property="Background" Value="#161E28" />
+        </Style>
+
         <Style x:Key="MetronomeToggleStyle" TargetType="ToggleButton">
             <Setter Property="Background" Value="#2A3948" />
             <Setter Property="Foreground" Value="#C4CFDA" />
@@ -139,25 +158,13 @@
             <Setter Property="FontSize" Value="12" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ToggleButton">
-                        <Border x:Name="Body"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="5">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Body" Property="Background" Value="#49B88D" />
-                                <Setter Property="Foreground" Value="#0F1A14" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
+            <Setter Property="Template" Value="{StaticResource Raised3D}" />
+            <Style.Triggers>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="Background" Value="#49B88D" />
+                    <Setter Property="Foreground" Value="#0F1A14" />
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
         <!-- The recessed dark panel and glowing digits of the position clocks in the top bar. -->
@@ -215,26 +222,7 @@
             <Setter Property="FontFamily" Value="Consolas" />
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="5">
-                            <ContentPresenter Margin="{TemplateBinding Padding}"
-                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#354D69" />
-                    <Setter Property="BorderBrush" Value="#7EB2FF" />
-                </Trigger>
-            </Style.Triggers>
+            <Setter Property="Template" Value="{StaticResource Raised3D}" />
         </Style>
 
         <Style x:Key="TrackRecordArmButton" TargetType="ToggleButton">
@@ -245,19 +233,7 @@
             <Setter Property="FontFamily" Value="Consolas" />
             <Setter Property="FontWeight" Value="Bold" />
             <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ToggleButton">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="3">
-                            <ContentPresenter HorizontalAlignment="Center"
-                                              VerticalAlignment="Center" />
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
+            <Setter Property="Template" Value="{StaticResource Raised3D}" />
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="BorderBrush" Value="#8DA8C2" />
@@ -283,12 +259,19 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TextBox">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="5">
+                        <!-- Sunk into the panel: shadowed along its top, lit along its bottom edge. -->
+                        <Border x:Name="Edge" Background="{StaticResource Inset.Face}" BorderBrush="{StaticResource Inset.Edge}"
+                                BorderThickness="1" CornerRadius="4">
                             <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
                         </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Edge" Property="BorderBrush" Value="#7EB2FF" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Edge" Property="BorderBrush" Value="#7EB2FF" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -315,24 +298,31 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="GroupBox">
-                        <Border BorderBrush="{TemplateBinding BorderBrush}"
+                        <!-- A hardware module: a dark outline, a lit inner edge, an engraved title strip. -->
+                        <Border BorderBrush="{StaticResource Bevel.Outline}"
                                 BorderThickness="1"
-                                Background="{TemplateBinding Background}"
-                                CornerRadius="8">
-                            <Grid Background="{Binding SourceTrack.TrackColorBrush}">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="*" />
-                                </Grid.RowDefinitions>
-                                <Border Background="#2C3B4D"
-                                        BorderBrush="#5A728D"
-                                        BorderThickness="0,0,0,1"
-                                        Padding="7,3"
-                                        CornerRadius="7,7,0,0">
-                                    <ContentPresenter ContentSource="Header" RecognizesAccessKey="True" />
-                                </Border>
-                                <ContentPresenter Grid.Row="1" Margin="{TemplateBinding Padding}" />
-                            </Grid>
+                                Background="{StaticResource Panel.Face}"
+                                CornerRadius="6">
+                            <Border BorderBrush="#2EFFFFFF" BorderThickness="1,1,0,0" CornerRadius="5">
+                                <Grid Background="{Binding SourceTrack.TrackColorBrush}">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <Border Background="{StaticResource Panel.Header}"
+                                            BorderBrush="#05080B"
+                                            BorderThickness="0,0,0,1"
+                                            Padding="7,3"
+                                            CornerRadius="5,5,0,0">
+                                        <ContentPresenter ContentSource="Header" RecognizesAccessKey="True">
+                                            <ContentPresenter.Effect>
+                                                <DropShadowEffect Color="Black" BlurRadius="0" ShadowDepth="1" Direction="270" Opacity="0.8" />
+                                            </ContentPresenter.Effect>
+                                        </ContentPresenter>
+                                    </Border>
+                                    <ContentPresenter Grid.Row="1" Margin="{TemplateBinding Padding}" />
+                                </Grid>
+                            </Border>
                         </Border>
                     </ControlTemplate>
                 </Setter.Value>
@@ -687,7 +677,7 @@
             </Grid>
         </Border>
 
-        <Border Grid.Row="1" Background="#2A3748" BorderBrush="#4C657F" BorderThickness="0,0,0,1" Padding="3">
+        <Border Grid.Row="1" Background="{StaticResource Panel.Header}" BorderBrush="#05080B" BorderThickness="0,0,0,1" Padding="3">
             <!-- The top bar's boxes share its width; the one with MIXER, WAVE, ARRANGE and SOUNDS gets more, to fit its four buttons. -->
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -701,7 +691,7 @@
                     <ColumnDefinition Width="1.45*" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <Border Grid.Column="0" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
+                <Border Grid.Column="0" Style="{StaticResource BarCell}">
                     <Button Command="{Binding ToggleLoopCommand}"
                             AutomationProperties.Name="{Binding LoopModeText, StringFormat=LOOP {0}}"
                             Padding="2,0">
@@ -723,7 +713,7 @@
                         </StackPanel>
                     </Button>
                 </Border>
-                <Border Grid.Column="1" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
+                <Border Grid.Column="1" Style="{StaticResource BarCell}">
                     <Button Command="{Binding ToggleArrangeModeCommand}"
                             AutomationProperties.Name="{Binding ArrangeModeText, StringFormat=ARRANGE {0}}"
                             Padding="2,0">
@@ -745,17 +735,17 @@
                         </StackPanel>
                     </Button>
                 </Border>
-                <Border Grid.Column="2" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2" Cursor="Hand"
+                <Border Grid.Column="2" Style="{StaticResource BarCell}" Cursor="Hand"
                         ToolTipService.InitialShowDelay="0"
                         ToolTipService.ShowDuration="30000"
                         ToolTip="TEMPO: double-click to type a value (1 to 999 BPM). Mouse wheel: 1 BPM per step, Shift for 0.1. Enter or click away applies it.">
-                    <Border BorderBrush="#586E86" BorderThickness="1" CornerRadius="5" Padding="2" Cursor="Hand">
+                    <Border BorderBrush="{StaticResource Inset.Edge}" BorderThickness="1" CornerRadius="4" Padding="2" Cursor="Hand">
                         <Border.Style>
                             <Style TargetType="Border">
-                                <Setter Property="Background" Value="#263545" />
+                                <Setter Property="Background" Value="{StaticResource Inset.Face}" />
                                 <Style.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Background" Value="#2F4A63" />
+                                        <Setter Property="Background" Value="#22344A" />
                                     </Trigger>
                                 </Style.Triggers>
                             </Style>
@@ -766,7 +756,7 @@
                         </StackPanel>
                     </Border>
                 </Border>
-                <Border Grid.Column="3" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
+                <Border Grid.Column="3" Style="{StaticResource BarCell}">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                             <ToggleButton Content="ON" Width="40" Height="22" Margin="1" Style="{StaticResource MetronomeToggleStyle}"
@@ -814,7 +804,7 @@
                         <TextBlock Text="METRONOME" FontSize="11" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                     </StackPanel>
                 </Border>
-                <Border Grid.Column="4" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2" Cursor="Hand"
+                <Border Grid.Column="4" Style="{StaticResource BarCell}" Cursor="Hand"
                         ToolTipService.InitialShowDelay="0"
                         ToolTipService.ShowDuration="30000"
                         ToolTip="SIGNATURE: click to choose the time signature. Mouse wheel: beats per bar.">
@@ -824,10 +814,10 @@
                             MouseWheel="TimeSignature_MouseWheel">
                         <Border.Style>
                             <Style TargetType="Border">
-                                <Setter Property="Background" Value="#263545" />
+                                <Setter Property="Background" Value="{StaticResource Inset.Face}" />
                                 <Style.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Background" Value="#2F4A63" />
+                                        <Setter Property="Background" Value="#22344A" />
                                     </Trigger>
                                 </Style.Triggers>
                             </Style>
@@ -839,7 +829,7 @@
                     </Border>
                 </Border>
                 <!-- The song position as a large LED clock: hours, minutes and seconds. -->
-                <Border Grid.Column="5" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
+                <Border Grid.Column="5" Style="{StaticResource BarCell}">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                         <Border Style="{StaticResource ClockPanel}">
                             <local:SevenSegmentDisplay Text="{Binding TransportPosition}" Style="{StaticResource ClockDigits}"
@@ -849,7 +839,7 @@
                     </StackPanel>
                 </Border>
                 <!-- The same position as bar and beat, counted from 1. -->
-                <Border Grid.Column="6" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
+                <Border Grid.Column="6" Style="{StaticResource BarCell}">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                         <Border Style="{StaticResource ClockPanel}">
                             <local:SevenSegmentDisplay Text="{Binding CurrentStepBar}" Style="{StaticResource ClockDigits}"
@@ -858,7 +848,7 @@
                         <TextBlock Text="BAR . BEAT" FontSize="11" Margin="0,2,0,0" HorizontalAlignment="Center" FontFamily="Consolas" Foreground="#C4CFDA" />
                     </StackPanel>
                 </Border>
-                <Border Grid.Column="7" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="2" Padding="2">
+                <Border Grid.Column="7" Style="{StaticResource BarCell}">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
                         <Button Content="MIXER" Style="{StaticResource BottomTabButton}" Width="58" Margin="2,0"
                                 Click="ShowMixerButton_Click" AutomationProperties.Name="Open mixer" />
@@ -1774,6 +1764,7 @@
                                             </Border.Style>
                                             <Grid>
                                                 <Border CornerRadius="2" Background="{Binding SourceTrack.TrackColorBrush}" />
+                                                <Border CornerRadius="2" Background="{StaticResource Bevel.Sheen}" IsHitTestVisible="False" />
                                                 <Border HorizontalAlignment="Left"
                                                         Width="10"
                                                         Background="Transparent"
@@ -1904,7 +1895,7 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Border Height="64"
-                                        BorderBrush="{StaticResource Line}"
+                                        BorderBrush="{StaticResource Bevel.Outline}"
                                         BorderThickness="0.5"
                                         Background="{Binding SourceTrack.TrackColorBrush}"
                                         Padding="3">
@@ -1972,6 +1963,8 @@
                                             <RowDefinition Height="31" />
                                             <RowDefinition Height="23" />
                                         </Grid.RowDefinitions>
+                                        <!-- Lit from above, as a raised strip. -->
+                                        <Rectangle Grid.RowSpan="2" Grid.ColumnSpan="3" Margin="-3" Fill="{StaticResource Bevel.Sheen}" IsHitTestVisible="False" />
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Top">
                                             <Button Content="M"
                                                     Width="22"

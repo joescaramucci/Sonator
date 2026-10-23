@@ -116,6 +116,27 @@ public sealed class Knob : FrameworkElement
     private static readonly Pen KnobEdgePen = FrozenPen(0x08, 0x09, 0x0A, 1);
     private static readonly Pen ConsolePointerPen = FrozenPen(0xF4, 0xF4, 0xF0, 1.6);
     private static readonly Brush KnurledBody = FrozenRadial(Color.FromRgb(0x5A, 0x60, 0x66), Color.FromRgb(0x14, 0x16, 0x19));
+    private static readonly Brush KnobShadow = FrozenSolid(Color.FromArgb(0x90, 0, 0, 0));
+    private static readonly Brush ChromeSkirt = FrozenLinear(
+        (Color.FromRgb(0xF2, 0xF4, 0xF6), 0), (Color.FromRgb(0x9C, 0xA4, 0xAD), 0.45), (Color.FromRgb(0x4E, 0x55, 0x5D), 0.75), (Color.FromRgb(0x8A, 0x92, 0x9B), 1));
+
+    private static Brush FrozenSolid(Color color)
+    {
+        var brush = new SolidColorBrush(color);
+        brush.Freeze();
+        return brush;
+    }
+
+    private static Brush FrozenLinear(params (Color Color, double Offset)[] stops)
+    {
+        var brush = new LinearGradientBrush { StartPoint = new Point(0.3, 0), EndPoint = new Point(0.7, 1) };
+        foreach (var (color, offset) in stops)
+        {
+            brush.GradientStops.Add(new GradientStop(color, offset));
+        }
+        brush.Freeze();
+        return brush;
+    }
 
     // A console knob: the scale's dots printed around it, a dark knurled body, the Accent as its cap, lit
     // from the top left, and a white line showing where it points.
@@ -130,7 +151,11 @@ public sealed class Knob : FrameworkElement
             drawingContext.DrawEllipse(ScaleDotBrush, null, dot, big ? 1.3 : 0.8, big ? 1.3 : 0.8);
         }
 
-        var bodyRadius = radius - 4;
+        // Its shadow on the panel, then a chrome skirt lit from above, then the knurled body on it.
+        var skirtRadius = radius - 4;
+        drawingContext.DrawEllipse(KnobShadow, null, new Point(center.X, center.Y + 1.5), skirtRadius + 0.5, skirtRadius + 0.5);
+        drawingContext.DrawEllipse(ChromeSkirt, KnobEdgePen, center, skirtRadius, skirtRadius);
+        var bodyRadius = skirtRadius * 0.84;
         drawingContext.DrawEllipse(KnurledBody, KnobEdgePen, center, bodyRadius, bodyRadius);
         var capColor = Accent is SolidColorBrush solid ? solid.Color : Colors.SteelBlue;
         var cap = new RadialGradientBrush(Lighten(capColor, 0.45), capColor)
@@ -145,7 +170,7 @@ public sealed class Knob : FrameworkElement
         drawingContext.DrawEllipse(cap, KnobEdgePen, center, capRadius, capRadius);
 
         var angleNow = (StartAngle + Sweep * Math.Clamp(Position, 0, 1)) * Math.PI / 180;
-        var tip = new Point(center.X + Math.Cos(angleNow) * (bodyRadius - 1), center.Y + Math.Sin(angleNow) * (bodyRadius - 1));
+        var tip = new Point(center.X + Math.Cos(angleNow) * (skirtRadius - 1), center.Y + Math.Sin(angleNow) * (skirtRadius - 1));
         var inner = new Point(center.X + Math.Cos(angleNow) * capRadius * 0.2, center.Y + Math.Sin(angleNow) * capRadius * 0.2);
         drawingContext.DrawLine(ConsolePointerPen, inner, tip);
     }

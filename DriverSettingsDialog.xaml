@@ -24,6 +24,9 @@
             <Setter Property="Foreground" Value="#C4CFDA" />
             <Setter Property="BorderBrush" Value="#607A96" />
             <Setter Property="FontFamily" Value="Consolas" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template" Value="{StaticResource Raised3D}" />
             <Setter Property="Padding" Value="12,4" />
             <Setter Property="Margin" Value="0,0,8,0" />
         </Style>
