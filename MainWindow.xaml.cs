@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Windows;
 using System.Globalization;
 using System.Windows.Controls;
@@ -38,7 +38,6 @@ public partial class MainWindow : Window
     private Point _timelinePanStart;
     private double _timelinePanStartOffset;
     private double _timelineRulerDragStartX;
-    private double _timelineRulerDragStartOffset;
     private Point? _arrangePatternDragStart;
     private SongArrangeRowViewModel? _draggedArrangePattern;
 
