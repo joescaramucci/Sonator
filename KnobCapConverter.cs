@@ -4,10 +4,11 @@ using System.Windows.Media;
 
 namespace Sonator;
 
-// The cap colour of the n-th knob of an effect, in turn as on SSL's panels: green, white, blue, red, black.
+// The cap colour of the n-th knob of an effect, in turn as on SSL's panels: green, white, blue, red, black,
+// measured on SSL's Vocalstrip.
 public sealed class KnobCapConverter : IValueConverter
 {
-    private static readonly Brush[] Caps = new[] { "#1E8A5A", "#E8E8E6", "#2456B0", "#B4262A", "#2C2E30" }
+    private static readonly Brush[] Caps = new[] { "#0A5E42", "#E2E2E0", "#1D4A80", "#9C1C22", "#383838" }
         .Select(colour =>
         {
             var brush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(colour));

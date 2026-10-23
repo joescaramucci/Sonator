@@ -161,14 +161,14 @@ public sealed class Knob : FrameworkElement
             var angle = (StartAngle + Sweep * i / 10) * Math.PI / 180;
             var dot = new Point(center.X + Math.Cos(angle) * dotRadius, center.Y + Math.Sin(angle) * dotRadius);
             var big = i == 0 || i == 10 || (IsCentred && i == 5);
-            drawingContext.DrawEllipse(ScaleBrush, null, dot, big ? 1.4 : 0.9, big ? 1.4 : 0.9);
+            drawingContext.DrawEllipse(ScaleBrush, null, dot, radius * (big ? 0.06 : 0.045), radius * (big ? 0.06 : 0.045));
         }
 
-        var topCentre = new Point(center.X, center.Y - radius * 0.36); // measured on SSL's knobs, as a share of the dots' ring
-        var topRadius = radius * 0.46;
-        var baseCentre = new Point(center.X, center.Y + radius * 0.38);
+        var topCentre = new Point(center.X, center.Y - radius * 0.24); // measured on SSL's knobs, as a share of the dots' ring
+        var topRadius = radius * 0.52;
+        var baseCentre = new Point(center.X, center.Y + radius * 0.27);
         var baseRadiusX = radius * 0.6;
-        var baseRadiusY = radius * 0.24;
+        var baseRadiusY = radius * 0.3;
 
         // The cone's outline: the top circle and the base ellipse joined along their sides.
         var top = new EllipseGeometry(topCentre, topRadius, topRadius);
@@ -185,7 +185,7 @@ public sealed class Knob : FrameworkElement
         body.Freeze();
 
         // Its shadow on the panel, to the right and below, where the light from the top left does not reach.
-        drawingContext.DrawEllipse(ConeShadow, null, new Point(baseCentre.X + radius * 0.14, baseCentre.Y + radius * 0.08), baseRadiusX * 1.25, baseRadiusY * 1.8);
+        drawingContext.DrawEllipse(ConeShadow, null, new Point(baseCentre.X + radius * 0.1, baseCentre.Y + radius * 0.16), baseRadiusX * 1.18, baseRadiusY * 1.6);
 
         drawingContext.DrawGeometry(ConeSide, null, body);
         drawingContext.DrawGeometry(ConeShade, null, body);
@@ -199,8 +199,7 @@ public sealed class Knob : FrameworkElement
             var from = new Point(topCentre.X + f * topRadius, topCentre.Y + depth * topRadius);
             var to = new Point(baseCentre.X + f * baseRadiusX, baseCentre.Y + depth * baseRadiusY);
             drawingContext.DrawLine(GroovePen, from, to);
-            drawingContext.DrawLine(GrooveLightPen, from + new Vector(0.9, 0), to + new Vector(0.9, 0));
-        }
+       }
         drawingContext.Pop();
         drawingContext.DrawGeometry(null, ConeEdgePen, body);
 
@@ -218,7 +217,7 @@ public sealed class Knob : FrameworkElement
         cap.GradientStops.Add(new GradientStop(capColour, 0.7));
         cap.GradientStops.Add(new GradientStop(Darken(capColour, 0.18), 1));
         cap.Freeze();
-        var capRadius = topRadius * 0.9;
+        var capRadius = topRadius * 0.95;
         drawingContext.DrawEllipse(cap, null, topCentre, capRadius, capRadius);
 
         // The pointer: dark on a light cap, white on a coloured or dark one; down the side as well when it
@@ -244,11 +243,11 @@ public sealed class Knob : FrameworkElement
     }
 
     private static readonly Brush ConeSide = FrozenLinearHorizontal(
-        (Color.FromRgb(0xF2, 0xF2, 0xF1), 0), (Color.FromRgb(0xE2, 0xE2, 0xE1), 0.35), (Color.FromRgb(0xC9, 0xC9, 0xC8), 0.7), (Color.FromRgb(0x9C, 0x9C, 0x9B), 1));
+        (Color.FromRgb(0xD8, 0xD8, 0xD8), 0), (Color.FromRgb(0xC6, 0xC6, 0xC6), 0.22), (Color.FromRgb(0xA2, 0xA2, 0xA2), 0.5), (Color.FromRgb(0x74, 0x74, 0x74), 0.82), (Color.FromRgb(0x86, 0x86, 0x86), 1));
     private static readonly Brush ConeShade = FrozenLinearVertical(
-        (Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF), 0.25), (Color.FromArgb(0x00, 0, 0, 0), 0.5), (Color.FromArgb(0x22, 0, 0, 0), 0.8), (Color.FromArgb(0x55, 0, 0, 0), 1));
-    private static readonly Brush CapLip = FrozenSolid(Color.FromRgb(0xE4, 0xE4, 0xE3));
-    private static readonly Pen GroovePen = FrozenColourPen(Color.FromArgb(0x55, 0x55, 0x55, 0x55), 0.7);
+        (Color.FromArgb(0x00, 0, 0, 0), 0.4), (Color.FromArgb(0x30, 0, 0, 0), 0.75), (Color.FromArgb(0x70, 0, 0, 0), 1));
+    private static readonly Brush CapLip = FrozenSolid(Color.FromRgb(0xC8, 0xC8, 0xC8));
+    private static readonly Pen GroovePen = FrozenColourPen(Color.FromArgb(0x40, 0x30, 0x30, 0x30), 0.8);
     private static readonly Pen GrooveLightPen = FrozenColourPen(Color.FromArgb(0x70, 0xFF, 0xFF, 0xFF), 0.6);
 
     private static Pen FrozenColourPen(Color colour, double thickness)
@@ -270,7 +269,7 @@ public sealed class Knob : FrameworkElement
     private static Brush FrozenShadow()
     {
         var brush = new RadialGradientBrush();
-        brush.GradientStops.Add(new GradientStop(Color.FromArgb(0x99, 0, 0, 0), 0.55));
+        brush.GradientStops.Add(new GradientStop(Color.FromArgb(0xB0, 0, 0, 0), 0.5));
         brush.GradientStops.Add(new GradientStop(Color.FromArgb(0x00, 0, 0, 0), 1));
         brush.Freeze();
         return brush;
