@@ -1,6 +1,7 @@
 <Window x:Class="Sonator.SoundBrowserWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Sonator"
         Title="Sounds"
         Width="1100"
         Height="680"
@@ -68,6 +69,39 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- Rows of the sound list: the sounds coming up (under the mouse's, or the selected one) are lit, and
+             a green dot marks those ready to be heard at once. -->
+        <Style x:Key="SoundRow" TargetType="ListBoxItem" BasedOn="{StaticResource DarkRow}">
+            <EventSetter Event="MouseEnter" Handler="SoundRow_MouseEnter" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Row" Background="Transparent" BorderBrush="Transparent" BorderThickness="2,0,0,0" Padding="{TemplateBinding Padding}" CornerRadius="3">
+                            <DockPanel>
+                                <Ellipse x:Name="ReadyDot" DockPanel.Dock="Left" Width="6" Height="6" Margin="0,0,6,0" Fill="#49B88D" Visibility="Hidden"
+                                         ToolTip="Ready: heard at once" />
+                                <ContentPresenter />
+                            </DockPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="local:SoundBrowserWindow.IsComingUp" Value="True">
+                                <Setter TargetName="Row" Property="Background" Value="#1E3040" />
+                                <Setter TargetName="Row" Property="BorderBrush" Value="#E6C45B" />
+                            </Trigger>
+                            <Trigger Property="local:SoundBrowserWindow.IsReady" Value="True">
+                                <Setter TargetName="ReadyDot" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Row" Property="Background" Value="#263445" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Row" Property="Background" Value="#2F5A7A" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <DockPanel Margin="14,12">
@@ -111,9 +145,9 @@
                     ToolTip="Load the sound on the selected track (or double-click it, or press Enter)" />
             <Button x:Name="PreviewButton" DockPanel.Dock="Right" Content="▶ PREVIEW" Width="110" Margin="0,0,8,0" IsEnabled="False" Click="PreviewButton_Click"
                     ToolTip="Hear the sound before loading it: a short phrase, or the start of a groove (Space in the list)" />
-            <ToggleButton x:Name="AutoPreviewToggle" DockPanel.Dock="Right" Content="AUTO" Width="60" Height="28" Margin="0,0,8,0"
+            <ToggleButton x:Name="AutoPreviewToggle" DockPanel.Dock="Right" Content="AUTO" IsChecked="True" Width="60" Height="28" Margin="0,0,8,0"
                           FontFamily="Consolas" FontWeight="SemiBold" Cursor="Hand"
-                          ToolTip="Preview each sound as it is selected, with the arrows or a click">
+                          ToolTip="Hear each sound as it is selected, with the arrows or a click. The sounds coming up are got ready ahead, lit in the list">
                 <ToggleButton.Template>
                     <ControlTemplate TargetType="ToggleButton">
                         <Border x:Name="Body" Background="#2A3948" BorderBrush="#5C7A99" BorderThickness="1" CornerRadius="5">
@@ -176,7 +210,8 @@
                     <ListBox x:Name="SoundList"
                              Background="Transparent"
                              BorderThickness="0"
-                             ItemContainerStyle="{StaticResource DarkRow}"
+                             ItemContainerStyle="{StaticResource SoundRow}"
+                             ScrollViewer.ScrollChanged="SoundList_ScrollChanged"
                              VirtualizingPanel.IsVirtualizing="True"
                              VirtualizingPanel.VirtualizationMode="Recycling"
                              ScrollViewer.CanContentScroll="True"

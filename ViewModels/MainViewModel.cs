@@ -1875,6 +1875,22 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         return error is null;
     }
 
+    // The sounds the browser wants ready to be heard at once: the one tried and the next ones in its list.
+    public void WantSoundsReady(IReadOnlyList<Services.Sounds.SoundEntry> sounds)
+    {
+        _previewer ??= new SoundPreviewer(_liveInstrumentHost);
+        _previewer.Want(sounds);
+    }
+
+    // Gets one sound ready for a preview, in an instance of its own. True when it is ready.
+    public bool PrepareSound(Services.Sounds.SoundEntry sound)
+    {
+        _previewer ??= new SoundPreviewer(_liveInstrumentHost);
+        return _previewer.Prepare(sound) is null;
+    }
+
+    public bool IsSoundReady(Services.Sounds.SoundEntry sound) => _previewer?.IsReady(sound) == true;
+
     // Stops the preview playing; with unload, its plug-in instance goes too, as when the browser closes.
     public void StopSoundPreview(bool unload = false)
     {

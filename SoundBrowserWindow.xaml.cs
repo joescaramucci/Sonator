@@ -42,6 +42,14 @@ public partial class SoundBrowserWindow : Window
             _autoPreviewDelay.Stop();
             PreviewSelected();
         };
+        _hoverDelay.Tick += (_, _) =>
+        {
+            _hoverDelay.Stop();
+            if (_hovered is { } hovered)
+            {
+                ComeUpFrom(hovered);
+            }
+        };
         Loaded += async (_, _) =>
         {
             SearchBox.Focus();
@@ -149,9 +157,17 @@ public partial class SoundBrowserWindow : Window
     {
         LoadButton.IsEnabled = PreviewButton.IsEnabled = SoundList.SelectedItem is SoundEntry;
         _autoPreviewDelay.Stop();
-        if (AutoPreviewToggle.IsChecked == true && SoundList.SelectedItem is SoundEntry)
+        if (SoundList.SelectedItem is SoundEntry selected)
         {
-            _autoPreviewDelay.Start();
+            // The sounds after the selected one get ready as it is played, so the arrows go on at once.
+            if (AutoPreviewToggle.IsChecked == true)
+            {
+                // A ready sound is heard at once; one not ready yet waits for the selection to rest a moment.
+                _autoPreviewDelay.Interval = TimeSpan.FromMilliseconds(_viewModel.IsSoundReady(selected) ? 60 : 350);
+                _autoPreviewDelay.Start();
+            }
+
+            ComeUpFrom(selected);
         }
     }
 
@@ -173,6 +189,127 @@ public partial class SoundBrowserWindow : Window
 
     private void PreviewButton_Click(object sender, RoutedEventArgs e) => PreviewSelected();
 
+    // ---- Sounds got ready ahead ----
+
+    // How many sounds after the one under the mouse, or the selected one, are got ready.
+    private const int SoundsAhead = 3;
+
+    public static readonly DependencyProperty IsComingUpProperty =
+        DependencyProperty.RegisterAttached("IsComingUp", typeof(bool), typeof(SoundBrowserWindow), new PropertyMetadata(false));
+
+    public static readonly DependencyProperty IsReadyProperty =
+        DependencyProperty.RegisterAttached("IsReady", typeof(bool), typeof(SoundBrowserWindow), new PropertyMetadata(false));
+
+    public static bool GetIsComingUp(DependencyObject element) => (bool)element.GetValue(IsComingUpProperty);
+
+    public static void SetIsComingUp(DependencyObject element, bool value) => element.SetValue(IsComingUpProperty, value);
+
+    public static bool GetIsReady(DependencyObject element) => (bool)element.GetValue(IsReadyProperty);
+
+    public static void SetIsReady(DependencyObject element, bool value) => element.SetValue(IsReadyProperty, value);
+
+    // The sound the mouse or the selection rests on, then the ones after it, lit in the list and got ready one
+    // at a time while the window is idle, so the plug-ins starting do not hold up the mouse or the arrows.
+    private List<SoundEntry> _comingUp = new();
+    private readonly DispatcherTimer _hoverDelay = new() { Interval = TimeSpan.FromMilliseconds(250) };
+    private SoundEntry? _hovered;
+    private bool _preparing;
+
+    private void SoundRow_MouseEnter(object sender, MouseEventArgs e)
+    {
+        if (sender is ListBoxItem { DataContext: SoundEntry sound })
+        {
+            _hovered = sound;
+            _hoverDelay.Stop();
+            _hoverDelay.Start();
+        }
+    }
+
+    private void SoundList_ScrollChanged(object sender, ScrollChangedEventArgs e) => MarkRows();
+
+    // The sounds from this one on are the ones to get ready.
+    private void ComeUpFrom(SoundEntry sound)
+    {
+        if (SoundList.ItemsSource is not List<SoundEntry> list)
+        {
+            return;
+        }
+
+        var index = list.IndexOf(sound);
+        if (index < 0)
+        {
+            return;
+        }
+
+        _comingUp = list.Skip(index).Take(SoundsAhead + 1).ToList();
+        // The selected sound stays wanted, so moving the mouse elsewhere does not take its instance away.
+        var wanted = SoundList.SelectedItem is SoundEntry selected && !_comingUp.Contains(selected)
+            ? _comingUp.Prepend(selected).ToList()
+            : _comingUp;
+        _viewModel.WantSoundsReady(wanted);
+        MarkRows();
+        PrepareNext();
+    }
+
+    // Gets the next sound coming up ready, then the next, each when the window has nothing else to do.
+    private void PrepareNext()
+    {
+        if (_preparing || _comingUp.FirstOrDefault(sound => !_viewModel.IsSoundReady(sound)) is not { } next)
+        {
+            return;
+        }
+
+        _preparing = true;
+        Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () =>
+        {
+            try
+            {
+                if (_comingUp.Contains(next) && !_viewModel.IsSoundReady(next))
+                {
+                    _viewModel.PrepareSound(next);
+                }
+            }
+            finally
+            {
+                _preparing = false;
+            }
+
+            MarkRows();
+            PrepareNext();
+        });
+    }
+
+    // Lights the rows coming up and dots the ready ones, on the rows the list has made.
+    private void MarkRows()
+    {
+        foreach (var row in Rows(SoundList))
+        {
+            if (row.DataContext is SoundEntry sound)
+            {
+                SetIsComingUp(row, _comingUp.Contains(sound) && !ReferenceEquals(sound, SoundList.SelectedItem));
+                SetIsReady(row, _viewModel.IsSoundReady(sound));
+            }
+        }
+    }
+
+    private static IEnumerable<ListBoxItem> Rows(DependencyObject parent)
+    {
+        for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+            if (child is ListBoxItem row)
+            {
+                yield return row;
+                continue;
+            }
+
+            foreach (var inner in Rows(child))
+            {
+                yield return inner;
+            }
+        }
+    }
+
     private void PreviewSelected()
     {
         if (SoundList.SelectedItem is not SoundEntry sound)
@@ -180,7 +317,8 @@ public partial class SoundBrowserWindow : Window
             return;
         }
 
-        Mouse.OverrideCursor = Cursors.Wait; // a plug-in not running yet takes a moment to start
+        var ready = _viewModel.IsSoundReady(sound);
+        Mouse.OverrideCursor = ready ? null : Cursors.Wait; // a plug-in not running yet takes a moment to start
         try
         {
             _viewModel.PreviewSound(sound);
@@ -191,6 +329,7 @@ public partial class SoundBrowserWindow : Window
         }
 
         StatusText.Text = _viewModel.StatusMessage;
+        MarkRows();
     }
 
     private void LoadButton_Click(object sender, RoutedEventArgs e) => LoadSelected();
