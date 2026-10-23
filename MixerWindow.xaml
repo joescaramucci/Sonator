@@ -212,9 +212,16 @@
                     <local:VuMeter Label="L" Height="50" Margin="3,0" Peak="{Binding MasterPeakLeft}" ToolTip="Left: 0 VU is -18 dBFS" />
                     <local:VuMeter Label="R" Height="50" Margin="3,3,3,0" Peak="{Binding MasterPeakRight}" ToolTip="Right: 0 VU is -18 dBFS" />
                 </StackPanel>
+                <!-- The inserts stop at ten effects' worth, as on the other strips; the panel shows below them. -->
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" MinHeight="40" MaxHeight="184" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
                     <Border Margin="4,0,4,0" Background="#151618" CornerRadius="2" BorderBrush="#595959" BorderThickness="0,0,1,1">
                         <ItemsControl ItemsSource="{Binding MasterTrack.Effects}" ItemTemplate="{StaticResource InsertTemplate}" Tag="{Binding MasterTrack}" />
                     </Border>
+                </Grid>
             </DockPanel>
         </Border>
 
@@ -271,32 +278,6 @@
                                     <local:LedMeter Grid.Column="2" Segments="30" RedSegments="5" Margin="0,13" Level="{Binding SignalLevel}" ToolTip="Track level" />
                                 </Grid>
                                 <StackPanel DockPanel.Dock="Bottom">
-                                    <Button Style="{StaticResource ConsoleButton}" Content="FX" Margin="4,3,4,0" Tag="{Binding}" Click="Fx_Click"
-                                            ToolTip="Open the track's effect rack, to add Sonator's or VST effects" />
-                                    <TextBlock Style="{StaticResource Legend}" Text="SEND" Margin="0,6,0,1" />
-                                    <Grid Height="94">
-                                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                            <ItemsControl ItemTemplate="{StaticResource SendTemplate}">
-                                                <ItemsControl.ItemsSource>
-                                                    <MultiBinding Converter="{StaticResource SendControls}">
-                                                        <Binding />
-                                                        <Binding Path="DataContext.Buses" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        <Binding Path="DataContext.BusesVersion" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                    </MultiBinding>
-                                                </ItemsControl.ItemsSource>
-                                            </ItemsControl>
-                                        </ScrollViewer>
-                                        <TextBlock Style="{StaticResource Legend}" FontWeight="Normal" FontSize="7" TextAlignment="Center" TextWrapping="Wrap"
-                                                   Margin="4,10,4,0" VerticalAlignment="Top" IsHitTestVisible="False" Text="no buses: + BUS adds one">
-                                            <TextBlock.Visibility>
-                                                <Binding Path="DataContext.Buses.Count" RelativeSource="{RelativeSource AncestorType=Window}">
-                                                    <Binding.Converter>
-                                                        <local:ZeroToVisibleConverter />
-                                                    </Binding.Converter>
-                                                </Binding>
-                                            </TextBlock.Visibility>
-                                        </TextBlock>
-                                    </Grid>
                                     <TextBlock Style="{StaticResource Legend}" Text="PAN" Margin="0,4,0,0" />
                                     <local:Knob Width="36" Height="36" Look="Console" IsCentred="True" Accent="#98999B" DefaultPosition="0.5"
                                                 Position="{Binding PanPosition}">
@@ -343,9 +324,45 @@
                                         </Button>
                                     </Grid>
                                 </StackPanel>
+                                <!-- The inserts grow up to ten effects' worth, the sends take the rest, so every bus has its knob. -->
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*" MinHeight="40" MaxHeight="184" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" MinHeight="94" />
+                                    </Grid.RowDefinitions>
                                     <Border Margin="4,0,4,0" Background="#151618" CornerRadius="2" BorderBrush="#595959" BorderThickness="0,0,1,1">
                                         <ItemsControl ItemsSource="{Binding Effects}" ItemTemplate="{StaticResource InsertTemplate}" Tag="{Binding}" />
                                     </Border>
+                                    <StackPanel Grid.Row="1">
+                                        <Button Style="{StaticResource ConsoleButton}" Content="FX" Margin="4,3,4,0" Tag="{Binding}" Click="Fx_Click"
+                                                ToolTip="Open the track's effect rack, to add Sonator's or VST effects" />
+                                        <TextBlock Style="{StaticResource Legend}" Text="SEND" Margin="0,6,0,1" />
+                                    </StackPanel>
+                                    <Grid Grid.Row="2">
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                            <ItemsControl ItemTemplate="{StaticResource SendTemplate}">
+                                                <ItemsControl.ItemsSource>
+                                                    <MultiBinding Converter="{StaticResource SendControls}">
+                                                        <Binding />
+                                                        <Binding Path="DataContext.Buses" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="DataContext.BusesVersion" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                    </MultiBinding>
+                                                </ItemsControl.ItemsSource>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+                                        <TextBlock Style="{StaticResource Legend}" FontWeight="Normal" FontSize="7" TextAlignment="Center" TextWrapping="Wrap"
+                                                   Margin="4,10,4,0" VerticalAlignment="Top" IsHitTestVisible="False" Text="no buses: + BUS adds one">
+                                            <TextBlock.Visibility>
+                                                <Binding Path="DataContext.Buses.Count" RelativeSource="{RelativeSource AncestorType=Window}">
+                                                    <Binding.Converter>
+                                                        <local:ZeroToVisibleConverter />
+                                                    </Binding.Converter>
+                                                </Binding>
+                                            </TextBlock.Visibility>
+                                        </TextBlock>
+                                    </Grid>
+                                </Grid>
                             </DockPanel>
                         </Border>
                     </DataTemplate>
@@ -394,10 +411,6 @@
                                             ToolTip="Bus volume (double-click: 0 dB)" MouseDoubleClick="Fader_MouseDoubleClick" />
                                 </Grid>
                                 <StackPanel DockPanel.Dock="Bottom">
-                                    <Button Style="{StaticResource ConsoleButton}" Content="FX" Margin="4,3,4,0" Tag="{Binding}" Click="Fx_Click"
-                                            ToolTip="Open the bus's effect rack" />
-                                    <TextBlock Style="{StaticResource Legend}" Text="RETURN" Margin="0,6,0,1" />
-                                    <Border Height="94" />
                                     <TextBlock Style="{StaticResource Legend}" Text="PAN" Margin="0,4,0,0" />
                                     <local:Knob Width="36" Height="36" Look="Console" IsCentred="True" Accent="#98999B" DefaultPosition="0.5"
                                                 Position="{Binding PanPosition}" ToolTip="Pan: drag up or down; double-click to centre" />
@@ -418,9 +431,23 @@
                                         </Button.Style>
                                     </Button>
                                 </StackPanel>
+                                <!-- The same rows as a track's strip, so the strips line up. -->
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*" MinHeight="40" MaxHeight="184" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" MinHeight="94" />
+                                    </Grid.RowDefinitions>
                                     <Border Margin="4,0,4,0" Background="#151618" CornerRadius="2" BorderBrush="#595959" BorderThickness="0,0,1,1">
                                         <ItemsControl ItemsSource="{Binding Effects}" ItemTemplate="{StaticResource InsertTemplate}" Tag="{Binding}" />
                                     </Border>
+                                    <StackPanel Grid.Row="1">
+                                        <Button Style="{StaticResource ConsoleButton}" Content="FX" Margin="4,3,4,0" Tag="{Binding}" Click="Fx_Click"
+                                                ToolTip="Open the bus's effect rack" />
+                                        <TextBlock Style="{StaticResource Legend}" Text="RETURN" Margin="0,6,0,1" />
+                                    </StackPanel>
+                                    <Border Grid.Row="2" />
+                                </Grid>
                             </DockPanel>
                         </Border>
                     </DataTemplate>
