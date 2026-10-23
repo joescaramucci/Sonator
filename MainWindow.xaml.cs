@@ -1615,9 +1615,10 @@ public partial class MainWindow : Window
 
     private void ShowSongButton_Click(object sender, RoutedEventArgs e)
     {
+        // On and off, as the ARRANGE box: the whole song, or the selected pattern.
         if (DataContext is MainViewModel viewModel)
         {
-            viewModel.IsArrangeMode = true;
+            viewModel.IsArrangeMode = !viewModel.IsArrangeMode;
         }
         Activate();
     }

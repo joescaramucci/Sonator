@@ -72,7 +72,7 @@ public static class HelpTexts
         }),
         ["Views"] = new("Windows", new[]
         {
-            "MIXER opens the mixing desk, WAVE the waveform editor, ARRANGE the song's arrangement, SOUNDS the sound browser.",
+            "MIXER opens the mixing desk, WAVE the waveform editor, SOUNDS the sound browser. ARRANGE switches between the whole song and the selected pattern, as the ARRANGE box does; it is lit while the whole song plays.",
         }),
         ["Health"] = new("Computer load", new[]
         {
