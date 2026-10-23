@@ -18,10 +18,22 @@ public static class BrushedMetal
     // The mixer's modules: SSL's smooth charcoal, with only the faintest grain.
     public static ImageBrush Brush => _brush ??= Make(0.19, 0, 0.12);
 
-    private static ImageBrush? _light;
+    private static Brush? _light;
 
-    // The light grey satin aluminium of SSL's plug-in panels, for the FX racks.
-    public static ImageBrush Light => _light ??= Make(0.76, 3, 0.6);
+    // The grey of the lower part of SSL's plug-in panels, for the FX racks and the mixer: a smooth neutral grey,
+    // lit from above, so a little lighter at the top (#939393) than at the bottom (#747474), as measured on
+    // SSL's Vocalstrip.
+    public static Brush Light => _light ??= MakeSslPanel();
+
+    private static Brush MakeSslPanel()
+    {
+        var brush = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(0, 1) };
+        brush.GradientStops.Add(new GradientStop(Color.FromRgb(0x93, 0x93, 0x93), 0));
+        brush.GradientStops.Add(new GradientStop(Color.FromRgb(0x86, 0x86, 0x86), 0.4));
+        brush.GradientStops.Add(new GradientStop(Color.FromRgb(0x74, 0x74, 0x74), 1));
+        brush.Freeze();
+        return brush;
+    }
 
     // base: the metal's shade from 0 to 1; tint: how much bluer than grey it is; roughness: how strong its
     // streaks are, 1 for brushed metal, near 0 for a smooth painted panel.
