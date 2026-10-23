@@ -359,7 +359,7 @@ public partial class MainWindow : Window
         if (e.ClickCount == 2 && DataContext is MainViewModel model)
         {
             model.SelectBlock(timeline.SourceTrack);
-            new PianoRollWindow(model, timeline.SourceTrack) { Owner = this }.Show();
+            OpenPianoRoll(model, timeline.SourceTrack);
             e.Handled = true;
             return;
         }
@@ -1397,6 +1397,14 @@ public partial class MainWindow : Window
         }
     }
 
+    // Minimized, a piano roll goes to the dock with its picture, as the plug-ins do.
+    private void OpenPianoRoll(MainViewModel viewModel, PatternTrackViewModel track)
+    {
+        var window = new PianoRollWindow(viewModel, track) { Owner = this };
+        FollowPluginWindow(window);
+        window.Show();
+    }
+
     private void PianoRollMenuItem_Click(object sender, RoutedEventArgs e)
     {
         if (DataContext is not MainViewModel viewModel || viewModel.SelectedTrack is not { } track)
@@ -1405,7 +1413,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        new PianoRollWindow(viewModel, track) { Owner = this }.Show();
+        OpenPianoRoll(viewModel, track);
     }
 
     private void WaveformEditorMenuItem_Click(object sender, RoutedEventArgs e)
@@ -1765,6 +1773,7 @@ public partial class MainWindow : Window
         {
             _waveformEditorWindow = new WaveformEditorWindow(null, DataContext is MainViewModel viewModel ? viewModel.Tempo : 120, DataContext as MainViewModel) { Owner = this };
             _waveformEditorWindow.Closed += (_, _) => _waveformEditorWindow = null;
+            FollowPluginWindow(_waveformEditorWindow); // minimized, it goes to the dock with its picture
             _waveformEditorWindow.Show();
             return;
         }
@@ -1921,7 +1930,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        new PianoRollWindow(viewModel, viewModel.SelectedTrack) { Owner = this }.Show();
+        OpenPianoRoll(viewModel, viewModel.SelectedTrack);
     }
 
     // A press starts a drag; a release without a drag opens the plug-in editor, as a click always did.
