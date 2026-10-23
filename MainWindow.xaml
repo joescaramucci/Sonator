@@ -572,6 +572,8 @@
                         <MenuItem Header="_Export audio (WAV)..." Click="ExportAudioMenuItem_Click" InputGestureText="Ctrl+E" />
                         <MenuItem Header="Export _MIDI..." Click="ExportMidiMenuItem_Click" />
                         <MenuItem Header="Close _project" Click="CloseProjectMenuItem_Click" />
+                        <MenuItem Header="Clean up the audio library..." Click="CleanUpAudioLibraryMenuItem_Click"
+                                  ToolTip="Move to the Recycle Bin the audio clips in Sonator's library that no recent project uses" />
                         <Separator />
                         <MenuItem Header="_Exit" Click="CloseMenuItem_Click" InputGestureText="Alt+F4" />
                     </MenuItem>

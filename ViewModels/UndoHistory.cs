@@ -10,6 +10,9 @@ internal sealed class UndoHistory<T> where T : class
 
     public bool CanRedo => _redoStates.Count > 0;
 
+    // Every state kept, to undo and to redo.
+    public IEnumerable<T> States => _undoStates.Concat(_redoStates);
+
     public void RecordChange(T stateBeforeChange)
     {
         _undoStates.Push(stateBeforeChange);

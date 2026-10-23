@@ -1437,6 +1437,42 @@ public partial class MainWindow : Window
         }
     }
 
+    // File > Clean up the audio library: the clips kept in Sonator's library that nothing known plays go to the
+    // Recycle Bin, once asked.
+    private void CleanUpAudioLibraryMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        Mouse.OverrideCursor = Cursors.Wait;
+        (IReadOnlyList<string> Files, long Bytes) unused;
+        try
+        {
+            unused = viewModel.UnusedLibraryClips();
+        }
+        finally
+        {
+            Mouse.OverrideCursor = null;
+        }
+
+        if (unused.Files.Count == 0)
+        {
+            SonatorMessageDialog.Show(this, "Clean up the audio library", "Every clip in the audio library is used by the song open now or a recent project: there is nothing to clean up.");
+            return;
+        }
+
+        var size = unused.Bytes / (1024.0 * 1024.0);
+        if (SonatorMessageDialog.Ask(this, "Clean up the audio library",
+                $"{unused.Files.Count} audio clip(s), {size:0} MB, in Sonator's library are used neither by the song open now nor by the projects in File > Open recent. "
+                + "Move them to the Recycle Bin? A project not in that list that still uses them would lose them, but they can be restored from the Recycle Bin.",
+                "MOVE TO RECYCLE BIN", "CANCEL"))
+        {
+            viewModel.ThrowAwayLibraryClips(unused.Files);
+        }
+    }
+
     // File > Export audio: the song played through and written to a WAV file.
     private async void ExportAudioMenuItem_Click(object sender, RoutedEventArgs e) => await ExportAudioAsync();
 

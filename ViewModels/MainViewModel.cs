@@ -3628,9 +3628,16 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
             // The sounds chosen in the plug-ins are saved with the project.
             _trackInstruments.CaptureStates();
             _trackEffects.CaptureStates();
-            _projectFileService.Save(path, BuildProjectDocument());
+
+            // The clips go into the project's audio folder, beside its file, so the song can be moved whole.
+            var document = ProjectAudioFiles.Pack(BuildProjectDocument(), path, out var moved);
+            _projectFileService.Save(path, document);
+            UseProjectCopies(moved);
             CurrentProjectPath = path;
-            StatusMessage = $"Project saved to {path}";
+            ThrowAwayUnusedProjectClips(path, ProjectAudioFiles.Unpack(document, path));
+            StatusMessage = moved.Count == 0
+                ? $"Project saved to {path}"
+                : $"Project saved to {path}, its audio clips in \"{Path.GetFileName(ProjectAudioFiles.FolderFor(path))}\" beside it";
             MarkProjectSaved();
             RememberRecentProject(path);
             return true;
@@ -3656,6 +3663,119 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         }
     }
 
+    // After a save, the tracks play the copies in the project's audio folder, so later saves and edits go on
+    // from there; the clips already decoded are kept under their new names.
+    private void UseProjectCopies(IReadOnlyDictionary<string, string> moved)
+    {
+        if (moved.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var track in Patterns.SelectMany(pattern => pattern.Tracks).Concat(Buses))
+        {
+            if (track.AudioClipPath is { } path && moved.TryGetValue(Path.GetFullPath(path), out var copy))
+            {
+                track.AudioClipPath = copy;
+                if (_decodedClips.TryGetValue(path, out var clip))
+                {
+                    _decodedClips[copy] = clip;
+                }
+
+                if (_audioWaveforms.TryGetValue(path, out var waveform))
+                {
+                    _audioWaveforms[copy] = waveform;
+                }
+            }
+        }
+    }
+
+    // The files of the project's audio folder that neither the song nor any undo can play any more go to the
+    // Recycle Bin, so the folder does not grow with every edit.
+    private void ThrowAwayUnusedProjectClips(string projectPath, ProjectDocument saved)
+    {
+        foreach (var file in ProjectAudioFiles.Unused(projectPath, _history.States.Append(saved)))
+        {
+            SendToRecycleBin(file);
+        }
+    }
+
+    private static bool SendToRecycleBin(string file)
+    {
+        try
+        {
+            Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(file,
+                Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
+        {
+            return false;
+        }
+    }
+
+    // ---- The old audio library ----
+
+    // Where clips were kept for every project before each project had its own audio folder, and where clips
+    // still go until their project is saved.
+    private static string AudioLibraryFolder =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Sonator", "audio");
+
+    // The files of the audio library that nothing known plays: not the song open now nor its undos, not an
+    // autosave, not a copied track, not any recent project. Their total size in bytes.
+    public (IReadOnlyList<string> Files, long Bytes) UnusedLibraryClips()
+    {
+        if (!Directory.Exists(AudioLibraryFolder))
+        {
+            return (Array.Empty<string>(), 0);
+        }
+
+        var documents = new List<ProjectDocument> { BuildProjectDocument() };
+        documents.AddRange(_history.States);
+        foreach (var project in RecentProjects)
+        {
+            try
+            {
+                documents.Add(ProjectAudioFiles.Unpack(_projectFileService.Load(project), project));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or InvalidOperationException)
+            {
+                // A recent project that cannot be read keeps nothing.
+            }
+        }
+
+        var autosaves = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Sonator", "Autosave");
+        if (Directory.Exists(autosaves))
+        {
+            foreach (var file in Directory.EnumerateFiles(autosaves, "*.sonator.json"))
+            {
+                try
+                {
+                    documents.Add(_projectFileService.Load(file));
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or InvalidOperationException)
+                {
+                }
+            }
+        }
+
+        var wanted = documents.SelectMany(ProjectAudioFiles.ClipsOf)
+            .Append(_copiedTrackDocument?.AudioClipPath)
+            .OfType<string>()
+            .Select(Path.GetFullPath)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var unused = Directory.EnumerateFiles(AudioLibraryFolder).Where(file => !wanted.Contains(Path.GetFullPath(file))).ToList();
+        return (unused, unused.Sum(file => new FileInfo(file).Length));
+    }
+
+    // Sends the files to the Recycle Bin, whence they can be brought back. Returns how many went.
+    public int ThrowAwayLibraryClips(IEnumerable<string> files)
+    {
+        var count = files.Count(SendToRecycleBin);
+        StatusMessage = $"{count} unused audio clip(s) moved to the Recycle Bin";
+        return count;
+    }
+
     // The projects last saved or opened, the latest first, those still on disk only.
     public IReadOnlyList<string> RecentProjects =>
         new AppSettingsService().Load().RecentProjects.Where(File.Exists).ToList();
@@ -3673,12 +3793,15 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
     {
         try
         {
-            var document = _projectFileService.Load(path);
+            var document = ProjectAudioFiles.Unpack(_projectFileService.Load(path), path);
             _history.Clear();
             RestoreProjectDocument(document);
             CurrentProjectPath = path;
             RememberRecentProject(path);
-            StatusMessage = $"Project loaded from {path}";
+            var missing = ProjectAudioFiles.ClipsOf(document).Count(clip => !File.Exists(clip));
+            StatusMessage = missing == 0
+                ? $"Project loaded from {path}"
+                : $"Project loaded from {path}; {missing} audio clip(s) not found: keep the \"{Path.GetFileName(ProjectAudioFiles.FolderFor(path))}\" folder beside the project";
             SaveProjectCommand?.RaiseCanExecuteChanged();
             SaveProjectAsCommand?.RaiseCanExecuteChanged();
             PasteTrackCommand?.RaiseCanExecuteChanged();
