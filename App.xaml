@@ -75,7 +75,7 @@
             <Grid x:Name="Root" SnapsToDevicePixels="True">
                 <!-- The well: black, with the panel's lit lip along its bottom. -->
                 <Border CornerRadius="4" Background="#0B0C0E" BorderBrush="#66FFFFFF" BorderThickness="0,0,0,1" />
-                <Grid x:Name="Cap" Margin="1.5,1,1.5,2.5">
+                <Grid x:Name="Cap" Margin="0.75,0.5,0.75,1.5">
                     <Border x:Name="Glow" CornerRadius="3" Margin="-1">
                         <Border.Background>
                             <MultiBinding Converter="{StaticResource Lamp}" ConverterParameter="brush">
@@ -94,7 +94,7 @@
                             </DropShadowEffect>
                         </Border.Effect>
                     </Border>
-                    <Border x:Name="Face" CornerRadius="2.5" Background="{StaticResource Cap.Face}" BorderBrush="#262626" BorderThickness="1" />
+                    <Border x:Name="Face" CornerRadius="2.5" Background="{StaticResource Cap.Face}" BorderBrush="#5A5C5E" BorderThickness="0.5" />
                     <!-- The lamp: the cap's face lit in the button's colour, with the glass over it. -->
                     <Border x:Name="LampFace" CornerRadius="2.5" BorderBrush="#33000000" BorderThickness="1">
                         <Border.Background>
@@ -123,7 +123,7 @@
                 <Trigger Property="IsPressed" Value="True">
                     <Setter TargetName="Face" Property="Background" Value="{StaticResource Cap.Pressed}" />
                     <Setter TargetName="Shine" Property="Visibility" Value="Hidden" />
-                    <Setter TargetName="Cap" Property="Margin" Value="1.5,2.5,1.5,1" />
+                    <Setter TargetName="Cap" Property="Margin" Value="0.75,1.5,0.75,0.5" />
                 </Trigger>
                 <Trigger Property="IsEnabled" Value="False">
                     <Setter TargetName="Root" Property="Opacity" Value="0.4" />
