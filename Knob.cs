@@ -164,11 +164,11 @@ public sealed class Knob : FrameworkElement
             drawingContext.DrawEllipse(ScaleBrush, null, dot, radius * (big ? 0.06 : 0.045), radius * (big ? 0.06 : 0.045));
         }
 
-        var topCentre = new Point(center.X, center.Y - radius * 0.24); // measured on SSL's knobs, as a share of the dots' ring
+        var topCentre = new Point(center.X, center.Y - radius * 0.32); // as a share of the dots' ring, centred in its open arc as SSL's
         var topRadius = radius * 0.52;
-        var baseCentre = new Point(center.X, center.Y + radius * 0.27);
-        var baseRadiusX = radius * 0.6;
-        var baseRadiusY = radius * 0.3;
+        var baseCentre = new Point(center.X, center.Y + radius * 0.34);
+        var baseRadiusX = radius * 0.55;
+        var baseRadiusY = radius * 0.26;
 
         // The cone's outline: the top circle and the base ellipse joined along their sides.
         var top = new EllipseGeometry(topCentre, topRadius, topRadius);
