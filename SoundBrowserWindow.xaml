@@ -78,8 +78,10 @@
                     <ControlTemplate TargetType="ListBoxItem">
                         <Border x:Name="Row" Background="Transparent" BorderBrush="Transparent" BorderThickness="2,0,0,0" Padding="{TemplateBinding Padding}" CornerRadius="3">
                             <DockPanel>
-                                <Ellipse x:Name="ReadyDot" DockPanel.Dock="Left" Width="6" Height="6" Margin="0,0,6,0" Fill="#49B88D" Visibility="Hidden"
+                                <Ellipse x:Name="ReadyDot" DockPanel.Dock="Left" Width="6" Height="6" Margin="0,0,4,0" Fill="#49B88D" Visibility="Hidden"
                                          ToolTip="Ready: heard at once" />
+                                <TextBlock x:Name="FavoriteStar" DockPanel.Dock="Left" Text="★" Width="14" Foreground="#E6C45B" Visibility="Hidden"
+                                           ToolTip="A favorite" />
                                 <ContentPresenter />
                             </DockPanel>
                         </Border>
@@ -90,6 +92,9 @@
                             </Trigger>
                             <Trigger Property="local:SoundBrowserWindow.IsReady" Value="True">
                                 <Setter TargetName="ReadyDot" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="local:SoundBrowserWindow.IsFavorite" Value="True">
+                                <Setter TargetName="FavoriteStar" Property="Visibility" Value="Visible" />
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Row" Property="Background" Value="#263445" />
@@ -212,6 +217,7 @@
                              BorderThickness="0"
                              ItemContainerStyle="{StaticResource SoundRow}"
                              ScrollViewer.ScrollChanged="SoundList_ScrollChanged"
+                             ContextMenuOpening="SoundList_ContextMenuOpening"
                              VirtualizingPanel.IsVirtualizing="True"
                              VirtualizingPanel.VirtualizationMode="Recycling"
                              ScrollViewer.CanContentScroll="True"

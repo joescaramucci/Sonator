@@ -86,15 +86,30 @@ public partial class SoundBrowserWindow : Window
             : "Select a track to load sounds on";
     }
 
+    // The category list's entry for the favorites: not a category of sounds, but the sounds marked.
+    private const string FavoritesKey = "★";
+
+    private readonly SoundFavorites _favorites = new();
+    private bool _updatingCategories;
+
+    // The categories with their counts, All and the favorites first; the one selected stays selected.
     private void ShowCategories()
     {
+        var keep = (CategoryList.SelectedItem as CategoryItem)?.Category;
         var counts = _sounds.GroupBy(sound => sound.Category).ToDictionary(group => group.Key, group => group.Count());
-        var items = new List<CategoryItem> { new(null, "All sounds", _sounds.Count) };
+        var items = new List<CategoryItem>
+        {
+            new(null, "All sounds", _sounds.Count),
+            new(FavoritesKey, "★ Favorites", _sounds.Count(_favorites.Contains)),
+        };
         items.AddRange(SoundCategories.All
             .Where(counts.ContainsKey)
             .Select(category => new CategoryItem(category, category, counts[category])));
+        var first = CategoryList.ItemsSource is null;
+        _updatingCategories = !first;
         CategoryList.ItemsSource = items;
-        CategoryList.SelectedIndex = 0;
+        CategoryList.SelectedItem = items.FirstOrDefault(item => item.Category == keep) ?? items[0];
+        _updatingCategories = false;
     }
 
     // The column the sounds are sorted by, so that sounds alike come together, or null for the search's own
@@ -145,7 +160,8 @@ public partial class SoundBrowserWindow : Window
     private void ShowSounds()
     {
         var category = (CategoryList.SelectedItem as CategoryItem)?.Category;
-        var found = Sorted(SoundSearch.Filter(_sounds, SearchBox.Text, category)).ToList();
+        var pool = category == FavoritesKey ? _sounds.Where(_favorites.Contains) : _sounds;
+        var found = Sorted(SoundSearch.Filter(pool, SearchBox.Text, category == FavoritesKey ? null : category)).ToList();
         SoundList.ItemsSource = found;
         CountText.Text = $"{found.Count} sounds";
         if (found.Count > 0)
@@ -196,6 +212,11 @@ public partial class SoundBrowserWindow : Window
     // the list first. Chosen with the arrows, the focus stays in the categories, to go on through them.
     private void CategoryList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        if (_updatingCategories)
+        {
+            return;
+        }
+
         ShowSounds();
         if (Mouse.LeftButton == MouseButtonState.Pressed)
         {
@@ -268,6 +289,50 @@ public partial class SoundBrowserWindow : Window
 
     public static readonly DependencyProperty IsReadyProperty =
         DependencyProperty.RegisterAttached("IsReady", typeof(bool), typeof(SoundBrowserWindow), new PropertyMetadata(false));
+
+    public static readonly DependencyProperty IsFavoriteProperty =
+        DependencyProperty.RegisterAttached("IsFavorite", typeof(bool), typeof(SoundBrowserWindow), new PropertyMetadata(false));
+
+    public static bool GetIsFavorite(DependencyObject element) => (bool)element.GetValue(IsFavoriteProperty);
+
+    public static void SetIsFavorite(DependencyObject element, bool value) => element.SetValue(IsFavoriteProperty, value);
+
+    // Right-click on a sound: add it to the favorites, or take it out.
+    private void SoundList_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+    {
+        var row = e.OriginalSource as DependencyObject;
+        while (row is not null and not ListBoxItem)
+        {
+            row = System.Windows.Media.VisualTreeHelper.GetParent(row);
+        }
+
+        if (row is not ListBoxItem { DataContext: SoundEntry sound } item)
+        {
+            e.Handled = true;
+            return;
+        }
+
+        item.IsSelected = true;
+        var favorite = _favorites.Contains(sound);
+        var toggle = new MenuItem { Header = favorite ? "Remove from favorites" : "★ Add to favorites" };
+        toggle.Click += (_, _) =>
+        {
+            _favorites.Set(sound, !favorite);
+            ShowCategories();
+            if ((CategoryList.SelectedItem as CategoryItem)?.Category == FavoritesKey)
+            {
+                ShowSounds(); // a sound taken out leaves the favorites shown
+            }
+
+            MarkRows();
+            StatusText.Text = favorite ? $"{sound.Name} taken out of the favorites" : $"{sound.Name} added to the favorites";
+        };
+        var preview = new MenuItem { Header = "▶ Preview" };
+        preview.Click += (_, _) => PreviewSelected();
+        var load = new MenuItem { Header = "Load on track" };
+        load.Click += (_, _) => LoadSelected();
+        SoundList.ContextMenu = new ContextMenu { Items = { toggle, new Separator(), preview, load } };
+    }
 
     public static bool GetIsComingUp(DependencyObject element) => (bool)element.GetValue(IsComingUpProperty);
 
@@ -357,6 +422,7 @@ public partial class SoundBrowserWindow : Window
             {
                 SetIsComingUp(row, _comingUp.Contains(sound) && !ReferenceEquals(sound, SoundList.SelectedItem));
                 SetIsReady(row, _viewModel.IsSoundReady(sound));
+                SetIsFavorite(row, _favorites.Contains(sound));
             }
         }
     }
