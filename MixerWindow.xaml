@@ -17,6 +17,7 @@
     <Window.Resources>
         <local:SendControlsConverter x:Key="SendControls" />
         <local:SameValueConverter x:Key="SameValue" />
+        <BooleanToVisibilityConverter x:Key="VisibleWhenLinked" />
 
         <!-- The ink printed on the aluminium. -->
         <Style x:Key="Legend" TargetType="TextBlock">
@@ -216,12 +217,13 @@
                     <ContentControl ContentTemplate="{StaticResource Screw}" Margin="0,4,0,3" Focusable="False" />
                 </StackPanel>
                 <!-- The stereo master: a fader for each side, moving together while LINK is on. -->
-                <Grid DockPanel.Dock="Bottom" Height="230" Margin="4,6,4,0">
+                <!-- The two faders stay side by side, however wide the strip, so one hand rides both. -->
+                <Grid DockPanel.Dock="Bottom" Height="230" Margin="4,6,4,0" HorizontalAlignment="Center">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="7" />
                         <ColumnDefinition Width="20" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="30" />
+                        <ColumnDefinition Width="30" />
                         <ColumnDefinition Width="7" />
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
@@ -236,6 +238,11 @@
                     <Slider Grid.Column="3" Style="{StaticResource MasterFader}" Value="{Binding MasterVolumeRight}"
                             ToolTip="Master, right side. With LINK on, the left side follows" />
                     <local:LedMeter Grid.Column="4" Segments="30" RedSegments="5" Margin="0,13" Level="{Binding MasterLevelRight}" ToolTip="Master level, right side" />
+                    <!-- While LINK is on, the aluminium bar laid across both caps: drag it to ride both with one finger. -->
+                    <local:FaderLinkBar Grid.Column="2" Grid.ColumnSpan="2" ThumbLength="26"
+                                        Left="{Binding MasterVolumeLeft}" Right="{Binding MasterVolumeRight}"
+                                        Visibility="{Binding IsMasterLinked, Converter={StaticResource VisibleWhenLinked}}"
+                                        ToolTip="The link bar: drag it to move both master faders together" />
                     <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource Legend}" Text="L" FontSize="7" Margin="0,1,0,0" />
                     <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource Legend}" Text="L" Margin="0,1,0,0" />
                     <TextBlock Grid.Row="1" Grid.Column="3" Style="{StaticResource Legend}" Text="R" Margin="0,1,0,0" />
