@@ -14,7 +14,7 @@ public partial class PianoRollWindow : Window
 {
     private const double StepWidth = 14;
     private const double RowHeight = 10;
-    private const double KeyboardWidth = 56;
+    private const double KeyboardWidth = 72;
     private const double VelocityLaneHeight = 90;
     private const int HighestNote = 96;
     private const int LowestNote = 36;
@@ -66,6 +66,7 @@ public partial class PianoRollWindow : Window
             : (int)Math.Ceiling(_notes.Max(note => note.StepIndex + note.StartOffset + note.DurationSteps + note.LengthFraction));
         _stepCount = Math.Max(StepsPerBar, Math.Max(track.Steps.Count, notesEnd));
         Title = $"Piano roll - {track.Name}";
+        DrumMapToggle.IsChecked = GeneralMidiDrums.LooksLikeDrums(track);
 
         QuantizeGridBox.ItemsSource = NoteQuantizer.Grids;
         QuantizeGridBox.SelectedItem = NoteQuantizer.Grids.First(grid => grid.Label == "1/16");
@@ -181,6 +182,23 @@ public partial class PianoRollWindow : Window
                 Canvas.SetLeft(label, 4);
                 Canvas.SetTop(label, y - 1);
                 PianoRollCanvas.Children.Add(label);
+            }
+
+            // The drum on this key, by the General MIDI map, at the key's right end.
+            if (DrumMapToggle.IsChecked == true && GeneralMidiDrums.ShortName(note) is { } drum)
+            {
+                var drumLabel = new TextBlock
+                {
+                    Text = drum,
+                    FontSize = 8,
+                    Width = KeyboardWidth - 24,
+                    TextAlignment = TextAlignment.Right,
+                    Foreground = black ? new SolidColorBrush(Color.FromRgb(0xC8, 0xD4, 0xE0)) : new SolidColorBrush(Color.FromRgb(0x24, 0x31, 0x42)),
+                    IsHitTestVisible = false,
+                };
+                Canvas.SetLeft(drumLabel, 20);
+                Canvas.SetTop(drumLabel, y);
+                PianoRollCanvas.Children.Add(drumLabel);
             }
         }
     }
@@ -635,6 +653,8 @@ public partial class PianoRollWindow : Window
     {
         _viewModel.StopCommand.Execute(null);
     }
+
+    private void DrumMapToggle_Click(object sender, RoutedEventArgs e) => Redraw();
 
     private void OnPreviewKeyDown(object sender, KeyEventArgs e)
     {
