@@ -3,39 +3,70 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:Sonator"
         Title="Mixer"
-        Width="1100"
-        Height="620"
-        MinHeight="460"
-        Background="#151C26"
-        Foreground="#C4CFDA"
-        FontFamily="Consolas"
+        Width="900"
+        Height="700"
+        MinHeight="560"
+        Background="#0E1114"
+        Foreground="#1C1F23"
+        FontFamily="Arial"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False">
+    <!-- A console in the manner of the big studio desks: brushed-aluminium channel modules screwed into a dark
+         frame, knurled knobs with coloured caps, long faders with a printed dB scale, lit buttons, and the
+         track's name on a strip of tape at the bottom. -->
     <Window.Resources>
-        <BooleanToVisibilityConverter x:Key="VisibleWhenTrue" />
         <local:SendControlsConverter x:Key="SendControls" />
 
-        <Style x:Key="StripButton" TargetType="Button">
-            <Setter Property="Background" Value="#2A3948" />
-            <Setter Property="Foreground" Value="#C4CFDA" />
-            <Setter Property="BorderBrush" Value="#5C7A99" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="FontFamily" Value="Consolas" />
+        <!-- The ink printed on the aluminium. -->
+        <Style x:Key="Legend" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="7.5" />
             <Setter Property="FontWeight" Value="Bold" />
-            <Setter Property="FontSize" Value="11" />
-            <Setter Property="Height" Value="22" />
+            <Setter Property="Foreground" Value="#202429" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+        </Style>
+
+        <!-- A cross-head screw holding the module in the frame. -->
+        <DataTemplate x:Key="Screw">
+            <Grid Width="7" Height="7" HorizontalAlignment="Center">
+                <Ellipse Stroke="#3C4146" StrokeThickness="0.6">
+                    <Ellipse.Fill>
+                        <RadialGradientBrush GradientOrigin="0.3,0.3">
+                            <GradientStop Color="#E6E9EC" Offset="0" />
+                            <GradientStop Color="#7C838A" Offset="1" />
+                        </RadialGradientBrush>
+                    </Ellipse.Fill>
+                </Ellipse>
+                <Line X1="1.6" Y1="3.5" X2="5.4" Y2="3.5" Stroke="#3C4146" StrokeThickness="0.9" />
+                <Line X1="3.5" Y1="1.6" X2="3.5" Y2="5.4" Stroke="#3C4146" StrokeThickness="0.9" />
+            </Grid>
+        </DataTemplate>
+
+        <!-- A small console push-button. Lit buttons set their own colours with triggers. -->
+        <Style x:Key="ConsoleButton" TargetType="Button">
+            <Setter Property="Foreground" Value="#E4E7EA" />
+            <Setter Property="FontFamily" Value="Arial" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="FontSize" Value="9" />
+            <Setter Property="Height" Value="17" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Focusable" Value="False" />
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#5B6168" Offset="0" />
+                        <GradientStop Color="#2C3035" Offset="1" />
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Body" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4">
+                        <Border x:Name="Body" Background="{TemplateBinding Background}" BorderBrush="#111315" BorderThickness="1" CornerRadius="2">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Body" Property="BorderBrush" Value="#7EB2FF" />
+                                <Setter TargetName="Body" Property="BorderBrush" Value="#E4E7EA" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -43,8 +74,36 @@
             </Setter>
         </Style>
 
-        <!-- A tall fader: the track runs up the middle, the cap is the handle. -->
-        <Style x:Key="FaderStyle" TargetType="Slider">
+        <!-- The fader's cap: grey with a white line across, as on the classic desks; the master's is red. -->
+        <ControlTemplate x:Key="FaderCap" TargetType="Thumb">
+            <Border CornerRadius="2" BorderBrush="#0A0B0C" BorderThickness="1">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#8A9097" Offset="0" />
+                        <GradientStop Color="#3E4349" Offset="0.45" />
+                        <GradientStop Color="#2A2E33" Offset="0.55" />
+                        <GradientStop Color="#5A6067" Offset="1" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <Rectangle Height="2" Fill="#F4F4F0" VerticalAlignment="Center" />
+            </Border>
+        </ControlTemplate>
+        <ControlTemplate x:Key="MasterFaderCap" TargetType="Thumb">
+            <Border CornerRadius="2" BorderBrush="#0A0B0C" BorderThickness="1">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#E0574E" Offset="0" />
+                        <GradientStop Color="#9C2A23" Offset="0.45" />
+                        <GradientStop Color="#7A1E19" Offset="0.55" />
+                        <GradientStop Color="#B8463E" Offset="1" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <Rectangle Height="2" Fill="#F4F4F0" VerticalAlignment="Center" />
+            </Border>
+        </ControlTemplate>
+
+        <!-- A long fader in a dark slot cut into the panel. -->
+        <Style x:Key="ConsoleFader" TargetType="Slider">
             <Setter Property="Orientation" Value="Vertical" />
             <Setter Property="Focusable" Value="False" />
             <Setter Property="Minimum" Value="0" />
@@ -55,25 +114,26 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Slider">
                         <Grid>
-                            <Border Width="4" CornerRadius="2" Background="#0C1117" BorderBrush="#2E3F52" BorderThickness="1" HorizontalAlignment="Center" />
-                            <Track x:Name="PART_Track" Orientation="Vertical" IsDirectionReversed="True">
+                            <Border Width="5" Margin="0,10" CornerRadius="2" Background="#08090A" BorderBrush="#9AA1A8" BorderThickness="0,0,1,1" HorizontalAlignment="Center" />
+                            <Track x:Name="PART_Track" Orientation="Vertical" IsDirectionReversed="False">
                                 <Track.Thumb>
-                                    <Thumb Height="30" Width="34" Cursor="SizeNS">
-                                        <Thumb.Template>
-                                            <ControlTemplate TargetType="Thumb">
-                                                <Border CornerRadius="3" BorderBrush="#0C1117" BorderThickness="1">
-                                                    <Border.Background>
-                                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                                            <GradientStop Color="#C9D3DD" Offset="0" />
-                                                            <GradientStop Color="#8A97A5" Offset="0.48" />
-                                                            <GradientStop Color="#E8EEF4" Offset="0.5" />
-                                                            <GradientStop Color="#7C8896" Offset="1" />
-                                                        </LinearGradientBrush>
-                                                    </Border.Background>
-                                                </Border>
-                                            </ControlTemplate>
-                                        </Thumb.Template>
-                                    </Thumb>
+                                    <Thumb Height="26" Width="20" Cursor="SizeNS" Template="{StaticResource FaderCap}" />
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="MasterFader" TargetType="Slider" BasedOn="{StaticResource ConsoleFader}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid>
+                            <Border Width="5" Margin="0,10" CornerRadius="2" Background="#08090A" BorderBrush="#9AA1A8" BorderThickness="0,0,1,1" HorizontalAlignment="Center" />
+                            <Track x:Name="PART_Track" Orientation="Vertical" IsDirectionReversed="False">
+                                <Track.Thumb>
+                                    <Thumb Height="26" Width="24" Cursor="SizeNS" Template="{StaticResource MasterFaderCap}" />
                                 </Track.Thumb>
                             </Track>
                         </Grid>
@@ -82,49 +142,87 @@
             </Setter>
         </Style>
 
-        <!-- One effect in a strip's insert list: dimmed while it is off; a click opens the rack on it. -->
+        <!-- The recessed display of a module's inserts: one line per effect, dimmed while it is off. -->
         <DataTemplate x:Key="InsertTemplate">
-            <Border Margin="0,1" Padding="5,2" CornerRadius="3" Background="#22303F" BorderBrush="#34475C" BorderThickness="1"
-                    Cursor="Hand" ToolTip="Open the rack on this effect" MouseLeftButtonUp="Insert_MouseLeftButtonUp">
-                <TextBlock Text="{Binding Name}" FontSize="11" TextTrimming="CharacterEllipsis">
-                    <TextBlock.Style>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="Foreground" Value="#9FD3F2" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsEnabled}" Value="False">
-                                    <Setter Property="Foreground" Value="#5D6E80" />
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding IsPluginMissing}" Value="True">
-                                    <Setter Property="Foreground" Value="#E6C45B" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </TextBlock.Style>
-                </TextBlock>
-            </Border>
+            <TextBlock Text="{Binding Name}" FontFamily="Consolas" FontSize="8" Margin="2,0" TextTrimming="CharacterEllipsis"
+                       Cursor="Hand" ToolTip="{Binding Name}" MouseLeftButtonUp="Insert_MouseLeftButtonUp">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Foreground" Value="#7FD4FF" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsEnabled}" Value="False">
+                                <Setter Property="Foreground" Value="#5A6B7D" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsPluginMissing}" Value="True">
+                                <Setter Property="Foreground" Value="#E6C45B" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </DataTemplate>
+
+        <!-- A module: brushed aluminium, a hairline edge, a little shadow from the frame. -->
+        <Style x:Key="Module" TargetType="Border">
+            <Setter Property="Width" Value="60" />
+            <Setter Property="Margin" Value="0,0,2,0" />
+            <Setter Property="CornerRadius" Value="2" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="#55595E" />
+            <Setter Property="Background" Value="{x:Static local:BrushedMetal.Brush}" />
+        </Style>
+
+        <!-- A send, a knob with its bus's cap colour, and the bus's name under it. -->
+        <DataTemplate x:Key="SendTemplate">
+            <StackPanel Margin="0,0,0,2">
+                <local:Knob Width="30" Height="30" Look="Console" Accent="{Binding Cap}" DefaultPosition="0.75" Position="{Binding Level}">
+                    <local:Knob.ToolTip>
+                        <TextBlock>
+                            <Run Text="{Binding Bus.Name, Mode=OneWay}" /><Run Text=" send: " /><Run Text="{Binding LevelDisplay, Mode=OneWay}" />
+                            <LineBreak /><Run Text="Drag up or down; double-click for 0 dB" />
+                        </TextBlock>
+                    </local:Knob.ToolTip>
+                </local:Knob>
+                <TextBlock Style="{StaticResource Legend}" Text="{Binding Bus.Name}" FontSize="7" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
         </DataTemplate>
     </Window.Resources>
 
-    <DockPanel Margin="10">
-        <!-- The master strip, always at the right. -->
-        <Border DockPanel.Dock="Right" Width="132" Margin="10,0,0,0" Padding="8" CornerRadius="6"
-                Background="#1F2935" BorderBrush="#4F8F83" BorderThickness="1">
+    <DockPanel Margin="6">
+        <!-- The master module, at the right end of the desk. -->
+        <Border DockPanel.Dock="Right" Style="{StaticResource Module}" Width="78" Margin="6,0,0,0">
             <DockPanel>
-                <TextBlock DockPanel.Dock="Top" Text="MASTER" FontWeight="Bold" FontSize="13" Foreground="#E8EEF4" HorizontalAlignment="Center" />
-                <TextBlock DockPanel.Dock="Top" Text="INSERTS" FontSize="10" Foreground="#7F93A8" Margin="0,8,0,2" />
-                <ItemsControl DockPanel.Dock="Top" Height="96" ItemsSource="{Binding MasterTrack.Effects}" ItemTemplate="{StaticResource InsertTemplate}"
-                              Tag="{Binding MasterTrack}" />
-                <Button DockPanel.Dock="Top" Style="{StaticResource StripButton}" Content="FX" Margin="0,4,0,0"
-                        Tag="{Binding MasterTrack}" Click="Fx_Click" ToolTip="Open the master's effect rack: its effects run on the whole mix" />
-                <TextBlock DockPanel.Dock="Bottom" Text="{Binding MasterVolume, StringFormat={}{0:P0}}" HorizontalAlignment="Center"
-                           FontWeight="Bold" Foreground="#E8EEF4" Margin="0,6,0,0" />
-                <Grid Margin="0,24,0,0">
+                <StackPanel DockPanel.Dock="Top">
+                    <ContentControl ContentTemplate="{StaticResource Screw}" Margin="0,3,0,2" Focusable="False" />
+                    <Border Height="5" Background="#B8322B" Margin="4,0" />
+                    <TextBlock Style="{StaticResource Legend}" Text="INSERT" Margin="0,4,0,1" />
+                    <Border Height="56" Margin="4,0" Background="#111417" CornerRadius="2" BorderBrush="#9AA1A8" BorderThickness="0,0,1,1">
+                        <ItemsControl ItemsSource="{Binding MasterTrack.Effects}" ItemTemplate="{StaticResource InsertTemplate}" Tag="{Binding MasterTrack}" />
+                    </Border>
+                    <Button Style="{StaticResource ConsoleButton}" Content="FX" Margin="4,3,4,0" Tag="{Binding MasterTrack}" Click="Fx_Click"
+                            ToolTip="Open the master's effect rack: its effects run on the whole mix" />
+                    <TextBlock Style="{StaticResource Legend}" Text="MASTER" FontSize="11" Margin="0,14,0,0" />
+                    <TextBlock Style="{StaticResource Legend}" Text="STEREO OUT" FontSize="7" Margin="0,1,0,0" />
+                </StackPanel>
+                <StackPanel DockPanel.Dock="Bottom">
+                    <Border Height="15" Margin="4,4,4,0" Background="#0C0F12" CornerRadius="2">
+                        <TextBlock Text="{Binding MasterVolume, StringFormat={}{0:P0}}" FontFamily="Consolas" FontSize="9" Foreground="#FF8A3D"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <Border Height="18" Margin="3,4,3,0" Background="#EFE6C8" CornerRadius="1">
+                        <TextBlock Text="Master" FontFamily="Segoe Print" FontSize="9" Foreground="#1E2A6B" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ContentControl ContentTemplate="{StaticResource Screw}" Margin="0,4,0,3" Focusable="False" />
+                </StackPanel>
+                <Grid Margin="2,8,4,0">
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="20" />
                         <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="7" />
                     </Grid.ColumnDefinitions>
-                    <Slider Style="{StaticResource FaderStyle}" Value="{Binding MasterVolume}" ToolTip="Final mix volume" />
-                    <local:LedMeter Grid.Column="1" Width="10" Segments="24" RedSegments="4" Level="{Binding MasterSignalLevel}" ToolTip="Master level" />
+                    <local:FaderScale ThumbLength="26" />
+                    <Slider Grid.Column="1" Style="{StaticResource MasterFader}" Value="{Binding MasterVolume}" ToolTip="Final mix volume" />
+                    <local:LedMeter Grid.Column="2" Segments="30" RedSegments="5" Margin="0,13" Level="{Binding MasterSignalLevel}" ToolTip="Master level" />
                 </Grid>
             </DockPanel>
         </Border>
@@ -139,119 +237,121 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <!-- One track's channel strip, top to bottom as the sound goes: inserts, pan, fader, mute and solo. -->
-                        <Border Width="120" Margin="0,0,6,0" CornerRadius="6" Background="#1F2935" BorderThickness="1">
+                        <!-- One track's channel module, top to bottom as the sound goes: inserts, sends, pan, mute and
+                             solo, the fader with its meter, and the name on tape. -->
+                        <Border>
                             <Border.Style>
-                                <Style TargetType="Border">
-                                    <Setter Property="BorderBrush" Value="#34475C" />
+                                <Style TargetType="Border" BasedOn="{StaticResource Module}">
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                            <Setter Property="BorderBrush" Value="#E4ECF4" />
+                                            <Setter Property="BorderBrush" Value="#F2F4F6" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
                             </Border.Style>
                             <DockPanel>
-                                <Border DockPanel.Dock="Top" Height="6" CornerRadius="5,5,0,0" Background="{Binding TrackColorBrush}" />
-                                <StackPanel DockPanel.Dock="Top" Margin="7,5,7,0">
-                                    <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="12" Foreground="#E8EEF4" TextTrimming="CharacterEllipsis"
-                                               ToolTip="{Binding Name}" Cursor="Hand" MouseLeftButtonUp="TrackName_MouseLeftButtonUp" />
-                                    <TextBlock Text="{Binding PluginAndSoundName}" FontSize="10" Foreground="#7F93A8" TextTrimming="CharacterEllipsis"
-                                               ToolTip="{Binding PluginAndSoundName}" Height="14" />
-                                    <TextBlock Text="INSERTS" FontSize="10" Foreground="#7F93A8" Margin="0,6,0,2" />
-                                    <ItemsControl Height="72" ItemsSource="{Binding Effects}" ItemTemplate="{StaticResource InsertTemplate}" Tag="{Binding}" />
-                                    <Button Style="{StaticResource StripButton}" Content="FX" Margin="0,4,0,0" Tag="{Binding}" Click="Fx_Click"
-                                            ToolTip="Open the track's effect rack, to add Sonator's or VST effects">
-                                    </Button>
-                                    <!-- How much of the track goes to each bus, after its fader. -->
-                                    <TextBlock Text="SENDS" FontSize="10" Foreground="#7F93A8" Margin="0,8,0,2" />
-                                    <Grid Height="78">
-                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                        <ItemsControl>
-                                            <ItemsControl.ItemsSource>
-                                                <MultiBinding Converter="{StaticResource SendControls}">
-                                                    <Binding />
-                                                    <Binding Path="DataContext.Buses" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                    <Binding Path="DataContext.BusesVersion" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                </MultiBinding>
-                                            </ItemsControl.ItemsSource>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <StackPanel Margin="0,0,0,4">
-                                                        <DockPanel>
-                                                            <TextBlock DockPanel.Dock="Right" Text="{Binding LevelDisplay}" FontSize="10" Foreground="#E8EEF4" />
-                                                            <TextBlock Text="{Binding Bus.Name}" FontSize="10" Foreground="#62B7A4" TextTrimming="CharacterEllipsis" />
-                                                        </DockPanel>
-                                                        <local:VolumeBar Height="12" Margin="0,1,0,0" DefaultValue="0.75" Value="{Binding Level}"
-                                                                         ToolTip="How much of the track goes to this bus. Double-click: 0 dB" />
-                                                    </StackPanel>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </ScrollViewer>
-                                    <TextBlock Text="no buses: + BUS adds one" FontSize="9" Foreground="#5D6E80" IsHitTestVisible="False">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Visibility" Value="Collapsed" />
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding DataContext.Buses.Count, RelativeSource={RelativeSource AncestorType=Window}}" Value="0">
-                                                        <Setter Property="Visibility" Value="Visible" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
+                                <StackPanel DockPanel.Dock="Top">
+                                    <ContentControl ContentTemplate="{StaticResource Screw}" Margin="0,3,0,2" Focusable="False" />
+                                    <Border Height="5" Background="{Binding TrackColorBrush}" Margin="4,0" />
+                                    <TextBlock Style="{StaticResource Legend}" Text="INSERT" Margin="0,4,0,1" />
+                                    <Border Height="44" Margin="4,0" Background="#111417" CornerRadius="2" BorderBrush="#9AA1A8" BorderThickness="0,0,1,1">
+                                        <ItemsControl ItemsSource="{Binding Effects}" ItemTemplate="{StaticResource InsertTemplate}" Tag="{Binding}" />
+                                    </Border>
+                                    <Button Style="{StaticResource ConsoleButton}" Content="FX" Margin="4,3,4,0" Tag="{Binding}" Click="Fx_Click"
+                                            ToolTip="Open the track's effect rack, to add Sonator's or VST effects" />
+                                    <TextBlock Style="{StaticResource Legend}" Text="SEND" Margin="0,6,0,1" />
+                                    <Grid Height="94">
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                            <ItemsControl ItemTemplate="{StaticResource SendTemplate}">
+                                                <ItemsControl.ItemsSource>
+                                                    <MultiBinding Converter="{StaticResource SendControls}">
+                                                        <Binding />
+                                                        <Binding Path="DataContext.Buses" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="DataContext.BusesVersion" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                    </MultiBinding>
+                                                </ItemsControl.ItemsSource>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+                                        <TextBlock Style="{StaticResource Legend}" FontWeight="Normal" FontSize="7" TextAlignment="Center" TextWrapping="Wrap"
+                                                   Margin="4,10,4,0" VerticalAlignment="Top" IsHitTestVisible="False" Text="no buses: + BUS adds one">
+                                            <TextBlock.Visibility>
+                                                <Binding Path="DataContext.Buses.Count" RelativeSource="{RelativeSource AncestorType=Window}">
+                                                    <Binding.Converter>
+                                                        <local:ZeroToVisibleConverter />
+                                                    </Binding.Converter>
+                                                </Binding>
+                                            </TextBlock.Visibility>
+                                        </TextBlock>
                                     </Grid>
-
-                                    <DockPanel Margin="0,10,0,0">
-                                        <TextBlock DockPanel.Dock="Right" Text="{Binding PanDisplay}" FontSize="10" Foreground="#E8EEF4" Width="28" TextAlignment="Right" />
-                                        <TextBlock Text="PAN" FontSize="10" Foreground="#7F93A8" />
+                                    <TextBlock Style="{StaticResource Legend}" Text="PAN" Margin="0,4,0,0" />
+                                    <local:Knob Width="32" Height="32" Look="Console" IsCentred="True" Accent="#8C96A0" DefaultPosition="0.5"
+                                                Position="{Binding PanPosition}">
+                                        <local:Knob.ToolTip>
+                                            <TextBlock>
+                                                <Run Text="Pan: " /><Run Text="{Binding PanDisplay, Mode=OneWay}" />
+                                                <LineBreak /><Run Text="Drag up or down; double-click to centre" />
+                                            </TextBlock>
+                                        </local:Knob.ToolTip>
+                                    </local:Knob>
+                                    <DockPanel Margin="10,-6,10,0">
+                                        <TextBlock DockPanel.Dock="Right" Style="{StaticResource Legend}" Text="R" FontSize="7" />
+                                        <TextBlock Style="{StaticResource Legend}" Text="L" FontSize="7" HorizontalAlignment="Left" />
                                     </DockPanel>
-                                    <local:VolumeBar Height="14" Margin="0,2,0,0" IsPan="True" DefaultValue="0" Value="{Binding MixPan}"
-                                                     ToolTip="Pan: drag left or right, double-click to centre" />
+                                    <Grid Margin="4,6,4,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="3" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Button Content="M" Tag="{Binding}" Click="Mute_Click" ToolTip="Mute">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource ConsoleButton}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsMuted}" Value="True">
+                                                            <Setter Property="Background" Value="#E8463C" />
+                                                            <Setter Property="Foreground" Value="#2A0806" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                        <Button Grid.Column="2" Content="S" Tag="{Binding}" Click="Solo_Click" ToolTip="Solo">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource ConsoleButton}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsSolo}" Value="True">
+                                                            <Setter Property="Background" Value="#F2C94C" />
+                                                            <Setter Property="Foreground" Value="#2A2006" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                    </Grid>
                                 </StackPanel>
-                                <Grid DockPanel.Dock="Bottom" Margin="7,6,7,8">
+                                <StackPanel DockPanel.Dock="Bottom">
+                                    <Border Height="15" Margin="4,4,4,0" Background="#0C0F12" CornerRadius="2">
+                                        <TextBlock Text="{Binding VolumeDisplay}" FontFamily="Consolas" FontSize="8.5" Foreground="#FF8A3D"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <!-- The scribble strip: the track's name on a strip of tape. -->
+                                    <Border Height="18" Margin="3,4,3,0" Background="#EFE6C8" CornerRadius="1" Cursor="Hand"
+                                            ToolTip="{Binding Name}" MouseLeftButtonUp="TrackName_MouseLeftButtonUp">
+                                        <TextBlock Text="{Binding Name}" FontFamily="Segoe Print" FontSize="9" Foreground="#1E2A6B"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="2,0" />
+                                    </Border>
+                                    <ContentControl ContentTemplate="{StaticResource Screw}" Margin="0,4,0,3" Focusable="False" />
+                                </StackPanel>
+                                <Grid Margin="1,6,3,0">
                                     <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="17" />
                                         <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="4" />
-                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="5" />
                                     </Grid.ColumnDefinitions>
-                                    <Button Content="M" Tag="{Binding}" Click="Mute_Click" ToolTip="Mute">
-                                        <Button.Style>
-                                            <Style TargetType="Button" BasedOn="{StaticResource StripButton}">
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsMuted}" Value="True">
-                                                        <Setter Property="Background" Value="#49B88D" />
-                                                        <Setter Property="Foreground" Value="#0F1A14" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Button.Style>
-                                    </Button>
-                                    <Button Grid.Column="2" Content="S" Tag="{Binding}" Click="Solo_Click" ToolTip="Solo">
-                                        <Button.Style>
-                                            <Style TargetType="Button" BasedOn="{StaticResource StripButton}">
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsSolo}" Value="True">
-                                                        <Setter Property="Background" Value="#49B88D" />
-                                                        <Setter Property="Foreground" Value="#0F1A14" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Button.Style>
-                                    </Button>
-                                </Grid>
-                                <TextBlock DockPanel.Dock="Bottom" Text="{Binding VolumeDisplay}" HorizontalAlignment="Center" FontWeight="Bold"
-                                           Foreground="#E8EEF4" Margin="0,4,0,0" />
-                                <Grid Margin="7,10,7,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="12" />
-                                    </Grid.ColumnDefinitions>
-                                    <Slider Style="{StaticResource FaderStyle}" Value="{Binding MixVolume}" ToolTip="Track volume (double-click: 0 dB)"
-                                            MouseDoubleClick="Fader_MouseDoubleClick" />
-                                    <local:LedMeter Grid.Column="1" Width="10" Segments="24" RedSegments="4" Level="{Binding SignalLevel}"
-                                                    ToolTip="Track level" />
+                                    <local:FaderScale ThumbLength="26" />
+                                    <Slider Grid.Column="1" Style="{StaticResource ConsoleFader}" Value="{Binding MixVolume}"
+                                            ToolTip="Track volume (double-click: 0 dB)" MouseDoubleClick="Fader_MouseDoubleClick" />
+                                    <local:LedMeter Grid.Column="2" Segments="30" RedSegments="5" Margin="0,13" Level="{Binding SignalLevel}" ToolTip="Track level" />
                                 </Grid>
                             </DockPanel>
                         </Border>
@@ -260,7 +360,7 @@
             </ItemsControl>
 
             <!-- The buses: what the tracks send to them runs through their effects and joins the mix. -->
-            <ItemsControl ItemsSource="{Binding Buses}">
+            <ItemsControl ItemsSource="{Binding Buses}" Margin="4,0,0,0">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <StackPanel Orientation="Horizontal" />
@@ -268,46 +368,63 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Width="120" Margin="0,0,6,0" CornerRadius="6" Background="#1B2B2E" BorderBrush="#3F7F76" BorderThickness="1">
+                        <Border Style="{StaticResource Module}">
                             <DockPanel>
-                                <Border DockPanel.Dock="Top" Height="6" CornerRadius="5,5,0,0" Background="{Binding TrackColorBrush}" />
-                                <StackPanel DockPanel.Dock="Top" Margin="7,5,7,0">
-                                    <DockPanel>
-                                        <Button DockPanel.Dock="Right" Style="{StaticResource StripButton}" Content="✕" Width="20" Height="18"
+                                <StackPanel DockPanel.Dock="Top">
+                                    <Grid Margin="0,3,0,2">
+                                        <ContentControl ContentTemplate="{StaticResource Screw}" Focusable="False" />
+                                        <Button Style="{StaticResource ConsoleButton}" Content="✕" Width="13" Height="13" FontSize="7" HorizontalAlignment="Right" Margin="0,0,3,0"
                                                 Tag="{Binding}" Click="RemoveBus_Click" ToolTip="Remove the bus, and the tracks' sends to it" />
-                                        <TextBlock Text="BUS" FontSize="10" Foreground="#62B7A4" VerticalAlignment="Center" />
-                                    </DockPanel>
-                                    <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" FontWeight="Bold" FontSize="12" Margin="0,2,0,0"
-                                             Background="#14201F" Foreground="#E8EEF4" BorderBrush="#2F5F58" ToolTip="The bus's name" />
-                                    <TextBlock Text="INSERTS" FontSize="10" Foreground="#7F93A8" Margin="0,8,0,2" />
-                                    <ItemsControl Height="72" ItemsSource="{Binding Effects}" ItemTemplate="{StaticResource InsertTemplate}" Tag="{Binding}" />
-                                    <Button Style="{StaticResource StripButton}" Content="FX" Margin="0,4,0,0" Tag="{Binding}" Click="Fx_Click"
+                                    </Grid>
+                                    <Border Height="5" Background="{Binding TrackColorBrush}" Margin="4,0" />
+                                    <TextBlock Style="{StaticResource Legend}" Text="INSERT" Margin="0,4,0,1" />
+                                    <Border Height="44" Margin="4,0" Background="#111417" CornerRadius="2" BorderBrush="#9AA1A8" BorderThickness="0,0,1,1">
+                                        <ItemsControl ItemsSource="{Binding Effects}" ItemTemplate="{StaticResource InsertTemplate}" Tag="{Binding}" />
+                                    </Border>
+                                    <Button Style="{StaticResource ConsoleButton}" Content="FX" Margin="4,3,4,0" Tag="{Binding}" Click="Fx_Click"
                                             ToolTip="Open the bus's effect rack" />
-                                    <Border Height="91" />
-                                    <DockPanel Margin="0,10,0,0">
-                                        <TextBlock DockPanel.Dock="Right" Text="{Binding PanDisplay}" FontSize="10" Foreground="#E8EEF4" Width="28" TextAlignment="Right" />
-                                        <TextBlock Text="PAN" FontSize="10" Foreground="#7F93A8" />
+                                    <TextBlock Style="{StaticResource Legend}" Text="RETURN" Margin="0,6,0,1" />
+                                    <Border Height="88" />
+                                    <TextBlock Style="{StaticResource Legend}" Text="PAN" Margin="0,4,0,0" />
+                                    <local:Knob Width="32" Height="32" Look="Console" IsCentred="True" Accent="#8C96A0" DefaultPosition="0.5"
+                                                Position="{Binding PanPosition}" ToolTip="Pan: drag up or down; double-click to centre" />
+                                    <DockPanel Margin="10,-6,10,0">
+                                        <TextBlock DockPanel.Dock="Right" Style="{StaticResource Legend}" Text="R" FontSize="7" />
+                                        <TextBlock Style="{StaticResource Legend}" Text="L" FontSize="7" HorizontalAlignment="Left" />
                                     </DockPanel>
-                                    <local:VolumeBar Height="14" Margin="0,2,0,0" IsPan="True" DefaultValue="0" Value="{Binding MixPan}"
-                                                     ToolTip="Pan: drag left or right, double-click to centre" />
+                                    <Button Margin="4,6,4,0" Content="M" Tag="{Binding}" Click="BusMute_Click" ToolTip="Mute the bus">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource ConsoleButton}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsMuted}" Value="True">
+                                                        <Setter Property="Background" Value="#E8463C" />
+                                                        <Setter Property="Foreground" Value="#2A0806" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
                                 </StackPanel>
-                                <Button DockPanel.Dock="Bottom" Margin="7,6,7,8" Content="M" Tag="{Binding}" Click="BusMute_Click" ToolTip="Mute the bus">
-                                    <Button.Style>
-                                        <Style TargetType="Button" BasedOn="{StaticResource StripButton}">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsMuted}" Value="True">
-                                                    <Setter Property="Background" Value="#49B88D" />
-                                                    <Setter Property="Foreground" Value="#0F1A14" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
-                                <TextBlock DockPanel.Dock="Bottom" Text="{Binding VolumeDisplay}" HorizontalAlignment="Center" FontWeight="Bold"
-                                           Foreground="#E8EEF4" Margin="0,4,0,0" />
-                                <Grid Margin="7,10,7,0">
-                                    <Slider Style="{StaticResource FaderStyle}" Value="{Binding MixVolume}" ToolTip="Bus volume (double-click: 0 dB)"
-                                            MouseDoubleClick="Fader_MouseDoubleClick" />
+                                <StackPanel DockPanel.Dock="Bottom">
+                                    <Border Height="15" Margin="4,4,4,0" Background="#0C0F12" CornerRadius="2">
+                                        <TextBlock Text="{Binding VolumeDisplay}" FontFamily="Consolas" FontSize="8.5" Foreground="#FF8A3D"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <!-- The bus's name, on tape too: it can be written on. -->
+                                    <TextBox Height="18" Margin="3,4,3,0" Background="#DCEFE9" BorderThickness="0" Padding="0"
+                                             Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" FontFamily="Segoe Print" FontSize="9" Foreground="#0F4A42"
+                                             HorizontalContentAlignment="Center" VerticalContentAlignment="Center" ToolTip="The bus's name: click to write it" />
+                                    <ContentControl ContentTemplate="{StaticResource Screw}" Margin="0,4,0,3" Focusable="False" />
+                                </StackPanel>
+                                <Grid Margin="1,6,3,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="17" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="5" />
+                                    </Grid.ColumnDefinitions>
+                                    <local:FaderScale ThumbLength="26" />
+                                    <Slider Grid.Column="1" Style="{StaticResource ConsoleFader}" Value="{Binding MixVolume}"
+                                            ToolTip="Bus volume (double-click: 0 dB)" MouseDoubleClick="Fader_MouseDoubleClick" />
                                 </Grid>
                             </DockPanel>
                         </Border>
@@ -315,8 +432,27 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
-            <Button Style="{StaticResource StripButton}" Content="+ BUS" Width="70" Height="28" VerticalAlignment="Top" Margin="2,0,0,0"
-                    Click="AddBus_Click" ToolTip="Add a bus (an effect return): tracks send part of their sound to it, as to a shared reverb" />
+            <!-- An empty slot in the frame, where another bus goes. -->
+            <Button Width="44" Margin="4,0,0,0" VerticalAlignment="Stretch" Click="AddBus_Click" Cursor="Hand" Focusable="False"
+                    ToolTip="Add a bus (an effect return): tracks send part of their sound to it, as to a shared reverb">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Slot" Background="#15191D" BorderBrush="#2A2F35" BorderThickness="1" CornerRadius="2">
+                            <TextBlock Text="+ BUS" Foreground="#8A939C" FontFamily="Arial" FontWeight="Bold" FontSize="10"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock.LayoutTransform>
+                                    <RotateTransform Angle="-90" />
+                                </TextBlock.LayoutTransform>
+                            </TextBlock>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Slot" Property="BorderBrush" Value="#8A939C" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Button.Template>
+            </Button>
           </StackPanel>
         </ScrollViewer>
     </DockPanel>

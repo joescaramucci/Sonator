@@ -298,6 +298,7 @@ public sealed class PatternTrackViewModel : ViewModelBase
             {
                 RaisePropertyChanged(nameof(PanDisplay));
                 RaisePropertyChanged(nameof(MixPan));
+                RaisePropertyChanged(nameof(PanPosition));
                 RaisePropertyChanged(nameof(ShownAutomationIdleValue));
             }
         }
@@ -453,6 +454,7 @@ public sealed class PatternTrackViewModel : ViewModelBase
             if (SetProperty(ref _automatedPan, value))
             {
                 RaisePropertyChanged(nameof(MixPan));
+                RaisePropertyChanged(nameof(PanPosition));
                 RaisePropertyChanged(nameof(PanDisplay));
             }
         }
@@ -475,6 +477,13 @@ public sealed class PatternTrackViewModel : ViewModelBase
     {
         get => _automatedPan ?? _pan;
         set => Pan = value;
+    }
+
+    // The pan as a knob's position: 0 hard left, 0.5 the centre, 1 hard right.
+    public double PanPosition
+    {
+        get => (MixPan + 1) / 2;
+        set => Pan = value * 2 - 1;
     }
 
     public bool IsRecordArmed

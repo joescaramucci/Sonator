@@ -10,7 +10,7 @@ public sealed class SendControlsConverter : IMultiValueConverter
 {
     public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture) =>
         values is [PatternTrackViewModel track, IEnumerable<PatternTrackViewModel> buses, ..]
-            ? buses.Select(bus => new SendViewModel(track, bus)).ToList()
+            ? buses.Select((bus, index) => new SendViewModel(track, bus) { Cap = SendViewModel.CapFor(index) }).ToList()
             : Array.Empty<SendViewModel>();
 
     public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture) =>

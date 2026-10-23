@@ -4,12 +4,32 @@ using System.Windows.Media;
 
 namespace Sonator;
 
+// How a knob is drawn: flat with a coloured value arc, as in the FX racks, or as on a mixing console's
+// panel, a dark knurled body with a coloured cap and a white line, over a printed scale of dots.
+public enum KnobLook
+{
+    Flat,
+    Console,
+}
+
 /// <summary>
 /// A rotary knob over 270 degrees. Drag up or down to turn it (Shift for fine steps), use the mouse
 /// wheel to nudge it, and double-click to go back to the default. Position runs from 0 to 1.
 /// </summary>
 public sealed class Knob : FrameworkElement
 {
+    public static readonly DependencyProperty LookProperty = DependencyProperty.Register(
+        nameof(Look), typeof(KnobLook), typeof(Knob),
+        new FrameworkPropertyMetadata(KnobLook.Flat, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public KnobLook Look
+    {
+        get => (KnobLook)GetValue(LookProperty);
+        set => SetValue(LookProperty, value);
+    }
+
+    // For the console look: the knob's middle is marked on the scale, as for a pan.
+    public bool IsCentred { get; set; }
     public static readonly DependencyProperty PositionProperty = DependencyProperty.Register(
         nameof(Position), typeof(double), typeof(Knob),
         new FrameworkPropertyMetadata(0.0, FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
@@ -71,6 +91,12 @@ public sealed class Knob : FrameworkElement
         var bodyRadius = ringRadius - 5;
 
         drawingContext.DrawRectangle(Brushes.Transparent, null, new Rect(0, 0, ActualWidth, ActualHeight));
+        if (Look == KnobLook.Console)
+        {
+            DrawConsoleKnob(drawingContext, center, size / 2);
+            return;
+        }
+
         drawingContext.DrawGeometry(null, TrackPen, Arc(center, ringRadius, StartAngle, Sweep));
         var position = Math.Clamp(Position, 0, 1);
         if (position > 0.001)
@@ -84,6 +110,56 @@ public sealed class Knob : FrameworkElement
         var tip = new Point(center.X + Math.Cos(angle) * (bodyRadius - 2), center.Y + Math.Sin(angle) * (bodyRadius - 2));
         var inner = new Point(center.X + Math.Cos(angle) * bodyRadius * 0.35, center.Y + Math.Sin(angle) * bodyRadius * 0.35);
         drawingContext.DrawLine(PointerPen, inner, tip);
+    }
+
+    private static readonly Brush ScaleDotBrush = Frozen(0x2A, 0x2E, 0x33);
+    private static readonly Pen KnobEdgePen = FrozenPen(0x08, 0x09, 0x0A, 1);
+    private static readonly Pen ConsolePointerPen = FrozenPen(0xF4, 0xF4, 0xF0, 1.6);
+    private static readonly Brush KnurledBody = FrozenRadial(Color.FromRgb(0x5A, 0x60, 0x66), Color.FromRgb(0x14, 0x16, 0x19));
+
+    // A console knob: the scale's dots printed around it, a dark knurled body, the Accent as its cap, lit
+    // from the top left, and a white line showing where it points.
+    private void DrawConsoleKnob(DrawingContext drawingContext, Point center, double radius)
+    {
+        var dotRadius = radius - 1.5;
+        for (var i = 0; i <= 10; i++)
+        {
+            var angle = (StartAngle + Sweep * i / 10) * Math.PI / 180;
+            var dot = new Point(center.X + Math.Cos(angle) * dotRadius, center.Y + Math.Sin(angle) * dotRadius);
+            var big = i == 0 || i == 10 || (IsCentred && i == 5);
+            drawingContext.DrawEllipse(ScaleDotBrush, null, dot, big ? 1.3 : 0.8, big ? 1.3 : 0.8);
+        }
+
+        var bodyRadius = radius - 4;
+        drawingContext.DrawEllipse(KnurledBody, KnobEdgePen, center, bodyRadius, bodyRadius);
+        var capColor = Accent is SolidColorBrush solid ? solid.Color : Colors.SteelBlue;
+        var cap = new RadialGradientBrush(Lighten(capColor, 0.45), capColor)
+        {
+            GradientOrigin = new Point(0.35, 0.3),
+            Center = new Point(0.45, 0.4),
+            RadiusX = 0.7,
+            RadiusY = 0.7,
+        };
+        cap.Freeze();
+        var capRadius = bodyRadius * 0.62;
+        drawingContext.DrawEllipse(cap, KnobEdgePen, center, capRadius, capRadius);
+
+        var angleNow = (StartAngle + Sweep * Math.Clamp(Position, 0, 1)) * Math.PI / 180;
+        var tip = new Point(center.X + Math.Cos(angleNow) * (bodyRadius - 1), center.Y + Math.Sin(angleNow) * (bodyRadius - 1));
+        var inner = new Point(center.X + Math.Cos(angleNow) * capRadius * 0.2, center.Y + Math.Sin(angleNow) * capRadius * 0.2);
+        drawingContext.DrawLine(ConsolePointerPen, inner, tip);
+    }
+
+    private static Color Lighten(Color color, double amount) => Color.FromRgb(
+        (byte)(color.R + (255 - color.R) * amount),
+        (byte)(color.G + (255 - color.G) * amount),
+        (byte)(color.B + (255 - color.B) * amount));
+
+    private static Brush FrozenRadial(Color inner, Color outer)
+    {
+        var brush = new RadialGradientBrush(inner, outer) { GradientOrigin = new Point(0.35, 0.3) };
+        brush.Freeze();
+        return brush;
     }
 
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
@@ -108,7 +184,8 @@ public sealed class Knob : FrameworkElement
         }
 
         var range = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? DragRange * 5 : DragRange;
-        Position = _positionAtDragStart + (_dragStart.Y - e.GetPosition(this).Y) / range;
+        var position = _positionAtDragStart + (_dragStart.Y - e.GetPosition(this).Y) / range;
+        Position = IsCentred && Math.Abs(position - 0.5) < 0.02 ? 0.5 : position; // the centre catches a pan
     }
 
     protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
