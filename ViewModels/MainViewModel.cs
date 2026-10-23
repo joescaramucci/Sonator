@@ -1924,6 +1924,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
 
         destination.AudioClipStartStep = startStep;
         StatusMessage = $"{destination.Name}: the audio clip starts at bar {startStep / 16 + 1}, step {startStep % 16 + 1}";
+        LengthenPatternForClip(destination);
         RebuildTimeline();
         return true;
     }
@@ -3739,7 +3740,42 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         track.TrackType = PatternTrackType.AudioInput;
         track.Instrument = "Audio clip";
         StatusMessage = $"{track.Name} now plays the audio clip";
+        LengthenPatternForClip(track);
         RebuildTimeline();
+    }
+
+    // Makes the selected pattern long enough, in whole bars, to play the track's clip through to its end,
+    // as a longer recording would: the pattern grows, it never shrinks.
+    private void LengthenPatternForClip(PatternTrackViewModel track)
+    {
+        if (SelectedPattern is not { } pattern || !pattern.Tracks.Contains(track) || LoadAudioWaveform(track) is not { } waveform)
+        {
+            return;
+        }
+
+        var tempoMap = CurrentTempoMap;
+        var endStep = tempoMap.StepAt(tempoMap.SecondsAt(track.AudioClipStartStep) + waveform.DurationSeconds);
+        var bars = (int)Math.Ceiling(endStep / StepsPerBar - 1e-6);
+        if (bars <= PatternBarCount(pattern, StepsPerBar))
+        {
+            return;
+        }
+
+        if (SelectedArrangePatternLength > 0 && bars > SelectedArrangePatternLength)
+        {
+            ResizeSelectedArrangePattern(bars);
+        }
+
+        foreach (var patternTrack in pattern.Tracks)
+        {
+            while (patternTrack.Steps.Count < bars * StepsPerBar)
+            {
+                patternTrack.Steps.Add(new StepViewModel(patternTrack.Steps.Count, false));
+            }
+        }
+
+        ConfigurePlaybackSource();
+        StatusMessage = $"{StatusMessage}; the pattern now lasts {bars} bars, to play the whole clip";
     }
 
     // Puts an edited clip in place of a track's clip, where the old one started; undo brings the old one back.
@@ -3748,6 +3784,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         CaptureUndoStateIfNeeded();
         track.AudioClipPath = clipPath;
         StatusMessage = $"{track.Name}: the edited clip replaces the old one";
+        LengthenPatternForClip(track);
         RebuildTimeline();
     }
 
@@ -3766,8 +3803,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
             var clip = AudioClipLoader.Load(sourcePath);
             var libraryPath = AudioClipLoader.SaveToLibrary(clip);
             _audioWaveforms[libraryPath] = AudioWaveformSummary.FromClip(clip);
+            var barsBefore = SelectedPattern is { } before ? PatternBarCount(before, StepsPerBar) : 0;
             AssignAudioClip(track, libraryPath);
-            StatusMessage = $"{track.Name} now plays {fileName} ({clip.Duration.TotalSeconds:0.00} s)";
+            var barsAfter = SelectedPattern is { } after ? PatternBarCount(after, StepsPerBar) : 0;
+            StatusMessage = $"{track.Name} now plays {fileName} ({clip.Duration.TotalSeconds:0.00} s)"
+                + (barsAfter > barsBefore ? $"; the pattern now lasts {barsAfter} bars, to play it all" : string.Empty);
         }
         catch (Exception ex)
         {

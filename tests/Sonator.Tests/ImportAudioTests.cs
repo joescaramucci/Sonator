@@ -32,6 +32,39 @@ public sealed class ImportAudioTests
     }
 
     [Fact]
+    public void AClipLongerThanThePattern_LengthensItToPlayToTheEnd()
+    {
+        OnStaThread(() =>
+        {
+            // 20 s at 120 BPM is 10 bars; the default pattern has 8.
+            var wav = Path.Combine(Path.GetTempPath(), $"sonator-long-{Guid.NewGuid():N}.wav");
+            AudioClipLoader.SaveWav(new AudioClip(new float[48000 * 20], 1, 48000), wav);
+            string? imported = null;
+            try
+            {
+                using var viewModel = new MainViewModel();
+                var pattern = viewModel.SelectedPattern!;
+                Assert.Equal(8, viewModel.SelectedArrangePatternLength);
+
+                Assert.True(viewModel.ImportAudioFile(wav));
+                imported = pattern.Tracks.First(track => track.AudioClipPath is not null).AudioClipPath;
+
+                Assert.Equal(10, viewModel.SelectedArrangePatternLength);
+                Assert.Equal(10, TimelineFormatting.PatternBarCount(pattern));
+                Assert.All(pattern.Tracks, track => Assert.Equal(160, track.Steps.Count));
+            }
+            finally
+            {
+                File.Delete(wav);
+                if (imported is not null)
+                {
+                    File.Delete(imported);
+                }
+            }
+        });
+    }
+
+    [Fact]
     public void AnImportedWav_GoesIntoAnEmptyTrack_ThenIntoANewAudioTrack()
     {
         OnStaThread(() =>
