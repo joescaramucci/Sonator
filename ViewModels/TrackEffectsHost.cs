@@ -45,10 +45,27 @@ internal sealed class TrackEffectsHost : IDisposable
         }
     }
 
+    private double _masterBalance;
+
+    // The master faders' balance, -1 to 1, as MainViewModel.MasterBalanceOf works it out: the master's chain
+    // turns the lower side down by it.
+    public double MasterBalance
+    {
+        get => _masterBalance;
+        set
+        {
+            _masterBalance = Math.Clamp(value, -1, 1);
+            if (_master is not null && ExistingChainFor(_master) is { } chain)
+            {
+                ApplyMix(_master, chain);
+            }
+        }
+    }
+
     private PatternTrackViewModel? _master;
 
     // The master's effects run on the whole mix. Its gain stays at unity: the master volume is already in
-    // every track's gain, ahead of the master's effects.
+    // every track's gain, ahead of the master's effects. Its balance sets the master faders' difference.
     public void UseAsMaster(PatternTrackViewModel master)
     {
         _master = master;
@@ -95,7 +112,7 @@ internal sealed class TrackEffectsHost : IDisposable
         chain.SetGain(isMaster ? 1.0
             : isBus ? (track.IsMuted ? 0.0 : Gain(track.MixVolume, UnityVolume))
             : Gain(track.MixVolume, _masterVolume));
-        chain.SetPan(isMaster ? 0.0 : track.MixPan);
+        chain.SetPan(isMaster ? _masterBalance : track.MixPan);
         for (var slot = 0; slot < NativeEffectChain.MaxBuses; slot++)
         {
             var level = !isMaster && !isBus && slot < _buses.Count ? track.SendLevel(_buses[slot].BusId) : 0;

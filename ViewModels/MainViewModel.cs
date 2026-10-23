@@ -1395,24 +1395,81 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
     }
 
+    // The overall master volume: the higher of the two master faders, which is in every track's gain. Set from a
+    // single fader (the main window's) or a project, it moves both faders by the same amount.
     public double MasterVolume
     {
         get => _masterVolume;
         set
         {
-            var clamped = Math.Clamp(value, 0.0, 1.0);
-            if (_masterVolume == clamped)
-            {
-                return;
-            }
+            var shift = Math.Clamp(value, 0.0, 1.0) - Math.Max(_masterVolumeLeft, _masterVolumeRight);
+            SetMasterFaders(_masterVolumeLeft + shift, _masterVolumeRight + shift);
+        }
+    }
 
-            if (SetProperty(ref _masterVolume, clamped))
+    // ---- The master's two faders ----
+
+    private double _masterVolumeLeft = 0.75;
+    private double _masterVolumeRight = 0.75;
+    private bool _isMasterLinked = true;
+
+    // The master's left and right faders, as on a desk's stereo master. While they are linked, moving one moves
+    // the other by as much, keeping any difference between them; unlinked, each sets its own side, to put right
+    // a mix leaning to one side.
+    public double MasterVolumeLeft
+    {
+        get => _masterVolumeLeft;
+        set => SetMasterFaders(value, _isMasterLinked ? _masterVolumeRight + (value - _masterVolumeLeft) : _masterVolumeRight);
+    }
+
+    public double MasterVolumeRight
+    {
+        get => _masterVolumeRight;
+        set => SetMasterFaders(_isMasterLinked ? _masterVolumeLeft + (value - _masterVolumeRight) : _masterVolumeLeft, value);
+    }
+
+    public bool IsMasterLinked
+    {
+        get => _isMasterLinked;
+        set
+        {
+            if (SetProperty(ref _isMasterLinked, value))
             {
-                _engine.UpdateMasterVolume(clamped);
-                _trackEffects.MasterVolume = clamped;
+                StatusMessage = value ? "Master faders linked" : "Master faders unlinked: each sets its own side";
             }
         }
     }
+
+    // The master's level as its readout shows it: one figure while both sides are the same, else both.
+    public string MasterVolumeDisplay => Math.Abs(_masterVolumeLeft - _masterVolumeRight) < 0.005
+        ? $"{_masterVolumeLeft * 100:0}%"
+        : $"{_masterVolumeLeft * 100:0} | {_masterVolumeRight * 100:0}";
+
+    private void SetMasterFaders(double left, double right)
+    {
+        left = double.IsFinite(left) ? Math.Clamp(left, 0.0, 1.0) : _masterVolumeLeft;
+        right = double.IsFinite(right) ? Math.Clamp(right, 0.0, 1.0) : _masterVolumeRight;
+        var leftChanged = SetProperty(ref _masterVolumeLeft, left, nameof(MasterVolumeLeft));
+        var rightChanged = SetProperty(ref _masterVolumeRight, right, nameof(MasterVolumeRight));
+        if (leftChanged || rightChanged)
+        {
+            RaisePropertyChanged(nameof(MasterVolumeDisplay));
+        }
+
+        var top = Math.Max(left, right);
+        if (SetProperty(ref _masterVolume, top, nameof(MasterVolume)))
+        {
+            _engine.UpdateMasterVolume(top);
+            _trackEffects.MasterVolume = top;
+        }
+
+        _trackEffects.MasterBalance = MasterBalanceOf(left, right);
+    }
+
+    // The higher fader sets the master volume; the lower side is turned down from it by the master's balance,
+    // which keeps one side at unity and takes the other down by the ratio of the two faders.
+    internal static double MasterBalanceOf(double left, double right) =>
+        left <= 0 && right <= 0 ? 0 : left >= right ? right / left - 1 : 1 - left / right;
 
     public double MasterSignalLevel
     {
@@ -2732,7 +2789,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             SelectedPattern = Patterns.FirstOrDefault();
             SelectPatternInArrangement();
             Tempo = 120;
-            MasterVolume = 0.75;
+            IsMasterLinked = true;
+            SetMasterFaders(0.75, 0.75);
             RestoreMasterEffects(null);
             RestoreBuses(null);
             TempoChanges = Array.Empty<TempoChange>();
@@ -5368,7 +5426,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             BuildEffectDocuments(MasterTrack.Effects),
             Buses.Count == 0 ? null : Buses.Select(BuildTrackDocument).ToList(),
             _tempoChanges.Count == 0 ? null : _tempoChanges.Select(change => new TempoChangeDocument(change.Step, change.Bpm)).ToList(),
-            _markers.Count == 0 ? null : _markers.Select(marker => new MarkerDocument(marker.Step, marker.Name)).ToList());
+            _markers.Count == 0 ? null : _markers.Select(marker => new MarkerDocument(marker.Step, marker.Name)).ToList(),
+            MasterVolumeLeft,
+            MasterVolumeRight,
+            IsMasterLinked);
     }
 
     private void RestoreMasterEffects(IEnumerable<EffectDocument>? documents)
@@ -5397,7 +5458,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             Tempo = document.Tempo;
             BarCount = document.BarCount;
             TimeSignature = document.TimeSignature;
-            MasterVolume = document.MasterVolume;
+            // Projects saved before the master had two faders have only the one volume.
+            IsMasterLinked = document.MasterFadersLinked;
+            SetMasterFaders(document.MasterVolumeLeft ?? document.MasterVolume, document.MasterVolumeRight ?? document.MasterVolume);
             RestoreMasterEffects(document.MasterEffects);
             RestoreBuses(document.Buses);
             TempoChanges = document.TempoChanges?.Select(change => new TempoChange(change.Step, change.Bpm)).ToList()

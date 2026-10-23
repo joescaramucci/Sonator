@@ -17,7 +17,10 @@ public sealed record ProjectDocument(
         List<EffectDocument>? MasterEffects = null,
         List<TrackDocument>? Buses = null,
         List<TempoChangeDocument>? TempoChanges = null,
-        List<MarkerDocument>? Markers = null);
+        List<MarkerDocument>? Markers = null,
+        double? MasterVolumeLeft = null,
+        double? MasterVolumeRight = null,
+        bool MasterFadersLinked = true);
 
 // From this step on the song plays at Bpm.
 public sealed record TempoChangeDocument(int Step, double Bpm);

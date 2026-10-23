@@ -61,6 +61,26 @@
             <Setter Property="Template" Value="{StaticResource Raised3D}" />
         </Style>
 
+        <!-- The same key as a switch that stays down and lights while it is on, as the master's LINK. -->
+        <Style x:Key="ConsoleToggle" TargetType="ToggleButton">
+            <Setter Property="Foreground" Value="#E4E7EA" />
+            <Setter Property="FontFamily" Value="Arial" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="FontSize" Value="9" />
+            <Setter Property="Height" Value="17" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#646464" Offset="0" />
+                        <GradientStop Color="#363636" Offset="1" />
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template" Value="{StaticResource Raised3D}" />
+        </Style>
+
         <!-- The fader's cap: grey with a white line across, as on the classic desks; the master's is red. -->
         <ControlTemplate x:Key="FaderCap" TargetType="Thumb">
             <Border CornerRadius="2" BorderBrush="#0B0C0E" BorderThickness="1">
@@ -177,7 +197,7 @@
 
     <DockPanel Margin="6">
         <!-- The master module, at the right end of the desk. -->
-        <Border DockPanel.Dock="Right" Style="{StaticResource Module}" Width="86" Margin="6,0,0,0">
+        <Border DockPanel.Dock="Right" Style="{StaticResource Module}" Width="132" Margin="6,0,0,0">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Top">
                     <ContentControl ContentTemplate="{StaticResource Screw}" Margin="0,3,0,2" Focusable="False" />
@@ -186,7 +206,7 @@
                 </StackPanel>
                 <StackPanel DockPanel.Dock="Bottom">
                     <Border Height="15" Margin="4,4,4,0" Background="#101113" CornerRadius="2">
-                        <TextBlock Text="{Binding MasterVolume, StringFormat={}{0:P0}}" FontFamily="Consolas" FontSize="9" Foreground="#FF8A3D"
+                        <TextBlock Text="{Binding MasterVolumeDisplay}" FontFamily="Consolas" FontSize="9" Foreground="#FF8A3D"
                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
                     <Border Height="18" Margin="3,4,3,0" Background="#EFE6C8" CornerRadius="1">
@@ -194,23 +214,43 @@
                     </Border>
                     <ContentControl ContentTemplate="{StaticResource Screw}" Margin="0,4,0,3" Focusable="False" />
                 </StackPanel>
-                <Grid DockPanel.Dock="Bottom" Height="230" Margin="2,8,4,0">
+                <!-- The stereo master: a fader for each side, moving together while LINK is on. -->
+                <Grid DockPanel.Dock="Bottom" Height="230" Margin="2,6,4,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="20" />
                         <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="7" />
                     </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
                     <local:FaderScale ThumbLength="26" />
-                    <Slider Grid.Column="1" Style="{StaticResource MasterFader}" Value="{Binding MasterVolume}" ToolTip="Final mix volume" />
-                    <local:LedMeter Grid.Column="2" Segments="30" RedSegments="5" Margin="0,13" Level="{Binding MasterSignalLevel}" ToolTip="Master level" />
+                    <Slider Grid.Column="1" Style="{StaticResource MasterFader}" Value="{Binding MasterVolumeLeft}"
+                            ToolTip="Master, left side. With LINK on, the right side follows" />
+                    <Slider Grid.Column="2" Style="{StaticResource MasterFader}" Value="{Binding MasterVolumeRight}"
+                            ToolTip="Master, right side. With LINK on, the left side follows" />
+                    <local:LedMeter Grid.Column="3" Segments="30" RedSegments="5" Margin="0,13" Level="{Binding MasterSignalLevel}" ToolTip="Master level" />
+                    <TextBlock Grid.Row="1" Grid.Column="1" Style="{StaticResource Legend}" Text="L" Margin="0,1,0,0" />
+                    <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource Legend}" Text="R" Margin="0,1,0,0" />
                 </Grid>
                 <StackPanel DockPanel.Dock="Bottom">
                     <Button Style="{StaticResource ConsoleButton}" Content="FX" Margin="4,3,4,0" Tag="{Binding MasterTrack}" Click="Fx_Click"
                             ToolTip="Open the master's effect rack: its effects run on the whole mix" />
                     <TextBlock Style="{StaticResource Legend}" Text="MASTER" FontSize="11" Margin="0,8,0,4" />
-                    <!-- The mix's left and right levels, on moving-needle meters. -->
-                    <local:VuMeter Label="L" Height="50" Margin="3,0" Peak="{Binding MasterPeakLeft}" ToolTip="Left: 0 VU is -18 dBFS" />
-                    <local:VuMeter Label="R" Height="50" Margin="3,3,3,0" Peak="{Binding MasterPeakRight}" ToolTip="Right: 0 VU is -18 dBFS" />
+                    <!-- The mix's left and right levels, on moving-needle meters side by side. -->
+                    <Grid Height="48" Margin="3,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="3" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <local:VuMeter Label="L" Peak="{Binding MasterPeakLeft}" ToolTip="Left: 0 VU is -18 dBFS" />
+                        <local:VuMeter Grid.Column="2" Label="R" Peak="{Binding MasterPeakRight}" ToolTip="Right: 0 VU is -18 dBFS" />
+                    </Grid>
+                    <ToggleButton Style="{StaticResource ConsoleToggle}" Content="LINK" Margin="22,8,10,0" IsChecked="{Binding IsMasterLinked}"
+                                  ToolTip="Link the two master faders, so they move together. Off, each sets its own side" />
                 </StackPanel>
                 <!-- The inserts stop at ten effects' worth, as on the other strips; the panel shows below them. -->
                 <Grid>
