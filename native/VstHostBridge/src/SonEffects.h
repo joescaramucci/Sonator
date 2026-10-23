@@ -3,6 +3,7 @@
 // are atomics the UI can change at any time, and processing never blocks on the UI.
 #pragma once
 
+#include <array>
 #include <atomic>
 #include <cstdint>
 #include <memory>
@@ -84,6 +85,10 @@ namespace son
         double _sampleRate = 0.0;
         int _maxBlock = 0;
         std::atomic<float> _peak{0.0f};
+
+        // The gain each channel had at the end of the last block, for gliding to a new one. Negative
+        // until the first block.
+        std::array<float, 8> _appliedGains{-1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f};
         std::vector<std::vector<float>> _scratch;
         std::vector<float*> _scratchPointers;
     };

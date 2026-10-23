@@ -46,8 +46,18 @@ internal static class ProjectDocumentMapper
             track.MidiControllerEvents.Count == 0
                 ? null
                 : track.MidiControllerEvents.Select(e => new MidiControllerEventDocument(e.Step, e.Controller, e.Value)).ToList(),
-            track.Pan);
+            track.Pan,
+            BuildAutomationDocuments(track.VolumeAutomation),
+            BuildAutomationDocuments(track.PanAutomation));
     }
+
+    private static List<AutomationPointDocument>? BuildAutomationDocuments(IReadOnlyList<AutomationPoint> points) =>
+        points.Count == 0 ? null : points.Select(point => new AutomationPointDocument(point.Step, point.Value)).ToList();
+
+    // In order of step, whatever order the file had them in.
+    private static IReadOnlyList<AutomationPoint> AutomationPoints(IEnumerable<AutomationPointDocument>? documents) =>
+        documents?.Select(point => new AutomationPoint(point.Step, point.Value)).OrderBy(point => point.Step).ToList()
+        ?? (IReadOnlyList<AutomationPoint>)Array.Empty<AutomationPoint>();
 
     // Null when there are no effects, so projects without any stay as they were.
     internal static List<EffectDocument>? BuildEffectDocuments(IReadOnlyCollection<TrackEffectViewModel> effects) =>
@@ -79,6 +89,8 @@ internal static class ProjectDocumentMapper
         targetTrack.Source = sourceTrack.Source ?? string.Empty;
         targetTrack.Volume = sourceTrack.Volume;
         targetTrack.Pan = sourceTrack.Pan;
+        targetTrack.VolumeAutomation = AutomationPoints(sourceTrack.VolumeAutomation);
+        targetTrack.PanAutomation = AutomationPoints(sourceTrack.PanAutomation);
         targetTrack.IsRecordArmed = sourceTrack.IsRecordArmed;
         targetTrack.PluginFilePath = sourceTrack.PluginFilePath;
         targetTrack.PluginState = sourceTrack.PluginState;
@@ -164,6 +176,8 @@ internal static class ProjectDocumentMapper
             CreateTrackColorBrush(trackDocument.TrackColor))
         {
             Pan = trackDocument.Pan,
+            VolumeAutomation = AutomationPoints(trackDocument.VolumeAutomation),
+            PanAutomation = AutomationPoints(trackDocument.PanAutomation),
             PluginFilePath = trackDocument.PluginFilePath,
             PluginState = trackDocument.PluginState,
             PluginEditorState = trackDocument.PluginEditorState,

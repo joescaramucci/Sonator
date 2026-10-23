@@ -52,7 +52,7 @@ public partial class MixerWindow : Window
             Margin = new Thickness(0, 8, 0, 0),
             ToolTip = "Pan: drag left or right, double-click to centre",
         };
-        pan.SetBinding(VolumeBar.ValueProperty, new System.Windows.Data.Binding(nameof(PatternTrackViewModel.Pan)) { Source = track });
+        pan.SetBinding(VolumeBar.ValueProperty, new System.Windows.Data.Binding(nameof(PatternTrackViewModel.MixPan)) { Source = track });
         strip.Children.Add(pan);
 
         // The slider is created with its value before the handler is attached, so building the strip does not write back.

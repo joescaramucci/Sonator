@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Sonator"
         xmlns:models="clr-namespace:Sonator.Models"
+        xmlns:vm="clr-namespace:Sonator.ViewModels"
         mc:Ignorable="d"
         Title="{Binding WindowTitle}"
         Icon="pack://application:,,,/Assets/sonator.ico"
@@ -608,6 +609,11 @@
                         <Separator />
                         <MenuItem Header="Transpose +1" Command="{Binding TransposeUpCommand}" />
                         <MenuItem Header="Transpose -1" Command="{Binding TransposeDownCommand}" />
+                        <Separator />
+                        <MenuItem Header="Show _volume automation" Click="ShowVolumeAutomation_Click" />
+                        <MenuItem Header="Show _pan automation" Click="ShowPanAutomation_Click" />
+                        <MenuItem Header="Hide automation" Click="HideAutomation_Click" />
+                        <MenuItem Header="Clear the automation shown" Click="ClearAutomation_Click" />
                     </MenuItem>
                     <MenuItem Header="_MIDI">
                         <MenuItem Header="Import MIDI..." Command="{Binding ImportMidiCommand}" />
@@ -1514,7 +1520,7 @@
                                                                  DefaultValue="0"
                                                                  Tag="VolumeBar"
                                                                  AutomationProperties.Name="TRACK PAN"
-                                                                 Value="{Binding SourceTrack.Pan}"
+                                                                 Value="{Binding SourceTrack.MixPan}"
                                                                  ToolTip="Pan: drag left or right, double-click to centre" />
                                             </Grid>
                                            <Slider Grid.RowSpan="2"
@@ -1531,7 +1537,7 @@
                                                    AutoToolTipPrecision="0"
                                                    Focusable="False"
                                                    AutomationProperties.Name="TRACK VOLUME"
-                                                   Value="{Binding SourceTrack.Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource VolumePercentConverter}}"
+                                                   Value="{Binding SourceTrack.MixVolume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource VolumePercentConverter}}"
                                                    ToolTip="Track volume" />
                                            <ProgressBar Grid.RowSpan="2"
                                                         Grid.Column="3"
@@ -1737,6 +1743,23 @@
                                                         Tag="NoteBlockEdge" />
                                             </Grid>
                                         </Border>
+                                        <!-- The track's volume or pan automation, over the row while it is shown (Track menu). -->
+                                        <local:AutomationLane Tag="AutomationLane"
+                                                              Points="{Binding SourceTrack.ShownAutomationPoints}"
+                                                              Minimum="{Binding SourceTrack.ShownAutomationMinimum}"
+                                                              IdleValue="{Binding SourceTrack.ShownAutomationIdleValue, Mode=OneWay}"
+                                                              StepWidth="{Binding DataContext.TimelineSixteenthWidth, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                              EditStarting="AutomationLane_EditStarting">
+                                            <local:AutomationLane.Style>
+                                                <Style TargetType="local:AutomationLane">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding SourceTrack.ShownAutomation}" Value="{x:Static vm:AutomationTarget.None}">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </local:AutomationLane.Style>
+                                        </local:AutomationLane>
                                     </Grid>
                                 </Grid>
                             </DataTemplate>
@@ -1840,6 +1863,11 @@
                                         Padding="3">
                                     <Border.ContextMenu>
                                         <ContextMenu>
+                                            <MenuItem Header="Show volume automation" Click="ShowVolumeAutomation_Click" />
+                                            <MenuItem Header="Show pan automation" Click="ShowPanAutomation_Click" />
+                                            <MenuItem Header="Hide automation" Click="HideAutomation_Click" />
+                                            <MenuItem Header="Clear the automation shown" Click="ClearAutomation_Click" />
+                                            <Separator />
                                             <MenuItem Header="Default" Tag="" Click="TrackColorMenuItem_Click">
                                                 <MenuItem.Icon>
                                                     <Border Width="12" Height="12" Background="#263545" BorderBrush="#6F87A0" BorderThickness="1" />
@@ -2088,7 +2116,7 @@
                                                          VerticalAlignment="Center"
                                                          Tag="VolumeBar"
                                                          AutomationProperties.Name="TRACK VOLUME"
-                                                         Value="{Binding SourceTrack.Volume}" />
+                                                         Value="{Binding SourceTrack.MixVolume}" />
                                         <local:VolumeBar Grid.Row="1"
                                                          Grid.Column="1"
                                                          Width="38"
@@ -2102,7 +2130,7 @@
                                                          Tag="VolumeBar"
                                                          AutomationProperties.Name="TRACK PAN"
                                                          ToolTip="Pan: drag left or right, double-click to centre"
-                                                         Value="{Binding SourceTrack.Pan}" />
+                                                         Value="{Binding SourceTrack.MixPan}" />
                                         <!-- The track level as LEDs: green, red at the top, with the peak held for a moment. -->
                                         <local:LedMeter Grid.RowSpan="2"
                                                         Grid.Column="2"

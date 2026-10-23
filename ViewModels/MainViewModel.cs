@@ -228,6 +228,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _midiActivityTimer.Tick += (_, _) => IsMidiActivityVisible = false;
         _audioMeterTimer.Tick += (_, _) => ShowAudioLevels();
         _audioMeterTimer.Start();
+        _automationTimer.Tick += (_, _) => ApplyAutomationAt(IsPlaying ? _engine.LivePosition : CurrentStepIndex);
+        _automationTimer.Start();
         _recordRefreshTimer.Tick += (_, _) => RefreshRecordedTrack();
         PreviewClickCommand = new RelayCommand(_ =>
         {
@@ -1771,6 +1773,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public void Dispose()
     {
         _audioMeterTimer.Stop();
+        _automationTimer.Stop();
         _previewer?.Dispose();
         _trackInstruments.Dispose();
         _engine.StepChanged -= OnStepChanged;
@@ -4080,7 +4083,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        track.SignalLevel = Math.Max(track.SignalLevel, note.Velocity / 127.0 * track.Volume);
+        track.SignalLevel = Math.Max(track.SignalLevel, note.Velocity / 127.0 * track.MixVolume);
         if (_liveMeterTimer is null)
         {
             _liveMeterTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(60) };
@@ -4111,6 +4114,54 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             var peak = _trackEffects.ExistingChainFor(track)?.TakePeak() ?? 0;
             TrackMeterCalculator.ShowAudioLevel(track, peak);
         }
+    }
+
+    // ---- Automation ----
+
+    // Moves each track's volume and pan to its automation where the song is: often enough while it plays for
+    // fades to sound smooth (the bridge glides between the values), and where the playhead stands when stopped.
+    private readonly DispatcherTimer _automationTimer = new() { Interval = TimeSpan.FromMilliseconds(15) };
+
+    internal void ApplyAutomationAt(double step)
+    {
+        foreach (var track in Tracks)
+        {
+            track.AutomatedVolume = Automation.ValueAt(track.VolumeAutomation, step);
+            track.AutomatedPan = Automation.ValueAt(track.PanAutomation, step);
+        }
+    }
+
+    // Shows the track's volume or pan automation over its row in the timeline, or hides it (None).
+    public void ShowAutomation(PatternTrackViewModel? track, AutomationTarget target)
+    {
+        if (track is null)
+        {
+            return;
+        }
+
+        track.ShownAutomation = target;
+        StatusMessage = target switch
+        {
+            AutomationTarget.Volume => $"{track.Name}: volume automation. Click to add a point, drag to move it, right-click to remove it",
+            AutomationTarget.Pan => $"{track.Name}: pan automation. Click to add a point, drag to move it, right-click to remove it",
+            _ => $"{track.Name}: automation hidden",
+        };
+    }
+
+    // Called as a point is added, moved or removed in a lane, before the change, so it can be undone.
+    public void BeginAutomationEdit() => CaptureUndoStateIfNeeded();
+
+    // Removes the points of the lane shown on the track; its fader sets the value again.
+    public void ClearShownAutomation(PatternTrackViewModel? track)
+    {
+        if (track is null || track.ShownAutomationPoints.Count == 0)
+        {
+            return;
+        }
+
+        CaptureUndoStateIfNeeded();
+        track.ShownAutomationPoints = Array.Empty<AutomationPoint>();
+        StatusMessage = $"{track.Name}: {track.ShownAutomation.ToString().ToLowerInvariant()} automation cleared";
     }
 
     private void ResetTrackMeters()
@@ -4935,12 +4986,22 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
                 return null;
             });
+
+            // The automation lanes open stay open on the tracks in their places.
+            for (var p = 0; p < previousTracks.Count && p < Patterns.Count; p++)
+            {
+                for (var t = 0; t < previousTracks[p].Count && t < Patterns[p].Tracks.Count; t++)
+                {
+                    Patterns[p].Tracks[t].ShownAutomation = previousTracks[p][t].ShownAutomation;
+                }
+            }
         }
         else
         {
             _trackInstruments.KeepOnly(Array.Empty<PatternTrackViewModel>());
         }
 
+        ApplyAutomationAt(CurrentStepIndex);
         ReleaseUnusedInstruments();
         PointKeyboardAtSelectedTrack();
         TracksReplaced?.Invoke();

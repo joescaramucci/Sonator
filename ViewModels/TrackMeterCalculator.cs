@@ -46,7 +46,7 @@ internal sealed class TrackMeterCalculator
             var hit = HitVelocity(track, stepIndex);
             if (hit > 0)
             {
-                track.SignalLevel = Math.Max(track.SignalLevel * HoldDecay, hit / 127.0 * track.Volume);
+                track.SignalLevel = Math.Max(track.SignalLevel * HoldDecay, hit / 127.0 * track.MixVolume);
             }
             else
             {

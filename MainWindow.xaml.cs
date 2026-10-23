@@ -418,8 +418,10 @@ public partial class MainWindow : Window
             return;
         }
 
-        // A press on a block belongs to the block: it moves or resizes it instead of scrolling.
-        if (e.ChangedButton == MouseButton.Left && IsInsideNoteBlock(e.OriginalSource))
+        // A press on a block belongs to the block: it moves or resizes it instead of scrolling. So does a press
+        // on an automation lane, which adds or drags a point.
+        if (e.ChangedButton == MouseButton.Left
+            && (IsInsideNoteBlock(e.OriginalSource) || IsInsideTagged(e.OriginalSource, "AutomationLane")))
         {
             return;
         }
@@ -1919,6 +1921,42 @@ public partial class MainWindow : Window
 
         viewModel.SwitchOnDefaultReverb(timelineTrack.SourceTrack);
         OpenFxRack(viewModel, timelineTrack.SourceTrack, null);
+    }
+
+    private void AutomationLane_EditStarting(object? sender, EventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel)
+        {
+            viewModel.BeginAutomationEdit();
+        }
+    }
+
+    private void ShowVolumeAutomation_Click(object sender, RoutedEventArgs e) => ShowAutomation(sender, AutomationTarget.Volume);
+
+    private void ShowPanAutomation_Click(object sender, RoutedEventArgs e) => ShowAutomation(sender, AutomationTarget.Pan);
+
+    private void HideAutomation_Click(object sender, RoutedEventArgs e) => ShowAutomation(sender, AutomationTarget.None);
+
+    private void ClearAutomation_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel)
+        {
+            viewModel.ClearShownAutomation(MenuTrack(sender, viewModel));
+        }
+    }
+
+    // From a track's own menu, that track; from the Track menu, the selected one.
+    private static PatternTrackViewModel? MenuTrack(object sender, MainViewModel viewModel) =>
+        sender is FrameworkElement { DataContext: ArrangeTimelineTrackViewModel timelineTrack }
+            ? timelineTrack.SourceTrack
+            : viewModel.SelectedTrack;
+
+    private void ShowAutomation(object sender, AutomationTarget target)
+    {
+        if (DataContext is MainViewModel viewModel)
+        {
+            viewModel.ShowAutomation(MenuTrack(sender, viewModel), target);
+        }
     }
 
     // The FX button on the MASTER strip opens the master's rack, and closes it when it is open.

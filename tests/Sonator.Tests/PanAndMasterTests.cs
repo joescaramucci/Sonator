@@ -13,9 +13,11 @@ public sealed class PanAndMasterTests
         return track;
     }
 
-    // The left and right peaks of a 0.9 sine on both sides after the chain.
+    // The left and right peaks of a 0.9 sine on both sides after the chain, once a change of gain or pan
+    // has finished gliding.
     private static (double Left, double Right) PeaksAfter(NativeEffectChain chain)
     {
+        chain.Process(new float[960 * 2], 960, 2, 48000);
         var samples = new float[4800 * 2];
         for (var i = 0; i < 4800; i++)
         {
@@ -46,6 +48,26 @@ public sealed class PanAndMasterTests
         (left, right) = PeaksAfter(chain);
         Assert.Equal(0.9, left, 2);
         Assert.Equal(0.0, right, 3);
+    }
+
+    [Fact]
+    public void GainChange_GlidesInsteadOfJumping()
+    {
+        using var host = new TrackEffectsHost();
+        var track = NewTrack();
+        var chain = host.ChainFor(track)!;
+        var ones = Enumerable.Repeat(1f, 4800 * 2).ToArray();
+        chain.Process(ones, 4800, 2, 48000);
+
+        track.Volume = 0; // silent
+        var samples = Enumerable.Repeat(1f, 4800 * 2).ToArray();
+        chain.Process(samples, 4800, 2, 48000);
+
+        // Over 10 ms (480 frames) the level falls step by step, and then stays at zero.
+        Assert.InRange(samples[0], 0.99f, 1f);
+        Assert.InRange(samples[240 * 2], 0.49f, 0.51f);
+        Assert.Equal(0f, samples[480 * 2]);
+        Assert.Equal(0f, samples[^1]);
     }
 
     [Fact]

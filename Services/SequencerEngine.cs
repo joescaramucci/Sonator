@@ -874,7 +874,7 @@ internal sealed class SequencerEngine : IDisposable
     // A plug-in gets the note as it was played, and its track's volume turns its sound up or down (see
     // TrackEffectsHost); an external MIDI instrument only hears the velocity, so the volume scales it.
     internal int PlaybackVelocity(PatternTrackViewModel track, int velocity) =>
-        track.HasPlugin ? velocity : ApplyTrackVolume(velocity, track.Volume * MasterVolume);
+        track.HasPlugin ? velocity : ApplyTrackVolume(velocity, track.MixVolume * MasterVolume);
 
     private static int ApplyTrackVolume(int velocity, double volume)
     {

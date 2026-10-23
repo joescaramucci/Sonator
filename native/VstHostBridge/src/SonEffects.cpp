@@ -642,6 +642,10 @@ namespace son
 
         const float gain = this->gain.load();
         const float pan = std::clamp(this->pan.load(), -1.0f, 1.0f);
+
+        // A change of gain or pan, as automation makes many times a second, glides over a few milliseconds
+        // instead of jumping, which would click.
+        const int glideFrames = std::min(frames, std::max(1, static_cast<int>(sampleRate * 0.01)));
         float peak = 0.0f;
         for (int c = 0; c < numChannels; ++c)
         {
@@ -656,7 +660,23 @@ namespace son
                 channelGain *= 1.0f + pan;
             }
 
-            for (int n = 0; n < frames; ++n)
+            int n = 0;
+            if (c < static_cast<int>(_appliedGains.size()))
+            {
+                float& applied = _appliedGains[static_cast<size_t>(c)];
+                if (applied >= 0.0f && applied != channelGain)
+                {
+                    const float step = (channelGain - applied) / static_cast<float>(glideFrames);
+                    for (; n < glideFrames; ++n)
+                    {
+                        samples[n] *= applied + step * static_cast<float>(n + 1);
+                        peak = std::max(peak, std::fabs(samples[n]));
+                    }
+                }
+                applied = channelGain;
+            }
+
+            for (; n < frames; ++n)
             {
                 samples[n] *= channelGain;
                 peak = std::max(peak, std::fabs(samples[n]));

@@ -47,8 +47,8 @@ internal sealed class TrackEffectsHost : IDisposable
     private void ApplyMix(PatternTrackViewModel track, NativeEffectChain chain)
     {
         var isMaster = ReferenceEquals(track, _master);
-        chain.SetGain(isMaster ? 1.0 : Gain(track.Volume, _masterVolume));
-        chain.SetPan(isMaster ? 0.0 : track.Pan);
+        chain.SetGain(isMaster ? 1.0 : Gain(track.MixVolume, _masterVolume));
+        chain.SetPan(isMaster ? 0.0 : track.MixPan);
     }
 
     // The track's chain, made on first use. Null when the native bridge is not available.
@@ -75,7 +75,7 @@ internal sealed class TrackEffectsHost : IDisposable
 
     private void OnTrackPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(PatternTrackViewModel.Volume) or nameof(PatternTrackViewModel.Pan)
+        if (e.PropertyName is nameof(PatternTrackViewModel.MixVolume) or nameof(PatternTrackViewModel.MixPan)
             && sender is PatternTrackViewModel track && _chains.TryGetValue(track, out var chain))
         {
             ApplyMix(track, chain);

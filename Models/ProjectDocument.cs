@@ -52,7 +52,12 @@ public sealed record TrackDocument(
     byte[]? PluginEditorState = null,
     string? SoundName = null,
     List<MidiControllerEventDocument>? MidiControllerEvents = null,
-    double Pan = 0);
+    double Pan = 0,
+    List<AutomationPointDocument>? VolumeAutomation = null,
+    List<AutomationPointDocument>? PanAutomation = null);
+
+// A point of a track's automation (see AutomationPoint).
+public sealed record AutomationPointDocument(double Step, double Value);
 
 // A controller recorded on a track (see MidiControllerEventViewModel).
 public sealed record MidiControllerEventDocument(double Step, int Controller, double Value);

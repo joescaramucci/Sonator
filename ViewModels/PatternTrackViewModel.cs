@@ -275,7 +275,14 @@ public sealed class PatternTrackViewModel : ViewModelBase
     public double Volume
     {
         get => _volume;
-        set => SetProperty(ref _volume, Math.Clamp(value, 0.0, 1.0));
+        set
+        {
+            if (SetProperty(ref _volume, Math.Clamp(value, 0.0, 1.0)))
+            {
+                RaisePropertyChanged(nameof(MixVolume));
+                RaisePropertyChanged(nameof(ShownAutomationIdleValue));
+            }
+        }
     }
 
     private double _pan;
@@ -289,17 +296,142 @@ public sealed class PatternTrackViewModel : ViewModelBase
             if (SetProperty(ref _pan, Math.Clamp(value, -1.0, 1.0)))
             {
                 RaisePropertyChanged(nameof(PanDisplay));
+                RaisePropertyChanged(nameof(MixPan));
+                RaisePropertyChanged(nameof(ShownAutomationIdleValue));
             }
         }
     }
 
     // The pan as a mixer shows it: C, or L/R and how far, such as L40.
-    public string PanDisplay => Math.Round(_pan * 100) switch
+    public string PanDisplay => Math.Round(MixPan * 100) switch
     {
         0 => "C",
         < 0 and var left => $"L{-left:0}",
         var right => $"R{right:0}",
     };
+
+    // ---- Automation ----
+
+    private IReadOnlyList<AutomationPoint> _volumeAutomation = Array.Empty<AutomationPoint>();
+    private IReadOnlyList<AutomationPoint> _panAutomation = Array.Empty<AutomationPoint>();
+    private AutomationTarget _shownAutomation;
+    private double? _automatedVolume;
+    private double? _automatedPan;
+
+    // The volume and pan drawn over the song, in order of step. Empty when the fader alone sets them.
+    public IReadOnlyList<AutomationPoint> VolumeAutomation
+    {
+        get => _volumeAutomation;
+        set
+        {
+            if (SetProperty(ref _volumeAutomation, value))
+            {
+                RaiseAutomationChanged();
+            }
+        }
+    }
+
+    public IReadOnlyList<AutomationPoint> PanAutomation
+    {
+        get => _panAutomation;
+        set
+        {
+            if (SetProperty(ref _panAutomation, value))
+            {
+                RaiseAutomationChanged();
+            }
+        }
+    }
+
+    public bool HasAutomation => _volumeAutomation.Count > 0 || _panAutomation.Count > 0;
+
+    // The automation lane drawn over the track's row in the timeline, or None.
+    public AutomationTarget ShownAutomation
+    {
+        get => _shownAutomation;
+        set
+        {
+            if (SetProperty(ref _shownAutomation, value))
+            {
+                RaisePropertyChanged(nameof(ShownAutomationPoints));
+                RaisePropertyChanged(nameof(ShownAutomationMinimum));
+                RaisePropertyChanged(nameof(ShownAutomationIdleValue));
+            }
+        }
+    }
+
+    // The points of the lane shown, read and written by it.
+    public IReadOnlyList<AutomationPoint> ShownAutomationPoints
+    {
+        get => _shownAutomation switch
+        {
+            AutomationTarget.Volume => _volumeAutomation,
+            AutomationTarget.Pan => _panAutomation,
+            _ => Array.Empty<AutomationPoint>(),
+        };
+        set
+        {
+            if (_shownAutomation == AutomationTarget.Volume)
+            {
+                VolumeAutomation = value;
+            }
+            else if (_shownAutomation == AutomationTarget.Pan)
+            {
+                PanAutomation = value;
+            }
+        }
+    }
+
+    public double ShownAutomationMinimum => Automation.Minimum(_shownAutomation);
+
+    // The fader's value, which the lane shows as a dashed line while it has no points.
+    public double ShownAutomationIdleValue => _shownAutomation == AutomationTarget.Pan ? _pan : _volume;
+
+    private void RaiseAutomationChanged()
+    {
+        RaisePropertyChanged(nameof(ShownAutomationPoints));
+        RaisePropertyChanged(nameof(HasAutomation));
+    }
+
+    // The automation's value where the song is, set as it plays; null where the track has none.
+    public double? AutomatedVolume
+    {
+        get => _automatedVolume;
+        set
+        {
+            if (SetProperty(ref _automatedVolume, value))
+            {
+                RaisePropertyChanged(nameof(MixVolume));
+            }
+        }
+    }
+
+    public double? AutomatedPan
+    {
+        get => _automatedPan;
+        set
+        {
+            if (SetProperty(ref _automatedPan, value))
+            {
+                RaisePropertyChanged(nameof(MixPan));
+                RaisePropertyChanged(nameof(PanDisplay));
+            }
+        }
+    }
+
+    // What the track sounds at: the automation's value where there is one, else the fader's. The faders
+    // show these, so they move with the automation; moved by hand, they set the fader's own value.
+    public double MixVolume
+    {
+        get => _automatedVolume ?? _volume;
+        set => Volume = value;
+    }
+
+    public double MixPan
+    {
+        get => _automatedPan ?? _pan;
+        set => Pan = value;
+    }
 
     public bool IsRecordArmed
     {
