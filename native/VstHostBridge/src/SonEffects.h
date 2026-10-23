@@ -64,6 +64,10 @@ namespace son
         // Linear gain applied after the effects.
         std::atomic<float> gain{1.0f};
 
+        // Stereo balance applied with the gain: -1 hard left, 0 centre, +1 hard right. The side the
+        // sound moves to stays as it is and the other side is turned down, so the centre loses nothing.
+        std::atomic<float> pan{0.0f};
+
         // Processes planar audio in place. Called on the audio thread; if the UI is replacing the
         // effects at that moment the block passes through untouched rather than waiting.
         void Process(float** channels, int numChannels, int frames, double sampleRate);

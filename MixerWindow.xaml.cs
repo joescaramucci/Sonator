@@ -6,7 +6,7 @@ using Sonator.ViewModels;
 
 namespace Sonator;
 
-// One strip per track: the track's volume, mute and solo, and the first parameters of the plug-in it plays through.
+// One strip per track: the track's pan, volume, mute and solo, and the first parameters of the plug-in it plays through.
 public partial class MixerWindow : Window
 {
     private const int MaxParametersPerStrip = 16;
@@ -43,6 +43,17 @@ public partial class MixerWindow : Window
             FontWeight = FontWeights.Bold,
             TextTrimming = TextTrimming.CharacterEllipsis,
         });
+
+        var pan = new VolumeBar
+        {
+            IsPan = true,
+            DefaultValue = 0,
+            Height = 14,
+            Margin = new Thickness(0, 8, 0, 0),
+            ToolTip = "Pan: drag left or right, double-click to centre",
+        };
+        pan.SetBinding(VolumeBar.ValueProperty, new System.Windows.Data.Binding(nameof(PatternTrackViewModel.Pan)) { Source = track });
+        strip.Children.Add(pan);
 
         // The slider is created with its value before the handler is attached, so building the strip does not write back.
         var volume = new Slider

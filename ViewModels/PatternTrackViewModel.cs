@@ -278,6 +278,29 @@ public sealed class PatternTrackViewModel : ViewModelBase
         set => SetProperty(ref _volume, Math.Clamp(value, 0.0, 1.0));
     }
 
+    private double _pan;
+
+    // Where the track sits between the speakers: -1 hard left, 0 the centre, +1 hard right.
+    public double Pan
+    {
+        get => _pan;
+        set
+        {
+            if (SetProperty(ref _pan, Math.Clamp(value, -1.0, 1.0)))
+            {
+                RaisePropertyChanged(nameof(PanDisplay));
+            }
+        }
+    }
+
+    // The pan as a mixer shows it: C, or L/R and how far, such as L40.
+    public string PanDisplay => Math.Round(_pan * 100) switch
+    {
+        0 => "C",
+        < 0 and var left => $"L{-left:0}",
+        var right => $"R{right:0}",
+    };
+
     public bool IsRecordArmed
     {
         get => _isRecordArmed;

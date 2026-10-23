@@ -1506,17 +1506,16 @@
                                                               AutomationProperties.Name="RECORD ARM"
                                                               IsChecked="{Binding SourceTrack.IsRecordArmed, Mode=OneWay}" Command="{Binding DataContext.ToggleTrackRecordArmCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding SourceTrack}"
                                                               ToolTip="Arm this track. Keys played on the MIDI keyboard are recorded into the armed track while recording is on" />
-                                                <Slider Grid.Column="1"
-                                                        Height="16"
-                                                        Margin="3,0,1,0"
-                                                        Minimum="0"
-                                                        Maximum="100"
-                                                        AutoToolTipPlacement="TopLeft"
-                                                        AutoToolTipPrecision="0"
-                                                        Focusable="False"
-                                                        AutomationProperties.Name="TRACK VOLUME"
-                                                        Value="{Binding SourceTrack.Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource VolumePercentConverter}}"
-                                                        ToolTip="Track volume" />
+                                                <local:VolumeBar Grid.Column="1"
+                                                                 Height="16"
+                                                                 BarThickness="5"
+                                                                 Margin="3,0,1,0"
+                                                                 IsPan="True"
+                                                                 DefaultValue="0"
+                                                                 Tag="VolumeBar"
+                                                                 AutomationProperties.Name="TRACK PAN"
+                                                                 Value="{Binding SourceTrack.Pan}"
+                                                                 ToolTip="Pan: drag left or right, double-click to centre" />
                                             </Grid>
                                            <Slider Grid.RowSpan="2"
                                                    Grid.Column="2"
@@ -2080,16 +2079,30 @@
                                                 </Grid>
                                             </Grid>
                                         </Button>
-                                        <!-- The track volume: a bar after the icon, dragged left and right. -->
+                                        <!-- The track volume: a bar after the icon, dragged left and right; then the pan. -->
                                         <local:VolumeBar Grid.Row="1"
                                                          Grid.Column="1"
                                                          Height="12"
                                                          BarThickness="5"
-                                                         Margin="38,0,8,0"
+                                                         Margin="38,0,52,0"
                                                          VerticalAlignment="Center"
                                                          Tag="VolumeBar"
                                                          AutomationProperties.Name="TRACK VOLUME"
                                                          Value="{Binding SourceTrack.Volume}" />
+                                        <local:VolumeBar Grid.Row="1"
+                                                         Grid.Column="1"
+                                                         Width="38"
+                                                         Height="12"
+                                                         BarThickness="5"
+                                                         Margin="0,0,8,0"
+                                                         HorizontalAlignment="Right"
+                                                         VerticalAlignment="Center"
+                                                         IsPan="True"
+                                                         DefaultValue="0"
+                                                         Tag="VolumeBar"
+                                                         AutomationProperties.Name="TRACK PAN"
+                                                         ToolTip="Pan: drag left or right, double-click to centre"
+                                                         Value="{Binding SourceTrack.Pan}" />
                                         <!-- The track level as LEDs: green, red at the top, with the peak held for a moment. -->
                                         <local:LedMeter Grid.RowSpan="2"
                                                         Grid.Column="2"
@@ -2259,12 +2272,42 @@
                                     CornerRadius="3,3,0,0"
                                     Padding="2,1"
                                     Margin="0,0,0,4">
-                                <TextBlock Text="MASTER"
-                                           FontFamily="Consolas"
-                                           FontSize="10"
-                                           FontWeight="Bold"
-                                           Foreground="{StaticResource Ink}"
-                                           HorizontalAlignment="Center" />
+                                <DockPanel>
+                                    <!-- The master's FX rack, on the whole mix: green while one of its effects is on. -->
+                                    <Button DockPanel.Dock="Right"
+                                            Content="FX"
+                                            Width="22"
+                                            Height="16"
+                                            Padding="0"
+                                            FontSize="9"
+                                            Focusable="False"
+                                            DataContext="{Binding MasterTrack}"
+                                            AutomationProperties.Name="MASTER FX RACK"
+                                            ToolTip="Open the master's effect rack: its effects run on the whole mix"
+                                            Click="MasterFxButton_Click">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                <Setter Property="Background" Value="#3E536B" />
+                                                <Setter Property="BorderBrush" Value="#6F87A0" />
+                                                <Setter Property="Foreground" Value="#BCC9D8" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding HasActiveEffects}" Value="True">
+                                                        <Setter Property="Background" Value="#49B88D" />
+                                                        <Setter Property="Foreground" Value="#0F1A14" />
+                                                        <Setter Property="BorderBrush" Value="#2F8F6A" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    <TextBlock Text="MASTER"
+                                               FontFamily="Consolas"
+                                               FontSize="10"
+                                               FontWeight="Bold"
+                                               Foreground="{StaticResource Ink}"
+                                               VerticalAlignment="Center"
+                                               HorizontalAlignment="Center" />
+                                </DockPanel>
                             </Border>
                             <Grid Grid.Row="1" Margin="0,0,0,4">
                                 <Grid.ColumnDefinitions>

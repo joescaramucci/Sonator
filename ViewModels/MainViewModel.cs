@@ -84,6 +84,17 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private int _snapMode; // 0 bar, 1 beat, 2 sixteenth
     private ClickOption _selectedClickOption = new(1, "Quarter");
     private readonly TrackEffectsHost _trackEffects = new();
+
+    // The master: not a track of any pattern, but it has an FX rack like one, run on the whole mix.
+    public PatternTrackViewModel MasterTrack { get; } = NewMasterTrack();
+
+    // Unlike a new track, the master starts with an empty rack.
+    private static PatternTrackViewModel NewMasterTrack()
+    {
+        var master = PatternFactory.CreateTrack("Master", "Master", 1, 60, Array.Empty<bool>());
+        master.Effects.Clear();
+        return master;
+    }
     private readonly TrackInstrumentsHost _trackInstruments;
     private readonly VstPluginService _vstPluginService;
     private readonly VstPluginScanner _vstPluginScanner;
@@ -163,6 +174,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         AudioOutputDeviceService? audioOutputDeviceService = null)
     {
         _trackInstruments = new TrackInstrumentsHost(_liveInstrumentHost, track => _trackEffects.ChainFor(track));
+        _trackEffects.UseAsMaster(MasterTrack);
         _engine = engine ?? new SequencerEngine();
         _projectFileService = projectFileService ?? new ProjectFileService();
         _trackClipboardService = trackClipboardService ?? new TrackClipboardService();
@@ -2265,6 +2277,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             SelectPatternInArrangement();
             Tempo = 120;
             MasterVolume = 0.75;
+            RestoreMasterEffects(null);
             BarCount = 32;
             LoopStartStep = 0;
             LoopEndStep = 15;
@@ -4820,7 +4833,17 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             ArrangeRows.Select(BuildArrangeRowDocument).ToList(),
             GetSongArrangeAssignments(),
             GetSongArrangeBlocks(),
-            MasterVolume);
+            MasterVolume,
+            BuildEffectDocuments(MasterTrack.Effects));
+    }
+
+    private void RestoreMasterEffects(IEnumerable<EffectDocument>? documents)
+    {
+        MasterTrack.Effects.Clear();
+        foreach (var effect in BuildEffects(documents))
+        {
+            MasterTrack.Effects.Add(effect);
+        }
     }
 
     // keepInstruments: the tracks' running plug-ins go on playing in the tracks that take their places, as for
@@ -4837,6 +4860,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             BarCount = document.BarCount;
             TimeSignature = document.TimeSignature;
             MasterVolume = document.MasterVolume;
+            RestoreMasterEffects(document.MasterEffects);
 
             Patterns.Clear();
             foreach (var patternDocument in document.Patterns)

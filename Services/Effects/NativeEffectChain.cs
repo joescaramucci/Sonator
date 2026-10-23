@@ -43,6 +43,14 @@ public sealed class NativeEffectChain : IDisposable
 
     public void SetGain(double gain) => Vst3HostInterop.VstHostBridge_SetEffectChainGain(_handle, gain);
 
+    // -1 hard left, 0 the centre, +1 hard right.
+    public void SetPan(double pan) => Vst3HostInterop.VstHostBridge_SetEffectChainPan(_handle, pan);
+
+    // The chain runs on the whole mix from now on, after every track is summed.
+    public void UseAsMaster() => Vst3HostInterop.VstHostBridge_SetMasterEffectChain(_handle);
+
+    public static void ClearMaster() => Vst3HostInterop.VstHostBridge_SetMasterEffectChain(IntPtr.Zero);
+
     // The effect's own meter, such as a compressor's gain reduction in dB.
     public double Meter(int slot) => Vst3HostInterop.VstHostBridge_GetEffectMeter(_handle, slot);
 

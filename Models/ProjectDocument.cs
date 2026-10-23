@@ -13,7 +13,8 @@ public sealed record ProjectDocument(
         List<ArrangeRowDocument> ArrangeRows,
         List<string[]> SongGrid,
             List<SongArrangeBlockDocument>? ArrangeBlocks = null,
-        double MasterVolume = 0.75);
+        double MasterVolume = 0.75,
+        List<EffectDocument>? MasterEffects = null);
 
 public sealed record SongArrangeBlockDocument(
     int Row,
@@ -50,7 +51,8 @@ public sealed record TrackDocument(
     byte[]? PluginState = null,
     byte[]? PluginEditorState = null,
     string? SoundName = null,
-    List<MidiControllerEventDocument>? MidiControllerEvents = null);
+    List<MidiControllerEventDocument>? MidiControllerEvents = null,
+    double Pan = 0);
 
 // A controller recorded on a track (see MidiControllerEventViewModel).
 public sealed record MidiControllerEventDocument(double Step, int Controller, double Value);

@@ -641,13 +641,24 @@ namespace son
         }
 
         const float gain = this->gain.load();
+        const float pan = std::clamp(this->pan.load(), -1.0f, 1.0f);
         float peak = 0.0f;
         for (int c = 0; c < numChannels; ++c)
         {
             float* samples = channels[c];
+            float channelGain = gain;
+            if (numChannels >= 2 && c == 0 && pan > 0.0f)
+            {
+                channelGain *= 1.0f - pan;
+            }
+            else if (numChannels >= 2 && c == 1 && pan < 0.0f)
+            {
+                channelGain *= 1.0f + pan;
+            }
+
             for (int n = 0; n < frames; ++n)
             {
-                samples[n] *= gain;
+                samples[n] *= channelGain;
                 peak = std::max(peak, std::fabs(samples[n]));
             }
         }

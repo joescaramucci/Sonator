@@ -25,9 +25,30 @@ internal sealed class TrackEffectsHost : IDisposable
             _masterVolume = value;
             foreach (var (track, chain) in _chains)
             {
-                chain.SetGain(Gain(track.Volume, _masterVolume));
+                ApplyMix(track, chain);
             }
         }
+    }
+
+    private PatternTrackViewModel? _master;
+
+    // The master's effects run on the whole mix. Its gain stays at unity: the master volume is already in
+    // every track's gain, ahead of the master's effects.
+    public void UseAsMaster(PatternTrackViewModel master)
+    {
+        _master = master;
+        if (ChainFor(master) is { } chain)
+        {
+            ApplyMix(master, chain);
+            chain.UseAsMaster();
+        }
+    }
+
+    private void ApplyMix(PatternTrackViewModel track, NativeEffectChain chain)
+    {
+        var isMaster = ReferenceEquals(track, _master);
+        chain.SetGain(isMaster ? 1.0 : Gain(track.Volume, _masterVolume));
+        chain.SetPan(isMaster ? 0.0 : track.Pan);
     }
 
     // The track's chain, made on first use. Null when the native bridge is not available.
@@ -46,7 +67,7 @@ internal sealed class TrackEffectsHost : IDisposable
 
         _chains[track] = chain;
         ApplyAll(track, chain);
-        chain.SetGain(Gain(track.Volume, _masterVolume));
+        ApplyMix(track, chain);
         track.EffectsChanged += OnEffectsChanged;
         track.PropertyChanged += OnTrackPropertyChanged;
         return chain;
@@ -54,10 +75,10 @@ internal sealed class TrackEffectsHost : IDisposable
 
     private void OnTrackPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(PatternTrackViewModel.Volume)
+        if (e.PropertyName is nameof(PatternTrackViewModel.Volume) or nameof(PatternTrackViewModel.Pan)
             && sender is PatternTrackViewModel track && _chains.TryGetValue(track, out var chain))
         {
-            chain.SetGain(Gain(track.Volume, _masterVolume));
+            ApplyMix(track, chain);
         }
     }
 
@@ -67,6 +88,11 @@ internal sealed class TrackEffectsHost : IDisposable
 
     public void Dispose()
     {
+        if (_master is not null && _chains.ContainsKey(_master))
+        {
+            NativeEffectChain.ClearMaster();
+        }
+
         foreach (var (track, chain) in _chains)
         {
             track.EffectsChanged -= OnEffectsChanged;

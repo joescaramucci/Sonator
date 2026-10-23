@@ -55,6 +55,10 @@ VSTHOSTBRIDGE_API void VstHostBridge_SetEffectParameter(void* chainHandle, int32
 VSTHOSTBRIDGE_API void VstHostBridge_SetEffectEnabled(void* chainHandle, int32_t slot, int32_t enabled);
 // Linear gain after the effects.
 VSTHOSTBRIDGE_API void VstHostBridge_SetEffectChainGain(void* chainHandle, double gain);
+// Stereo balance after the gain: -1 is hard left, 0 the centre, +1 hard right.
+VSTHOSTBRIDGE_API void VstHostBridge_SetEffectChainPan(void* chainHandle, double pan);
+// Runs the chain on the whole mix, after every plug-in is summed and before it goes out. A null chain removes it.
+VSTHOSTBRIDGE_API void VstHostBridge_SetMasterEffectChain(void* chainHandle);
 // The effect's own meter, such as a compressor's gain reduction in dB.
 VSTHOSTBRIDGE_API double VstHostBridge_GetEffectMeter(void* chainHandle, int32_t slot);
 // The highest absolute output sample since the previous call.

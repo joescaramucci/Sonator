@@ -10,6 +10,7 @@ namespace Sonator;
 /// A horizontal volume bar with no knob: the filled part is the value. Click or drag along it to set
 /// the value, use the mouse wheel to nudge it, and double-click to go back to the default. While the
 /// mouse is over it, a small bubble above the end of the fill shows the value as it changes.
+/// With IsPan it sets a pan instead: from -1 (left) to +1 (right), filled from the centre.
 /// </summary>
 public sealed class VolumeBar : FrameworkElement
 {
@@ -63,12 +64,17 @@ public sealed class VolumeBar : FrameworkElement
         Unloaded += (_, _) => _bubble.IsOpen = false;
     }
 
-    // From 0 to 1.
+    // From 0 to 1, or from -1 to 1 for a pan.
     public double Value
     {
         get => (double)GetValue(ValueProperty);
-        set => SetValue(ValueProperty, Math.Clamp(value, 0, 1));
+        set => SetValue(ValueProperty, Math.Clamp(value, IsPan ? -1 : 0, 1));
     }
+
+    public bool IsPan { get; set; }
+
+    // Where the value sits along the bar, from 0 at the left end to 1 at the right.
+    private double Position => Math.Clamp(IsPan ? (Value + 1) / 2 : Value, 0, 1);
 
     public double DefaultValue
     {
@@ -94,11 +100,27 @@ public sealed class VolumeBar : FrameworkElement
         var radius = Math.Min(3, bounds.Height / 2);
         drawingContext.DrawRoundedRectangle(TrackBrush, OutlinePen, bounds, radius, radius);
 
-        var fillWidth = Math.Clamp(Value, 0, 1) * bounds.Width;
-        if (fillWidth > 0.5)
+        var fill = IsMouseOver || IsMouseCaptured ? HoverFillBrush : FillBrush;
+        var end = Position * bounds.Width;
+        if (IsPan)
         {
-            drawingContext.DrawRoundedRectangle(IsMouseOver || IsMouseCaptured ? HoverFillBrush : FillBrush, null, new Rect(0, bounds.Top, fillWidth, bounds.Height), radius, radius);
-            drawingContext.DrawLine(EdgePen, new Point(fillWidth, bounds.Top - 1), new Point(fillWidth, bounds.Bottom + 1));
+            // Filled from the centre towards the side the sound goes to, with the centre always marked.
+            var centre = bounds.Width / 2;
+            var from = Math.Min(centre, end);
+            var width = Math.Abs(end - centre);
+            if (width > 0.5)
+            {
+                drawingContext.DrawRectangle(fill, null, new Rect(from, bounds.Top, width, bounds.Height));
+            }
+            drawingContext.DrawLine(OutlinePen, new Point(centre, bounds.Top - 1), new Point(centre, bounds.Bottom + 1));
+            drawingContext.DrawLine(EdgePen, new Point(end, bounds.Top - 1), new Point(end, bounds.Bottom + 1));
+            return;
+        }
+
+        if (end > 0.5)
+        {
+            drawingContext.DrawRoundedRectangle(fill, null, new Rect(0, bounds.Top, end, bounds.Height), radius, radius);
+            drawingContext.DrawLine(EdgePen, new Point(end, bounds.Top - 1), new Point(end, bounds.Bottom + 1));
         }
     }
 
@@ -166,16 +188,30 @@ public sealed class VolumeBar : FrameworkElement
 
     private void SetFromPoint(Point point)
     {
-        if (ActualWidth > 0)
+        if (ActualWidth <= 0)
         {
-            Value = point.X / ActualWidth;
+            return;
         }
+
+        var fraction = point.X / ActualWidth;
+        if (!IsPan)
+        {
+            Value = fraction;
+            return;
+        }
+
+        // The centre catches the drag a little, so it is easy to find again.
+        var pan = fraction * 2 - 1;
+        Value = Math.Abs(pan) < 0.05 ? 0 : pan;
     }
 
     // Puts the value in the bubble and centres the bubble over the end of the fill.
     private void UpdateBubble()
     {
-        _bubbleText.Text = $"{Math.Round(Value * 100):0}%";
+        var percent = Math.Round(Value * 100);
+        _bubbleText.Text = !IsPan ? $"{percent:0}%"
+            : percent == 0 ? "C"
+            : percent < 0 ? $"L{-percent:0}" : $"R{percent:0}";
         if (!_bubble.IsOpen)
         {
             return;
@@ -183,7 +219,7 @@ public sealed class VolumeBar : FrameworkElement
 
         var child = (FrameworkElement)_bubble.Child;
         child.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        _bubble.HorizontalOffset = Math.Clamp(Value, 0, 1) * ActualWidth - child.DesiredSize.Width / 2;
+        _bubble.HorizontalOffset = Position * ActualWidth - child.DesiredSize.Width / 2;
         _bubble.VerticalOffset = -child.DesiredSize.Height - 3;
     }
 

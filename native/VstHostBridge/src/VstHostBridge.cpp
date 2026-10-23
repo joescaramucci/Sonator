@@ -1255,11 +1255,34 @@ namespace
 
     void MixVoicesInto(float* left, float* right, int32 frames, double sampleRate);
 
-    // Sums every running plug-in into one stereo block, and records it when the song is being exported.
-    // Called by the audio thread for each block.
+    // The master's effects, run on the summed mix. The audio thread takes its own reference under the
+    // lock (without waiting), as for a track's chain.
+    std::mutex g_masterEffectsMutex;
+    std::shared_ptr<son::EffectChain> g_masterEffects;
+
+    void ApplyMasterEffects(float* left, float* right, int32 frames, double sampleRate)
+    {
+        std::shared_ptr<son::EffectChain> chain;
+        {
+            std::unique_lock<std::mutex> lock(g_masterEffectsMutex, std::try_to_lock);
+            if (lock.owns_lock())
+            {
+                chain = g_masterEffects;
+            }
+        }
+        if (chain != nullptr)
+        {
+            float* channels[2] = {left, right};
+            chain->Process(channels, 2, frames, sampleRate);
+        }
+    }
+
+    // Sums every running plug-in into one stereo block, runs the master's effects on it, and records it
+    // when the song is being exported. Called by the audio thread for each block.
     void MixVoices(float* left, float* right, int32 frames, double sampleRate)
     {
         MixVoicesInto(left, right, frames, sampleRate);
+        ApplyMasterEffects(left, right, frames, sampleRate);
         CaptureBlock(left, right, frames, sampleRate);
     }
 
@@ -1715,6 +1738,26 @@ void VstHostBridge_SetEffectChainGain(void* chainHandle, double gain)
     {
         chain->gain.store(static_cast<float>(gain));
     }
+}
+
+void VstHostBridge_SetEffectChainPan(void* chainHandle, double pan)
+{
+    if (auto* chain = ChainOf(chainHandle))
+    {
+        chain->pan.store(static_cast<float>(pan));
+    }
+}
+
+void VstHostBridge_SetMasterEffectChain(void* chainHandle)
+{
+    std::shared_ptr<son::EffectChain> chain;
+    if (chainHandle != nullptr)
+    {
+        chain = *static_cast<std::shared_ptr<son::EffectChain>*>(chainHandle);
+    }
+
+    std::lock_guard<std::mutex> lock(g_masterEffectsMutex);
+    g_masterEffects.swap(chain);
 }
 
 double VstHostBridge_GetEffectMeter(void* chainHandle, int32_t slot)

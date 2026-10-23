@@ -39,18 +39,23 @@ internal static class ProjectDocumentMapper
             track.PluginFilePath,
             track.AudioClipPath,
             track.InstrumentIconKey,
-            track.Effects.Count == 0
-                ? null
-                : track.Effects
-                    .Select(effect => new EffectDocument(effect.Name, effect.IsEnabled, effect.Values.ToList(), effect.PresetName, effect.IsPresetModified))
-                    .ToList(),
+            BuildEffectDocuments(track.Effects),
             track.PluginState,
             track.PluginEditorState,
             track.SoundName,
             track.MidiControllerEvents.Count == 0
                 ? null
-                : track.MidiControllerEvents.Select(e => new MidiControllerEventDocument(e.Step, e.Controller, e.Value)).ToList());
+                : track.MidiControllerEvents.Select(e => new MidiControllerEventDocument(e.Step, e.Controller, e.Value)).ToList(),
+            track.Pan);
     }
+
+    // Null when there are no effects, so projects without any stay as they were.
+    internal static List<EffectDocument>? BuildEffectDocuments(IReadOnlyCollection<TrackEffectViewModel> effects) =>
+        effects.Count == 0
+            ? null
+            : effects
+                .Select(effect => new EffectDocument(effect.Name, effect.IsEnabled, effect.Values.ToList(), effect.PresetName, effect.IsPresetModified))
+                .ToList();
 
     private static IReadOnlyList<MidiControllerEventViewModel> Controllers(IEnumerable<MidiControllerEventDocument>? documents) =>
         documents?.Select(e => new MidiControllerEventViewModel(e.Step, e.Controller, e.Value)).ToList()
@@ -73,6 +78,7 @@ internal static class ProjectDocumentMapper
         targetTrack.TrackType = sourceTrack.TrackType;
         targetTrack.Source = sourceTrack.Source ?? string.Empty;
         targetTrack.Volume = sourceTrack.Volume;
+        targetTrack.Pan = sourceTrack.Pan;
         targetTrack.IsRecordArmed = sourceTrack.IsRecordArmed;
         targetTrack.PluginFilePath = sourceTrack.PluginFilePath;
         targetTrack.PluginState = sourceTrack.PluginState;
@@ -157,6 +163,7 @@ internal static class ProjectDocumentMapper
             trackDocument.IsRecordArmed,
             CreateTrackColorBrush(trackDocument.TrackColor))
         {
+            Pan = trackDocument.Pan,
             PluginFilePath = trackDocument.PluginFilePath,
             PluginState = trackDocument.PluginState,
             PluginEditorState = trackDocument.PluginEditorState,

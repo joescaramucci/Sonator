@@ -1921,6 +1921,23 @@ public partial class MainWindow : Window
         OpenFxRack(viewModel, timelineTrack.SourceTrack, null);
     }
 
+    // The FX button on the MASTER strip opens the master's rack, and closes it when it is open.
+    private void MasterFxButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        if (_fxRacks.TryGetValue(viewModel.MasterTrack, out var open))
+        {
+            open.Close();
+            return;
+        }
+
+        OpenFxRack(viewModel, viewModel.MasterTrack, null);
+    }
+
     private void MoveEffectButton_Click(object sender, RoutedEventArgs e)
     {
         if (DataContext is MainViewModel viewModel
@@ -1966,7 +1983,8 @@ public partial class MainWindow : Window
         }
 
         var stale = _fxRacks
-            .Where(entry => !viewModel.Tracks.Contains(entry.Key)) // racks still on a current track need nothing
+            // Racks still on a current track need nothing, nor does the master's, which is always the same.
+            .Where(entry => entry.Key != viewModel.MasterTrack && !viewModel.Tracks.Contains(entry.Key))
             .Select(entry => entry.Value)
             .ToList();
         foreach (var window in stale)

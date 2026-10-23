@@ -49,6 +49,12 @@ internal static class Vst3HostInterop
     internal static extern void VstHostBridge_SetEffectChainGain(IntPtr chain, double gain);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void VstHostBridge_SetEffectChainPan(IntPtr chain, double pan);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void VstHostBridge_SetMasterEffectChain(IntPtr chain);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern double VstHostBridge_GetEffectMeter(IntPtr chain, int slot);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
