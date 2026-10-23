@@ -1408,6 +1408,7 @@ public partial class MainWindow : Window
         {
             _mixerWindow = new MixerWindow(viewModel) { Owner = this };
             _mixerWindow.Closed += (_, _) => _mixerWindow = null;
+            FollowPluginWindow(_mixerWindow); // minimized, it goes to the dock with the plug-ins
             _mixerWindow.Show();
             return;
         }
@@ -1812,7 +1813,7 @@ public partial class MainWindow : Window
     private static bool IsPluginWindow(Window window) => window is Vst3NativeEditorWindow or VstPluginEditorDialog;
 
     // Plug-in windows minimized with their own button go to the dock as well: minimized, Windows shows them as
-    // small bars with no room for their name.
+    // small bars with no room for their name. So do the mixer and the FX racks.
     private void FollowPluginWindow(Window window)
     {
         // Pictured each time it loses the focus, while it is surely in view and in front, so the dock has a
@@ -2088,8 +2089,8 @@ public partial class MainWindow : Window
         viewModel.SelectedTrack = timelineTrack.SourceTrack;
         if (_fxRacks.TryGetValue(timelineTrack.SourceTrack, out var open))
         {
-            // Minimized, it is out of sight: the button brings it back rather than closing it.
-            if (open.WindowState == WindowState.Minimized)
+            // Minimized or in the dock, it is out of sight: the button brings it back rather than closing it.
+            if (open.WindowState == WindowState.Minimized || !open.IsVisible)
             {
                 BringBack(open);
             }
@@ -2159,8 +2160,8 @@ public partial class MainWindow : Window
 
         if (_fxRacks.TryGetValue(viewModel.MasterTrack, out var open))
         {
-            // Minimized, it is out of sight: the button brings it back rather than closing it.
-            if (open.WindowState == WindowState.Minimized)
+            // Minimized or in the dock, it is out of sight: the button brings it back rather than closing it.
+            if (open.WindowState == WindowState.Minimized || !open.IsVisible)
             {
                 BringBack(open);
             }
@@ -2191,10 +2192,16 @@ public partial class MainWindow : Window
         }
     }
 
-    // Brings a window back in front: one minimized earlier is restored first, as activating it alone would leave
-    // it a bar at the bottom of the screen, and the button that opens it would seem to do nothing.
-    private static void BringBack(Window window)
+    // Brings a window back in front: one put away in the dock comes out of it, and one minimized is restored,
+    // as activating it alone would leave it out of sight, and the button that opens it would seem to do nothing.
+    private void BringBack(Window window)
     {
+        if (_dockedPluginWindows.Any(docked => ReferenceEquals(docked.Window, window)))
+        {
+            ShowPluginWindow(window);
+            return;
+        }
+
         if (window.WindowState == WindowState.Minimized)
         {
             window.WindowState = WindowState.Normal;
@@ -2211,6 +2218,7 @@ public partial class MainWindow : Window
             rack = new EffectRackWindow(viewModel, track) { Owner = this };
             rack.Closed += (_, _) => _fxRacks.Remove(track);
             _fxRacks[track] = rack;
+            FollowPluginWindow(rack); // minimized, it goes to the dock with the plug-ins
             rack.Show();
         }
 

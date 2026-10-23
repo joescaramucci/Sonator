@@ -2656,7 +2656,7 @@
                 Visibility="Collapsed">
             <DockPanel>
                 <TextBlock DockPanel.Dock="Left"
-                           Text="PLUG-INS"
+                           Text="DOCK"
                            Margin="0,0,10,0"
                            VerticalAlignment="Center"
                            FontFamily="Consolas"
@@ -2685,7 +2685,7 @@
                                                Stretch="Uniform"
                                                RenderOptions.BitmapScalingMode="HighQuality" />
                                         <TextBlock Margin="0,4,0,0" Text="{Binding Title}" FontWeight="SemiBold" />
-                                        <TextBlock Text="Click to bring the plug-in window back" FontSize="11" />
+                                        <TextBlock Text="Click to bring the window back" FontSize="11" />
                                     </StackPanel>
                                 </Button.ToolTip>
                             </Button>
