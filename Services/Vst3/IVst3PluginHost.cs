@@ -180,6 +180,12 @@ public interface IVst3PluginHost
     void SetClipPlayback(Vst3ModuleHandle handle, bool loops, double gain);
 
     /// <summary>
+    /// Makes a playing clip go on from seconds into it (negative: silence that long first), as when a loop
+    /// goes back to its start, without loading it again.
+    /// </summary>
+    void SeekClip(Vst3ModuleHandle handle, double seconds);
+
+    /// <summary>
     /// Makes a clip only to be heard, as the master's test tone: it joins the output after the master's
     /// effects, is left out of the recorded mix, and the master's meters see it at meterPeak (linear) whatever
     /// gain it plays at.

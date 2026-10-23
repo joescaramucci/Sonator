@@ -410,6 +410,25 @@ public sealed class Vst3PluginHost : IVst3PluginHost
         }
     }
 
+    public void SeekClip(Vst3ModuleHandle handle, double seconds)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+
+        if (handle.NativeHandle == IntPtr.Zero)
+        {
+            return;
+        }
+
+        try
+        {
+            Vst3HostInterop.VstHostBridge_SeekClip(handle.NativeHandle, seconds);
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            // Without the bridge no clip plays at all.
+        }
+    }
+
     public void SetClipMonitor(Vst3ModuleHandle handle, bool monitorOnly, double meterPeak)
     {
         ArgumentNullException.ThrowIfNull(handle);

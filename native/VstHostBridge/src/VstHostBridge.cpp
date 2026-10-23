@@ -57,6 +57,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <limits>
 #include <iomanip>
 #include <atomic>
 #include <chrono>
@@ -471,6 +472,10 @@ namespace
         // and after the mix is recorded for exporting, and the master's meters see it at clipMeterPeak instead
         // of the level it plays at.
         std::atomic<bool> clipMonitorOnly{false};
+
+        // Where a playing clip is to go on from, in seconds, as when a loop goes back to its start; NaN when it
+        // just goes on. The audio thread takes it at the next block.
+        std::atomic<double> clipSeekSeconds{std::numeric_limits<double>::quiet_NaN()};
         std::atomic<float> clipMeterPeak{0.0f};
 
         // The module's ExitDll, when it exports one: called before the DLL is freed.
@@ -1267,6 +1272,14 @@ namespace
         // the clip goes to sleep for good.
         void RenderClip(int32 frames, double sampleRate)
         {
+            const double seek = module->clipSeekSeconds.exchange(std::numeric_limits<double>::quiet_NaN());
+            if (!std::isnan(seek))
+            {
+                clipPosition = seek * module->clipSampleRate;
+                clipTailFrames = static_cast<int64>(sampleRate * 4.0);
+                asleep = false; // a clip that had ended plays again
+            }
+
             if (asleep)
             {
                 return;
@@ -2394,6 +2407,14 @@ int VstHostBridge_ReadOutputScope(float* buffer, int32_t count, double* outSampl
         *outSampleRate = g_scopeSampleRate.load(std::memory_order_relaxed);
     }
     return copied;
+}
+
+void VstHostBridge_SeekClip(void* moduleHandle, double seconds)
+{
+    if (moduleHandle != nullptr && std::isfinite(seconds))
+    {
+        static_cast<BridgeModule*>(moduleHandle)->clipSeekSeconds = seconds;
+    }
 }
 
 void VstHostBridge_SetClipMonitor(void* moduleHandle, int32_t monitorOnly, float meterPeak)

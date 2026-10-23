@@ -173,6 +173,10 @@ VSTHOSTBRIDGE_API void* VstHostBridge_CreateClipModule(const float* interleaved,
 // change while it plays, as for the master's test tone.
 VSTHOSTBRIDGE_API void VstHostBridge_SetClipPlayback(void* moduleHandle, int32_t loops, float gain);
 
+// Makes a playing clip go on from seconds into it (negative: silence that long first), as when a loop goes
+// back to its start; taken by the audio thread at its next block, without loading the clip again.
+VSTHOSTBRIDGE_API void VstHostBridge_SeekClip(void* moduleHandle, double seconds);
+
 // Makes a clip only to be heard (monitorOnly 1), as the master's test tone: it joins the output after the
 // master's effects and is left out of the recorded mix, and the master's meters see it at meterPeak (linear,
 // 0 to 1) whatever gain it plays at.

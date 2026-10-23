@@ -1588,7 +1588,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
     {
         if (IsPlaying && Tracks.Any(track => !string.IsNullOrEmpty(track.AudioClipPath)))
         {
-            StartAudioTracks(step);
+            SeekAudioTracks(step);
         }
     }
 
@@ -3699,7 +3699,31 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
     // Plays the audio clips of the unmuted tracks from the current position with the sequence, each
     // through its track's effects.
     // The audio tracks' clips playing in the plug-ins' mix, one module each, until playback stops.
-    private readonly List<Vst3ModuleHandle> _playingClips = new();
+    private readonly List<(Vst3ModuleHandle Module, PatternTrackViewModel Track)> _playingClips = new();
+
+    // True while the clips play through Windows' default output, without the native bridge.
+    private bool _clipsOnFallback;
+
+    // The clips decoded last, by file, so playing again or looping does not read them from disk each time.
+    private readonly Dictionary<string, AudioClip> _decodedClips = new(StringComparer.OrdinalIgnoreCase);
+
+    private AudioClip DecodedClip(string path)
+    {
+        if (_decodedClips.TryGetValue(path, out var clip))
+        {
+            return clip;
+        }
+
+        clip = AudioClipLoader.Load(path);
+        var inUse = Tracks.Select(track => track.AudioClipPath).OfType<string>().ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var unused in _decodedClips.Keys.Where(key => !inUse.Contains(key)).ToList())
+        {
+            _decodedClips.Remove(unused);
+        }
+
+        _decodedClips[path] = clip;
+        return clip;
+    }
 
     // Plays each audio track's clip from where playback starts, through the track's effects and volume, in
     // the same output as the plug-ins, so they sound together, on ASIO too. Without the native bridge the
@@ -3719,7 +3743,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
             AudioClip clip;
             try
             {
-                clip = AudioClipLoader.Load(track.AudioClipPath!);
+                clip = DecodedClip(track.AudioClipPath!);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
             {
@@ -3734,7 +3758,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
                 _trackEffects.ChainFor(track)?.AttachTo(module);
                 if (_liveInstrumentHost.TryStartAudio(module, selection, out var error))
                 {
-                    _playingClips.Add(module);
+                    _playingClips.Add((module, track));
                     continue;
                 }
 
@@ -3754,16 +3778,35 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         if (fallback.Count > 0)
         {
             AudioTrackPlayback.Play(fallback);
+            _clipsOnFallback = true;
+        }
+    }
+
+    // Takes the playing clips to fromStep, as at each turn of a loop: the bridge's clips are only told where
+    // to go on from; those played without it start again.
+    private void SeekAudioTracks(int fromStep)
+    {
+        if (_clipsOnFallback || _playingClips.Count == 0)
+        {
+            StartAudioTracks(fromStep);
+            return;
+        }
+
+        var tempoMap = CurrentTempoMap;
+        foreach (var (module, track) in _playingClips)
+        {
+            _liveInstrumentHost.SeekClip(module, tempoMap.SecondsAt(fromStep) - tempoMap.SecondsAt(track.AudioClipStartStep));
         }
     }
 
     private void StopAudioTracks()
     {
         AudioTrackPlayback.Stop();
-        foreach (var clip in _playingClips)
+        _clipsOnFallback = false;
+        foreach (var (module, _) in _playingClips)
         {
-            _liveInstrumentHost.StopAudio(clip);
-            _liveInstrumentHost.UnloadModule(clip);
+            _liveInstrumentHost.StopAudio(module);
+            _liveInstrumentHost.UnloadModule(module);
         }
         _playingClips.Clear();
     }
