@@ -1883,12 +1883,17 @@ public partial class MainWindow : Window
             }
         };
         window.Closed += (_, _) => _lastPluginPictures.Remove(window);
+        var shownState = window.WindowState;
         window.StateChanged += (_, _) =>
         {
             if (window.WindowState == WindowState.Minimized)
             {
-                window.WindowState = WindowState.Normal;
+                window.WindowState = shownState; // back from the dock as it was, maximized too
                 DockPluginWindow(window);
+            }
+            else
+            {
+                shownState = window.WindowState;
             }
         };
     }

@@ -24,11 +24,13 @@ internal static class WindowSnapshot
         }
 
         return window.Content is FrameworkElement { ActualWidth: > 0, ActualHeight: > 0 } content
-            ? TakeWpf(content, maxWidth)
+            ? TakeWpf(content, maxWidth, window.Background)
             : null;
     }
 
-    private static BitmapSource TakeWpf(FrameworkElement content, int maxWidth)
+    // Drawn over the window's own background: the content alone leaves its empty parts transparent, and
+    // they would show light in the picture.
+    private static BitmapSource TakeWpf(FrameworkElement content, int maxWidth, Brush? background)
     {
         var dpi = VisualTreeHelper.GetDpi(content);
         var scale = Math.Min(1.0, maxWidth / (content.ActualWidth * dpi.DpiScaleX));
@@ -38,7 +40,14 @@ internal static class WindowSnapshot
             96 * dpi.DpiScaleX * scale,
             96 * dpi.DpiScaleY * scale,
             PixelFormats.Pbgra32);
-        picture.Render(content);
+        var visual = new DrawingVisual();
+        using (var drawing = visual.RenderOpen())
+        {
+            var bounds = new Rect(0, 0, content.ActualWidth, content.ActualHeight);
+            drawing.DrawRectangle(background ?? Brushes.Black, null, bounds);
+            drawing.DrawRectangle(new VisualBrush(content) { Stretch = Stretch.None, AlignmentX = AlignmentX.Left, AlignmentY = AlignmentY.Top }, null, bounds);
+        }
+        picture.Render(visual);
         picture.Freeze();
         return picture;
     }
