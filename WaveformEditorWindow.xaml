@@ -38,7 +38,8 @@
             <TextBlock Text="Clip BPM" VerticalAlignment="Center" Margin="6,0,4,6" />
             <TextBox x:Name="ClipBpmBox" Text="120" Width="60" VerticalContentAlignment="Center" Margin="0,0,6,6" />
             <Button Content="Stretch to song tempo" Click="StretchButton_Click" />
-            <Button Content="Send to empty track" Click="SendToTrackButton_Click" />
+            <Button Content="Send to track" Click="SendToTrackButton_Click"
+                    ToolTip="Put the clip, or the selected part, into the selected track: the track it was opened from, or an empty one" />
             <Button Content="Undo" Click="UndoButton_Click" />
             <Button Content="Save as WAV..." Click="SaveButton_Click" />
         </WrapPanel>

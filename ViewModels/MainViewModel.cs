@@ -3741,6 +3741,15 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         RebuildTimeline();
     }
 
+    // Puts an edited clip in place of a track's clip, where the old one started; undo brings the old one back.
+    public void ReplaceAudioClip(PatternTrackViewModel track, string clipPath)
+    {
+        CaptureUndoStateIfNeeded();
+        track.AudioClipPath = clipPath;
+        StatusMessage = $"{track.Name}: the edited clip replaces the old one";
+        RebuildTimeline();
+    }
+
     // Loads an audio file dropped on a track into it. Only empty tracks take a file.
     public void AssignAudioFile(PatternTrackViewModel track, string sourcePath)
     {

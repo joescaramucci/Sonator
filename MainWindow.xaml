@@ -1669,16 +1669,15 @@
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
                                         <!-- The audio clip, where it starts: drag it along to move it in time (SNAP sets the grid),
-                                             or onto another empty track to move it there. -->
+                                             or onto another empty track to move it there; double-click it to edit it. -->
                                         <Border HorizontalAlignment="Left"
                                                 VerticalAlignment="Stretch"
                                                 CornerRadius="2"
                                                 Background="#24463F"
                                                 BorderBrush="#62B7A4"
                                                 BorderThickness="1"
-                                                Cursor="SizeAll"
                                                 Tag="AudioClip"
-                                                ToolTip="Audio clip: drag it along to move it in time, or onto another empty track"
+                                                ToolTip="Audio clip: drag it along to move it in time, or onto another empty track. Double-click to edit it"
                                                 PreviewMouseLeftButtonDown="AudioClip_PreviewMouseLeftButtonDown"
                                                 PreviewMouseMove="AudioClip_PreviewMouseMove"
                                                 PreviewMouseLeftButtonUp="AudioClip_PreviewMouseLeftButtonUp">

@@ -32,6 +32,10 @@ public partial class WaveformEditorWindow : Window
     private readonly double _songTempo;
     private readonly MainViewModel? _viewModel;
 
+    // The track whose clip is being edited, when it was opened from the timeline: SEND TO TRACK puts the
+    // edit back into it.
+    private PatternTrackViewModel? _sourceTrack;
+
     public WaveformEditorWindow(string? path = null, double songTempo = 120, MainViewModel? viewModel = null)
     {
         InitializeComponent();
@@ -62,8 +66,21 @@ public partial class WaveformEditorWindow : Window
         }
     }
 
+    // Opens a track's clip, to edit it and send it back into that track.
+    public void OpenTrackClip(PatternTrackViewModel track, string path)
+    {
+        OpenFile(path);
+        _sourceTrack = _clip is null ? null : track;
+        if (_sourceTrack is not null)
+        {
+            Title = $"Waveform editor - {track.Name}";
+            Info($"{track.Name}'s clip: {_clip!.Duration.TotalSeconds:F2} s, {_clip.Channels} channel(s), {_clip.SampleRate} Hz. Send to track puts the edit back into it.");
+        }
+    }
+
     private void OpenFile(string path)
     {
+        _sourceTrack = null;
         try
         {
             _clip = AudioClipLoader.Load(path);
@@ -204,7 +221,8 @@ public partial class WaveformEditorWindow : Window
             Info("Select an empty track in the main window first.");
             return;
         }
-        if (!MainViewModel.IsEmptyTrack(track))
+        var isSource = ReferenceEquals(track, _sourceTrack) && _viewModel.Tracks.Contains(track);
+        if (!isSource && !MainViewModel.IsEmptyTrack(track))
         {
             Info($"{track.Name} is not empty. Choose an empty track.");
             return;
@@ -213,7 +231,14 @@ public partial class WaveformEditorWindow : Window
         var (start, end) = RangeOrWhole();
         var clip = new AudioClip(AudioEdits.Copy(_clip.Samples, _clip.Channels, start, end), _clip.Channels, _clip.SampleRate);
         var path = AudioClipLoader.SaveToLibrary(clip);
-        _viewModel.AssignAudioClip(track, path);
+        if (isSource)
+        {
+            _viewModel.ReplaceAudioClip(track, path); // the edit goes back where the clip came from
+        }
+        else
+        {
+            _viewModel.AssignAudioClip(track, path);
+        }
         Info($"Sent {clip.Duration.TotalSeconds:F2} s to {track.Name}.");
     }
 

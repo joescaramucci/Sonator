@@ -459,6 +459,16 @@ public partial class MainWindow : Window
             return;
         }
 
+        // A double-click opens the clip in the waveform editor.
+        if (e.ClickCount == 2)
+        {
+            OpenClipInWaveformEditor(timeline.SourceTrack);
+            e.Handled = true;
+            return;
+        }
+
+        // The arrow becomes the move cross only while the clip is held.
+        clip.Cursor = Cursors.SizeAll;
         _clipBorder = clip;
         _clipTimeline = timeline;
         _clipPressPoint = e.GetPosition(this);
@@ -530,6 +540,7 @@ public partial class MainWindow : Window
         _clipTimeline = null;
         clip.ReleaseMouseCapture();
         clip.RenderTransform = Transform.Identity;
+        clip.Cursor = null;
 
         var target = TrackUnder(e.GetPosition(this), clip);
         var onto = target?.SourceTrack is { } other && !ReferenceEquals(other, timeline.SourceTrack) ? other : null;
@@ -1344,7 +1355,6 @@ public partial class MainWindow : Window
         ShowMixerWindow();
     }
 
-    // File > Export audio: the song played through and written to a WAV file.
     // File > Import audio: a WAV or MP3 file into a track, as dropping it on an empty track does.
     private void ImportAudioMenuItem_Click(object sender, RoutedEventArgs e)
     {
@@ -1364,6 +1374,7 @@ public partial class MainWindow : Window
         }
     }
 
+    // File > Export audio: the song played through and written to a WAV file.
     private async void ExportAudioMenuItem_Click(object sender, RoutedEventArgs e) => await ExportAudioAsync();
 
     private async Task ExportAudioAsync()
@@ -1566,6 +1577,18 @@ public partial class MainWindow : Window
         }
 
         BringBack(_mixerWindow);
+    }
+
+    // Opens a track's audio clip in the waveform editor; its edits can then go back into the same track.
+    private void OpenClipInWaveformEditor(PatternTrackViewModel track)
+    {
+        if (track.AudioClipPath is not { } path || !File.Exists(path))
+        {
+            return;
+        }
+
+        ShowWaveformEditorWindow();
+        _waveformEditorWindow?.OpenTrackClip(track, path);
     }
 
     private void ShowWaveformEditorWindow()
