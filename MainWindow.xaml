@@ -1282,7 +1282,6 @@
                                       ItemsSource="{Binding TimelineBarNumbers}"
                                       Tag="TimelineRuler"
                                       Background="Transparent"
-                                      ToolTip="Drag along the bars to choose the part to loop (drag its L or R edge to change it), click to go there, mouse wheel to zoom. Right-click to add a marker or a change of tempo"
                                       MouseRightButtonUp="TimelineRuler_MouseRightButtonUp"
                                       SnapsToDevicePixels="True"
                                       UseLayoutRounding="True"
