@@ -94,6 +94,19 @@ public partial class MainWindow : Window
         }
 
         OpenRecentMenuItem.IsEnabled = recent.Count > 0;
+
+        AutosaveMenuItem.Items.Clear();
+        foreach (var minutes in viewModel.AutosaveIntervalChoices)
+        {
+            var item = new MenuItem
+            {
+                Header = minutes == 0 ? "_Off" : $"Every _{minutes} min",
+                IsCheckable = true,
+                IsChecked = minutes == viewModel.AutosaveMinutes,
+            };
+            item.Click += (_, _) => viewModel.AutosaveMinutes = minutes;
+            AutosaveMenuItem.Items.Add(item);
+        }
     }
 
     private void OpenRecentProject(MainViewModel viewModel, string path)
@@ -166,6 +179,7 @@ public partial class MainWindow : Window
         viewModel.TrackInstrumentStopping += ClosePluginWindowsOf;
         viewModel.EffectPluginUnloading += ClosePluginWindowsOf;
         viewModel.SavedInstrumentStarted += DockSavedInstrument;
+        OfferToRecover(viewModel);
         viewModel.VstPlugins.CollectionChanged += (_, args) =>
         {
             if (args.NewItems is null)
@@ -180,6 +194,26 @@ public partial class MainWindow : Window
         };
 
         await Task.WhenAll(viewModel.VstPlugins.Select(GenerateVstThumbnailAsync));
+    }
+
+    // When the last session ended without saving its project (Sonator or Windows stopped), offers the work it
+    // autosaved; then autosaving starts for this session.
+    private void OfferToRecover(MainViewModel viewModel)
+    {
+        var autosave = new ProjectAutosave();
+        if (autosave.Find() is { } info)
+        {
+            var project = string.IsNullOrWhiteSpace(info.ProjectPath) ? "an unsaved project" : Path.GetFileName(info.ProjectPath);
+            var recover = SonatorMessageDialog.Ask(this, "Recover autosaved work",
+                $"Sonator closed without saving {project}. Its work was autosaved at {info.SavedAt:HH:mm} on {info.SavedAt:d}. Recover it?",
+                "RECOVER", "DISCARD");
+            if (!recover || !viewModel.RecoverAutosave(autosave, info))
+            {
+                autosave.Discard(info);
+            }
+        }
+
+        viewModel.UseAutosave(autosave);
     }
 
     private async Task GenerateVstThumbnailAsync(VstPluginViewModel plugin)
@@ -204,6 +238,7 @@ public partial class MainWindow : Window
         if (_mainViewModel is not null)
         {
             _mainViewModel.Health.Stop();
+            _mainViewModel.ClearAutosave();
             _mainViewModel.PropertyChanged -= MainViewModel_PropertyChanged;
             _mainViewModel = null;
         }

@@ -308,6 +308,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _automationTimer.Tick += (_, _) => ApplyAutomationAt(IsPlaying ? _engine.LivePosition : CurrentStepIndex);
         _automationTimer.Start();
         _recordRefreshTimer.Tick += (_, _) => RefreshRecordedTrack();
+        _autosaveTimer.Tick += (_, _) => AutosaveNow();
         PreviewClickCommand = new RelayCommand(_ =>
         {
             if (_engine.IsClickLoopRunning)
@@ -421,7 +422,129 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     // An edit to the song, or a sound changed in a plug-in's window since it started or was saved.
     public bool HasUnsavedChanges => ProjectSnapshot() != _savedProjectSnapshot || _trackInstruments.AnySoundChanged();
 
-    private void MarkProjectSaved() => _savedProjectSnapshot = ProjectSnapshot();
+    private void MarkProjectSaved()
+    {
+        _savedProjectSnapshot = ProjectSnapshot();
+        // Saved, opened or new, the project has nothing left to recover.
+        _autosave?.Clear();
+        _lastAutosaveSnapshot = null;
+    }
+
+    // ---- Autosave ----
+
+    // Where the project is autosaved, once the main window has turned autosaving on; none for a view model made
+    // in tests, so they never touch a real autosave.
+    private ProjectAutosave? _autosave;
+    private readonly DispatcherTimer _autosaveTimer = new();
+    private string? _lastAutosaveSnapshot;
+    private int _autosaveMinutes = ProjectAutosave.DefaultMinutes;
+
+    public IReadOnlyList<int> AutosaveIntervalChoices => ProjectAutosave.IntervalChoices;
+
+    // How often the project is autosaved while it has unsaved changes, in minutes; 0 is off. Kept in the settings.
+    public int AutosaveMinutes
+    {
+        get => _autosaveMinutes;
+        set
+        {
+            if (!ProjectAutosave.IntervalChoices.Contains(value) || !SetProperty(ref _autosaveMinutes, value))
+            {
+                return;
+            }
+
+            var settingsService = new AppSettingsService();
+            var settings = settingsService.Load();
+            settings.AutosaveMinutes = value;
+            settingsService.Save(settings);
+            ScheduleAutosave();
+            StatusMessage = value == 0 ? "Autosave off" : $"Autosave every {value} min";
+        }
+    }
+
+    // Starts autosaving into the given place, every AutosaveMinutes as kept in the settings.
+    public void UseAutosave(ProjectAutosave autosave)
+    {
+        _autosave = autosave;
+        _autosaveMinutes = ProjectAutosave.MinutesFrom(new AppSettingsService().Load());
+        RaisePropertyChanged(nameof(AutosaveMinutes));
+        ScheduleAutosave();
+    }
+
+    private void ScheduleAutosave()
+    {
+        _autosaveTimer.Stop();
+        if (_autosave is not null && _autosaveMinutes > 0)
+        {
+            _autosaveTimer.Interval = TimeSpan.FromMinutes(_autosaveMinutes);
+            _autosaveTimer.Start();
+        }
+    }
+
+    // Takes a copy of the project when it has changes not saved, and not autosaved yet either; never while
+    // recording, so as not to disturb the take. The project stays unsaved: only the player's saves write its file.
+    public void AutosaveNow()
+    {
+        if (_autosave is null || SelectedPattern is null || IsRecording || !HasUnsavedChanges)
+        {
+            return;
+        }
+
+        if (ProjectSnapshot() == _lastAutosaveSnapshot && !_trackInstruments.AnySoundChanged())
+        {
+            return;
+        }
+
+        try
+        {
+            // The sounds chosen in the plug-ins go into the copy too.
+            _trackInstruments.CaptureStates();
+            _trackEffects.CaptureStates();
+            _autosave.Write(BuildProjectDocument(), CurrentProjectPath);
+            _lastAutosaveSnapshot = ProjectSnapshot();
+            StatusMessage = $"Autosaved at {DateTime.Now:HH:mm}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Autosave failed: {ex.Message}";
+        }
+    }
+
+    // Opens the project autosaved by the last session, which ended without saving it, as unsaved work on the
+    // file it came from. The autosave becomes this session's, kept until the project is saved. False when it
+    // cannot be read.
+    public bool RecoverAutosave(ProjectAutosave autosave, AutosaveInfo info)
+    {
+        try
+        {
+            var document = autosave.Load(info);
+            _history.Clear();
+            RestoreProjectDocument(document);
+            CurrentProjectPath = info.ProjectPath;
+            StatusMessage = $"Recovered the work autosaved at {info.SavedAt:HH:mm}: save it to keep it";
+            SaveProjectCommand?.RaiseCanExecuteChanged();
+            SaveProjectAsCommand?.RaiseCanExecuteChanged();
+            PasteTrackCommand?.RaiseCanExecuteChanged();
+            RaiseHistoryStateChanged();
+            _savedProjectSnapshot = null; // not saved yet
+            autosave.Adopt(info);
+            _lastAutosaveSnapshot = ProjectSnapshot();
+            StartSavedInstruments();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Recover autosave failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            StatusMessage = "Recovery failed";
+            return false;
+        }
+    }
+
+    // Closing Sonator properly leaves nothing to recover.
+    public void ClearAutosave()
+    {
+        _autosaveTimer.Stop();
+        _autosave?.Clear();
+    }
 
     // Which pattern is selected and the MIDI output are not edits to the song.
     private string ProjectSnapshot() => System.Text.Json.JsonSerializer.Serialize(
@@ -2032,6 +2155,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
+        _autosaveTimer.Stop();
         _audioMeterTimer.Stop();
         _automationTimer.Stop();
         _previewer?.Dispose();

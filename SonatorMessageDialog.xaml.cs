@@ -58,6 +58,25 @@ public partial class SonatorMessageDialog : Window
         return dialog.Choice;
     }
 
+    // Asks a question with two answers, yes first: true for yes, false for no or when the dialog is closed.
+    public static bool Ask(Window? owner, string title, string message, string yes, string no)
+    {
+        var dialog = new SonatorMessageDialog(title, message);
+        dialog.OkButton.Visibility = Visibility.Collapsed;
+        dialog.SaveChoicePanel.Visibility = Visibility.Visible;
+        dialog.SaveButton.Content = yes;
+        dialog.DontSaveButton.Content = no;
+        dialog.DontSaveButton.IsCancel = true;
+        dialog.CancelButton.Visibility = Visibility.Collapsed;
+        if (owner is not null)
+        {
+            dialog.Owner = owner;
+        }
+
+        dialog.ShowDialog();
+        return dialog.Choice == SaveChoice.Save;
+    }
+
     public static void Show(Window? owner, string title, string message)
     {
         var dialog = new SonatorMessageDialog(title, message);

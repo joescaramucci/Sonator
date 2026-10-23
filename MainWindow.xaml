@@ -562,6 +562,8 @@
                         <Separator />
                         <MenuItem Header="_Save project" Command="{Binding SaveProjectCommand}" InputGestureText="Ctrl+S" />
                         <MenuItem Header="Save _As..." Command="{Binding SaveProjectAsCommand}" InputGestureText="Ctrl+Shift+S" />
+                        <MenuItem x:Name="AutosaveMenuItem" Header="Auto_save"
+                                  ToolTip="How often a copy of the project is kept while it has unsaved changes, to recover the work if Sonator stops without saving" />
                         <Separator />
                         <MenuItem Header="Import _MIDI..." Command="{Binding ImportMidiCommand}" />
                         <MenuItem Header="_Export audio (WAV)..." Click="ExportAudioMenuItem_Click" InputGestureText="Ctrl+E" />
