@@ -1374,7 +1374,7 @@ public partial class MainWindow : Window
             _soundBrowser.Show();
         }
 
-        _soundBrowser.Activate();
+        BringBack(_soundBrowser);
     }
 
     private void ShowMixerButton_Click(object sender, RoutedEventArgs e)
@@ -1412,7 +1412,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        _mixerWindow.Activate();
+        BringBack(_mixerWindow);
     }
 
     private void ShowWaveformEditorWindow()
@@ -1425,7 +1425,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        _waveformEditorWindow.Activate();
+        BringBack(_waveformEditorWindow);
     }
 
     // Audio files dropped on an empty track go straight into it.
@@ -2088,7 +2088,15 @@ public partial class MainWindow : Window
         viewModel.SelectedTrack = timelineTrack.SourceTrack;
         if (_fxRacks.TryGetValue(timelineTrack.SourceTrack, out var open))
         {
-            open.Close();
+            // Minimized, it is out of sight: the button brings it back rather than closing it.
+            if (open.WindowState == WindowState.Minimized)
+            {
+                BringBack(open);
+            }
+            else
+            {
+                open.Close();
+            }
             return;
         }
 
@@ -2151,7 +2159,15 @@ public partial class MainWindow : Window
 
         if (_fxRacks.TryGetValue(viewModel.MasterTrack, out var open))
         {
-            open.Close();
+            // Minimized, it is out of sight: the button brings it back rather than closing it.
+            if (open.WindowState == WindowState.Minimized)
+            {
+                BringBack(open);
+            }
+            else
+            {
+                open.Close();
+            }
             return;
         }
 
@@ -2175,6 +2191,18 @@ public partial class MainWindow : Window
         }
     }
 
+    // Brings a window back in front: one minimized earlier is restored first, as activating it alone would leave
+    // it a bar at the bottom of the screen, and the button that opens it would seem to do nothing.
+    private static void BringBack(Window window)
+    {
+        if (window.WindowState == WindowState.Minimized)
+        {
+            window.WindowState = WindowState.Normal;
+        }
+
+        window.Activate();
+    }
+
     // One rack window per track: opening it again brings the open one to the front, showing the effect.
     private void OpenFxRack(MainViewModel viewModel, PatternTrackViewModel track, TrackEffectViewModel? effect)
     {
@@ -2186,7 +2214,7 @@ public partial class MainWindow : Window
             rack.Show();
         }
 
-        rack.Activate();
+        BringBack(rack);
         if (effect is not null)
         {
             rack.ShowEffect(effect);
