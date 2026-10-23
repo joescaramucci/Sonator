@@ -8,15 +8,80 @@ public static class HelpTexts
 {
     public static HelpText? For(Type window) => All.TryGetValue(window, out var help) ? help : null;
 
-    private static readonly Dictionary<Type, HelpText> All = new()
+    // The help of a part of a window, by its topic (see HelpBadge.Topic).
+    public static HelpText? ForTopic(string topic) => Topics.TryGetValue(topic, out var help) ? help : null;
+
+    private static readonly Dictionary<string, HelpText> Topics = new(StringComparer.OrdinalIgnoreCase)
     {
-        [typeof(MainWindow)] = new("Sonator", new[]
+        ["Sonator"] = new("Sonator", new[]
         {
             "The song is built from patterns. PATTERN, on the left, lists them and how many bars each lasts; ARRANGE, in the middle, shows the selected pattern's tracks along the timeline, or the whole song with ARRANGE on.",
             "Each track plays MIDI notes, a VST instrument dropped on it from the plug-ins on the right, or an audio clip (File > Import audio, or drop a WAV or MP3 on an empty track). M mutes, S solos, R arms recording, FX opens its effects.",
             "Drag along the bars of the ruler to choose a part to loop, then turn LOOP on. Space plays and stops, the full stop goes back to the start, the arrows move by a bar.",
             "MIXER, WAVE, ARRANGE and SOUNDS at the top open the mixer, the waveform editor, the song view and the sound browser.",
         }),
+        ["Pattern"] = new("Pattern", new[]
+        {
+            "The song's patterns, each a few bars of all the tracks. The list says which pattern is in each slot of the arrangement (a, b, c, d), bar by bar; click one to work on it, drag it to move it, or drop it on DROP HERE to put it at the end.",
+            "Below, the selected pattern: BARS sets how long it lasts, TRANSPOSE moves all its notes up or down in semitones, START, END and LENGTH say where it sits in the song. PREV and NEXT step through the patterns, COPY makes a copy, DELETE removes it, CREATE NEW PATTERN adds one.",
+        }),
+        ["Arrange"] = new("Arrange", new[]
+        {
+            "The tracks of the selected pattern along the timeline, or the whole song with ARRANGE on. On the left of each track: M mutes, S solos, R arms recording, FX opens its effects, + adds an effect, then the volume and pan bars.",
+            "The ruler: drag along the bars to choose a part to loop (drag its L or R edge to change it), click to go there, right-click to add a marker or a change of tempo. Drag a recorded block or an audio clip to move it; double-click a block for the piano roll, a clip for the waveform editor, right-click a clip to detect its tempo.",
+            "ZOOM, or the mouse wheel, widens the bars; FIT shows them all. QUANT sets the grid recorded notes snap to, SNAP the grid blocks and clips move on. Drop a plug-in from the right on a track to play it, or a WAV or MP3 on an empty track.",
+        }),
+        ["Track"] = new("Track", new[]
+        {
+            "The selected track: its name and type, the MIDI channel it plays on (ROUTING) and its base note. PLUGIN chooses the VST instrument it plays; EDIT changes its settings, PIANO ROLL opens its notes, PLUGIN WINDOW shows the instrument's own window.",
+            "EFFECTS lists the track's effects: + ADD puts one more, ON switches one, the arrows move it, the cross removes it; click a name to open it in the rack. MASTER, below, is the volume of the whole mix.",
+        }),
+        ["Transport"] = new("Transport", new[]
+        {
+            "LEFT LOCATOR and RIGHT LOCATOR are the loop's start and end, in steps; dragging along the ruler sets them. Below, the position in the song.",
+            "UNDO takes back the last change. RECORD turns recording on: with a track armed (R), START records the keys played on the MIDI keyboard into a MIDI track, or the sound card's input into an audio track. START plays, STOP stops; IMPORT MIDI brings in a MIDI file.",
+            "The line below says what Sonator has just done.",
+        }),
+        ["VstPlugins"] = new("VST plug-ins", new[]
+        {
+            "Your VST instruments and effects, found in the usual folders and in the one chosen here (Browse... picks another). Drag one onto a track to play it there, or drag the pictures to put them in your order; the star marks your favourites, which come first.",
+        }),
+        ["Loop"] = new("Loop", new[]
+        {
+            "ON repeats the part of the song chosen on the ruler, or the whole pattern without one, until STOP.",
+        }),
+        ["ArrangeMode"] = new("Arrange", new[]
+        {
+            "ON plays the whole song, its patterns one after another as the arrangement says; OFF plays the selected pattern only.",
+        }),
+        ["Tempo"] = new("Tempo", new[]
+        {
+            "The song's speed, in beats per minute: click to type another. Track > Detect tempo finds it from an audio clip.",
+        }),
+        ["Metronome"] = new("Metronome", new[]
+        {
+            "ON plays the click while the song plays; CLICK tries it. ALWAYS clicks all along, or only during the count-in before recording. Below, how often it clicks and how many bars of count-in come before a recording.",
+        }),
+        ["Signature"] = new("Time signature", new[]
+        {
+            "How many beats a bar has: click to choose 4/4, 3/4 or any other.",
+        }),
+        ["Clock"] = new("Position", new[]
+        {
+            "Where the song is: hours, minutes and seconds on the first display, bar and beat on the second.",
+        }),
+        ["Views"] = new("Windows", new[]
+        {
+            "MIXER opens the mixing desk, WAVE the waveform editor, ARRANGE the song's arrangement, SOUNDS the sound browser.",
+        }),
+        ["Health"] = new("Computer load", new[]
+        {
+            "How hard the computer works: CPU, the audio's load (DSP) with its drops, when the sound could not be made in time and may have clicked, and the memory in use.",
+        }),
+    };
+
+    private static readonly Dictionary<Type, HelpText> All = new()
+    {
         [typeof(MixerWindow)] = new("Mixer", new[]
         {
             "One strip per track, as on a desk, top to bottom as the sound goes: its inserts (click one to open it in its rack), FX to add effects, the sends to the buses, pan, mute and solo, and the fader with its meter.",

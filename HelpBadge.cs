@@ -20,6 +20,46 @@ public static class HelpBadge
     public static void Install() =>
         EventManager.RegisterClassHandler(typeof(Window), FrameworkElement.LoadedEvent, new RoutedEventHandler(OnWindowLoaded));
 
+    // The help of one part of a window, by its topic in HelpTexts: a "?" at the part's top right corner, as a
+    // panel's title strip or a box of the top bar. IsSmall gives a smaller one, for the top bar's boxes.
+    public static readonly DependencyProperty TopicProperty = DependencyProperty.RegisterAttached(
+        "Topic", typeof(string), typeof(HelpBadge), new PropertyMetadata(null, OnTopicChanged));
+
+    public static string? GetTopic(DependencyObject element) => (string?)element.GetValue(TopicProperty);
+
+    public static void SetTopic(DependencyObject element, string? value) => element.SetValue(TopicProperty, value);
+
+    public static readonly DependencyProperty IsSmallProperty = DependencyProperty.RegisterAttached(
+        "IsSmall", typeof(bool), typeof(HelpBadge), new PropertyMetadata(false));
+
+    public static bool GetIsSmall(DependencyObject element) => (bool)element.GetValue(IsSmallProperty);
+
+    public static void SetIsSmall(DependencyObject element, bool value) => element.SetValue(IsSmallProperty, value);
+
+    private static void OnTopicChanged(DependencyObject element, DependencyPropertyChangedEventArgs e)
+    {
+        if (element is FrameworkElement part)
+        {
+            part.Loaded -= OnPartLoaded;
+            part.Loaded += OnPartLoaded;
+        }
+    }
+
+    private static void OnPartLoaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement part
+            || GetTopic(part) is not { } topic
+            || HelpTexts.ForTopic(topic) is not { } help
+            || AdornerLayer.GetAdornerLayer(part) is not { } layer
+            || layer.GetAdorners(part)?.OfType<BadgeAdorner>().Any() == true)
+        {
+            return;
+        }
+
+        var small = GetIsSmall(part);
+        layer.Add(new BadgeAdorner(part, help, small ? 13 : 15, small ? 2 : 5, atWindowCorner: false));
+    }
+
     private static void OnWindowLoaded(object sender, RoutedEventArgs e)
     {
         if (sender is not Window { Content: UIElement content } window
@@ -31,7 +71,7 @@ public static class HelpBadge
             return;
         }
 
-        layer.Add(new BadgeAdorner(content, help));
+        layer.Add(new BadgeAdorner(content, help, 17, 3, atWindowCorner: true));
     }
 
     // The card: the window's name in amber over what it does, on a dark panel lit from the top.
@@ -85,16 +125,20 @@ public static class HelpBadge
 
     private sealed class BadgeAdorner : Adorner
     {
-        private const double Size = 17;
-        private const double Inset = 3;
+        private readonly double Size;
+        private readonly double Inset;
+        private readonly bool _atWindowCorner;
 
         private readonly VisualCollection _children;
         private readonly ToggleButton _badge;
         private readonly Popup _pinned;
 
-        public BadgeAdorner(UIElement adorned, HelpText help)
+        public BadgeAdorner(UIElement adorned, HelpText help, double size, double inset, bool atWindowCorner)
             : base(adorned)
         {
+            Size = size;
+            Inset = inset;
+            _atWindowCorner = atWindowCorner;
             _badge = new ToggleButton
             {
                 Width = Size,
@@ -159,7 +203,7 @@ public static class HelpBadge
         protected override Size ArrangeOverride(Size finalSize)
         {
             var corner = new Point(AdornedElement.RenderSize.Width, 0);
-            if (VisualTreeHelper.GetParent(this) is AdornerLayer layer && layer.ActualWidth > 0)
+            if (_atWindowCorner && VisualTreeHelper.GetParent(this) is AdornerLayer layer && layer.ActualWidth > 0)
             {
                 var offset = AdornedElement.TranslatePoint(new Point(0, 0), layer);
                 corner = new Point(layer.ActualWidth - offset.X, -offset.Y);
@@ -170,7 +214,7 @@ public static class HelpBadge
         }
 
         // A round anthracite key with a light "?", amber when the mouse is on it or its card is open.
-        private static ControlTemplate BadgeTemplate()
+        private ControlTemplate BadgeTemplate()
         {
             var template = new ControlTemplate(typeof(ToggleButton));
             var root = new FrameworkElementFactory(typeof(Grid));
@@ -192,7 +236,7 @@ public static class HelpBadge
             mark.SetValue(TextBlock.TextProperty, "?");
             mark.SetValue(TextBlock.FontFamilyProperty, new FontFamily("Segoe UI"));
             mark.SetValue(TextBlock.FontWeightProperty, FontWeights.Bold);
-            mark.SetValue(TextBlock.FontSizeProperty, 11.0);
+            mark.SetValue(TextBlock.FontSizeProperty, Size >= 16 ? 11.0 : Size >= 14 ? 10.0 : 9.0);
             mark.SetValue(TextBlock.ForegroundProperty, Brush(0xE4, 0xE5, 0xE7));
             mark.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
             mark.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
