@@ -50,35 +50,48 @@
         <local:LampConverter x:Key="Lamp" />
 
         <!-- ==== SSL's keycap buttons ====
-             Measured on SSL's Vocalstrip: a keycap in a black well cut into the panel, the well showing more below
-             it, where its shadow falls. The keycap has a dark grey top face carrying a white label, a light top
-             edge catching the light, and its front side showing below the face as a lighter band. Pressed, it
-             goes down into the well and its front side hides. Switched on, the whole cap lights in its colour and
-             the light spills into the well; the label turns dark. Tag "LightCap" gives a light top face with a
-             dark label, as SSL's power switches. -->
+             A keycap standing in a narrow anthracite well cut into the panel, casting a soft shadow below it. The
+             cap's top face is satin grey, a touch lighter at the top where a faint sheen catches the light, with a
+             fine light edge; its front shows below the face as a darker band. Hovered, the face brightens a little.
+             Pressed, the cap goes down into the well, its front side hides and the face darkens. Switched on, the
+             face lights in the button's colour under a glass and the light spills into the well; the label turns
+             dark. Tag "LightCap" gives a light top face with a dark label, as SSL's power switches. -->
         <LinearGradientBrush x:Key="Key.Well" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#4C4E51" Offset="0" />
-            <GradientStop Color="#3E4043" Offset="0.6" />
-            <GradientStop Color="#36383B" Offset="1" />
+            <GradientStop Color="#45474A" Offset="0" />
+            <GradientStop Color="#3A3C3F" Offset="0.6" />
+            <GradientStop Color="#333538" Offset="1" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="Key.Shadow" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#00000000" Offset="0" />
+            <GradientStop Color="#30000000" Offset="0.7" />
+            <GradientStop Color="#48000000" Offset="1" />
         </LinearGradientBrush>
         <LinearGradientBrush x:Key="Key.Body" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#D6D6D6" Offset="0" />
-            <GradientStop Color="#A9A9A9" Offset="0.75" />
-            <GradientStop Color="#8C8C8C" Offset="1" />
+            <GradientStop Color="#6A6C6F" Offset="0" />
+            <GradientStop Color="#4A4C4F" Offset="0.8" />
+            <GradientStop Color="#3C3E41" Offset="1" />
         </LinearGradientBrush>
         <LinearGradientBrush x:Key="Key.Face" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#7C7C7C" Offset="0" />
-            <GradientStop Color="#6A6A6A" Offset="0.5" />
-            <GradientStop Color="#5E5E5E" Offset="1" />
+            <GradientStop Color="#7A7C7F" Offset="0" />
+            <GradientStop Color="#6B6D70" Offset="0.45" />
+            <GradientStop Color="#626467" Offset="1" />
         </LinearGradientBrush>
         <LinearGradientBrush x:Key="Key.FaceLight" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#CFCFCF" Offset="0" />
-            <GradientStop Color="#BDBDBD" Offset="0.6" />
-            <GradientStop Color="#B0B0B0" Offset="1" />
+            <GradientStop Color="#D6D7D9" Offset="0" />
+            <GradientStop Color="#C3C5C7" Offset="0.55" />
+            <GradientStop Color="#B5B7B9" Offset="1" />
         </LinearGradientBrush>
         <LinearGradientBrush x:Key="Key.FacePressed" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#555555" Offset="0" />
-            <GradientStop Color="#626262" Offset="1" />
+            <GradientStop Color="#535558" Offset="0" />
+            <GradientStop Color="#5E6063" Offset="1" />
+        </LinearGradientBrush>
+        <!-- The satin sheen on a cap's face: a soft light on its upper half, gone by the middle. -->
+        <LinearGradientBrush x:Key="Key.Sheen" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#2CFFFFFF" Offset="0" />
+            <GradientStop Color="#0CFFFFFF" Offset="0.45" />
+            <GradientStop Color="#00FFFFFF" Offset="0.5" />
+            <GradientStop Color="#00000000" Offset="0.8" />
+            <GradientStop Color="#14000000" Offset="1" />
         </LinearGradientBrush>
         <!-- A lit cap's glass: brightest at its middle, as a bulb behind it. -->
         <RadialGradientBrush x:Key="Lamp.Glass" GradientOrigin="0.5,0.45" Center="0.5,0.5" RadiusX="0.7" RadiusY="0.8">
@@ -90,9 +103,10 @@
 
         <ControlTemplate x:Key="Raised3D" TargetType="ButtonBase">
             <Grid x:Name="Root" SnapsToDevicePixels="True">
-                <!-- The well, and the lamp's light spilling into it. -->
-                <Border CornerRadius="4" Background="{StaticResource Key.Well}" BorderBrush="#40FFFFFF" BorderThickness="0,0,0,0.6" />
-                <Border x:Name="Spill" CornerRadius="4" Margin="0.5" Opacity="0.75">
+                <!-- The soft shadow the key casts on the panel below it, the well, and the lamp's light spilling into it. -->
+                <Border x:Name="Shadow" CornerRadius="5" Margin="-0.5,1,-0.5,-2" Background="{StaticResource Key.Shadow}" />
+                <Border CornerRadius="3.5" Background="{StaticResource Key.Well}" BorderBrush="#30FFFFFF" BorderThickness="0,0,0,0.6" />
+                <Border x:Name="Spill" CornerRadius="3.5" Margin="0.5" Opacity="0.75">
                     <Border.Background>
                         <MultiBinding Converter="{StaticResource Lamp}" ConverterParameter="brush">
                             <Binding Path="Background" RelativeSource="{RelativeSource TemplatedParent}" />
@@ -103,12 +117,12 @@
                         <BlurEffect Radius="5" />
                     </Border.Effect>
                 </Border>
-                <!-- The keycap: its body (the front side shows as the lighter band under the face), then its face. -->
+                <!-- The keycap: its body (the front side shows as the darker band under the face), then its face. -->
                 <Grid x:Name="Cap" Margin="1,0.8,1,1.8">
-                    <Border CornerRadius="2.5" Background="{StaticResource Key.Body}" BorderBrush="#3A3C3F" BorderThickness="0.5" />
-                    <Border x:Name="Face" CornerRadius="2" Margin="1.2,1.2,1.2,3.2" Background="{StaticResource Key.Face}" />
+                    <Border CornerRadius="2.8" Background="{StaticResource Key.Body}" BorderBrush="#323437" BorderThickness="0.5" />
+                    <Border x:Name="Face" CornerRadius="2.3" Margin="0.9,0.9,0.9,2.6" Background="{StaticResource Key.Face}" />
                     <!-- The lamp: the face lit in the button's colour, under its glass. -->
-                    <Border x:Name="LampFace" CornerRadius="2" Margin="1.2,1.2,1.2,3.2">
+                    <Border x:Name="LampFace" CornerRadius="2.3" Margin="0.9,0.9,0.9,2.6">
                         <Border.Opacity>
                             <MultiBinding Converter="{StaticResource Lamp}" ConverterParameter="opacity">
                                 <Binding Path="Background" RelativeSource="{RelativeSource TemplatedParent}" />
@@ -121,15 +135,17 @@
                                 <Binding Path="(ToggleButton.IsChecked)" RelativeSource="{RelativeSource TemplatedParent}" />
                             </MultiBinding>
                         </Border.Background>
-                        <Border CornerRadius="2" Background="{StaticResource Lamp.Glass}" />
+                        <Border CornerRadius="2.3" Background="{StaticResource Lamp.Glass}" />
                     </Border>
-                    <Border x:Name="Edge" CornerRadius="2.5" Margin="0.6,0.6,0.6,0" BorderThickness="0,1,0,0" BorderBrush="#F2F2F2" />
-                    <Border x:Name="FaceArea" Margin="1.2,1.2,1.2,3.2">
+                    <Border x:Name="Sheen" CornerRadius="2.3" Margin="0.9,0.9,0.9,2.6" Background="{StaticResource Key.Sheen}" />
+                    <Border x:Name="Hover" CornerRadius="2.3" Margin="0.9,0.9,0.9,2.6" Background="#16FFFFFF" Opacity="0" />
+                    <Border x:Name="Edge" CornerRadius="2.5" Margin="0.9,0.9,0.9,0" BorderThickness="0,0.8,0,0" BorderBrush="#80FFFFFF" />
+                    <Border x:Name="FaceArea" Margin="0.9,0.9,0.9,2.6">
                     <ContentPresenter x:Name="Content"
                                       Margin="{TemplateBinding Padding}"
                                       HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                       VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
-                                      TextElement.FontFamily="Arial, Segoe UI Symbol"
+                                      TextElement.FontFamily="Segoe UI, Segoe UI Symbol"
                                       TextElement.FontWeight="Normal"
                                       RecognizesAccessKey="True">
                         <TextElement.Foreground>
@@ -140,7 +156,7 @@
                             </MultiBinding>
                         </TextElement.Foreground>
                         <ContentPresenter.Effect>
-                            <DropShadowEffect ShadowDepth="0.8" Direction="270" BlurRadius="1.5" Color="Black" Opacity="0.55" />
+                            <DropShadowEffect ShadowDepth="0.7" Direction="270" BlurRadius="1" Color="Black" Opacity="0.45" />
                         </ContentPresenter.Effect>
                     </ContentPresenter>
                     </Border>
@@ -151,15 +167,20 @@
                     <Setter TargetName="Face" Property="Background" Value="{StaticResource Key.FaceLight}" />
                 </Trigger>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter TargetName="Edge" Property="BorderBrush" Value="#FFFFFF" />
+                    <Setter TargetName="Hover" Property="Opacity" Value="1" />
+                    <Setter TargetName="Edge" Property="BorderBrush" Value="#B0FFFFFF" />
                 </Trigger>
                 <Trigger Property="IsPressed" Value="True">
                     <Setter TargetName="Cap" Property="Margin" Value="1,1.8,1,0.8" />
-                    <Setter TargetName="Face" Property="Margin" Value="1.2,1.2,1.2,1.4" />
-                    <Setter TargetName="LampFace" Property="Margin" Value="1.2,1.2,1.2,1.4" />
+                    <Setter TargetName="Face" Property="Margin" Value="0.9,0.9,0.9,1.1" />
+                    <Setter TargetName="LampFace" Property="Margin" Value="0.9,0.9,0.9,1.1" />
+                    <Setter TargetName="Sheen" Property="Margin" Value="0.9,0.9,0.9,1.1" />
+                    <Setter TargetName="Hover" Property="Margin" Value="0.9,0.9,0.9,1.1" />
+                    <Setter TargetName="FaceArea" Property="Margin" Value="0.9,0.9,0.9,1.1" />
                     <Setter TargetName="Face" Property="Background" Value="{StaticResource Key.FacePressed}" />
-                    <Setter TargetName="Edge" Property="BorderBrush" Value="#909090" />
-                    <Setter TargetName="FaceArea" Property="Margin" Value="1.2,1.2,1.2,1.4" />
+                    <Setter TargetName="Sheen" Property="Opacity" Value="0.35" />
+                    <Setter TargetName="Edge" Property="BorderBrush" Value="#30FFFFFF" />
+                    <Setter TargetName="Shadow" Property="Opacity" Value="0.4" />
                 </Trigger>
                 <Trigger Property="IsEnabled" Value="False">
                     <Setter TargetName="Root" Property="Opacity" Value="0.45" />
