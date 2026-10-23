@@ -29,6 +29,7 @@ public sealed class VolumeBar : FrameworkElement
     private static readonly Brush HoverFillBrush = Vertical(Color.FromRgb(0xC2, 0xE8, 0xFA), Color.FromRgb(0x4C, 0x9F, 0xCC));
     private static readonly Pen OutlinePen = FrozenPen(0x05, 0x08, 0x0B);
     private static readonly Pen LitEdgePen = FrozenPen(0x5F, 0x73, 0x8A);
+    private static readonly Pen CentrePen = FrozenPen(0xB8, 0xBA, 0xBC);
     private static readonly Pen EdgePen = FrozenPen(0xE4, 0xEC, 0xF4);
 
     // Each notch of the mouse wheel moves the volume by this much.
@@ -116,7 +117,7 @@ public sealed class VolumeBar : FrameworkElement
             {
                 drawingContext.DrawRectangle(fill, null, new Rect(from, bounds.Top, width, bounds.Height));
             }
-            drawingContext.DrawLine(OutlinePen, new Point(centre, bounds.Top - 1), new Point(centre, bounds.Bottom + 1));
+            drawingContext.DrawLine(CentrePen, new Point(centre, bounds.Top - 1.5), new Point(centre, bounds.Bottom + 1.5)); // the centre, where the pan is 0
             DrawThumb(drawingContext, end);
             return;
         }

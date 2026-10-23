@@ -6,7 +6,7 @@
         Height="320"
         MinWidth="200"
         MinHeight="150"
-        Background="#28292B"
+        Background="#2D2D2D"
         WindowStartupLocation="CenterOwner"
         SizeToContent="Manual"
         ShowInTaskbar="False">

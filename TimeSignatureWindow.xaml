@@ -4,7 +4,7 @@
         Title="Time signature"
         Width="420"
         SizeToContent="Height"
-        Background="#28292B"
+        Background="#2D2D2D"
         Foreground="#D2D3D5"
         FontFamily="Consolas"
         WindowStartupLocation="CenterOwner"
@@ -18,7 +18,7 @@
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
         <Style TargetType="Button">
-            <Setter Property="Background" Value="#3D3E40" />
+            <Setter Property="Background" Value="#414141" />
             <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="BorderBrush" Value="#5C7A99" />
             <Setter Property="BorderThickness" Value="1" />
@@ -30,7 +30,7 @@
             <Setter Property="Template" Value="{StaticResource Raised3D}" />
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#555658" />
+                    <Setter Property="Background" Value="#575757" />
                     <Setter Property="BorderBrush" Value="#7EB2FF" />
                 </Trigger>
             </Style.Triggers>

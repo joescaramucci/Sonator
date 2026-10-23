@@ -4,7 +4,7 @@
         Title="Edit Arrange Pattern"
         Width="320"
         Height="220"
-        Background="#28292B"
+        Background="#2D2D2D"
         Foreground="#D2D3D5"
         FontFamily="Consolas"
         WindowStartupLocation="CenterOwner"
@@ -17,7 +17,7 @@
             <Setter Property="FontFamily" Value="Consolas" />
         </Style>
         <Style TargetType="TextBox">
-            <Setter Property="Background" Value="#303133" />
+            <Setter Property="Background" Value="#353535" />
             <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="BorderBrush" Value="#607A96" />
             <Setter Property="BorderThickness" Value="1" />
@@ -25,7 +25,7 @@
             <Setter Property="FontFamily" Value="Consolas" />
         </Style>
         <Style TargetType="ComboBox">
-            <Setter Property="Background" Value="#303133" />
+            <Setter Property="Background" Value="#353535" />
             <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="BorderBrush" Value="#607A96" />
             <Setter Property="BorderThickness" Value="1" />
@@ -64,7 +64,7 @@
                                                                   ContentStringFormat="{Binding SelectionBoxItemStringFormat, RelativeSource={RelativeSource AncestorType=ComboBox}}" />
 
                                                 <Border Grid.Column="1"
-                                                        Background="#3D3E40"
+                                                        Background="#414141"
                                                         BorderBrush="#607A96"
                                                         BorderThickness="1,0,0,0">
                                                     <TextBlock Text="▾"
@@ -84,7 +84,7 @@
                                    AllowsTransparency="True"
                                    Focusable="False"
                                    PopupAnimation="Fade">
-                                <Border Background="#28292B"
+                                <Border Background="#2D2D2D"
                                         BorderBrush="#607A96"
                                         BorderThickness="1"
                                         CornerRadius="4"
@@ -100,20 +100,20 @@
             </Setter>
         </Style>
         <Style TargetType="ComboBoxItem">
-            <Setter Property="Background" Value="#303133" />
+            <Setter Property="Background" Value="#353535" />
             <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="FontFamily" Value="Consolas" />
             <Style.Triggers>
                 <Trigger Property="IsHighlighted" Value="True">
-                    <Setter Property="Background" Value="#555658" />
+                    <Setter Property="Background" Value="#575757" />
                 </Trigger>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#5B5C5E" />
+                    <Setter Property="Background" Value="#5D5D5D" />
                 </Trigger>
             </Style.Triggers>
         </Style>
         <Style TargetType="Button">
-            <Setter Property="Background" Value="#3D3E40" />
+            <Setter Property="Background" Value="#414141" />
             <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="BorderBrush" Value="#5C7A99" />
             <Setter Property="BorderThickness" Value="1" />
@@ -123,7 +123,7 @@
             <Setter Property="Template" Value="{StaticResource Raised3D}" />
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#555658" />
+                    <Setter Property="Background" Value="#575757" />
                     <Setter Property="BorderBrush" Value="#7EB2FF" />
                 </Trigger>
             </Style.Triggers>
@@ -162,11 +162,11 @@
                   Margin="0,0,0,8"
                   SelectedIndex="{Binding SubChannelIndex}">
             <ComboBox.Resources>
-                <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#303133" />
-                <SolidColorBrush x:Key="{x:Static SystemColors.ControlBrushKey}" Color="#303133" />
-                <SolidColorBrush x:Key="{x:Static SystemColors.ControlLightBrushKey}" Color="#303133" />
-                <SolidColorBrush x:Key="{x:Static SystemColors.ControlDarkBrushKey}" Color="#3D3E40" />
-                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#555658" />
+                <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#353535" />
+                <SolidColorBrush x:Key="{x:Static SystemColors.ControlBrushKey}" Color="#353535" />
+                <SolidColorBrush x:Key="{x:Static SystemColors.ControlLightBrushKey}" Color="#353535" />
+                <SolidColorBrush x:Key="{x:Static SystemColors.ControlDarkBrushKey}" Color="#414141" />
+                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#575757" />
                 <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#D2D3D5" />
                 <SolidColorBrush x:Key="{x:Static SystemColors.ControlTextBrushKey}" Color="#D2D3D5" />
             </ComboBox.Resources>

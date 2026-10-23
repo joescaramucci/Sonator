@@ -7,7 +7,7 @@
         Height="680"
         MinWidth="700"
         MinHeight="400"
-        Background="#28292B"
+        Background="#2D2D2D"
         Foreground="#D2D3D5"
         FontFamily="Consolas"
         WindowStartupLocation="CenterOwner"
@@ -19,7 +19,7 @@
             <Setter Property="FontSize" Value="12" />
         </Style>
         <Style TargetType="Button">
-            <Setter Property="Background" Value="#3D3E40" />
+            <Setter Property="Background" Value="#414141" />
             <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="BorderBrush" Value="#5C7A99" />
             <Setter Property="BorderThickness" Value="1" />
@@ -30,7 +30,7 @@
             <Setter Property="Template" Value="{StaticResource Raised3D}" />
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#555658" />
+                    <Setter Property="Background" Value="#575757" />
                     <Setter Property="BorderBrush" Value="#7EB2FF" />
                 </Trigger>
                 <Trigger Property="IsEnabled" Value="False">
@@ -51,7 +51,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Row" Property="Background" Value="#393A3C" />
+                                <Setter TargetName="Row" Property="Background" Value="#3D3D3D" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="Row" Property="Background" Value="#2F5A7A" />
@@ -79,7 +79,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="local:SoundBrowserWindow.IsComingUp" Value="True">
-                                <Setter TargetName="Row" Property="Background" Value="#333436" />
+                                <Setter TargetName="Row" Property="Background" Value="#373737" />
                                 <Setter TargetName="Row" Property="BorderBrush" Value="#E6C45B" />
                             </Trigger>
                             <Trigger Property="local:SoundBrowserWindow.IsReady" Value="True">
@@ -89,7 +89,7 @@
                                 <Setter TargetName="FavoriteStar" Property="Visibility" Value="Visible" />
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Row" Property="Background" Value="#393A3C" />
+                                <Setter TargetName="Row" Property="Background" Value="#3D3D3D" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="Row" Property="Background" Value="#2F5A7A" />
@@ -108,7 +108,7 @@
                 <TextBlock x:Name="TargetText" Foreground="#98999B" FontSize="11" />
             </StackPanel>
             <TextBlock x:Name="CountText" DockPanel.Dock="Right" VerticalAlignment="Bottom" Foreground="#98999B" FontSize="11" />
-            <Border Margin="24,4,16,0" Height="30" CornerRadius="5" Background="#1A1B1D" BorderBrush="#6C6D6F" BorderThickness="1" VerticalAlignment="Center">
+            <Border Margin="24,4,16,0" Height="30" CornerRadius="5" Background="#1A1B1D" BorderBrush="#6C6C6C" BorderThickness="1" VerticalAlignment="Center">
                 <Grid>
                     <TextBox x:Name="SearchBox"
                              Background="Transparent"
@@ -147,7 +147,7 @@
                           ToolTip="Hear each sound as it is selected, with the arrows or a click. The sounds coming up are got ready ahead, lit in the list">
                 <ToggleButton.Style>
                     <Style TargetType="ToggleButton">
-                        <Setter Property="Background" Value="#3D3E40" />
+                        <Setter Property="Background" Value="#414141" />
                         <Setter Property="Foreground" Value="#D2D3D5" />
                         <Setter Property="Template" Value="{StaticResource Raised3D}" />
                         <Style.Triggers>
@@ -169,7 +169,7 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <Border Background="#242527" BorderBrush="#444547" BorderThickness="1" CornerRadius="5">
+            <Border Background="#292929" BorderBrush="#474747" BorderThickness="1" CornerRadius="5">
                 <ListBox x:Name="CategoryList"
                          Background="Transparent"
                          BorderThickness="0"
@@ -188,7 +188,7 @@
                 </ListBox>
             </Border>
 
-            <Border Grid.Column="2" Background="#242527" BorderBrush="#444547" BorderThickness="1" CornerRadius="5">
+            <Border Grid.Column="2" Background="#292929" BorderBrush="#474747" BorderThickness="1" CornerRadius="5">
                 <DockPanel Margin="4">
                     <Grid x:Name="SortHeaders" DockPanel.Dock="Top" Margin="6,2,22,4">
                         <Grid.ColumnDefinitions>

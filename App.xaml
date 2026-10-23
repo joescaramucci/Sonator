@@ -94,7 +94,7 @@
                             </DropShadowEffect>
                         </Border.Effect>
                     </Border>
-                    <Border x:Name="Face" CornerRadius="2.5" Background="{StaticResource Cap.Face}" BorderBrush="#202123" BorderThickness="1" />
+                    <Border x:Name="Face" CornerRadius="2.5" Background="{StaticResource Cap.Face}" BorderBrush="#262626" BorderThickness="1" />
                     <!-- The lamp: the cap's face lit in the button's colour, with the glass over it. -->
                     <Border x:Name="LampFace" CornerRadius="2.5" BorderBrush="#33000000" BorderThickness="1">
                         <Border.Background>
@@ -110,7 +110,7 @@
                                       Margin="{TemplateBinding Padding}"
                                       HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                       VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
-                                      TextElement.Foreground="#28292B"
+                                      TextElement.Foreground="#2D2D2D"
                                       TextElement.FontFamily="Arial, Segoe UI Symbol"
                                       TextElement.FontWeight="Bold"
                                       RecognizesAccessKey="True" />
@@ -118,7 +118,7 @@
             </Grid>
             <ControlTemplate.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter TargetName="Face" Property="BorderBrush" Value="#707173" />
+                    <Setter TargetName="Face" Property="BorderBrush" Value="#707070" />
                 </Trigger>
                 <Trigger Property="IsPressed" Value="True">
                     <Setter TargetName="Face" Property="Background" Value="{StaticResource Cap.Pressed}" />
@@ -132,30 +132,30 @@
         </ControlTemplate>
         <!-- A panel's face: lit at the top, a little darker at the bottom. -->
         <LinearGradientBrush x:Key="Panel.Face" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#343537" Offset="0" />
-            <GradientStop Color="#28292B" Offset="1" />
+            <GradientStop Color="#383838" Offset="0" />
+            <GradientStop Color="#2D2D2D" Offset="1" />
         </LinearGradientBrush>
         <!-- A panel's title strip, like the engraved header of a hardware module. -->
         <LinearGradientBrush x:Key="Panel.Header" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#5C5D5F" Offset="0" />
-            <GradientStop Color="#3F4042" Offset="0.5" />
-            <GradientStop Color="#363739" Offset="1" />
+            <GradientStop Color="#5D5D5D" Offset="0" />
+            <GradientStop Color="#424242" Offset="0.5" />
+            <GradientStop Color="#3A3A3A" Offset="1" />
         </LinearGradientBrush>
         <!-- The edge of something sunk into the panel: dark above, where the light cannot reach, light below. -->
         <LinearGradientBrush x:Key="Inset.Edge" StartPoint="0,0" EndPoint="0,1">
             <GradientStop Color="#090A0C" Offset="0" />
-            <GradientStop Color="#252628" Offset="0.5" />
+            <GradientStop Color="#2A2A2A" Offset="0.5" />
             <GradientStop Color="#5F738A" Offset="1" />
         </LinearGradientBrush>
         <LinearGradientBrush x:Key="Inset.Face" StartPoint="0,0" EndPoint="0,1">
             <GradientStop Color="#151618" Offset="0" />
-            <GradientStop Color="#242527" Offset="0.25" />
-            <GradientStop Color="#2A2B2D" Offset="1" />
+            <GradientStop Color="#292929" Offset="0.25" />
+            <GradientStop Color="#2F2F2F" Offset="1" />
         </LinearGradientBrush>
 
         <!-- Dark rounded drop-downs, for the windows that have no drop-down style of their own. -->
         <Style x:Key="DarkComboBox" TargetType="ComboBox">
-            <Setter Property="Background" Value="#393A3C" />
+            <Setter Property="Background" Value="#3D3D3D" />
             <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="BorderBrush" Value="#757678" />
             <Setter Property="BorderThickness" Value="1" />
@@ -169,12 +169,12 @@
                         <Setter Property="FontFamily" Value="Consolas" />
                         <Setter Property="FontSize" Value="12" />
                         <Setter Property="FontWeight" Value="SemiBold" />
-                        <Setter Property="Background" Value="#2E2F31" />
+                        <Setter Property="Background" Value="#333333" />
                         <Setter Property="Foreground" Value="#D2D3D5" />
                         <Setter Property="Padding" Value="6,3" />
                         <Style.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
-                                <Setter Property="Background" Value="#57585A" />
+                                <Setter Property="Background" Value="#595959" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter Property="Background" Value="#2D745D" />
@@ -202,10 +202,10 @@
                                                   Fill="#D2D3D5" /></Grid>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="Body" Property="Background" Value="#4F5052" />
+                                                <Setter TargetName="Body" Property="Background" Value="#515151" />
                                             </Trigger>
                                             <Trigger Property="IsChecked" Value="True">
-                                                <Setter TargetName="Body" Property="Background" Value="#4F5052" />
+                                                <Setter TargetName="Body" Property="Background" Value="#515151" />
                                             </Trigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
@@ -228,7 +228,7 @@
                                 <Border MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
                                         MaxHeight="260"
                                         Margin="0,2,0,0"
-                                        Background="#2E2F31"
+                                        Background="#333333"
                                         BorderBrush="#757678"
                                         BorderThickness="1"
                                         CornerRadius="5">
@@ -251,7 +251,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Thumb">
-                        <Border x:Name="ThumbBorder" Background="#626365" CornerRadius="4" Margin="2" />
+                        <Border x:Name="ThumbBorder" Background="#636363" CornerRadius="4" Margin="2" />
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="ThumbBorder" Property="Background" Value="#5A728D" />
@@ -280,7 +280,7 @@
 
         <Style TargetType="ScrollBar">
             <Setter Property="OverridesDefaultStyle" Value="True" />
-            <Setter Property="Background" Value="#28292B" />
+            <Setter Property="Background" Value="#2D2D2D" />
             <Setter Property="Width" Value="12" />
             <Setter Property="MinWidth" Value="12" />
             <Setter Property="Template">
@@ -334,7 +334,7 @@
         <!-- The small square where a vertical and a horizontal scroll bar meet. -->
         <Style TargetType="ScrollViewer">
             <Style.Resources>
-                <SolidColorBrush x:Key="{x:Static SystemColors.ControlBrushKey}" Color="#28292B" />
+                <SolidColorBrush x:Key="{x:Static SystemColors.ControlBrushKey}" Color="#2D2D2D" />
             </Style.Resources>
         </Style>
     </Application.Resources>

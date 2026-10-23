@@ -4,7 +4,7 @@
         Title="ASIO driver settings"
         Width="480"
         Height="340"
-        Background="#28292B"
+        Background="#2D2D2D"
         Foreground="#D2D3D5"
         FontFamily="Consolas"
         WindowStartupLocation="CenterOwner"
@@ -20,7 +20,7 @@
             <Setter Property="Margin" Value="0,4,0,12" />
         </Style>
         <Style TargetType="Button">
-            <Setter Property="Background" Value="#303133" />
+            <Setter Property="Background" Value="#353535" />
             <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="BorderBrush" Value="#607A96" />
             <Setter Property="FontFamily" Value="Consolas" />

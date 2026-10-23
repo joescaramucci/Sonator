@@ -4,7 +4,7 @@
         Title="Import MIDI"
         Width="500"
         Height="220"
-        Background="#28292B"
+        Background="#2D2D2D"
         Foreground="#D2D3D5"
         FontFamily="Consolas"
         WindowStartupLocation="CenterOwner"
@@ -16,7 +16,7 @@
             <Setter Property="FontFamily" Value="Consolas" />
         </Style>
         <Style TargetType="TextBox">
-            <Setter Property="Background" Value="#303133" />
+            <Setter Property="Background" Value="#353535" />
             <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="BorderBrush" Value="#607A96" />
             <Setter Property="BorderThickness" Value="1" />
@@ -24,7 +24,7 @@
             <Setter Property="FontFamily" Value="Consolas" />
         </Style>
         <Style TargetType="Button">
-            <Setter Property="Background" Value="#3D3E40" />
+            <Setter Property="Background" Value="#414141" />
             <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="BorderBrush" Value="#5C7A99" />
             <Setter Property="BorderThickness" Value="1" />
@@ -34,7 +34,7 @@
             <Setter Property="Template" Value="{StaticResource Raised3D}" />
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#555658" />
+                    <Setter Property="Background" Value="#575757" />
                     <Setter Property="BorderBrush" Value="#7EB2FF" />
                 </Trigger>
             </Style.Triggers>

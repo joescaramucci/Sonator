@@ -7,7 +7,7 @@
         Height="700"
         MinHeight="560"
         Background="#121315"
-        Foreground="#202123"
+        Foreground="#262626"
         FontFamily="Arial"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False">
@@ -32,12 +32,12 @@
                     <Ellipse.Fill>
                         <RadialGradientBrush GradientOrigin="0.3,0.3">
                             <GradientStop Color="#C0C1C3" Offset="0" />
-                            <GradientStop Color="#515254" Offset="1" />
+                            <GradientStop Color="#535353" Offset="1" />
                         </RadialGradientBrush>
                     </Ellipse.Fill>
                 </Ellipse>
-                <Line X1="1.6" Y1="3.5" X2="5.4" Y2="3.5" Stroke="#242527" StrokeThickness="0.9" />
-                <Line X1="3.5" Y1="1.6" X2="3.5" Y2="5.4" Stroke="#242527" StrokeThickness="0.9" />
+                <Line X1="1.6" Y1="3.5" X2="5.4" Y2="3.5" Stroke="#292929" StrokeThickness="0.9" />
+                <Line X1="3.5" Y1="1.6" X2="3.5" Y2="5.4" Stroke="#292929" StrokeThickness="0.9" />
             </Grid>
         </DataTemplate>
 
@@ -53,8 +53,8 @@
             <Setter Property="Background">
                 <Setter.Value>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                        <GradientStop Color="#636466" Offset="0" />
-                        <GradientStop Color="#323335" Offset="1" />
+                        <GradientStop Color="#646464" Offset="0" />
+                        <GradientStop Color="#363636" Offset="1" />
                     </LinearGradientBrush>
                 </Setter.Value>
             </Setter>
@@ -67,9 +67,9 @@
                 <Border.Background>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
                         <GradientStop Color="#929395" Offset="0" />
-                        <GradientStop Color="#454648" Offset="0.45" />
-                        <GradientStop Color="#303133" Offset="0.55" />
-                        <GradientStop Color="#626365" Offset="1" />
+                        <GradientStop Color="#484848" Offset="0.45" />
+                        <GradientStop Color="#353535" Offset="0.55" />
+                        <GradientStop Color="#636363" Offset="1" />
                     </LinearGradientBrush>
                 </Border.Background>
                 <Rectangle Height="2" Fill="#F4F4F0" VerticalAlignment="Center" />
@@ -101,7 +101,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Slider">
                         <Grid>
-                            <Border Width="5" Margin="0,10" CornerRadius="2" Background="#090A0C" BorderBrush="#57585A" BorderThickness="0,0,1,1" HorizontalAlignment="Center" />
+                            <Border Width="5" Margin="0,10" CornerRadius="2" Background="#090A0C" BorderBrush="#595959" BorderThickness="0,0,1,1" HorizontalAlignment="Center" />
                             <Track x:Name="PART_Track" Orientation="Vertical" IsDirectionReversed="False">
                                 <Track.Thumb>
                                     <Thumb Height="26" Width="20" Cursor="SizeNS" Template="{StaticResource FaderCap}" />
@@ -117,7 +117,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Slider">
                         <Grid>
-                            <Border Width="5" Margin="0,10" CornerRadius="2" Background="#090A0C" BorderBrush="#57585A" BorderThickness="0,0,1,1" HorizontalAlignment="Center" />
+                            <Border Width="5" Margin="0,10" CornerRadius="2" Background="#090A0C" BorderBrush="#595959" BorderThickness="0,0,1,1" HorizontalAlignment="Center" />
                             <Track x:Name="PART_Track" Orientation="Vertical" IsDirectionReversed="False">
                                 <Track.Thumb>
                                     <Thumb Height="26" Width="24" Cursor="SizeNS" Template="{StaticResource MasterFaderCap}" />
@@ -138,7 +138,7 @@
                         <Setter Property="Foreground" Value="#7FD4FF" />
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding IsEnabled}" Value="False">
-                                <Setter Property="Foreground" Value="#707173" />
+                                <Setter Property="Foreground" Value="#707070" />
                             </DataTrigger>
                             <DataTrigger Binding="{Binding IsPluginMissing}" Value="True">
                                 <Setter Property="Foreground" Value="#E6C45B" />
@@ -155,7 +155,7 @@
             <Setter Property="Margin" Value="0,0,2,0" />
             <Setter Property="CornerRadius" Value="2" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="#434446" />
+            <Setter Property="BorderBrush" Value="#464646" />
             <Setter Property="Background" Value="{x:Static local:BrushedMetal.Brush}" />
         </Style>
 
@@ -212,7 +212,7 @@
                     <local:VuMeter Label="L" Height="50" Margin="3,0" Peak="{Binding MasterPeakLeft}" ToolTip="Left: 0 VU is -18 dBFS" />
                     <local:VuMeter Label="R" Height="50" Margin="3,3,3,0" Peak="{Binding MasterPeakRight}" ToolTip="Right: 0 VU is -18 dBFS" />
                 </StackPanel>
-                    <Border Margin="4,0,4,0" Background="#151618" CornerRadius="2" BorderBrush="#57585A" BorderThickness="0,0,1,1">
+                    <Border Margin="4,0,4,0" Background="#151618" CornerRadius="2" BorderBrush="#595959" BorderThickness="0,0,1,1">
                         <ItemsControl ItemsSource="{Binding MasterTrack.Effects}" ItemTemplate="{StaticResource InsertTemplate}" Tag="{Binding MasterTrack}" />
                     </Border>
             </DockPanel>
@@ -343,7 +343,7 @@
                                         </Button>
                                     </Grid>
                                 </StackPanel>
-                                    <Border Margin="4,0,4,0" Background="#151618" CornerRadius="2" BorderBrush="#57585A" BorderThickness="0,0,1,1">
+                                    <Border Margin="4,0,4,0" Background="#151618" CornerRadius="2" BorderBrush="#595959" BorderThickness="0,0,1,1">
                                         <ItemsControl ItemsSource="{Binding Effects}" ItemTemplate="{StaticResource InsertTemplate}" Tag="{Binding}" />
                                     </Border>
                             </DockPanel>
@@ -418,7 +418,7 @@
                                         </Button.Style>
                                     </Button>
                                 </StackPanel>
-                                    <Border Margin="4,0,4,0" Background="#151618" CornerRadius="2" BorderBrush="#57585A" BorderThickness="0,0,1,1">
+                                    <Border Margin="4,0,4,0" Background="#151618" CornerRadius="2" BorderBrush="#595959" BorderThickness="0,0,1,1">
                                         <ItemsControl ItemsSource="{Binding Effects}" ItemTemplate="{StaticResource InsertTemplate}" Tag="{Binding}" />
                                     </Border>
                             </DockPanel>
@@ -432,7 +432,7 @@
                     ToolTip="Add a bus (an effect return): tracks send part of their sound to it, as to a shared reverb">
                 <Button.Template>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Slot" Background="#1A1B1D" BorderBrush="#313234" BorderThickness="1" CornerRadius="2">
+                        <Border x:Name="Slot" Background="#1A1B1D" BorderBrush="#353535" BorderThickness="1" CornerRadius="2">
                             <TextBlock Text="+ BUS" Foreground="#959698" FontFamily="Arial" FontWeight="Bold" FontSize="10"
                                        HorizontalAlignment="Center" VerticalAlignment="Center">
                                 <TextBlock.LayoutTransform>

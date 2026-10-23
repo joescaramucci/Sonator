@@ -15,15 +15,17 @@ public static class BrushedMetal
 
     private static ImageBrush? _brush;
 
-    public static ImageBrush Brush => _brush ??= Make(0.215, 5);
+    // The mixer's modules: SSL's smooth charcoal, with only the faintest grain.
+    public static ImageBrush Brush => _brush ??= Make(0.19, 0, 0.12);
 
     private static ImageBrush? _light;
 
     // The light grey satin aluminium of SSL's plug-in panels, for the FX racks.
-    public static ImageBrush Light => _light ??= Make(0.76, 3);
+    public static ImageBrush Light => _light ??= Make(0.76, 3, 0.6);
 
-    // base: the metal's shade from 0 to 1; tint: how much bluer than grey it is.
-    private static ImageBrush Make(double baseShade, int tint)
+    // base: the metal's shade from 0 to 1; tint: how much bluer than grey it is; roughness: how strong its
+    // streaks are, 1 for brushed metal, near 0 for a smooth painted panel.
+    private static ImageBrush Make(double baseShade, int tint, double roughness)
     {
         var random = new Random(4000); // the same streaks every time
         var pixels = new byte[TileWidth * TileHeight * 4];
@@ -53,11 +55,11 @@ public static class BrushedMetal
             for (var x = 0; x < TileWidth; x++)
             {
                 var drift = Math.Sin((y + x * 7) * 2 * Math.PI / TileHeight);
-                var shade = baseShade + smoothed[x] * 0.055 * (baseShade > 0.5 ? 0.6 : 1) + scratches[x] * (baseShade > 0.5 ? 0.4 : 1) + drift * 0.008 + (random.NextDouble() - 0.5) * 0.03;
+                var shade = baseShade + (smoothed[x] * 0.055 + scratches[x] * 0.6 + drift * 0.008) * roughness + (random.NextDouble() - 0.5) * 0.03 * Math.Max(0.25, roughness);
                 var value = (byte)Math.Clamp(shade * 255, 0, 255);
                 var index = (y * TileWidth + x) * 4;
                 pixels[index] = (byte)Math.Clamp(value + tint, 0, 255); // a touch blue, as SSL's metal
-                pixels[index + 1] = (byte)Math.Clamp(value + 2, 0, 255);
+                pixels[index + 1] = (byte)Math.Clamp(value + tint / 2, 0, 255);
                 pixels[index + 2] = value;
                 pixels[index + 3] = 255;
             }

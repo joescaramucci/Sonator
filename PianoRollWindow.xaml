@@ -4,7 +4,7 @@
         Title="Piano roll"
         Width="960"
         Height="640"
-        Background="#28292B"
+        Background="#2D2D2D"
         Foreground="#D2D3D5"
         FontFamily="Consolas"
         WindowStartupLocation="CenterOwner"
@@ -14,7 +14,7 @@
         <Style TargetType="Button">
             <Setter Property="Margin" Value="1" />
             <Setter Property="Padding" Value="6,4" />
-            <Setter Property="Background" Value="#3D3E40" />
+            <Setter Property="Background" Value="#414141" />
             <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="BorderBrush" Value="#5C7A99" />
             <Setter Property="BorderThickness" Value="1" />
@@ -25,13 +25,13 @@
             <Setter Property="Template" Value="{StaticResource Raised3D}" />
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#555658" />
+                    <Setter Property="Background" Value="#575757" />
                     <Setter Property="BorderBrush" Value="#7EB2FF" />
                 </Trigger>
             </Style.Triggers>
         </Style>
         <Style TargetType="ComboBox">
-            <Setter Property="Background" Value="#393A3C" />
+            <Setter Property="Background" Value="#3D3D3D" />
             <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="BorderBrush" Value="#757678" />
             <Setter Property="BorderThickness" Value="1" />
@@ -45,12 +45,12 @@
                         <Setter Property="FontFamily" Value="Consolas" />
                         <Setter Property="FontSize" Value="12" />
                         <Setter Property="FontWeight" Value="SemiBold" />
-                        <Setter Property="Background" Value="#2E2F31" />
+                        <Setter Property="Background" Value="#333333" />
                         <Setter Property="Foreground" Value="#D2D3D5" />
                         <Setter Property="Padding" Value="6,3" />
                         <Style.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
-                                <Setter Property="Background" Value="#57585A" />
+                                <Setter Property="Background" Value="#595959" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter Property="Background" Value="#2D745D" />
@@ -79,10 +79,10 @@
                                                   Fill="#D2D3D5" /></Grid>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="Body" Property="Background" Value="#4F5052" />
+                                                <Setter TargetName="Body" Property="Background" Value="#515151" />
                                             </Trigger>
                                             <Trigger Property="IsChecked" Value="True">
-                                                <Setter TargetName="Body" Property="Background" Value="#4F5052" />
+                                                <Setter TargetName="Body" Property="Background" Value="#515151" />
                                             </Trigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
@@ -105,7 +105,7 @@
                                 <Border MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
                                         MaxHeight="260"
                                         Margin="0,2,0,0"
-                                        Background="#2E2F31"
+                                        Background="#333333"
                                         BorderBrush="#757678"
                                         BorderThickness="1"
                                         CornerRadius="5">
@@ -120,7 +120,7 @@
             </Setter>
         </Style>
         <Style x:Key="MetronomeToggleStyle" TargetType="ToggleButton">
-            <Setter Property="Background" Value="#3D3E40" />
+            <Setter Property="Background" Value="#414141" />
             <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="BorderBrush" Value="#5C7A99" />
             <Setter Property="BorderThickness" Value="1" />

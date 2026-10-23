@@ -4,7 +4,7 @@
         xmlns:local="clr-namespace:Sonator"
         Title="SonNormalize"
         SizeToContent="WidthAndHeight"
-        Background="#28292B"
+        Background="#2D2D2D"
         Foreground="#D2D3D5"
         FontFamily="Consolas"
         WindowStartupLocation="CenterOwner"
@@ -17,7 +17,7 @@
             <Setter Property="FontSize" Value="12" />
         </Style>
         <Style TargetType="Button">
-            <Setter Property="Background" Value="#3D3E40" />
+            <Setter Property="Background" Value="#414141" />
             <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="BorderBrush" Value="#5C7A99" />
             <Setter Property="BorderThickness" Value="1" />
@@ -28,7 +28,7 @@
             <Setter Property="Template" Value="{StaticResource Raised3D}" />
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#555658" />
+                    <Setter Property="Background" Value="#575757" />
                     <Setter Property="BorderBrush" Value="#7EB2FF" />
                 </Trigger>
             </Style.Triggers>
@@ -40,14 +40,14 @@
         <TextBlock Text="{Binding Subtitle}" Foreground="#98999B" FontSize="11" Margin="0,0,0,12" />
 
         <StackPanel Orientation="Horizontal">
-            <Border Width="110" Padding="4,6" CornerRadius="6" Background="#303133" BorderBrush="#444547" BorderThickness="1">
+            <Border Width="110" Padding="4,6" CornerRadius="6" Background="#353535" BorderBrush="#474747" BorderThickness="1">
                 <StackPanel>
                     <TextBlock Text="Peak now" HorizontalAlignment="Center" FontSize="11" Foreground="#B9BABC" />
                     <TextBlock Text="{Binding CurrentPeakText}" HorizontalAlignment="Center" FontSize="18" FontWeight="Bold" Margin="0,18,0,18" />
                 </StackPanel>
             </Border>
             <TextBlock Text="→" FontSize="22" VerticalAlignment="Center" Margin="12,0" />
-            <Border Width="110" Padding="4,6" CornerRadius="6" Background="#303133" BorderBrush="#444547" BorderThickness="1">
+            <Border Width="110" Padding="4,6" CornerRadius="6" Background="#353535" BorderBrush="#474747" BorderThickness="1">
                 <StackPanel>
                     <TextBlock Text="Target peak" HorizontalAlignment="Center" FontSize="11" Foreground="#B9BABC" />
                     <local:Knob Width="52" Height="52" Margin="0,4" Accent="#5CAFD6"

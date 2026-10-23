@@ -4,14 +4,14 @@
         Title="Waveform editor"
         Width="1080"
         Height="520"
-        Background="#28292B"
+        Background="#2D2D2D"
         Foreground="#D2D3D5"
         FontFamily="Consolas"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False">
     <Window.Resources>
         <Style TargetType="Button">
-            <Setter Property="Background" Value="#303133" />
+            <Setter Property="Background" Value="#353535" />
             <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="BorderBrush" Value="#607A96" />
             <Setter Property="FontWeight" Value="SemiBold" />
@@ -43,7 +43,7 @@
             <Button Content="Save as WAV..." Click="SaveButton_Click" />
         </WrapPanel>
         <TextBlock x:Name="InfoText" DockPanel.Dock="Bottom" Margin="0,8,0,0" FontSize="11" Opacity="0.85" TextWrapping="Wrap" />
-        <Border BorderBrush="#607A96" BorderThickness="1" Background="#1E1F21">
+        <Border BorderBrush="#607A96" BorderThickness="1" Background="#242424">
             <Canvas x:Name="WaveCanvas" Width="1000" Height="360" Background="Transparent"
                     MouseLeftButtonDown="WaveCanvas_MouseLeftButtonDown"
                     MouseMove="WaveCanvas_MouseMove"

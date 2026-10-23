@@ -5,7 +5,7 @@
         Title="{Binding WindowTitle}"
         Width="840"
         SizeToContent="Height"
-        Background="#2D2E30"
+        Background="#323232"
         Foreground="#D2D3D5"
         FontFamily="Consolas"
         ResizeMode="CanMinimize"
@@ -25,7 +25,7 @@
             <Setter Property="FontSize" Value="12" />
         </Style>
         <Style x:Key="RackButton" TargetType="ButtonBase">
-            <Setter Property="Background" Value="#3D3E40" />
+            <Setter Property="Background" Value="#414141" />
             <Setter Property="Foreground" Value="#D2D3D5" />
             <Setter Property="BorderBrush" Value="#5C7A99" />
             <Setter Property="BorderThickness" Value="1" />
@@ -39,7 +39,7 @@
             <Setter Property="Template" Value="{StaticResource Raised3D}" />
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#555658" />
+                    <Setter Property="Background" Value="#575757" />
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -50,10 +50,10 @@
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
             <Button DockPanel.Dock="Right" Style="{StaticResource RackButton}" Content="+ ADD" Click="Add_Click"
                     AutomationProperties.Name="ADD EFFECT" ToolTip="Add an effect at the bottom of the rack" />
-            <Border Margin="0,0,12,0" Padding="12,5" CornerRadius="2" Background="{StaticResource NamePlate}" BorderBrush="#5A5B5D" BorderThickness="1">
+            <Border Margin="0,0,12,0" Padding="12,5" CornerRadius="2" Background="{StaticResource NamePlate}" BorderBrush="#5C5C5C" BorderThickness="1">
                 <StackPanel>
-                    <TextBlock Text="FX Rack" FontFamily="Arial" FontWeight="Bold" FontSize="20" Foreground="#2E2F31" />
-                    <TextBlock Text="{Binding Subtitle}" FontFamily="Arial" Foreground="#4F5052" FontSize="11" />
+                    <TextBlock Text="FX Rack" FontFamily="Arial" FontWeight="Bold" FontSize="20" Foreground="#333333" />
+                    <TextBlock Text="{Binding Subtitle}" FontFamily="Arial" Foreground="#515151" FontSize="11" />
                 </StackPanel>
             </Border>
         </DockPanel>
@@ -92,7 +92,7 @@
                                     <TextBlock DockPanel.Dock="Left"
                                                Text="⠿"
                                                FontSize="18"
-                                               Foreground="#6F7072"
+                                               Foreground="#6F6F6F"
                                                VerticalAlignment="Center"
                                                Margin="0,0,8,0"
                                                Cursor="SizeAll"
@@ -111,7 +111,7 @@
                                                   AutomationProperties.Name="EFFECT ON"
                                                   ToolTip="Switch the effect on or off">
                                         <!-- The power symbol, as on SSL's section switches. -->
-                                        <Path Width="14" Height="14" Stretch="Uniform" Stroke="#2E2F31" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                        <Path Width="14" Height="14" Stretch="Uniform" Stroke="#333333" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
                                               Data="M 6,0.8 L 6,5.6 M 3.2,2.6 A 4.4,4.4 0 1 0 8.8,2.6" />
                                     </ToggleButton>
                                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
@@ -145,8 +145,8 @@
                                                 ToolTip="Drag to move the effect up or down the rack"
                                                 PreviewMouseLeftButtonDown="Grip_PreviewMouseLeftButtonDown"
                                                 PreviewMouseMove="Grip_PreviewMouseMove">
-                                        <TextBlock Text="{Binding Name}" FontFamily="Arial" FontWeight="Bold" FontSize="18" Foreground="#2E2F31" VerticalAlignment="Center" />
-                                        <TextBlock Text="{Binding Definition.Description}" FontFamily="Arial" Foreground="#5F6062" FontSize="12" Margin="10,3,0,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding Name}" FontFamily="Arial" FontWeight="Bold" FontSize="18" Foreground="#333333" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding Definition.Description}" FontFamily="Arial" Foreground="#606060" FontSize="12" Margin="10,3,0,0" VerticalAlignment="Center" />
                                         <TextBlock Text="not found on this computer: the sound passes through" Foreground="#B05A10" FontSize="11" Margin="10,3,0,0" VerticalAlignment="Center"
                                                    Visibility="{Binding IsPluginMissing, Converter={StaticResource VisibleWhenTrue}}" />
                                     </StackPanel>
@@ -161,12 +161,12 @@
                                     <StackPanel Margin="0,2,8,2" Visibility="{Binding HasLevelMeters, Converter={StaticResource VisibleWhenTrue}}"
                                                 ToolTip="The level going into the effect">
                                         <local:LedMeter Width="10" Height="96" Segments="16" HorizontalAlignment="Center" Level="{Binding InputLevel}" />
-                                        <TextBlock Text="IN" FontFamily="Arial" FontWeight="Bold" FontSize="10" Foreground="#3E3F41" HorizontalAlignment="Center" Margin="0,3,0,0" />
+                                        <TextBlock Text="IN" FontFamily="Arial" FontWeight="Bold" FontSize="10" Foreground="#424242" HorizontalAlignment="Center" Margin="0,3,0,0" />
                                     </StackPanel>
                                     <StackPanel Grid.Column="2" Margin="8,2,0,2" Visibility="{Binding HasLevelMeters, Converter={StaticResource VisibleWhenTrue}}"
                                                 ToolTip="The level coming out of the effect">
                                         <local:LedMeter Width="10" Height="96" Segments="16" HorizontalAlignment="Center" Level="{Binding OutputLevel}" />
-                                        <TextBlock Text="OUT" FontFamily="Arial" FontWeight="Bold" FontSize="10" Foreground="#3E3F41" HorizontalAlignment="Center" Margin="0,3,0,0" />
+                                        <TextBlock Text="OUT" FontFamily="Arial" FontWeight="Bold" FontSize="10" Foreground="#424242" HorizontalAlignment="Center" Margin="0,3,0,0" />
                                     </StackPanel>
                                 <ItemsControl Grid.Column="1" ItemsSource="{Binding Parameters}">
                                     <ItemsControl.ItemsPanel>
@@ -178,7 +178,7 @@
                                         <DataTemplate>
                                             <Border Width="86" Margin="2" Padding="3,4">
                                                 <StackPanel>
-                                                    <TextBlock Text="{Binding Name}" HorizontalAlignment="Center" FontFamily="Arial" FontWeight="Bold" FontSize="12" Foreground="#323335" />
+                                                    <TextBlock Text="{Binding Name}" HorizontalAlignment="Center" FontFamily="Arial" FontWeight="Bold" FontSize="12" Foreground="#363636" />
                                                     <Grid Height="62" Margin="0,2">
                                                         <local:Knob Width="60" Height="60"
                                                                     Position="{Binding Position}"
@@ -214,7 +214,7 @@
                                                             </ToggleButton.Style>
                                                         </ToggleButton>
                                                     </Grid>
-                                                    <TextBlock Text="{Binding DisplayValue}" HorizontalAlignment="Center" FontFamily="Arial" FontWeight="Bold" Foreground="#3E3F41">
+                                                    <TextBlock Text="{Binding DisplayValue}" HorizontalAlignment="Center" FontFamily="Arial" FontWeight="Bold" Foreground="#424242">
                                                         <TextBlock.Style>
                                                             <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
                                                                 <Style.Triggers>
@@ -245,8 +245,8 @@
                                         </Style>
                                     </StackPanel.Style>
                                     <DockPanel>
-                                        <TextBlock Text="GAIN REDUCTION" FontFamily="Arial" FontWeight="Bold" FontSize="11" Foreground="#3E3F41" />
-                                        <TextBlock Text="{Binding MeterText}" HorizontalAlignment="Right" FontFamily="Arial" FontWeight="Bold" Foreground="#323335" />
+                                        <TextBlock Text="GAIN REDUCTION" FontFamily="Arial" FontWeight="Bold" FontSize="11" Foreground="#424242" />
+                                        <TextBlock Text="{Binding MeterText}" HorizontalAlignment="Right" FontFamily="Arial" FontWeight="Bold" Foreground="#363636" />
                                     </DockPanel>
                                     <ProgressBar Height="7" Margin="0,3,0,0" Minimum="0" Maximum="24" Value="{Binding MeterValue, Mode=OneWay}"
                                                  Background="#161719" BorderBrush="#161719" Foreground="#FF963A" />
