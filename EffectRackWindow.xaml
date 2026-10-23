@@ -178,9 +178,13 @@
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
+                                    <!-- The effect's screen, in the room left beside its knobs. -->
+                                    <local:EffectDisplay Grid.Column="3" Effect="{Binding}" Margin="12,4,4,6" MinHeight="96"
+                                                         Visibility="{Binding HasKnobs, Converter={StaticResource VisibleWhenTrue}}" />
                                     <StackPanel Margin="0,2,8,2" Visibility="{Binding HasLevelMeters, Converter={StaticResource VisibleWhenTrue}}"
                                                 ToolTip="The level going into the effect">
                                         <local:LedMeter Width="10" Height="96" Segments="16" HorizontalAlignment="Center" Level="{Binding InputLevel}" />
@@ -199,7 +203,7 @@
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Width="86" Margin="2" Padding="3,4">
+                                            <Border Width="78" Margin="2" Padding="2,4">
                                                 <StackPanel>
                                                     <TextBlock Text="{Binding Name}" HorizontalAlignment="Center" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource EngravedInk}" Effect="{StaticResource Engraved}" />
                                                     <Grid Height="62" Margin="0,2">
