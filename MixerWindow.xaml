@@ -162,7 +162,7 @@
         <!-- A send, a knob with its bus's cap colour, and the bus's name under it. -->
         <DataTemplate x:Key="SendTemplate">
             <StackPanel Margin="0,0,0,2">
-                <local:Knob Width="30" Height="30" Look="Console" Accent="{Binding Cap}" DefaultPosition="0.75" Position="{Binding Level}">
+                <local:Knob Width="34" Height="34" Look="Console" Accent="{Binding Cap}" DefaultPosition="0.75" Position="{Binding Level}">
                     <local:Knob.ToolTip>
                         <TextBlock>
                             <Run Text="{Binding Bus.Name, Mode=OneWay}" /><Run Text=" send: " /><Run Text="{Binding LevelDisplay, Mode=OneWay}" />
@@ -298,7 +298,7 @@
                                         </TextBlock>
                                     </Grid>
                                     <TextBlock Style="{StaticResource Legend}" Text="PAN" Margin="0,4,0,0" />
-                                    <local:Knob Width="32" Height="32" Look="Console" IsCentred="True" Accent="#98999B" DefaultPosition="0.5"
+                                    <local:Knob Width="36" Height="36" Look="Console" IsCentred="True" Accent="#98999B" DefaultPosition="0.5"
                                                 Position="{Binding PanPosition}">
                                         <local:Knob.ToolTip>
                                             <TextBlock>
@@ -399,7 +399,7 @@
                                     <TextBlock Style="{StaticResource Legend}" Text="RETURN" Margin="0,6,0,1" />
                                     <Border Height="94" />
                                     <TextBlock Style="{StaticResource Legend}" Text="PAN" Margin="0,4,0,0" />
-                                    <local:Knob Width="32" Height="32" Look="Console" IsCentred="True" Accent="#98999B" DefaultPosition="0.5"
+                                    <local:Knob Width="36" Height="36" Look="Console" IsCentred="True" Accent="#98999B" DefaultPosition="0.5"
                                                 Position="{Binding PanPosition}" ToolTip="Pan: drag up or down; double-click to centre" />
                                     <DockPanel Margin="10,-6,10,0">
                                         <TextBlock DockPanel.Dock="Right" Style="{StaticResource Legend}" Text="R" FontSize="7" />
