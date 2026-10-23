@@ -68,7 +68,8 @@ public sealed record TrackDocument(
     List<AutomationPointDocument>? VolumeAutomation = null,
     List<AutomationPointDocument>? PanAutomation = null,
     Guid? BusId = null,
-    List<SendDocument>? Sends = null);
+    List<SendDocument>? Sends = null,
+    int AudioClipStartStep = 0);
 
 // How much of a track goes to a bus (see PatternTrackViewModel.Sends).
 public sealed record SendDocument(Guid Bus, double Level);

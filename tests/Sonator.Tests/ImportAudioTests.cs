@@ -63,6 +63,17 @@ public sealed class ImportAudioTests
                 Assert.Equal(PatternTrackType.AudioInput, added.TrackType);
                 Assert.True(File.Exists(added.AudioClipPath));
                 imported.Add(added.AudioClipPath!);
+
+                // Dragged along, the clip starts later; dropped on an empty track, it moves there.
+                Assert.True(viewModel.MoveAudioClip(added, 20));
+                Assert.Equal(20, added.AudioClipStartStep);
+                var free = pattern.Tracks.First(track => track.AudioClipPath == "taken.wav");
+                free.AudioClipPath = null;
+                Assert.True(viewModel.MoveAudioClip(added, 32, free));
+                Assert.Null(added.AudioClipPath);
+                Assert.Equal(32, free.AudioClipStartStep);
+                Assert.Equal(PatternTrackType.AudioInput, free.TrackType);
+                Assert.Equal(32, ProjectDocumentMapper.BuildTrackDocument(free).AudioClipStartStep);
             }
             finally
             {

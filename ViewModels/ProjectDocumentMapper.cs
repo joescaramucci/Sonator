@@ -50,7 +50,8 @@ internal static class ProjectDocumentMapper
             BuildAutomationDocuments(track.VolumeAutomation),
             BuildAutomationDocuments(track.PanAutomation),
             track.BusId,
-            track.Sends.Count == 0 ? null : track.Sends.Select(send => new SendDocument(send.Key, send.Value)).ToList());
+            track.Sends.Count == 0 ? null : track.Sends.Select(send => new SendDocument(send.Key, send.Value)).ToList(),
+            track.AudioClipStartStep);
     }
 
     private static IReadOnlyDictionary<Guid, double> Sends(IEnumerable<SendDocument>? documents) =>
@@ -112,6 +113,7 @@ internal static class ProjectDocumentMapper
         targetTrack.SoundName = sourceTrack.SoundName;
         targetTrack.MidiControllerEvents = Controllers(sourceTrack.MidiControllerEvents);
         targetTrack.AudioClipPath = sourceTrack.AudioClipPath;
+        targetTrack.AudioClipStartStep = sourceTrack.AudioClipStartStep;
         targetTrack.InstrumentIconKey = sourceTrack.InstrumentIcon;
         targetTrack.Effects.Clear();
         foreach (var effect in BuildEffects(sourceTrack.Effects))
@@ -201,6 +203,7 @@ internal static class ProjectDocumentMapper
             SoundName = trackDocument.SoundName,
             MidiControllerEvents = Controllers(trackDocument.MidiControllerEvents),
             AudioClipPath = trackDocument.AudioClipPath,
+            AudioClipStartStep = Math.Max(0, trackDocument.AudioClipStartStep),
             InstrumentIconKey = trackDocument.InstrumentIcon
         };
         foreach (var effect in BuildEffects(trackDocument.Effects))

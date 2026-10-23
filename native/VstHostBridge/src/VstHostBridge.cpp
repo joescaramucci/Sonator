@@ -1288,7 +1288,12 @@ namespace
                 }
 
                 const auto frame = static_cast<int64>(clipPosition);
-                if (frame + 1 < clipFrames || (loops && frame < clipFrames))
+                if (clipPosition < 0.0)
+                {
+                    left[i] = 0.0f; // not started yet
+                    right[i] = 0.0f;
+                }
+                else if (frame + 1 < clipFrames || (loops && frame < clipFrames))
                 {
                     // A looping clip's last frame leads into its first.
                     const auto fraction = static_cast<float>(clipPosition - static_cast<double>(frame));
@@ -2359,7 +2364,7 @@ void* VstHostBridge_CreateClipModule(const float* interleaved, int32_t frames, i
     module->clipSamples.assign(interleaved, interleaved + static_cast<size_t>(frames) * static_cast<size_t>(channels));
     module->clipChannels = channels;
     module->clipSampleRate = sampleRate;
-    module->clipStartSeconds = startSeconds > 0.0 ? startSeconds : 0.0;
+    module->clipStartSeconds = std::isfinite(startSeconds) ? startSeconds : 0.0; // negative: the clip starts that much later
     return module;
 }
 

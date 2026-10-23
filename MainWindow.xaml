@@ -1668,18 +1668,31 @@
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
+                                        <!-- The audio clip, where it starts: drag it along to move it in time (SNAP sets the grid),
+                                             or onto another empty track to move it there. -->
                                         <Border HorizontalAlignment="Left"
-                                                Margin="0,4"
+                                                VerticalAlignment="Stretch"
                                                 CornerRadius="2"
                                                 Background="#24463F"
                                                 BorderBrush="#62B7A4"
                                                 BorderThickness="1"
-                                                ToolTip="Audio clip">
+                                                Cursor="SizeAll"
+                                                Tag="AudioClip"
+                                                ToolTip="Audio clip: drag it along to move it in time, or onto another empty track"
+                                                PreviewMouseLeftButtonDown="AudioClip_PreviewMouseLeftButtonDown"
+                                                PreviewMouseMove="AudioClip_PreviewMouseMove"
+                                                PreviewMouseLeftButtonUp="AudioClip_PreviewMouseLeftButtonUp">
+                                            <Border.Margin>
+                                                <MultiBinding Converter="{StaticResource StepOffsetConverter}">
+                                                    <Binding Path="AudioStartStep" />
+                                                    <Binding Path="DataContext.TimelineSixteenthWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                </MultiBinding>
+                                            </Border.Margin>
                                             <Border.Style>
                                                 <Style TargetType="Border">
                                                     <Setter Property="Visibility" Value="Collapsed" />
                                                     <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding TrackType}" Value="{x:Static models:PatternTrackType.AudioInput}">
+                                                        <DataTrigger Binding="{Binding HasAudioClip}" Value="True">
                                                             <Setter Property="Visibility" Value="Visible" />
                                                         </DataTrigger>
                                                     </Style.Triggers>

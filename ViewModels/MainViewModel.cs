@@ -1894,6 +1894,39 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         ReplaceTrackNotes(track, notes);
     }
 
+    // Moves a track's audio clip to start at startStep, on the same track or, when target is another empty
+    // track, onto that one, which becomes the audio track. False when nothing moved.
+    public bool MoveAudioClip(PatternTrackViewModel track, int startStep, PatternTrackViewModel? target = null)
+    {
+        if (string.IsNullOrEmpty(track.AudioClipPath))
+        {
+            return false;
+        }
+
+        startStep = Math.Max(0, startStep);
+        var destination = target is not null && !ReferenceEquals(target, track) && IsEmptyTrack(target) ? target : track;
+        if (ReferenceEquals(destination, track) && startStep == track.AudioClipStartStep)
+        {
+            return false;
+        }
+
+        CaptureUndoStateIfNeeded();
+        if (!ReferenceEquals(destination, track))
+        {
+            destination.AudioClipPath = track.AudioClipPath;
+            destination.TrackType = PatternTrackType.AudioInput;
+            destination.Instrument = track.Instrument;
+            track.AudioClipPath = null;
+            track.AudioClipStartStep = 0;
+            SelectedTrack = destination;
+        }
+
+        destination.AudioClipStartStep = startStep;
+        StatusMessage = $"{destination.Name}: the audio clip starts at bar {startStep / 16 + 1}, step {startStep % 16 + 1}";
+        RebuildTimeline();
+        return true;
+    }
+
     // Moves the start of a block to newStart, keeping its end: the notes stretch in proportion.
     public void StretchBlock(PatternTrackViewModel track, int newStart, int end)
     {
@@ -2285,7 +2318,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
             try
             {
                 using var reader = new NAudio.Wave.MediaFoundationReader(path);
-                clip = reader.TotalTime.TotalSeconds * Tempo / 60.0 * 4;
+                clip = track.AudioClipStartStep + reader.TotalTime.TotalSeconds * Tempo / 60.0 * 4;
             }
             catch (Exception ex) when (ex is IOException or System.Runtime.InteropServices.COMException or InvalidOperationException)
             {
@@ -3592,7 +3625,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
     private void StartAudioTracks()
     {
         StopAudioTracks();
-        var secondsFromStart = CurrentTempoMap.SecondsAt(CurrentStepIndex);
+        var tempoMap = CurrentTempoMap;
         var selection = AudioOutputSelection.FromSettings(new AppSettingsService().Load());
         var fallback = new List<(AudioClip Clip, NativeEffectChain? Effects)>();
         foreach (var track in Tracks.Where(track => !track.IsMuted && !string.IsNullOrEmpty(track.AudioClipPath)))
@@ -3608,6 +3641,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
                 continue;
             }
 
+            // From the playhead into the clip; negative while the playhead is still before it, so it waits.
+            var secondsFromStart = tempoMap.SecondsAt(CurrentStepIndex) - tempoMap.SecondsAt(track.AudioClipStartStep);
             if (_liveInstrumentHost.TryCreateClip(clip.Samples, clip.Channels, clip.SampleRate, secondsFromStart) is { } module)
             {
                 _trackEffects.ChainFor(track)?.AttachTo(module);
@@ -3622,7 +3657,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
                 continue;
             }
 
-            if (AudioTrackMixer.Mix(new[] { new AudioPlacement(track.AudioClipPath!, 0) }, Tempo, CurrentStepIndex, _ => clip) is { } mixed)
+            if (AudioTrackMixer.Mix(new[] { new AudioPlacement(track.AudioClipPath!, track.AudioClipStartStep) }, Tempo, CurrentStepIndex, _ => clip) is { } mixed)
             {
                 fallback.Add((mixed, _trackEffects.ChainFor(track)));
             }

@@ -164,7 +164,7 @@ VSTHOSTBRIDGE_API int VstHostBridge_ReadSavedState(void* moduleHandle, uint8_t* 
 VSTHOSTBRIDGE_API int VstHostBridge_LoadState(void* moduleHandle, int32_t part, const uint8_t* data, int32_t size);
 
 // Makes a module that plays an audio track's clip in the mix instead of a plug-in: interleaved floats, from
-// startSeconds into the clip. It starts and stops with VstHostBridge_StartAudio* and VstHostBridge_StopAudio,
+// startSeconds into the clip (negative: silence that long first). It starts and stops with VstHostBridge_StartAudio* and VstHostBridge_StopAudio,
 // runs through an effect chain attached with VstHostBridge_AttachEffectChain, and is freed with
 // VstHostBridge_UnloadModule. Null if the clip is empty.
 VSTHOSTBRIDGE_API void* VstHostBridge_CreateClipModule(const float* interleaved, int32_t frames, int32_t channels, double sampleRate, double startSeconds);

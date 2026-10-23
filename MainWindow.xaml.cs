@@ -445,6 +445,104 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
+    // ---- Dragging an audio clip: along its track to move it in time, onto another empty track to move it there ----
+
+    private Border? _clipBorder;
+    private ArrangeTimelineTrackViewModel? _clipTimeline;
+    private Point _clipPressPoint;
+    private int _clipMoveSteps;
+
+    private void AudioClip_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not Border clip || clip.DataContext is not ArrangeTimelineTrackViewModel timeline)
+        {
+            return;
+        }
+
+        _clipBorder = clip;
+        _clipTimeline = timeline;
+        _clipPressPoint = e.GetPosition(this);
+        _clipMoveSteps = 0;
+        clip.CaptureMouse();
+        if (DataContext is MainViewModel viewModel)
+        {
+            viewModel.SelectedTrack = timeline.SourceTrack;
+        }
+
+        e.Handled = true;
+    }
+
+    private void AudioClip_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (_clipBorder is null || _clipTimeline is null || DataContext is not MainViewModel viewModel
+            || e.LeftButton != MouseButtonState.Pressed)
+        {
+            return;
+        }
+
+        var stepWidth = viewModel.TimelineSixteenthWidth;
+        var moved = e.GetPosition(this) - _clipPressPoint;
+        var start = _clipTimeline.AudioStartStep;
+        _clipMoveSteps = Math.Max(0, viewModel.SnapStep(start + (int)Math.Round(moved.X / stepWidth))) - start;
+        _clipBorder.RenderTransform = new TranslateTransform(_clipMoveSteps * stepWidth, 0);
+
+        // The clip stays drawn in its own lane; the status line says where it will land.
+        var newStart = start + _clipMoveSteps;
+        var onto = TrackUnder(e.GetPosition(this), _clipBorder)?.SourceTrack;
+        var where = onto is null || ReferenceEquals(onto, _clipTimeline.SourceTrack)
+            ? _clipTimeline.SourceTrack.Name
+            : MainViewModel.IsEmptyTrack(onto) ? onto.Name : $"{_clipTimeline.SourceTrack.Name} ({onto.Name} is not empty)";
+        viewModel.StatusMessage = $"Audio clip: {where}, bar {newStart / 16 + 1}, step {newStart % 16 + 1}";
+        e.Handled = true;
+    }
+
+    // The timeline lane under a point of the window, looking past the element being dragged.
+    private ArrangeTimelineTrackViewModel? TrackUnder(Point point, Visual dragged)
+    {
+        ArrangeTimelineTrackViewModel? found = null;
+        VisualTreeHelper.HitTest(this,
+            candidate => ReferenceEquals(candidate, dragged) ? HitTestFilterBehavior.ContinueSkipSelfAndChildren : HitTestFilterBehavior.Continue,
+            result =>
+            {
+                if (FindVisualAncestor<ListBoxItem>(result.VisualHit)?.DataContext is ArrangeTimelineTrackViewModel track)
+                {
+                    found = track;
+                    return HitTestResultBehavior.Stop;
+                }
+
+                return HitTestResultBehavior.Continue;
+            },
+            new PointHitTestParameters(point));
+        return found;
+    }
+
+    private void AudioClip_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_clipBorder is null || _clipTimeline is null || DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        var clip = _clipBorder;
+        var timeline = _clipTimeline;
+        var moveSteps = _clipMoveSteps;
+        _clipBorder = null;
+        _clipTimeline = null;
+        clip.ReleaseMouseCapture();
+        clip.RenderTransform = Transform.Identity;
+
+        var target = TrackUnder(e.GetPosition(this), clip);
+        var onto = target?.SourceTrack is { } other && !ReferenceEquals(other, timeline.SourceTrack) ? other : null;
+        if (onto is not null && !MainViewModel.IsEmptyTrack(onto))
+        {
+            viewModel.StatusMessage = $"{onto.Name} is not empty: the clip stays on {timeline.SourceTrack.Name}";
+            onto = null;
+        }
+
+        viewModel.MoveAudioClip(timeline.SourceTrack, timeline.AudioStartStep + moveSteps, onto);
+        e.Handled = true;
+    }
+
     // Dragging the timeline with the middle button, or with the left button after a few pixels of movement,
     // moves it left and right. A left click without movement still reaches the track under the mouse.
     private void ArrangeTimelineScrollViewer_PreviewMouseDown(object sender, MouseButtonEventArgs e)
@@ -455,9 +553,9 @@ public partial class MainWindow : Window
         }
 
         // A press on a block belongs to the block: it moves or resizes it instead of scrolling. So does a press
-        // on an automation lane, which adds or drags a point.
+        // on an automation lane, which adds or drags a point, and one on an audio clip, which drags the clip.
         if (e.ChangedButton == MouseButton.Left
-            && (IsInsideNoteBlock(e.OriginalSource) || IsInsideTagged(e.OriginalSource, "AutomationLane")))
+            && (IsInsideNoteBlock(e.OriginalSource) || IsInsideTagged(e.OriginalSource, "AutomationLane") || IsInsideTagged(e.OriginalSource, "AudioClip")))
         {
             return;
         }

@@ -57,4 +57,9 @@ public sealed class ArrangeTimelineTrackViewModel : ViewModelBase
 
     // The clip's length in sixteenth-note steps at the song tempo.
     public double AudioLengthSteps { get; }
+
+    // Where the clip starts, in sixteenth-note steps.
+    public int AudioStartStep => SourceTrack.AudioClipStartStep;
+
+    public bool HasAudioClip => AudioWaveform is not null;
 }

@@ -218,6 +218,9 @@ public sealed class PatternTrackViewModel : ViewModelBase
     // A WAV file with the audio clip this track plays, when it was filled from the waveform editor.
     public string? AudioClipPath { get; set; }
 
+    // Where the clip starts on the timeline, in sixteenth-note steps from the start of the pattern.
+    public int AudioClipStartStep { get; set; }
+
     public string Source
     {
         get => _source;
