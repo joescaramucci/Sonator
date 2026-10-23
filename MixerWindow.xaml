@@ -243,7 +243,7 @@
                     <DataTemplate>
                         <!-- One track's channel module, top to bottom as the sound goes: inserts, sends, pan, mute and
                              solo, the fader with its meter, and the name on tape. -->
-                        <Border>
+                        <Border PreviewMouseLeftButtonDown="Strip_PreviewMouseLeftButtonDown">
                             <Border.Style>
                                 <Style TargetType="Border" BasedOn="{StaticResource Module}">
                                     <Style.Triggers>

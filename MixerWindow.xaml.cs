@@ -52,6 +52,16 @@ public partial class MixerWindow : Window
         return null;
     }
 
+    // A click anywhere on a channel strip selects its track, as on a desk the channel in hand; the knob,
+    // fader or button clicked still does its own work.
+    private void Strip_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: PatternTrackViewModel track } && !ReferenceEquals(_viewModel.SelectedTrack, track))
+        {
+            _viewModel.SelectedTrack = track;
+        }
+    }
+
     private void TrackName_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
         if (sender is FrameworkElement { DataContext: PatternTrackViewModel track })
