@@ -1260,7 +1260,6 @@
                 <ScrollViewer x:Name="ArrangeTimelineScrollViewer"
                               HorizontalScrollBarVisibility="Auto"
                               VerticalScrollBarVisibility="Disabled"
-                              ToolTip="Use the mouse wheel to zoom the timeline. Drag with the middle button to scroll."
                               PreviewMouseWheel="Timeline_PreviewMouseWheel"
                               PreviewMouseDown="ArrangeTimelineScrollViewer_PreviewMouseDown"
                               PreviewMouseMove="ArrangeTimelineScrollViewer_PreviewMouseMove"
