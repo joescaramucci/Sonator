@@ -1247,6 +1247,25 @@ public partial class MainWindow : Window
     }
 
     // File > Export audio: the song played through and written to a WAV file.
+    // File > Import audio: a WAV or MP3 file into a track, as dropping it on an empty track does.
+    private void ImportAudioMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Import audio",
+            Filter = "Audio files (*.wav, *.mp3)|*.wav;*.mp3|WAV audio (*.wav)|*.wav|MP3 audio (*.mp3)|*.mp3",
+        };
+        if (dialog.ShowDialog(this) == true)
+        {
+            viewModel.ImportAudioFile(dialog.FileName);
+        }
+    }
+
     private async void ExportAudioMenuItem_Click(object sender, RoutedEventArgs e) => await ExportAudioAsync();
 
     private async Task ExportAudioAsync()

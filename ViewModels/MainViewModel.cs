@@ -3726,6 +3726,37 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         }
     }
 
+    // File > Import audio: puts the file into the selected track when it is empty, else into the pattern's
+    // first empty track, else into a new audio track. False when there is no pattern to put it in.
+    public bool ImportAudioFile(string sourcePath)
+    {
+        var pattern = SelectedPattern;
+        if (pattern is null)
+        {
+            StatusMessage = "Choose a pattern to import the audio into";
+            return false;
+        }
+
+        var track = SelectedTrack is { } selected && pattern.Tracks.Contains(selected) && IsEmptyTrack(selected)
+            ? selected
+            : pattern.Tracks.FirstOrDefault(IsEmptyTrack);
+        if (track is null)
+        {
+            if (!TryGetNewTrackDefaults(PatternTrackType.AudioInput, out var name, out var instrument, out var source, out var channel, out var noteNumber)
+                || !TryAddTrack(PatternTrackType.AudioInput, name, instrument, source, channel, noteNumber, out _))
+            {
+                StatusMessage = "No empty track for the audio, and a new one could not be added";
+                return false;
+            }
+
+            track = SelectedTrack!;
+        }
+
+        SelectedTrack = track;
+        AssignAudioFile(track, sourcePath);
+        return true;
+    }
+
     // The outline of a track's clip, decoded once per file. Null when the track has no readable clip.
     private AudioWaveformSummary? LoadAudioWaveform(PatternTrackViewModel track)
     {
