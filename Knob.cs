@@ -165,7 +165,7 @@ public sealed class Knob : FrameworkElement
         }
 
         var topCentre = new Point(center.X, center.Y - radius * 0.32); // as a share of the dots' ring, centred in its open arc as SSL's
-        var topRadius = radius * 0.52;
+        var topRadius = radius * 0.48;
         var baseCentre = new Point(center.X, center.Y + radius * 0.34);
         var baseRadiusX = radius * 0.55;
         var baseRadiusY = radius * 0.26;
