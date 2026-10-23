@@ -103,6 +103,31 @@ internal sealed class TrackEffectsHost : IDisposable
 
     private bool IsBus(PatternTrackViewModel track) => _buses.Contains(track);
 
+    private bool _isSoloActive;
+
+    // True while some track of the pattern is soloed: then only the soloed tracks are heard.
+    public bool IsSoloActive
+    {
+        get => _isSoloActive;
+        set
+        {
+            if (_isSoloActive == value)
+            {
+                return;
+            }
+
+            _isSoloActive = value;
+            foreach (var (track, chain) in _chains)
+            {
+                ApplyMix(track, chain);
+            }
+        }
+    }
+
+    // A track that makes its own sound (a plug-in or an audio clip) is silent while muted, or while another
+    // track is soloed and it is not; its fader glides there and back, so muting never clicks.
+    internal bool IsSilenced(PatternTrackViewModel track) => track.IsMuted || (_isSoloActive && !track.IsSolo);
+
     // A track's gain takes the master volume in; a bus's does not, since what reaches it already has it.
     // A bus has no sends of its own, nor does the master.
     private void ApplyMix(PatternTrackViewModel track, NativeEffectChain chain)
@@ -111,7 +136,7 @@ internal sealed class TrackEffectsHost : IDisposable
         var isBus = IsBus(track);
         chain.SetGain(isMaster ? 1.0
             : isBus ? (track.IsMuted ? 0.0 : Gain(track.MixVolume, UnityVolume))
-            : Gain(track.MixVolume, _masterVolume));
+            : IsSilenced(track) ? 0.0 : Gain(track.MixVolume, _masterVolume));
         chain.SetPan(isMaster ? _masterBalance : track.MixPan);
         for (var slot = 0; slot < NativeEffectChain.MaxBuses; slot++)
         {
@@ -145,7 +170,7 @@ internal sealed class TrackEffectsHost : IDisposable
     private void OnTrackPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(PatternTrackViewModel.MixVolume) or nameof(PatternTrackViewModel.MixPan)
-                or nameof(PatternTrackViewModel.Sends) or nameof(PatternTrackViewModel.IsMuted)
+                or nameof(PatternTrackViewModel.Sends) or nameof(PatternTrackViewModel.IsMuted) or nameof(PatternTrackViewModel.IsSolo)
             && sender is PatternTrackViewModel track && _chains.TryGetValue(track, out var chain))
         {
             ApplyMix(track, chain);

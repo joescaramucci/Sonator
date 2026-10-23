@@ -87,6 +87,27 @@ public sealed class PanAndMasterTests
     }
 
     [Fact]
+    public void MuteAndSolo_SilenceTheTracksThatMakeTheirOwnSound()
+    {
+        using var host = new TrackEffectsHost();
+        var clip = NewTrack();
+        var other = NewTrack();
+        var chain = host.ChainFor(clip)!;
+        Assert.Equal(0.9, PeaksAfter(chain).Left, 2);
+
+        clip.IsMuted = true;
+        Assert.Equal(0, PeaksAfter(chain).Left, 3);
+        clip.IsMuted = false;
+
+        other.IsSolo = true;
+        host.IsSoloActive = true; // another track is soloed: this one is not heard
+        Assert.Equal(0, PeaksAfter(chain).Left, 3);
+
+        clip.IsSolo = true; // soloed too: heard again
+        Assert.Equal(0.9, PeaksAfter(chain).Left, 2);
+    }
+
+    [Fact]
     public void MasterChain_KeepsUnityGain_WhateverTheMasterVolume()
     {
         using var host = new TrackEffectsHost();

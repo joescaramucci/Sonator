@@ -273,6 +273,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         VisibleSongArrangeRows = new ObservableCollection<SongArrangeRowViewModel>();
         ArrangeBlocks = new ObservableCollection<SongArrangeBlockViewModel>();
         Tracks = new ObservableCollection<PatternTrackViewModel>();
+        Tracks.CollectionChanged += (_, _) => RefreshSolo();
         TimelineTracks = new ObservableCollection<ArrangeTimelineTrackViewModel>();
         TimelineBarNumbers = new ObservableCollection<int>();
         VstPlugins = new ObservableCollection<VstPluginViewModel>();
@@ -3628,7 +3629,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         var tempoMap = CurrentTempoMap;
         var selection = AudioOutputSelection.FromSettings(new AppSettingsService().Load());
         var fallback = new List<(AudioClip Clip, NativeEffectChain? Effects)>();
-        foreach (var track in Tracks.Where(track => !track.IsMuted && !string.IsNullOrEmpty(track.AudioClipPath)))
+        // Muted and unsoloed clips start too, silent, so they come in when unmuted or soloed while playing.
+        foreach (var track in Tracks.Where(track => !string.IsNullOrEmpty(track.AudioClipPath)))
         {
             AudioClip clip;
             try
@@ -3657,7 +3659,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
                 continue;
             }
 
-            if (AudioTrackMixer.Mix(new[] { new AudioPlacement(track.AudioClipPath!, track.AudioClipStartStep) }, Tempo, CurrentStepIndex, _ => clip) is { } mixed)
+            // Without the bridge, only the clips heard when playing starts.
+            if (!_trackEffects.IsSilenced(track)
+                && AudioTrackMixer.Mix(new[] { new AudioPlacement(track.AudioClipPath!, track.AudioClipStartStep) }, Tempo, CurrentStepIndex, _ => clip) is { } mixed)
             {
                 fallback.Add((mixed, _trackEffects.ChainFor(track)));
             }
@@ -4600,6 +4604,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         track.Volume = 0.75;
         track.IsMuted = false;
         track.IsSolo = false;
+        RefreshSolo();
         track.TrackColorBrush = CreateTrackColorBrush(null);
         StatusMessage = $"{track.Name} reset to its default settings";
     }
@@ -4627,8 +4632,12 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         }
 
         track.IsSolo = !track.IsSolo;
+        RefreshSolo();
         StatusMessage = track.IsSolo ? $"{track.Name} soloed" : $"{track.Name} solo disabled";
     }
+
+    // The tracks that make their own sound follow the pattern's solos, as the MIDI tracks do.
+    private void RefreshSolo() => _trackEffects.IsSoloActive = Tracks.Any(track => track.IsSolo);
 
     public void SetTrackColor(PatternTrackViewModel track, string? colorHex)
     {
