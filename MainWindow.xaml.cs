@@ -203,9 +203,9 @@ public partial class MainWindow : Window
         var autosave = new ProjectAutosave();
         if (autosave.Find() is { } info)
         {
-            var project = string.IsNullOrWhiteSpace(info.ProjectPath) ? "an unsaved project" : Path.GetFileName(info.ProjectPath);
+            var project = string.IsNullOrWhiteSpace(info.ProjectPath) ? "a new project, never saved" : Path.GetFileName(info.ProjectPath);
             var recover = SonatorMessageDialog.Ask(this, "Recover autosaved work",
-                $"Sonator closed without saving {project}. Its work was autosaved at {info.SavedAt:HH:mm} on {info.SavedAt:d}. Recover it?",
+                $"Sonator stopped before saving {project}. Its work was autosaved at {info.SavedAt:HH:mm} on {info.SavedAt:d}. Recover it?",
                 "RECOVER", "DISCARD");
             if (!recover || !viewModel.RecoverAutosave(autosave, info))
             {
