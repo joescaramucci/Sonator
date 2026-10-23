@@ -3903,6 +3903,74 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         StatusMessage = $"{StatusMessage}; the pattern now lasts {bars} bars, to play the whole clip";
     }
 
+    // ---- Tempo detection ----
+
+    // The tempo and first beat of the track's clip, as BPM detection finds them; null when it cannot tell.
+    public DetectedTempo? DetectClipTempo(PatternTrackViewModel track)
+    {
+        if (track.AudioClipPath is not { } path || !File.Exists(path))
+        {
+            return null;
+        }
+
+        try
+        {
+            return TempoDetection.Detect(DecodedClip(path));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
+        {
+            return null;
+        }
+    }
+
+    // Makes the song follow the track's clip: the song's tempo becomes bpm, and the clip is lined up with the
+    // beats, starting on a beat with silence put before it, so its beats fall on the grid and the metronome.
+    // The clip's file is kept; the lined-up clip is a new one, and one undo brings everything back.
+    public void SyncSongToClip(PatternTrackViewModel track, double bpm, double firstBeatSeconds)
+    {
+        if (track.AudioClipPath is not { } path || !File.Exists(path) || bpm < MinTempoBpm || bpm > MaxTempoBpm)
+        {
+            return;
+        }
+
+        var clip = DecodedClip(path);
+        var beat = 60 / bpm;
+        var intoBeat = ((firstBeatSeconds % beat) + beat) % beat;
+        var lead = intoBeat < 0.002 || beat - intoBeat < 0.002 ? 0 : beat - intoBeat;
+        var leadFrames = (int)Math.Round(lead * clip.SampleRate);
+
+        CaptureUndoStateIfNeeded();
+        _isRestoringState = true; // one undo step for the tempo, the clip and its place
+        try
+        {
+            Tempo = Math.Round(bpm, 2);
+            if (leadFrames > 0)
+            {
+                var samples = new float[clip.Samples.Length + leadFrames * clip.Channels];
+                Array.Copy(clip.Samples, 0, samples, leadFrames * clip.Channels, clip.Samples.Length);
+                var lined = new AudioClip(samples, clip.Channels, clip.SampleRate);
+                var linedPath = AudioClipLoader.SaveToLibrary(lined);
+                _decodedClips[linedPath] = lined;
+                _audioWaveforms[linedPath] = AudioWaveformSummary.FromClip(lined);
+                track.AudioClipPath = linedPath;
+            }
+
+            // On a beat, so the clip's beats fall on the beats of the grid.
+            var stepsPerBeat = Math.Max(1, Meter.StepsPerBeat);
+            track.AudioClipStartStep = (int)Math.Round(track.AudioClipStartStep / (double)stepsPerBeat) * stepsPerBeat;
+            LengthenPatternForClip(track);
+        }
+        finally
+        {
+            _isRestoringState = false;
+        }
+
+        ConfigurePlaybackSource();
+        RebuildTimeline();
+        StatusMessage = $"Song tempo set to {Tempo:0.##} BPM, following {track.Name}'s clip"
+            + (leadFrames > 0 ? $"; the clip starts {lead * 1000:0} ms later, so its beats fall on the grid" : string.Empty);
+    }
+
     // Puts an edited clip in place of a track's clip, where the old one started; undo brings the old one back.
     public void ReplaceAudioClip(PatternTrackViewModel track, string clipPath)
     {

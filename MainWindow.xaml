@@ -603,6 +603,9 @@
                         <MenuItem Header="New VST track" Click="AddVstTrackMenuItem_Click" />
                         <MenuItem Header="New audio input track" Click="AddAudioTrackMenuItem_Click" />
                         <Separator />
+                        <MenuItem Header="Detect _tempo of the audio clip..." Click="DetectTempoMenuItem_Click"
+                                  ToolTip="BPM detection: find the tempo of the selected track's audio clip and set the song, its metronome and grid, to it" />
+                        <Separator />
                         <MenuItem Header="Transpose +1" Command="{Binding TransposeUpCommand}" />
                         <MenuItem Header="Transpose -1" Command="{Binding TransposeDownCommand}" />
                         <Separator />
@@ -1682,6 +1685,12 @@
                                                 PreviewMouseLeftButtonDown="AudioClip_PreviewMouseLeftButtonDown"
                                                 PreviewMouseMove="AudioClip_PreviewMouseMove"
                                                 PreviewMouseLeftButtonUp="AudioClip_PreviewMouseLeftButtonUp">
+                                            <Border.ContextMenu>
+                                                <ContextMenu>
+                                                    <MenuItem Header="Detect tempo and sync the song..." Click="DetectTempoMenuItem_Click" />
+                                                    <MenuItem Header="Edit in the waveform editor" Click="EditClipMenuItem_Click" />
+                                                </ContextMenu>
+                                            </Border.ContextMenu>
                                             <Border.Margin>
                                                 <MultiBinding Converter="{StaticResource StepOffsetConverter}">
                                                     <Binding Path="AudioStartStep" />

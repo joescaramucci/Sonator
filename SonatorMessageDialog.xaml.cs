@@ -77,6 +77,24 @@ public partial class SonatorMessageDialog : Window
         return dialog.Choice == SaveChoice.Save;
     }
 
+    // Asks a question with two answers and Cancel: Save for the first, DontSave for the second, Cancel when it
+    // is closed.
+    public static SaveChoice AskChoice(Window? owner, string title, string message, string first, string second)
+    {
+        var dialog = new SonatorMessageDialog(title, message);
+        dialog.OkButton.Visibility = Visibility.Collapsed;
+        dialog.SaveChoicePanel.Visibility = Visibility.Visible;
+        dialog.SaveButton.Content = first;
+        dialog.DontSaveButton.Content = second;
+        if (owner is not null)
+        {
+            dialog.Owner = owner;
+        }
+
+        dialog.ShowDialog();
+        return dialog.Choice;
+    }
+
     public static void Show(Window? owner, string title, string message)
     {
         var dialog = new SonatorMessageDialog(title, message);

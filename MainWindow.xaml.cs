@@ -1643,6 +1643,74 @@ public partial class MainWindow : Window
         BringBack(_mixerWindow);
     }
 
+    // Track > Detect tempo, or the clip's right-click: finds the clip's tempo (BPM detection) and, if asked,
+    // sets the song's tempo to it with the clip lined up on the beats. For a clip's right-click, its track.
+    private void DetectTempoMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        var track = (sender as FrameworkElement)?.DataContext is ArrangeTimelineTrackViewModel timeline
+            ? timeline.SourceTrack
+            : viewModel.SelectedTrack;
+        if (track is null || string.IsNullOrEmpty(track.AudioClipPath))
+        {
+            SonatorMessageDialog.Show(this, "Detect tempo", "Select a track with an audio clip first: the tempo is found from its clip.");
+            return;
+        }
+
+        viewModel.SelectedTrack = track;
+        viewModel.StatusMessage = $"Finding the tempo of {track.Name}'s clip...";
+        Mouse.OverrideCursor = Cursors.Wait;
+        DetectedTempo? found;
+        try
+        {
+            found = viewModel.DetectClipTempo(track);
+        }
+        finally
+        {
+            Mouse.OverrideCursor = null;
+        }
+
+        if (found is null)
+        {
+            viewModel.StatusMessage = "Detect tempo: no steady beat found";
+            SonatorMessageDialog.Show(this, "Detect tempo", "No steady beat was found in the clip, so its tempo cannot be told.");
+            return;
+        }
+
+        // Half or twice the tempo is often as good a reading: both are offered.
+        var other = found.Bpm >= 120 ? found.Bpm / 2 : found.Bpm * 2;
+        var sure = found.Confidence >= 0.5 ? "clearly" : "probably";
+        var choice = SonatorMessageDialog.AskChoice(this, "Detect tempo",
+            $"{track.Name}'s clip is {sure} at {found.Bpm:0.##} BPM, its first beat at {found.FirstBeatSeconds:0.00} s. "
+            + $"Set the song to it? The metronome and the grid will follow the clip, lined up on its beats. "
+            + $"If it counts in halves or doubles, choose {other:0.##} BPM.",
+            $"{found.Bpm:0.##} BPM", $"{other:0.##} BPM");
+        switch (choice)
+        {
+            case SaveChoice.Save:
+                viewModel.SyncSongToClip(track, found.Bpm, found.FirstBeatSeconds);
+                break;
+            case SaveChoice.DontSave:
+                viewModel.SyncSongToClip(track, other, found.FirstBeatSeconds);
+                break;
+            default:
+                viewModel.StatusMessage = $"{track.Name}'s clip is at about {found.Bpm:0.##} BPM; the song's tempo is left as it was";
+                break;
+        }
+    }
+
+    private void EditClipMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is ArrangeTimelineTrackViewModel timeline)
+        {
+            OpenClipInWaveformEditor(timeline.SourceTrack);
+        }
+    }
+
     // Opens a track's audio clip in the waveform editor; its edits can then go back into the same track.
     private void OpenClipInWaveformEditor(PatternTrackViewModel track)
     {
