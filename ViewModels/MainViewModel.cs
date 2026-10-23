@@ -265,6 +265,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         _engine.PatternChanged += OnPlaybackPatternChanged;
         _engine.PlaybackCompleted += OnPlaybackCompleted;
         _engine.PlaybackFaulted += OnPlaybackFaulted;
+        _engine.Looped += OnLooped;
 
         Patterns = BuildDefaultPatterns();
         ArrangeBarNumbers = new ObservableCollection<int>();
@@ -1526,6 +1527,71 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
             SelectedPattern?.Tracks.Select(track => track.Steps.Count).DefaultIfEmpty(16).Max() ?? 16);
     }
 
+    // ---- The loop's range, chosen by dragging along the ruler ----
+
+    private bool _hasLoopRange;
+
+    // True once part of the pattern is chosen to loop: with LOOP on, only the steps from LoopStartStep to
+    // LoopEndStep repeat, until playback is stopped; otherwise the whole pattern does.
+    public bool HasLoopRange
+    {
+        get => _hasLoopRange;
+        set
+        {
+            if (SetProperty(ref _hasLoopRange, value))
+            {
+                _engine.IsLoopRangeActive = value;
+                RaisePropertyChanged(nameof(LoopRangeSteps));
+            }
+        }
+    }
+
+    // How many steps the range covers, for drawing it.
+    public double LoopRangeSteps => _hasLoopRange ? _loopEndStep - _loopStartStep + 1 : 0;
+
+    // Chooses the steps from start to end (both included) to loop, as the ruler's drag does.
+    public void SetLoopRange(int start, int end)
+    {
+        if (end < start)
+        {
+            (start, end) = (end, start);
+        }
+
+        FitSelectedPatternToArrangeLength(); // the pattern's steps exist as far as the timeline shows
+        var last = Math.Max(0, Math.Min(GetSelectedPatternStepCount(), TimelineTotalSteps) - 1);
+        start = Math.Clamp(start, 0, last);
+        end = Math.Clamp(end, start, last);
+        LoopStartStep = start;
+        LoopEndStep = end;
+        _engine.SetLoopRange(_loopStartStep, _loopEndStep);
+        HasLoopRange = true;
+        RaisePropertyChanged(nameof(LoopRangeSteps));
+        StatusMessage = $"Loop: {DescribeLoopRange()}" + (IsLoopEnabled ? string.Empty : " — turn LOOP on to repeat it");
+    }
+
+    public void ClearLoopRange()
+    {
+        if (!_hasLoopRange)
+        {
+            return;
+        }
+
+        HasLoopRange = false;
+        StatusMessage = "Loop range cleared: LOOP repeats the whole pattern";
+    }
+
+    private string DescribeLoopRange() =>
+        $"bar {_loopStartStep / StepsPerBar + 1}.{_loopStartStep % StepsPerBar + 1} to bar {(_loopEndStep + 1) / StepsPerBar + 1}.{(_loopEndStep + 1) % StepsPerBar + 1}";
+
+    // At each turn of the loop, the clips start again from its start, in time with the notes.
+    private void OnLooped(object? sender, int step)
+    {
+        if (IsPlaying && Tracks.Any(track => !string.IsNullOrEmpty(track.AudioClipPath)))
+        {
+            StartAudioTracks(step);
+        }
+    }
+
     public int LoopStartStep
     {
         get => _loopStartStep;
@@ -1547,6 +1613,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
                 }
 
                 _engine.SetLoopRange(_loopStartStep, _loopEndStep);
+                RaisePropertyChanged(nameof(LoopRangeSteps));
             }
         }
     }
@@ -1572,6 +1639,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
                 }
 
                 _engine.SetLoopRange(_loopStartStep, _loopEndStep);
+                RaisePropertyChanged(nameof(LoopRangeSteps));
             }
         }
     }
@@ -1711,7 +1779,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
             TransportPosition = TransportClock.Zero;
             RaisePropertyChanged(nameof(LoopModeText));
             StatusMessage = value
-                ? "Loop ON: repeating the selected pattern."
+                ? (_hasLoopRange ? $"Loop ON: repeating {DescribeLoopRange()} until STOP." : "Loop ON: repeating the selected pattern.")
                 : "Loop OFF: the selected pattern plays once.";
         }
     }
@@ -2258,6 +2326,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         _engine.PatternChanged -= OnPlaybackPatternChanged;
         _engine.PlaybackCompleted -= OnPlaybackCompleted;
         _engine.PlaybackFaulted -= OnPlaybackFaulted;
+        _engine.Looped -= OnLooped;
         _midiInput.Dispose();
         _clickPlayer.Dispose();
         _engine.Dispose();
@@ -2835,6 +2904,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
             BarCount = 32;
             LoopStartStep = 0;
             LoopEndStep = 15;
+            HasLoopRange = false;
             TimeSignature = "4/4";
             CurrentProjectPath = null;
             StatusMessage = "New project created";
@@ -3625,7 +3695,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
     // Plays each audio track's clip from where playback starts, through the track's effects and volume, in
     // the same output as the plug-ins, so they sound together, on ASIO too. Without the native bridge the
     // clips play through Windows' default output instead.
-    private void StartAudioTracks()
+    private void StartAudioTracks() => StartAudioTracks(CurrentStepIndex);
+
+    // Plays the clips from fromStep, as when playback starts or a loop goes back to its start.
+    private void StartAudioTracks(int fromStep)
     {
         StopAudioTracks();
         var tempoMap = CurrentTempoMap;
@@ -3646,7 +3719,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
             }
 
             // From the playhead into the clip; negative while the playhead is still before it, so it waits.
-            var secondsFromStart = tempoMap.SecondsAt(CurrentStepIndex) - tempoMap.SecondsAt(track.AudioClipStartStep);
+            var secondsFromStart = tempoMap.SecondsAt(fromStep) - tempoMap.SecondsAt(track.AudioClipStartStep);
             if (_liveInstrumentHost.TryCreateClip(clip.Samples, clip.Channels, clip.SampleRate, secondsFromStart) is { } module)
             {
                 _trackEffects.ChainFor(track)?.AttachTo(module);
@@ -3663,7 +3736,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
 
             // Without the bridge, only the clips heard when playing starts.
             if (!_trackEffects.IsSilenced(track)
-                && AudioTrackMixer.Mix(new[] { new AudioPlacement(track.AudioClipPath!, track.AudioClipStartStep) }, Tempo, CurrentStepIndex, _ => clip) is { } mixed)
+                && AudioTrackMixer.Mix(new[] { new AudioPlacement(track.AudioClipPath!, track.AudioClipStartStep) }, Tempo, fromStep, _ => clip) is { } mixed)
             {
                 fallback.Add((mixed, _trackEffects.ChainFor(track)));
             }
@@ -3942,6 +4015,12 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
             StatusMessage = $"Count-in: {SelectedCountIn.Bars} bar(s)";
             _ = _engine.StartAfterCountInAsync(SelectedCountIn.Bars, StartAudioTracks);
             return;
+        }
+
+        // Looping part of the pattern, playback starts in it.
+        if (IsLoopEnabled && _hasLoopRange && (CurrentStepIndex < _loopStartStep || CurrentStepIndex > _loopEndStep))
+        {
+            SeekToStep(_loopStartStep);
         }
 
         StartAudioTracks();
@@ -5817,7 +5896,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
             _markers.Count == 0 ? null : _markers.Select(marker => new MarkerDocument(marker.Step, marker.Name)).ToList(),
             MasterVolumeLeft,
             MasterVolumeRight,
-            IsMasterLinked);
+            IsMasterLinked,
+            HasLoopRange);
     }
 
     private void RestoreMasterEffects(IEnumerable<EffectDocument>? documents)
@@ -5900,6 +5980,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
                 LoopStartStep = document.LoopStartStep;
                 LoopEndStep = document.LoopEndStep;
             }
+
+            HasLoopRange = document.HasLoopRange;
 
             SelectedMidiOutputDevice = MidiOutputDevices.FirstOrDefault(device => device.DisplayName == document.SelectedMidiOutputDeviceName)
                 ?? MidiOutputDevices.FirstOrDefault(device => device.IsOff);

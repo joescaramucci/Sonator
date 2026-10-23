@@ -80,6 +80,13 @@ internal sealed class SequencerEngine : IDisposable
     private int _loopStartStep;
     private int _loopEndStep = DefaultStepsPerPattern - 1;
     private bool _isPatternLoopEnabled;
+
+    // While the pattern loops: true repeats only the steps from _loopStartStep to _loopEndStep, false the
+    // whole pattern.
+    private bool _isLoopRangeActive;
+
+    // The step playback has just jumped back to, to report once the lock is let go; -1 when it has not.
+    private int _loopedTo = -1;
     private double _tempoBpm = 120;
     private double _masterVolume = 0.75;
     private CancellationTokenSource? _playbackCts;
@@ -123,6 +130,28 @@ internal sealed class SequencerEngine : IDisposable
     public event EventHandler? PlaybackCompleted;
 
     public event EventHandler<Exception>? PlaybackFaulted;
+
+    // Raised on the UI thread each time a loop goes back to its start, with the step it went back to: what
+    // plays on its own (the audio clips) starts again from there.
+    public event EventHandler<int>? Looped;
+
+    public bool IsLoopRangeActive
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return _isLoopRangeActive;
+            }
+        }
+        set
+        {
+            lock (_sync)
+            {
+                _isLoopRangeActive = value;
+            }
+        }
+    }
 
     public uint? CurrentMidiOutputDeviceId => _midiOutputDeviceId;
 
@@ -411,8 +440,10 @@ internal sealed class SequencerEngine : IDisposable
                 nextStepAt += (long)(stepDuration.TotalSeconds * Stopwatch.Frequency);
                 await WaitUntilAsync(nextStepAt, token).ConfigureAwait(false);
 
+                int loopedTo;
                 lock (_sync)
                 {
+                    _loopedTo = -1;
                     if (!AdvanceStep(_currentStep))
                     {
                         _dispatcher.InvokeAsync(
@@ -428,6 +459,20 @@ internal sealed class SequencerEngine : IDisposable
                     }
 
                     stepDuration = GetInterval(TempoAtStep(_currentStep));
+                    loopedTo = _loopedTo;
+                }
+
+                if (loopedTo >= 0)
+                {
+                    _dispatcher.InvokeAsync(
+                        () =>
+                        {
+                            if (IsCurrentPlaybackGeneration(playbackGeneration))
+                            {
+                                Looped?.Invoke(this, loopedTo);
+                            }
+                        },
+                        DispatcherPriority.Send);
                 }
             }
         }
@@ -572,6 +617,15 @@ internal sealed class SequencerEngine : IDisposable
             return false;
         }
 
+        // A loop over part of the pattern goes back to its start after its last step.
+        if (_songPatterns.Count == 0 && _isPatternLoopEnabled && _isLoopRangeActive
+            && currentStep >= _loopEndStep && currentStep < GetPatternStepCount())
+        {
+            _currentStep = _loopStartStep;
+            _loopedTo = _loopStartStep;
+            return true;
+        }
+
         if (_songPatterns.Count == 0 && currentStep + 1 >= GetPatternStepCount())
         {
             if (!_isPatternLoopEnabled)
@@ -579,7 +633,8 @@ internal sealed class SequencerEngine : IDisposable
                 return false;
             }
 
-            _currentStep = 0;
+            _currentStep = _isLoopRangeActive ? _loopStartStep : 0;
+            _loopedTo = _currentStep;
             return true;
         }
 

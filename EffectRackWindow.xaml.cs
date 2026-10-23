@@ -54,6 +54,33 @@ public partial class EffectRackWindow : Window
         };
     }
 
+    // The transport keys work here as in the main window: Space plays or stops, the full stop goes back to
+    // the start, the arrows move by a bar; not while a box is being typed in.
+    private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (Keyboard.FocusedElement is TextBox || Keyboard.Modifiers != ModifierKeys.None)
+        {
+            return;
+        }
+
+        switch (e.Key)
+        {
+            case Key.Space:
+                _viewModel.TogglePlayback();
+                break;
+            case Key.OemPeriod or Key.Decimal:
+                _viewModel.RestartPlayback();
+                break;
+            case Key.Left or Key.Right:
+                _viewModel.MovePlaybackByBars(e.Key == Key.Left ? -1 : 1);
+                break;
+            default:
+                return;
+        }
+
+        e.Handled = true;
+    }
+
     private void OnEffectsChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) => RefreshPresets();
 
     // Gives each effect its preset list: Sonator's presets, then the user's.

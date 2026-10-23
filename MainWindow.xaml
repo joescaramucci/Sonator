@@ -37,6 +37,7 @@
         <local:MasterMeterSegmentBrushConverter x:Key="MasterMeterSegmentBrushConverter" />
         <local:VolumePercentConverter x:Key="VolumePercentConverter" />
         <local:AudioClipWidthConverter x:Key="AudioClipWidthConverter" />
+        <BooleanToVisibilityConverter x:Key="VisibleWhenLoopRange" />
         <local:StepOffsetConverter x:Key="StepOffsetConverter" />
 
         <Style TargetType="ComboBox">
@@ -1274,9 +1275,9 @@
                                       Width="{Binding TimelineContentWidth}"
                                       HorizontalAlignment="Left"
                                       ItemsSource="{Binding TimelineBarNumbers}"
-                                      Cursor="SizeWE"
+                                      Tag="TimelineRuler"
                                       Background="Transparent"
-                                      ToolTip="Drag or use the mouse wheel to zoom the timeline. Right-click to add a marker or a change of tempo"
+                                      ToolTip="Drag along the bars to choose the part to loop (drag its L or R edge to change it), click to go there, mouse wheel to zoom. Right-click to add a marker or a change of tempo"
                                       MouseRightButtonUp="TimelineRuler_MouseRightButtonUp"
                                       SnapsToDevicePixels="True"
                                       UseLayoutRounding="True"
@@ -1843,6 +1844,35 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+                <!-- The part of the song chosen to loop, over the ruler and the lanes, its L and R locators on the ruler. -->
+                <Grid IsHitTestVisible="False" Visibility="{Binding HasLoopRange, Converter={StaticResource VisibleWhenLoopRange}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="260" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="1" HorizontalAlignment="Left" Background="#24FFD24C" BorderBrush="#FFD24C" BorderThickness="1.5,0,1.5,0">
+                        <Border.Margin>
+                            <MultiBinding Converter="{StaticResource StepOffsetConverter}">
+                                <Binding Path="LoopStartStep" />
+                                <Binding Path="TimelineSixteenthWidth" />
+                            </MultiBinding>
+                        </Border.Margin>
+                        <Border.Width>
+                            <MultiBinding Converter="{StaticResource AudioClipWidthConverter}">
+                                <Binding Path="LoopRangeSteps" />
+                                <Binding Path="TimelineSixteenthWidth" />
+                            </MultiBinding>
+                        </Border.Width>
+                        <Grid VerticalAlignment="Top" Height="14" Margin="0,8,0,0">
+                            <Border HorizontalAlignment="Left" Background="#FFD24C" CornerRadius="0,3,3,0" Padding="3,0">
+                                <TextBlock Text="L" FontSize="10" FontWeight="Bold" Foreground="#2A2006" VerticalAlignment="Center" />
+                            </Border>
+                            <Border HorizontalAlignment="Right" Background="#FFD24C" CornerRadius="3,0,0,3" Padding="3,0">
+                                <TextBlock Text="R" FontSize="10" FontWeight="Bold" Foreground="#2A2006" VerticalAlignment="Center" />
+                            </Border>
+                        </Grid>
+                    </Border>
+                </Grid>
                 </Grid>
                 </ScrollViewer>
                 <!-- Starts where the lanes start: below the 42-high ruler and its 3-pixel margin. -->

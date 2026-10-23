@@ -20,7 +20,8 @@ public sealed record ProjectDocument(
         List<MarkerDocument>? Markers = null,
         double? MasterVolumeLeft = null,
         double? MasterVolumeRight = null,
-        bool MasterFadersLinked = true);
+        bool MasterFadersLinked = true,
+        bool HasLoopRange = false);
 
 // From this step on the song plays at Bpm.
 public sealed record TempoChangeDocument(int Step, double Bpm);

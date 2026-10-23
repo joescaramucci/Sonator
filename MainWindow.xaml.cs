@@ -335,7 +335,9 @@ public partial class MainWindow : Window
 
     private static bool IsInsideTagged(object? source, string tag)
     {
-        for (var element = source as DependencyObject; element is Visual; element = VisualTreeHelper.GetParent(element))
+        // A press on text starts on its run, which is not in the visual tree: its parents are the logical ones.
+        for (var element = source as DependencyObject; element is not null;
+             element = element is Visual ? VisualTreeHelper.GetParent(element) : LogicalTreeHelper.GetParent(element))
         {
             if (element is FrameworkElement { Tag: string elementTag } && elementTag == tag)
             {
@@ -564,9 +566,11 @@ public partial class MainWindow : Window
         }
 
         // A press on a block belongs to the block: it moves or resizes it instead of scrolling. So does a press
-        // on an automation lane, which adds or drags a point, and one on an audio clip, which drags the clip.
+        // on an automation lane, which adds or drags a point, one on an audio clip, which drags the clip, and one
+        // on the ruler, which chooses the part to loop.
         if (e.ChangedButton == MouseButton.Left
-            && (IsInsideNoteBlock(e.OriginalSource) || IsInsideTagged(e.OriginalSource, "AutomationLane") || IsInsideTagged(e.OriginalSource, "AudioClip")))
+            && (IsInsideNoteBlock(e.OriginalSource) || IsInsideTagged(e.OriginalSource, "AutomationLane") || IsInsideTagged(e.OriginalSource, "AudioClip")
+                || IsInsideTagged(e.OriginalSource, "TimelineRuler")))
         {
             return;
         }
@@ -642,47 +646,107 @@ public partial class MainWindow : Window
         viewer.Cursor = Cursors.SizeWE;
     }
 
+    // ---- The ruler: drag along it to choose the part to loop, click to go there ----
+
+    // What a drag on the ruler is doing: choosing a new range, or moving the range's left or right edge.
+    private enum RulerDrag { NewRange, StartEdge, EndEdge }
+
+    private RulerDrag _rulerDrag;
+    private int _rulerAnchorStep;
+    private bool _rulerMoved;
+
+    private const double RulerEdgeGrip = 6;
+
+    // The step under a point of the ruler, and how far the point is from the loop range's edges.
+    private static int RulerStep(MainViewModel viewModel, double x) =>
+        Math.Max(0, (int)Math.Floor(x / viewModel.TimelineSixteenthWidth));
+
+    private RulerDrag? RulerEdgeAt(MainViewModel viewModel, double x)
+    {
+        if (!viewModel.HasLoopRange)
+        {
+            return null;
+        }
+
+        var width = viewModel.TimelineSixteenthWidth;
+        if (Math.Abs(x - viewModel.LoopStartStep * width) <= RulerEdgeGrip)
+        {
+            return RulerDrag.StartEdge;
+        }
+
+        return Math.Abs(x - (viewModel.LoopEndStep + 1) * width) <= RulerEdgeGrip ? RulerDrag.EndEdge : null;
+    }
+
     private void TimelineRuler_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-            if (sender is not UIElement ruler)
-            {
-                return;
-            }
+        if (sender is not FrameworkElement ruler || DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
 
-            _isDraggingTimelineRuler = true;
-            _timelineRulerDragStartX = e.GetPosition(this).X;
-            _timelineRulerDragStartOffset = ArrangeTimelineScrollViewer.HorizontalOffset;
-            ruler.CaptureMouse();
-            e.Handled = true;
+        var x = e.GetPosition(ruler).X;
+        _rulerDrag = RulerEdgeAt(viewModel, x) ?? RulerDrag.NewRange;
+        _rulerAnchorStep = _rulerDrag switch
+        {
+            RulerDrag.StartEdge => viewModel.LoopEndStep + 1, // the other edge stays where it is
+            RulerDrag.EndEdge => viewModel.LoopStartStep,
+            _ => viewModel.SnapStep(RulerStep(viewModel, x)),
+        };
+        _rulerMoved = false;
+        _timelineRulerDragStartX = x;
+        _isDraggingTimelineRuler = true;
+        ruler.CaptureMouse();
+        e.Handled = true;
     }
 
     private void TimelineRuler_PreviewMouseMove(object sender, MouseEventArgs e)
     {
-            if (!_isDraggingTimelineRuler || e.LeftButton != MouseButtonState.Pressed)
-            {
-                return;
-            }
+        if (sender is not FrameworkElement ruler || DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
 
-            // Dragging the bar numbers moves the timeline; the mouse wheel still zooms.
-            var delta = e.GetPosition(this).X - _timelineRulerDragStartX;
-            ArrangeTimelineScrollViewer.ScrollToHorizontalOffset(Math.Max(0, _timelineRulerDragStartOffset - delta));
-            e.Handled = true;
+        var x = e.GetPosition(ruler).X;
+        if (!_isDraggingTimelineRuler || e.LeftButton != MouseButtonState.Pressed)
+        {
+            ruler.Cursor = RulerEdgeAt(viewModel, x) is null ? null : Cursors.SizeWE;
+            return;
+        }
+
+        if (!_rulerMoved && Math.Abs(x - _timelineRulerDragStartX) < 4)
+        {
+            return;
+        }
+
+        // The edges snap to the SNAP grid; the range covers the steps between them.
+        _rulerMoved = true;
+        var edge = viewModel.SnapStep(RulerStep(viewModel, x + viewModel.TimelineSixteenthWidth / 2));
+        if (edge != _rulerAnchorStep)
+        {
+            viewModel.SetLoopRange(Math.Min(edge, _rulerAnchorStep), Math.Max(edge, _rulerAnchorStep) - 1);
+        }
+
+        e.Handled = true;
     }
 
     private void TimelineRuler_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-            if (!_isDraggingTimelineRuler)
-            {
-                return;
-            }
+        if (!_isDraggingTimelineRuler)
+        {
+            return;
+        }
 
-            _isDraggingTimelineRuler = false;
-            if (sender is UIElement ruler)
+        _isDraggingTimelineRuler = false;
+        if (sender is FrameworkElement ruler)
+        {
+            ruler.ReleaseMouseCapture();
+            if (!_rulerMoved && DataContext is MainViewModel viewModel)
             {
-                ruler.ReleaseMouseCapture();
+                viewModel.SeekToStep(RulerStep(viewModel, e.GetPosition(ruler).X)); // a click goes there
             }
+        }
 
-            e.Handled = true;
+        e.Handled = true;
     }
 
     private void Timeline_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
