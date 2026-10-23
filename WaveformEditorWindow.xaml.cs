@@ -351,6 +351,37 @@ public partial class WaveformEditorWindow : Window
         Info($"{operation}. Duration now {_clip.Duration.TotalSeconds:F2} s.");
     }
 
+    private bool IsPlaying => _previewEnd is not null || _output is not null;
+
+    // The keys of the transport, for the clip: Space plays the selection, or the whole clip without one, and
+    // stops it; the full stop plays the whole clip from its start; Escape stops. Not while a box is typed in.
+    private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (Keyboard.FocusedElement is TextBox || Keyboard.Modifiers != ModifierKeys.None || _clip is null)
+        {
+            return;
+        }
+
+        switch (e.Key)
+        {
+            case Key.Space when IsPlaying:
+            case Key.Escape:
+                StopPlayback();
+                Info("Stopped.");
+                break;
+            case Key.Space:
+                Play(wholeClip: !TryGetRange(out _, out _));
+                break;
+            case Key.OemPeriod or Key.Decimal:
+                Play(wholeClip: true);
+                break;
+            default:
+                return;
+        }
+
+        e.Handled = true;
+    }
+
     private void Play(bool wholeClip)
     {
         if (_clip is null)
