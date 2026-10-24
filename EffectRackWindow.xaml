@@ -158,13 +158,13 @@
                         <!-- One effect of the rack, as a unit screwed onto the rack's plate: its soft shadow on the plate, its
                              face with its edges bevelled (lit at the top left, in shade at the bottom right) and a screw in
                              each corner; on the face its switch, name and controls on top, its knobs below. -->
-                        <Grid Margin="0,0,0,9">
+                        <Grid Margin="0,0,0,7">
                         <Border CornerRadius="4" Margin="1,3,-2,-4" Background="#000000" Opacity="0.55" IsHitTestVisible="False">
                             <Border.Effect>
                                 <BlurEffect Radius="7" />
                             </Border.Effect>
                         </Border>
-                        <Border Padding="16,6,16,5" CornerRadius="3" Background="{x:Static local:BrushedMetal.Light}" BorderBrush="#1E1F21" BorderThickness="1"
+                        <Border Padding="13,4,13,3" CornerRadius="3" Background="{x:Static local:BrushedMetal.Light}" BorderBrush="#1E1F21" BorderThickness="1"
                                 AllowDrop="True" DragOver="Module_DragOver" DragLeave="Module_DragLeave" Drop="Module_Drop">
                             <Border.Style>
                                 <Style TargetType="Border">
@@ -176,7 +176,7 @@
                                 </Style>
                             </Border.Style>
                             <StackPanel>
-                                <DockPanel Margin="0,0,0,3">
+                                <DockPanel Margin="0,0,0,2">
                                     <TextBlock DockPanel.Dock="Left"
                                                Text="⠿"
                                                FontSize="18"
