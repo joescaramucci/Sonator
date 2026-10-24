@@ -61,6 +61,8 @@ public sealed class EffectParameterViewModel : ViewModelBase
 
     public string DisplayValue => Definition.IsSwitch
         ? (IsOn ? "ON" : "OFF")
+        : Definition.Labels is { Count: > 0 } labels
+            ? labels[Math.Clamp((int)Math.Round(_value - Definition.Minimum), 0, labels.Count - 1)]
         : Math.Round(_value, Definition.Decimals).ToString("F" + Definition.Decimals, CultureInfo.CurrentCulture)
           + (Definition.Unit.StartsWith(':') || Definition.Unit.Length == 0 ? Definition.Unit : " " + Definition.Unit);
 
@@ -259,6 +261,9 @@ public sealed class TrackEffectViewModel : ViewModelBase
 
     // The compressor and the limiter show how far they turn the sound down.
     public bool HasMeter => Definition.Kind is EffectKind.Compress or EffectKind.Limiter;
+
+    // The effects whose meter the rack reads: those above, and the harmonizer, whose meter is the note it hears.
+    public bool ReadsMeter => HasMeter || Definition.Kind == EffectKind.Harmonizer;
 
     private double _meterValue;
 

@@ -1,4 +1,4 @@
-// Sonator's own insert effects (SonVerb, SonDelay, SonCompress, SonEQ, SonLimiter) and the
+// Sonator's own insert effects (SonVerb, SonDelay, SonCompress, SonEQ, SonLimiter, SonArmo) and the
 // per-track chain that runs them. Everything here is written for the audio thread: parameters
 // are atomics the UI can change at any time, and processing never blocks on the UI.
 #pragma once
@@ -21,6 +21,7 @@ namespace son
         Compress = 3,
         EQ = 4,
         Limiter = 5,
+        Harmonizer = 6,
         Plugin = 100, // a VST3 effect, made by the bridge (VstHostBridge.cpp), not by CreateEffect
     };
 

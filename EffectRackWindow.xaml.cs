@@ -28,7 +28,7 @@ public partial class EffectRackWindow : Window
         {
             foreach (var effect in Track.Effects)
             {
-                if (effect.HasMeter)
+                if (effect.ReadsMeter)
                 {
                     effect.MeterValue = _viewModel.EffectMeter(Track, effect);
                 }

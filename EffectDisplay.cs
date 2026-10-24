@@ -120,6 +120,9 @@ public sealed class EffectDisplay : FrameworkElement
             case EffectKind.Limiter:
                 DrawLimiter(drawingContext, plot, effect);
                 break;
+            case EffectKind.Harmonizer:
+                DrawHarmonizer(drawingContext, plot, effect);
+                break;
         }
 
         foreach (var handle in _handles)
@@ -638,6 +641,55 @@ public sealed class EffectDisplay : FrameworkElement
             SetKnob(effect, 0, ceilingNow);
             SetKnob(effect, 2, ceilingNow - (Floor + (point.X - area.X) / area.Width * -Floor));
         }, new[] { 0, 2 }));
+    }
+
+    // ---- The harmonizer: the note sung in the middle of an octave either way, the harmony voices above and below it ----
+
+    private void DrawHarmonizer(DrawingContext drawingContext, Rect plot, TrackEffectViewModel effect)
+    {
+        var key = (int)Math.Round(Knob(effect, 0));
+        var minor = Knob(effect, 1) >= 0.5;
+        var sung = effect.MeterValue > 0 ? (int)Math.Round(effect.MeterValue) : (int?)null;
+        Title(drawingContext, plot, key == 0 ? "NO KEY" : $"{Harmony.KeyNames[key]} {(minor ? "MINOR" : "MAJOR")}",
+            sung is { } note ? $"SINGING {Harmony.NoteName(note)}" : "SING");
+
+        // Semitones from the voice, from an octave below to an octave above; the scale's notes marked when in a key.
+        double Y(double semitones) => plot.Y + plot.Height / 2 - semitones / 13 * (plot.Height / 2);
+        var reference = sung ?? 60;
+        for (var semitones = -12; semitones <= 12; semitones++)
+        {
+            var pitchClass = ((reference + semitones - (key - 1)) % 12 + 12) % 12;
+            var inScale = key > 0 && (minor ? new[] { 0, 2, 3, 5, 7, 8, 10 } : new[] { 0, 2, 4, 5, 7, 9, 11 }).Contains(pitchClass);
+            if (semitones % 12 == 0 || inScale)
+            {
+                drawingContext.DrawLine(semitones % 12 == 0 ? AxisPen : GridPen, new Point(plot.X, Y(semitones)), new Point(plot.Right, Y(semitones)));
+            }
+        }
+
+        // The voice, then each harmony voice at its shift, as wide as it is loud, named with its note.
+        var middleX = plot.X + plot.Width * 0.18;
+        var barWidth = plot.Width * 0.62;
+        drawingContext.DrawRoundedRectangle(DryBrush, null, new Rect(middleX, Y(0) - 3, barWidth * Knob(effect, 7) / 100 + 4, 6), 2, 2);
+        Label(drawingContext, "VOICE", new Point(plot.X, Y(0) - 6), TitleInk, 8);
+        for (var voice = 0; voice < 2; voice++)
+        {
+            var steps = (int)Math.Round(Knob(effect, 2 + voice));
+            if (steps == 0)
+            {
+                continue;
+            }
+
+            var shift = Harmony.Shift(reference, steps, key, minor);
+            var level = Knob(effect, 4 + voice) / 100;
+            var y = Y(shift);
+            var brush = voice == 0 ? (Brush)OrangeBrush : Solid(0x3C, 0xC8, 0xA6);
+            drawingContext.DrawRoundedRectangle(brush, null, new Rect(middleX, y - 3, barWidth * level + 4, 6), 2, 2);
+            Label(drawingContext, voice == 0 ? "V1" : "V2", new Point(plot.X, y - 6), TitleInk, 8);
+            if (sung is not null)
+            {
+                Label(drawingContext, Harmony.NoteName(reference + shift), new Point(plot.Right, y - 6), TitleInk, 8, alignRight: true);
+            }
+        }
     }
 
     // A level curve on a square of decibels from the floor to 0, over the 1:1 line, with the sound going in now

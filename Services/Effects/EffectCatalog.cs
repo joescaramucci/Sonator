@@ -8,11 +8,13 @@ public enum EffectKind
     Compress = 3,
     EQ = 4,
     Limiter = 5,
+    Harmonizer = 6,
     Plugin = 100, // a VST3 effect plug-in
 }
 
 // One knob of an effect, in the units shown to the user. The bridge receives Value * NativeScale.
-// A switch has a range of 0 to 1 and IsSwitch set.
+// A switch has a range of 0 to 1 and IsSwitch set. A knob of whole choices (a key, an interval) names
+// them in Labels, one for each whole value from Minimum up.
 public sealed record EffectParameterDefinition(
     string Name,
     double Minimum,
@@ -22,7 +24,8 @@ public sealed record EffectParameterDefinition(
     int Decimals = 0,
     double NativeScale = 1,
     bool IsSwitch = false,
-    bool IsLogarithmic = false);
+    bool IsLogarithmic = false,
+    IReadOnlyList<string>? Labels = null);
 
 public sealed record EffectDefinition(EffectKind Kind, string Name, string Description, IReadOnlyList<EffectParameterDefinition> Parameters);
 
@@ -71,6 +74,17 @@ public static class EffectCatalog
             new EffectParameterDefinition("Ceiling", -12, 0, -0.3, "dB", Decimals: 1),
             new EffectParameterDefinition("Release", 1, 500, 50, "ms", IsLogarithmic: true),
             new EffectParameterDefinition("Drive", 0, 24, 0, "dB", Decimals: 1),
+        }),
+        new EffectDefinition(EffectKind.Harmonizer, "SonArmo", "Vocal harmonizer", new[]
+        {
+            new EffectParameterDefinition("Key", 0, 12, 0, string.Empty, Labels: Harmony.KeyNames),
+            new EffectParameterDefinition("Minor", 0, 1, 0, string.Empty, IsSwitch: true),
+            new EffectParameterDefinition("Voice 1", -7, 7, 2, string.Empty, Labels: Harmony.IntervalNames),
+            new EffectParameterDefinition("Voice 2", -7, 7, 0, string.Empty, Labels: Harmony.IntervalNames),
+            new EffectParameterDefinition("Level 1", 0, 100, 70, "%"),
+            new EffectParameterDefinition("Level 2", 0, 100, 60, "%"),
+            new EffectParameterDefinition("Width", 0, 100, 60, "%"),
+            new EffectParameterDefinition("Dry", 0, 100, 100, "%"),
         }),
     };
 

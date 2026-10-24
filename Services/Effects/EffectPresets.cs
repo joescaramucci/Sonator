@@ -55,6 +55,17 @@ public static class FactoryPresets
             Factory("Air", 0, 120, 0, 1000, 1, 5, 12000),
             Factory("Telephone", -15, 400, 6, 1500, 1.5, -15, 3500),
         },
+        // Key (0 none, 1 C ... 12 B), Minor, Voice 1 and Voice 2 in scale steps, Level 1 %, Level 2 %, Width %, Dry %.
+        // The key stays none: set the song's key after choosing one.
+        [EffectKind.Harmonizer] = new[]
+        {
+            Factory("Third Above", 0, 0, 2, 0, 70, 60, 40, 100),
+            Factory("Third and Fifth Above", 0, 0, 2, 4, 65, 55, 70, 100),
+            Factory("Third Below", 0, 0, -2, 0, 70, 60, 40, 100),
+            Factory("Thirds Above and Below", 0, 0, 2, -2, 60, 60, 80, 100),
+            Factory("Octaves", 0, 0, 7, -7, 45, 45, 50, 100),
+            Factory("Power Fifths", 0, 0, 4, -3, 55, 50, 70, 100),
+        },
         // Ceiling dB, Release ms, Drive dB
         [EffectKind.Limiter] = new[]
         {
