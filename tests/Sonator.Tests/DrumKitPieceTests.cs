@@ -26,19 +26,23 @@ public sealed class DrumKitPieceTests
     }
 
     [Fact]
-    public void TheTrack_HasKitPieces_OnceOneHasPlayed()
+    public void TheTrack_HasAKit_AsSoonAsItsPluginHasOutputs_AndHearsIt_OnceAPiecePlays()
     {
         var track = DrumTrack();
-        var piece = PatternTrackViewModel.CreateKitPiece(track, 1, "Kick");
-        track.KitPieces.Add(piece);
         var raised = new List<string?>();
         track.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
-
         Assert.False(track.HasKitPieces);
+
+        var piece = PatternTrackViewModel.CreateKitPiece(track, 1, "Kick");
+        track.KitPieces.Add(piece);
+        Assert.True(track.HasKitPieces);
+        Assert.False(track.HasHeardKitPieces);
+        Assert.Contains(nameof(PatternTrackViewModel.HasKitPieces), raised);
+
         piece.IsHeard = true;
 
-        Assert.True(track.HasKitPieces);
-        Assert.Contains(nameof(PatternTrackViewModel.HasKitPieces), raised);
+        Assert.True(track.HasHeardKitPieces);
+        Assert.Contains(nameof(PatternTrackViewModel.HasHeardKitPieces), raised);
     }
 
     [Fact]
@@ -62,6 +66,6 @@ public sealed class DrumKitPieceTests
         Assert.Equal(1, restoredKick.KitOutput);
         Assert.Same(restored, restoredKick.KitParent);
         Assert.False(restored.KitPieces[1].IsHeard);
-        Assert.True(restored.HasKitPieces);
+        Assert.True(restored.HasHeardKitPieces);
     }
 }

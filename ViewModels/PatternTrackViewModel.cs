@@ -43,6 +43,11 @@ public sealed class PatternTrackViewModel : ViewModelBase
         _programNumber = programNumber;
         _trackType = trackType;
         _source = source ?? string.Empty;
+        KitPieces.CollectionChanged += (_, _) =>
+        {
+            RaisePropertyChanged(nameof(HasKitPieces));
+            RaisePropertyChanged(nameof(HasHeardKitPieces));
+        };
         _volume = Math.Clamp(volume, 0.0, 1.0);
         _isRecordArmed = isRecordArmed;
         _trackColorBrush = trackColorBrush ?? new SolidColorBrush(Color.FromRgb(38, 53, 69));
@@ -317,13 +322,17 @@ public sealed class PatternTrackViewModel : ViewModelBase
         {
             if (SetProperty(ref _isHeard, value))
             {
-                KitParent?.RaisePropertyChanged(nameof(HasKitPieces));
+                KitParent?.RaisePropertyChanged(nameof(HasHeardKitPieces));
             }
         }
     }
 
-    // True when the track has kit pieces that have played, which the mixer can open beside it.
-    public bool HasKitPieces => KitPieces.Any(piece => piece.IsHeard);
+    // True when the track's plug-in has outputs of its own for kit pieces, which the mixer can open beside it.
+    public bool HasKitPieces => KitPieces.Count > 0;
+
+    // True once one of the kit's pieces has played on its own output; until then the mixer says how to set the
+    // plug-in to play them apart.
+    public bool HasHeardKitPieces => KitPieces.Any(piece => piece.IsHeard);
 
     private bool _isKitOpen;
 

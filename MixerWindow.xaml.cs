@@ -74,7 +74,7 @@ public partial class MixerWindow : Window
 
     private void Fx_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement { Tag: PatternTrackViewModel track } && Owner is MainWindow main)
+        if (sender is FrameworkElement { Tag: PatternTrackViewModel track } && Application.Current.MainWindow is MainWindow main)
         {
             main.OpenTrackFxRack(track, null);
         }
@@ -85,7 +85,7 @@ public partial class MixerWindow : Window
     {
         if (sender is FrameworkElement { DataContext: TrackEffectViewModel effect } element
             && InsertListOf(element) is { Tag: PatternTrackViewModel track }
-            && Owner is MainWindow main)
+            && Application.Current.MainWindow is MainWindow main)
         {
             main.OpenTrackFxRack(track, effect);
         }

@@ -235,6 +235,10 @@ public partial class MainWindow : Window
 
     private void OnClosed(object? sender, EventArgs e)
     {
+        // The windows that belong to no window close with this one.
+        _mixerWindow?.Close();
+        _soundBrowser?.Close();
+
         if (_mainViewModel is not null)
         {
             _mainViewModel.Health.Stop();
@@ -1646,8 +1650,9 @@ public partial class MainWindow : Window
 
         if (_soundBrowser is null)
         {
-            _soundBrowser = new SoundBrowserWindow(viewModel) { Owner = this };
+            _soundBrowser = new SoundBrowserWindow(viewModel); // no owner: see ShowMixerWindow
             _soundBrowser.Closed += (_, _) => _soundBrowser = null;
+            FollowPluginWindow(_soundBrowser); // minimized, it goes to the dock with its picture
             _soundBrowser.Show();
         }
 
@@ -1684,7 +1689,9 @@ public partial class MainWindow : Window
 
         if (_mixerWindow is null)
         {
-            _mixerWindow = new MixerWindow(viewModel) { Owner = this };
+            // No owner, so a click on the main window brings it in front of the mixer, to work on the timeline
+            // with the mixer open; MIXER brings the mixer back. It closes with the main window.
+            _mixerWindow = new MixerWindow(viewModel);
             _mixerWindow.Closed += (_, _) => _mixerWindow = null;
             FollowPluginWindow(_mixerWindow); // minimized, it goes to the dock with the plug-ins
             _mixerWindow.Show();

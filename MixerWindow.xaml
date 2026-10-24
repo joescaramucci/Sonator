@@ -10,7 +10,7 @@
         Background="#121315"
         Foreground="#262626"
         FontFamily="Arial"
-        WindowStartupLocation="CenterOwner"
+        WindowStartupLocation="CenterScreen"
         ShowInTaskbar="False">
     <!-- A console in the manner of the big studio desks: anthracite brushed-metal channel modules screwed into a dark
          frame, knurled knobs with coloured caps, long faders with a printed dB scale, lit buttons, and the
@@ -259,7 +259,7 @@
                         <Border Height="5" Background="{Binding TrackColorBrush}" Margin="4,0" />
                         <!-- KIT opens the drum kit's pieces beside the track, as a click on its fader does. Every track's strip
                              keeps room for it, so the strips stay lined up. -->
-                        <Button Content="KIT" Margin="4,3,4,0" Height="13" FontSize="7" Click="Kit_Click">
+                        <Button Content="KIT" Margin="4,3,4,0" Height="16" FontSize="8" Click="Kit_Click">
                             <Button.Style>
                                 <Style TargetType="Button" BasedOn="{StaticResource ConsoleButton}">
                                     <Setter Property="Visibility" Value="Hidden" />
@@ -584,13 +584,34 @@
                             <ContentControl Content="{Binding}" ContentTemplate="{StaticResource ChannelStrip}" Focusable="False" />
                             <Border Margin="0,0,2,0" Padding="2,0,0,0" BorderThickness="0,3,0,0" BorderBrush="{Binding TrackColorBrush}"
                                     Background="#1A1B1D" Visibility="{Binding IsKitOpen, Converter={StaticResource VisibleWhenLinked}}">
-                                <ItemsControl ItemsSource="{Binding KitPieces}" ItemTemplate="{StaticResource ChannelStrip}" Focusable="False">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <StackPanel Orientation="Horizontal" />
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                </ItemsControl>
+                                <StackPanel Orientation="Horizontal">
+                                    <ItemsControl ItemsSource="{Binding KitPieces}" ItemTemplate="{StaticResource ChannelStrip}" Focusable="False">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                    </ItemsControl>
+                                    <!-- Until a drum has played on its own output, how to set the plug-in to play them apart. -->
+                                    <TextBlock Width="150" Margin="8,40,8,0" FontFamily="Segoe UI" FontSize="11" Foreground="#C9CCD1" TextWrapping="Wrap">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding HasHeardKitPieces}" Value="True">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                        <Run FontWeight="Bold" Text="No drum plays on its own output yet." />
+                                        <LineBreak /><LineBreak />
+                                        <Run Text="Set the plug-in to send each drum to its own output. In EZdrummer 3: PLUGIN WINDOW, the Mixer page, then the Mixer menu at the top left:" />
+                                        <LineBreak /><Run Text="1. Select All Channels" />
+                                        <LineBreak /><Run Text="2. Route Outputs > Multichannel" />
+                                        <LineBreak /><LineBreak />
+                                        <Run Text="Then play: each drum gets a strip here as soon as it sounds." />
+                                    </TextBlock>
+                                </StackPanel>
                             </Border>
                         </StackPanel>
                     </DataTemplate>

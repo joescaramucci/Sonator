@@ -10,7 +10,7 @@
         Background="#2D2D2D"
         Foreground="#D2D3D5"
         FontFamily="Consolas"
-        WindowStartupLocation="CenterOwner"
+        WindowStartupLocation="CenterScreen"
         ShowInTaskbar="False">
     <Window.Resources>
         <Style TargetType="TextBlock">
