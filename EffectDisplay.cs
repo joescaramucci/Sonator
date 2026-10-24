@@ -375,7 +375,7 @@ public sealed class EffectDisplay : FrameworkElement
 
         // Beside it, the attack and the release: how the gain goes down when a loud sound comes in, and comes
         // back when it stops, each on its own time scale.
-        var envelope = new Rect(curveArea.Right + 12, plot.Y, plot.Right - curveArea.Right - 12, plot.Height);
+        var envelope = Box(curveArea.Right + 12, plot.Y, plot.Right - curveArea.Right - 12, plot.Height);
         if (envelope.Width < 70)
         {
             return;
@@ -625,16 +625,16 @@ public sealed class EffectDisplay : FrameworkElement
         drawingContext.DrawLine(ThresholdPen, new Point(area.X, Y(ceiling)), new Point(plot.Right, Y(ceiling)));
 
         // How far it turns the sound down now, as a bar beside the curve.
-        var bar = new Rect(area.Right + 14, area.Y, Math.Min(10, plot.Right - area.Right - 14), area.Height);
+        var bar = Box(area.Right + 14, area.Y, Math.Min(10, plot.Right - area.Right - 14), area.Height);
         if (bar.Width >= 6)
         {
             drawingContext.DrawRectangle(Solid(0x14, 0x15, 0x17), GridPen, bar);
             var reduction = Math.Clamp(effect.MeterValue / 24, 0, 1);
-            drawingContext.DrawRectangle(OrangeBrush, null, new Rect(bar.X + 1, bar.Y + 1, bar.Width - 2, (bar.Height - 2) * reduction));
+            drawingContext.DrawRectangle(OrangeBrush, null, Box(bar.X + 1, bar.Y + 1, bar.Width - 2, (bar.Height - 2) * reduction));
             Label(drawingContext, "GR", new Point(bar.X + bar.Width + 3, bar.Y), GridInk, 7.5);
         }
 
-        var releaseArea = new Rect(bar.Right + 22, plot.Y, plot.Right - bar.Right - 22, plot.Height);
+        var releaseArea = Box(bar.Right + 22, plot.Y, plot.Right - bar.Right - 22, plot.Height);
         if (releaseArea.Width >= 60)
         {
             DrawEnvelope(drawingContext, releaseArea, effect, null, 0, 1, Knob(effect, 1));
@@ -657,7 +657,8 @@ public sealed class EffectDisplay : FrameworkElement
         Title(drawingContext, plot, "TONE", lufs > -69 ? string.Format(CultureInfo.CurrentCulture, "{0:0.0} LUFS", lufs) : "PLAY TO MEASURE");
 
         // The tone: the three bands' gains across 20 Hz to 20 kHz, on a scale of 6 dB either way.
-        var curveArea = new Rect(plot.X, plot.Y, plot.Width * 0.68, plot.Height);
+        // The loudness bar and its marks keep their room at the right; the curve takes the rest.
+        var curveArea = Box(plot.X, plot.Y, plot.Width - 84, plot.Height);
         double X(double hz) => curveArea.X + curveArea.Width * Math.Log(hz / 20) / Math.Log(1000);
         double Y(double db) => curveArea.Y + curveArea.Height / 2 - db / 6 * (curveArea.Height / 2 - 2);
         drawingContext.DrawLine(AxisPen, new Point(curveArea.X, Y(0)), new Point(curveArea.Right, Y(0)));
@@ -670,6 +671,11 @@ public sealed class EffectDisplay : FrameworkElement
         var low = Knob(effect, 0);
         var presence = Knob(effect, 1);
         var air = Knob(effect, 2);
+        if (curveArea.Width < 20)
+        {
+            return;
+        }
+
         var curve = new StreamGeometry();
         using (var line = curve.Open())
         {
@@ -697,18 +703,14 @@ public sealed class EffectDisplay : FrameworkElement
         drawingContext.DrawGeometry(null, CurvePen, curve);
 
         // The loudness, from -30 to -6 LUFS, with the marks of TV, the streaming services and a loud master.
-        var bar = new Rect(curveArea.Right + 24, plot.Y, Math.Min(16, plot.Right - curveArea.Right - 60), plot.Height);
-        if (bar.Width < 8)
-        {
-            return;
-        }
+        var bar = Box(curveArea.Right + 16, plot.Y, 12, plot.Height);
 
         double LevelY(double value) => bar.Bottom - bar.Height * Math.Clamp((value + 30) / 24, 0, 1);
         drawingContext.DrawRectangle(Solid(0x14, 0x15, 0x17), GridPen, bar);
         if (lufs > -69)
         {
             var fill = lufs > -9 ? OrangeBrush : Solid(0x3C, 0xC8, 0xA6);
-            drawingContext.DrawRectangle(fill, null, new Rect(bar.X + 1, LevelY(lufs), bar.Width - 2, bar.Bottom - LevelY(lufs)));
+            drawingContext.DrawRectangle(fill, null, Box(bar.X + 1, LevelY(lufs), bar.Width - 2, bar.Bottom - LevelY(lufs)));
         }
 
         foreach (var (value, label) in new[] { (-23.0, "-23 TV"), (-14.0, "-14 web"), (-9.0, "-9 loud") })
@@ -1024,6 +1026,9 @@ public sealed class EffectDisplay : FrameworkElement
     }
 
     // ---- Helpers ----
+
+    // A rectangle that is never less than nothing across, however narrow the screen: WPF refuses a negative size.
+    private static Rect Box(double x, double y, double width, double height) => new(x, y, Math.Max(0, width), Math.Max(0, height));
 
     private static double Knob(TrackEffectViewModel effect, int index) =>
         index < effect.Parameters.Count ? effect.Parameters[index].Value : 0;
