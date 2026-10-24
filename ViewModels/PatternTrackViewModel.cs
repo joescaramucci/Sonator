@@ -364,6 +364,13 @@ public sealed class PatternTrackViewModel : ViewModelBase
         set => SetProperty(ref _isSolo, value);
     }
 
+    // True when the track takes part in the pattern's solos: soloed itself, or one of its kit's pieces is.
+    public bool IsSoloed => IsSolo || HasSoloedPiece;
+
+    // True when a piece of the track's kit is soloed: then only the soloed pieces of the kit are heard, and the
+    // track's own output only if it is soloed too.
+    public bool HasSoloedPiece => KitPieces.Any(piece => piece.IsSolo);
+
     public bool IsSelected
     {
         get => _isSelected;

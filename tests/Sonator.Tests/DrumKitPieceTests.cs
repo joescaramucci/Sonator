@@ -68,4 +68,30 @@ public sealed class DrumKitPieceTests
         Assert.False(restored.KitPieces[1].IsHeard);
         Assert.True(restored.HasHeardKitPieces);
     }
+
+    [Fact]
+    public void ASoloedPiece_SilencesTheRestOfTheKit_AndTheOtherTracks()
+    {
+        var pattern = PatternFactory.CreatePattern("Pattern 1", "Test", "01");
+        var track = pattern.Tracks[0];
+        var other = pattern.Tracks[1];
+        var snare = PatternTrackViewModel.CreateKitPiece(track, 1, "Snare");
+        var hihat = PatternTrackViewModel.CreateKitPiece(track, 3, "Hi-hat");
+        track.KitPieces.Add(snare);
+        track.KitPieces.Add(hihat);
+        var host = new TrackEffectsHost();
+
+        snare.IsSolo = true;
+        host.IsSoloActive = pattern.Tracks.Any(item => item.IsSoloed);
+
+        Assert.True(track.IsSoloed);
+        Assert.False(host.IsSilenced(snare));
+        Assert.True(host.IsSilenced(hihat));
+        Assert.True(host.IsSilenced(track)); // the kick, the track's own output
+        Assert.True(host.IsSilenced(other));
+
+        track.IsSolo = true;
+        Assert.False(host.IsSilenced(track));
+        Assert.True(host.IsSilenced(hihat));
+    }
 }

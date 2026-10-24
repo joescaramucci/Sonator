@@ -34,8 +34,8 @@ public sealed class KitPieceNamerTests
             namer.Read(track, new[]
             {
                 (snare, (snareHit ? 0.5 : 0) + (kick || hat ? 0.03 : 0.005)),
-                (hihat, (hat ? 0.3 : 0) + (snareHit ? 0.12 : 0) + (kick ? 0.02 : 0) + 0.005), // its microphone hears the snare too
-                (room, (kick ? 0.4 : 0) + (snareHit ? 0.35 : 0) + (hat ? 0.08 : 0) + 0.01),
+                (hihat, (hat ? 0.2 : 0) + (snareHit ? 0.09 : 0) + (kick ? 0.07 : 0) + 0.005), // its microphone hears the snare and kick too
+                (room, (kick ? 0.3 : 0) + (snareHit ? 0.45 : 0) + (hat ? 0.12 : 0) + 0.01),
                 (mine, snareHit ? 0.5 : 0.01),
             });
 

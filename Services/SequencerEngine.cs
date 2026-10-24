@@ -109,7 +109,7 @@ internal sealed class SequencerEngine : IDisposable
             return false;
         }
 
-        return _pattern?.Tracks.Any(candidate => candidate.IsSolo) != true || track.IsSolo;
+        return _pattern?.Tracks.Any(candidate => candidate.IsSoloed) != true || track.IsSoloed;
     }
 
     public double TempoBpm

@@ -241,7 +241,7 @@
                                 <Setter Property="BorderBrush" Value="#FF963A" />
                             </DataTrigger>
                             <DataTrigger Binding="{Binding IsKitPiece}" Value="True">
-                                <Setter Property="Width" Value="50" />
+                                <Setter Property="Width" Value="44" />
                             </DataTrigger>
                             <MultiDataTrigger>
                                 <MultiDataTrigger.Conditions>
@@ -383,9 +383,6 @@
                                 <Button.Style>
                                     <Style TargetType="Button" BasedOn="{StaticResource ConsoleButton}">
                                         <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsKitPiece}" Value="True">
-                                                <Setter Property="Visibility" Value="Hidden" />
-                                            </DataTrigger>
                                             <DataTrigger Binding="{Binding IsSolo}" Value="True">
                                                 <Setter Property="Background" Value="#F2C94C" />
                                                 <Setter Property="Foreground" Value="#2A2006" />

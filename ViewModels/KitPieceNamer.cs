@@ -6,10 +6,8 @@ namespace Sonator.ViewModels;
 // reading of the meters, each output's level is set against the kinds of drum the track struck just before, and
 // a least-squares fit finds how much each kind adds to that output's level. Bleed (every microphone hears a little
 // of the whole kit) and drums struck together are told apart this way: the snare's own output rises with the snare
-// whatever else is struck. The kind that adds the most names the output (Snare, Hi-hat...). A close microphone hears
-// little of the kick, the overheads and the room hear much of it, and of every drum: an output where the kick, or
-// three kinds or more, add a good part of the most is Room. Only a piece still named by Sonator is renamed, never
-// one the player has named.
+// whatever else is struck. The outputs are then named together (see NameAll): each close microphone after its drum
+// (Snare, Hi-hat...), the others Room. Only a piece still named by Sonator is renamed, never one the player has named.
 internal sealed class KitPieceNamer
 {
     internal static readonly string[] Kinds = ["Kick", "Snare", "Hi-hat", "Toms", "Crash", "Ride", "Percussion"];
@@ -27,10 +25,9 @@ internal sealed class KitPieceNamer
     private const int ReadsBetweenGuesses = 20;
     private const int StrikesNeeded = 6;
 
-    // How much a kind must add to the level to name the output, and the share of that a kind needs to count as
-    // heard well on it too.
+    // How much a kind must add to the level to name the output, and the purity of a close microphone.
     private const double LevelNeeded = 0.01;
-    private const double AlsoHeard = 0.3;
+    private const double CloseMicPurity = 0.75;
 
     private readonly Func<long> _clock;
     private readonly object _sync = new();
@@ -97,6 +94,7 @@ internal sealed class KitPieceNamer
             }
         }
 
+        var reads = 0;
         foreach (var (piece, peak) in peaks)
         {
             if (!_fits.TryGetValue(piece, out var fit))
@@ -105,10 +103,42 @@ internal sealed class KitPieceNamer
             }
 
             fit.Add(present, peak);
-            if (fit.Reads >= ReadsBeforeNaming && fit.Reads % ReadsBetweenGuesses == 0 && fit.NameFor() is { } name)
+            reads = Math.Max(reads, fit.Reads);
+        }
+
+        if (reads >= ReadsBeforeNaming && reads % ReadsBetweenGuesses == 0)
+        {
+            NameAll(track, peaks.Select(item => item.Piece).ToList());
+        }
+    }
+
+    // Names the kit's outputs together. Each plays the drum it hears most (its best kind); it is that drum's close
+    // microphone when it hears little else (its share of what it hears, its purity, is high), or when no output hears
+    // that drum more purely: a hi-hat microphone hears a good deal of the snare and the kick, the overheads more.
+    // Any other output is the room.
+    private void NameAll(PatternTrackViewModel track, IReadOnlyList<PatternTrackViewModel> pieces)
+    {
+        var heard = pieces
+            .Select(piece => (Piece: piece, Parts: _fits.TryGetValue(piece, out var fit) ? fit.Parts() : null))
+            .Where(item => item.Parts is not null)
+            .ToList();
+        double Purity(double[] parts, int kind)
+        {
+            var total = parts.Sum(part => Math.Max(0, part));
+            return total <= 0 ? 0 : Math.Max(0, parts[kind]) / total;
+        }
+
+        foreach (var (piece, parts) in heard)
+        {
+            var best = Enumerable.Range(0, Kinds.Length).MaxBy(kind => parts![kind]);
+            if (parts![best] < LevelNeeded)
             {
-                Rename(track, piece, name);
+                continue;
             }
+
+            var purity = Purity(parts, best);
+            var purest = heard.All(other => ReferenceEquals(other.Piece, piece) || Purity(other.Parts!, best) <= purity);
+            Rename(track, piece, purity >= CloseMicPurity || purest ? Kinds[best] : "Room");
         }
     }
 
@@ -145,27 +175,18 @@ internal sealed class KitPieceNamer
         }
 
 
-        // The kind of drum the output plays, Room for several (the overheads, the room), or null while it cannot tell.
-        public string? NameFor()
+        // How much each kind of drum adds to the output's level, for the kinds struck often enough to tell (0 for the
+        // others), or null when it cannot be solved.
+        public double[]? Parts()
         {
-            if (Solve() is not { } parts)
+            if (Solve() is not { } solved)
             {
                 return null;
             }
 
-            var weighed = Enumerable.Range(0, Kinds.Length)
-                .Where(kind => _strikes[kind + 1] >= StrikesNeeded)
-                .Select(kind => (Kind: Kinds[kind], Part: parts[kind + 1]))
-                .OrderByDescending(item => item.Part)
-                .ToList();
-            if (weighed.Count == 0 || weighed[0].Part < LevelNeeded)
-            {
-                return null;
-            }
-
-            var best = weighed[0];
-            var heard = weighed.Where(item => item.Part >= best.Part * AlsoHeard).Select(item => item.Kind).ToList();
-            return heard.Count >= 3 || (heard.Count >= 2 && heard.Contains(Kinds[0])) ? "Room" : best.Kind;
+            return Enumerable.Range(0, Kinds.Length)
+                .Select(kind => _strikes[kind + 1] >= StrikesNeeded ? solved[kind + 1] : 0)
+                .ToArray();
         }
 
         // Each part, from the sums with a little ridge so kinds never struck, or always struck together, stay

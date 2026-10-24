@@ -89,10 +89,14 @@ public partial class SoundBrowserWindow : Window
     // The category list's entry for the favorites: not a category of sounds, but the sounds marked.
     private const string FavoritesKey = "★";
 
+    // And the one for the sounds last loaded, the latest first.
+    private const string RecentKey = "↺";
+
     private readonly SoundFavorites _favorites = new();
+    private readonly RecentSounds _recent = new();
     private bool _updatingCategories;
 
-    // The categories with their counts, All and the favorites first; the one selected stays selected.
+    // The categories with their counts, All, the favorites and the last used first; the one selected stays selected.
     private void ShowCategories()
     {
         var keep = (CategoryList.SelectedItem as CategoryItem)?.Category;
@@ -101,6 +105,7 @@ public partial class SoundBrowserWindow : Window
         {
             new(null, "All sounds", _sounds.Count),
             new(FavoritesKey, "★ Favorites", _sounds.Count(_favorites.Contains)),
+            new(RecentKey, "↺ Last used", _recent.Of(_sounds).Count()),
         };
         items.AddRange(SoundCategories.All
             .Where(counts.ContainsKey)
@@ -160,8 +165,17 @@ public partial class SoundBrowserWindow : Window
     private void ShowSounds()
     {
         var category = (CategoryList.SelectedItem as CategoryItem)?.Category;
-        var pool = category == FavoritesKey ? _sounds.Where(_favorites.Contains) : _sounds;
-        var found = Sorted(SoundSearch.Filter(pool, SearchBox.Text, category == FavoritesKey ? null : category)).ToList();
+        var pool = category switch
+        {
+            FavoritesKey => _sounds.Where(_favorites.Contains),
+            RecentKey => _recent.Of(_sounds),
+            _ => _sounds,
+        };
+        var ownList = category is FavoritesKey or RecentKey;
+        // The last used keep their order, the latest first, until a column is chosen or something is searched.
+        var found = category == RecentKey && _sortColumn is null && string.IsNullOrWhiteSpace(SearchBox.Text)
+            ? pool.ToList()
+            : Sorted(SoundSearch.Filter(pool, SearchBox.Text, ownList ? null : category)).ToList();
         SoundList.ItemsSource = found;
         CountText.Text = $"{found.Count} sounds";
         if (found.Count > 0)
@@ -485,6 +499,9 @@ public partial class SoundBrowserWindow : Window
         {
             Mouse.OverrideCursor = null;
         }
+
+        _recent.Used(sound);
+        ShowCategories();
 
         StatusText.Text = _viewModel.StatusMessage;
         ShowTarget();

@@ -5311,7 +5311,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
     }
 
     // The tracks that make their own sound follow the pattern's solos, as the MIDI tracks do.
-    private void RefreshSolo() => _trackEffects.IsSoloActive = Tracks.Any(track => track.IsSolo);
+    private void RefreshSolo() => _trackEffects.IsSoloActive = Tracks.Any(track => track.IsSoloed);
 
     public void SetTrackColor(PatternTrackViewModel track, string? colorHex)
     {

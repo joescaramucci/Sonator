@@ -126,7 +126,14 @@ internal sealed class TrackEffectsHost : IDisposable
 
     // A track that makes its own sound (a plug-in or an audio clip) is silent while muted, or while another
     // track is soloed and it is not; its fader glides there and back, so muting never clicks.
-    internal bool IsSilenced(PatternTrackViewModel track) => track.IsMuted || (_isSoloActive && !track.IsSolo);
+    // A piece of a drum kit is silent with its track, or while other pieces of the kit are soloed and it is not;
+    // the track's own output too, while pieces of its kit are soloed and it is not.
+    internal bool IsSilenced(PatternTrackViewModel track) => track.KitParent is { } parent
+        ? IsSilenced(parent, ownOutput: false) || track.IsMuted || (parent.HasSoloedPiece && !track.IsSolo)
+        : IsSilenced(track, ownOutput: true);
+
+    private bool IsSilenced(PatternTrackViewModel track, bool ownOutput) =>
+        track.IsMuted || (_isSoloActive && !track.IsSoloed) || (ownOutput && track.HasSoloedPiece && !track.IsSolo);
 
     // A track's gain takes the master volume in; a bus's does not, since what reaches it already has it.
     // A bus has no sends of its own, nor does the master.
@@ -135,7 +142,7 @@ internal sealed class TrackEffectsHost : IDisposable
         // A kit piece plays at its own fader times its track's, silent with its track, with its own pan and sends.
         if (track.KitParent is { } parent)
         {
-            chain.SetGain(IsSilenced(parent) || track.IsMuted
+            chain.SetGain(IsSilenced(track)
                 ? 0.0
                 : Gain(track.MixVolume, _masterVolume) * parent.MixVolume / UnityVolume);
             chain.SetPan(track.MixPan);
@@ -186,8 +193,10 @@ internal sealed class TrackEffectsHost : IDisposable
     {
         if (e.PropertyName is nameof(PatternTrackViewModel.MixVolume) or nameof(PatternTrackViewModel.MixPan)
                 or nameof(PatternTrackViewModel.Sends) or nameof(PatternTrackViewModel.IsMuted) or nameof(PatternTrackViewModel.IsSolo)
-            && sender is PatternTrackViewModel track && _chains.TryGetValue(track, out var chain))
+            && sender is PatternTrackViewModel changed && (changed.KitParent ?? changed) is var track
+            && _chains.TryGetValue(track, out var chain))
         {
+            // A piece's solo changes what its whole kit plays.
             ApplyMix(track, chain);
             foreach (var piece in track.KitPieces)
             {
