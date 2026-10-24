@@ -239,6 +239,10 @@ public partial class MainWindow : Window
         _mixerWindow?.Close();
         _soundBrowser?.Close();
         _cromator?.Close();
+        foreach (var sondyne in _sondynes.Values.ToList())
+        {
+            sondyne.Close();
+        }
 
         if (_mainViewModel is not null)
         {
@@ -1822,6 +1826,38 @@ public partial class MainWindow : Window
                 viewModel.StatusMessage = $"{track.Name}'s clip is at about {found.Bpm:0.##} BPM; the song's tempo is left as it was";
                 break;
         }
+    }
+
+    // Sondyne, for the take of the clip right-clicked or of the selected track: one window a track.
+    private readonly Dictionary<PatternTrackViewModel, SondyneWindow> _sondynes = new();
+
+    private void SondyneMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        var track = (sender as FrameworkElement)?.DataContext is ArrangeTimelineTrackViewModel timeline
+            ? timeline.SourceTrack
+            : viewModel.SelectedTrack;
+        if (track?.AudioClipPath is not { } path || !File.Exists(path))
+        {
+            SonatorMessageDialog.Show(this, "Sondyne", "Select an audio track with a take first: Sondyne corrects the pitch of a sung or played take.");
+            return;
+        }
+
+        if (_sondynes.TryGetValue(track, out var open))
+        {
+            BringBack(open);
+            return;
+        }
+
+        var window = new SondyneWindow(viewModel, track); // no owner: see ShowMixerWindow
+        _sondynes[track] = window;
+        window.Closed += (_, _) => _sondynes.Remove(track);
+        FollowPluginWindow(window);
+        window.Show();
     }
 
     private void EditClipMenuItem_Click(object sender, RoutedEventArgs e)

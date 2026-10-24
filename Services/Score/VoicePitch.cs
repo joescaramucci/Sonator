@@ -5,11 +5,11 @@ public sealed record SungNote(double Start, double End, int Note);
 
 // Hears the melody of a single voice: its pitch every hundredth of a second (the YIN method, on the take brought
 // down to about 11 kHz, plenty for a voice), whether that hundredth is sung at all (loud enough and clearly pitched),
-// then notes: a new one where the pitch moves to another semitone and stays there, or where the voice starts again
-// after a breath or a consonant. The singer's own tuning, a little sharp or flat throughout, is allowed for.
+// then notes: a new one where the pitch, its vibrato smoothed away, moves to another semitone and stays there, or
+// where the voice starts again after a breath or a consonant. The singer's own tuning, a little sharp or flat throughout, is allowed for.
 public static class VoicePitch
 {
-    private const double FrameSeconds = 0.01;
+    public const double FrameSeconds = 0.01;
     private const double WindowSeconds = 0.04;
     private const double LowestHz = 70;
     private const double HighestHz = 1050;
@@ -127,6 +127,7 @@ public static class VoicePitch
     {
         var (pitch, loudness) = Track(mono, sampleRate);
         var tuning = Tuning(pitch);
+        var steady = Steady(pitch);
         var notes = new List<SungNote>();
 
         var f = 0;
@@ -140,7 +141,8 @@ public static class VoicePitch
 
             // A run of sung hundredths, cut where the pitch settles on another semitone or the voice starts again.
             var start = f;
-            var current = Math.Round(pitch[f] - tuning);
+            // The note it is: where the voice sits over the next 80 ms.
+            var current = Math.Round(Median(pitch, f, f + 8) - tuning);
             var away = 0;
             var quietest = loudness[f];
             var loudest = loudness[f];
@@ -148,7 +150,7 @@ public static class VoicePitch
             {
                 var ends = f == pitch.Length || double.IsNaN(pitch[f]);
                 var onset = !ends && f - start >= 6 && loudness[f] > 2.2 * quietest && quietest < 0.5 * loudest;
-                if (!ends && Math.Abs(pitch[f] - tuning - current) > 0.6)
+                if (!ends && Math.Abs(steady[f] - tuning - current) > 0.6)
                 {
                     away++;
                 }
@@ -168,7 +170,7 @@ public static class VoicePitch
                     }
 
                     start = end;
-                    current = Math.Round(Median(pitch, start, f + 1) - tuning);
+                    current = Math.Round(Median(pitch, f, f + 8) - tuning);
                     away = 0;
                     quietest = loudest = loudness[f];
                     continue;
@@ -181,6 +183,40 @@ public static class VoicePitch
         }
 
         return notes;
+    }
+
+    // The pitch with its vibrato smoothed away: the mean over 200 ms (a vibrato's cycle or so), within each
+    // stretch sung; for telling where the voice really moves to another note.
+    private static double[] Steady(double[] pitch)
+    {
+        const int Radius = 10;
+        var steady = new double[pitch.Length];
+        for (var i = 0; i < pitch.Length; i++)
+        {
+            if (double.IsNaN(pitch[i]))
+            {
+                steady[i] = double.NaN;
+                continue;
+            }
+
+            double sum = 0;
+            var count = 0;
+            for (var j = i; j >= Math.Max(0, i - Radius) && !double.IsNaN(pitch[j]); j--)
+            {
+                sum += pitch[j];
+                count++;
+            }
+
+            for (var j = i + 1; j <= Math.Min(pitch.Length - 1, i + Radius) && !double.IsNaN(pitch[j]); j++)
+            {
+                sum += pitch[j];
+                count++;
+            }
+
+            steady[i] = sum / count;
+        }
+
+        return steady;
     }
 
     private static void Add(List<SungNote> notes, double[] pitch, double tuning, int start, int end)

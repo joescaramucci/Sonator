@@ -110,6 +110,12 @@ public static class HelpTexts
             "DRUM MAP names the keys by the General MIDI drums (BD bass drum, SN snare, HH C / P / O closed, pedal and open hi-hat, CR crash, RD ride, LT MT HT FT toms...). It is on by itself for a drum track.",
             "Space plays and stops.",
         }),
+        [typeof(SondyneWindow)] = new("Sondyne", new[]
+        {
+            "The notes of a sung (or played) take, each a blob on the semitones, as long as it lasts and as thick as it is loud, with the pitch sung drawn through it. Open it from a clip's right-click, or Track > Correct the pitch.",
+            "Click a note to select it (Ctrl adds, Ctrl+A all) and drag it up or down a semitone at a time, with Alt by cents; a double-click brings it to the middle of its semitone. CENTER brings the selected notes (all, with none selected) to the middle of their semitones, DRIFT steadies their wobble; CORRECT ALL does both, gently, to every note, and RESET takes the changes back.",
+            "PLAY (or Space) plays it as changed, from just before the notes selected. APPLY puts it on the track in place of the take, which Undo in the main window brings back; the take itself is never changed.",
+        }),
         [typeof(CromatorWindow)] = new("Cromator", new[]
         {
             "The score of a track of the selected pattern (of the whole song with ARRANGE on): its notes on a staff, in the clef and key they need, with rests, ties, beams and the bar numbers. It follows the track as you record or edit it.",

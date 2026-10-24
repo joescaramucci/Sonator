@@ -83,4 +83,23 @@ public sealed class VoiceToScoreTests
         Assert.InRange(notes[1].Start, 0.55, 0.7);
         Assert.InRange(notes[2].Start, 1.15, 1.3);
     }
+
+    [Fact]
+    public void AWideVibrato_StaysOneNote()
+    {
+        const int Rate = 44100;
+        var samples = new float[(int)(1.2 * Rate)];
+        var phase = 0.0;
+        for (var i = (int)(0.1 * Rate); i < (int)(1.1 * Rate); i++)
+        {
+            var midi = 62.2 + 0.45 * Math.Sin(2 * Math.PI * 5.5 * i / Rate);
+            phase += 2 * Math.PI * 440 * Math.Pow(2, (midi - 69) / 12) / Rate;
+            samples[i] = (float)(0.3 * Math.Sin(phase) + 0.12 * Math.Sin(2 * phase));
+        }
+
+        var notes = VoicePitch.Notes(samples, Rate);
+
+        Assert.Single(notes);
+        Assert.Equal(62, notes[0].Note);
+    }
 }

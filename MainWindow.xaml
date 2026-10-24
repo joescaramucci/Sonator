@@ -602,6 +602,7 @@
                     <MenuItem Header="_Track">
                         <MenuItem Header="Browse _sounds..." Click="ShowSoundsButton_Click" InputGestureText="Ctrl+B" />
                         <MenuItem Header="Piano roll..." Click="PianoRollMenuItem_Click" />
+                        <MenuItem Header="Correct the pitch (Sondyne)..." Click="SondyneMenuItem_Click" />
                         <MenuItem Header="New MIDI channel track" Click="AddMidiTrackMenuItem_Click" />
                         <MenuItem Header="New VST track" Click="AddVstTrackMenuItem_Click" />
                         <MenuItem Header="New audio input track" Click="AddAudioTrackMenuItem_Click" />
@@ -1638,6 +1639,7 @@
                                                 <ContextMenu>
                                                     <MenuItem Header="Detect tempo and sync the song..." Click="DetectTempoMenuItem_Click" />
                                                     <MenuItem Header="Edit in the waveform editor" Click="EditClipMenuItem_Click" />
+                                                    <MenuItem Header="Correct the pitch in Sondyne..." Click="SondyneMenuItem_Click" />
                                                 </ContextMenu>
                                             </Border.ContextMenu>
                                             <Border.Margin>
