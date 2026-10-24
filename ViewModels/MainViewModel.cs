@@ -1152,6 +1152,12 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         get => _selectedTrack;
         set
         {
+            // The timeline's list empties while it is built again, which would take the selection with it.
+            if (value is null && _rebuildingTimeline)
+            {
+                return;
+            }
+
             if (!_selectedBlocks.Any(item => ReferenceEquals(item.Track, value)))
             {
                 ClearBlockSelection();
@@ -4719,6 +4725,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
             ? GetArrangePlaybackPatterns()
             : GetSelectedPatternTimelinePatterns();
 
+        _rebuildingTimeline = true;
         TimelineTracks.Clear();
         TimelineBarNumbers.Clear();
         var timelineBarCount = timelinePatterns.Sum(pattern => PatternBarCount(pattern, StepsPerBar));
@@ -4767,9 +4774,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         RaisePropertyChanged(nameof(TimelineWorkspaceWidth));
         UpdateSongTimelinePosition(CurrentStepIndex);
         ShowBlockSelection();
+        _rebuildingTimeline = false;
+        RaisePropertyChanged(nameof(SelectedTrack)); // the new lanes show the track still selected
 
         _lastRebuildMs = Stopwatch.GetElapsedTime(rebuildStart).TotalMilliseconds;
     }
+
+    private bool _rebuildingTimeline;
 
     private List<PatternViewModel> GetSelectedPatternTimelinePatterns()
     {

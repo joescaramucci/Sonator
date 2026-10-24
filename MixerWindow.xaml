@@ -240,8 +240,11 @@
                             <DataTrigger Binding="{Binding IsSelected}" Value="True">
                                 <Setter Property="BorderBrush" Value="#FF963A" />
                             </DataTrigger>
+                            <!-- A kit piece: narrower, and shorter than its track's strip at top and bottom, so the kit's
+                                 shaded ground shows round them. -->
                             <DataTrigger Binding="{Binding IsKitPiece}" Value="True">
-                                <Setter Property="Width" Value="44" />
+                                <Setter Property="Width" Value="46" />
+                                <Setter Property="Margin" Value="0,7,2,7" />
                             </DataTrigger>
                             <MultiDataTrigger>
                                 <MultiDataTrigger.Conditions>
@@ -303,7 +306,7 @@
                         <Border Height="18" Margin="3,4,3,0" Background="#EFE6C8" CornerRadius="1" Cursor="Hand"
                                 MouseLeftButtonUp="TrackName_MouseLeftButtonUp">
                             <Grid>
-                                <TextBlock Text="{Binding Name}" FontFamily="Segoe Print" FontSize="9" Foreground="#1E2A6B"
+                                <TextBlock Text="{Binding Name}" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="10" Foreground="#1E2A6B"
                                            HorizontalAlignment="Center" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="2,0">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
@@ -315,7 +318,7 @@
                                         </Style>
                                     </TextBlock.Style>
                                 </TextBlock>
-                                <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}" FontFamily="Segoe Print" FontSize="9" Foreground="#1E2A6B"
+                                <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="10" Foreground="#1E2A6B"
                                          Background="Transparent" BorderThickness="0" Padding="0" HorizontalContentAlignment="Center"
                                          VerticalContentAlignment="Center" KeyDown="KitPieceName_KeyDown">
                                     <TextBox.Style>
@@ -453,7 +456,7 @@
                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
                     <Border Height="18" Margin="3,4,3,0" Background="#EFE6C8" CornerRadius="1">
-                        <TextBlock Text="Master" FontFamily="Segoe Print" FontSize="9" Foreground="#1E2A6B" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <TextBlock Text="Master" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="10" Foreground="#1E2A6B" HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
                     <ContentControl ContentTemplate="{StaticResource Screw}" Margin="0,4,0,3" Focusable="False" />
                 </StackPanel>
@@ -675,7 +678,7 @@
                                     </Border>
                                     <!-- The bus's name, on tape too: it can be written on. -->
                                     <TextBox Height="18" Margin="3,4,3,0" Background="#DCEFE9" BorderThickness="0" Padding="0"
-                                             Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" FontFamily="Segoe Print" FontSize="9" Foreground="#0F4A42"
+                                             Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="10" Foreground="#0F4A42"
                                              HorizontalContentAlignment="Center" VerticalContentAlignment="Center" ToolTip="The bus's name: click to write it" />
                                     <ContentControl ContentTemplate="{StaticResource Screw}" Margin="0,4,0,3" Focusable="False" />
                                 </StackPanel>
