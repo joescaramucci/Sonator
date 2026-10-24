@@ -1,0 +1,90 @@
+<Window x:Class="Sonator.CromatorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Cromator"
+        Width="1280"
+        Height="900"
+        Background="#2D2D2D"
+        Foreground="#D2D3D5"
+        FontFamily="Consolas"
+        WindowStartupLocation="CenterScreen"
+        ShowInTaskbar="False">
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Margin" Value="4,0,0,0" />
+            <Setter Property="Padding" Value="10,4" />
+            <Setter Property="Background" Value="#414141" />
+            <Setter Property="Foreground" Value="#D2D3D5" />
+            <Setter Property="BorderBrush" Value="#5C7A99" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template" Value="{StaticResource Raised3D}" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#575757" />
+                    <Setter Property="BorderBrush" Value="#7EB2FF" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="Label" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="14,0,6,0" />
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="#1E1F21" />
+            <Setter Property="Foreground" Value="#E6E7E9" />
+            <Setter Property="BorderBrush" Value="#5A5C60" />
+            <Setter Property="CaretBrush" Value="#E6E7E9" />
+            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Padding" Value="4,2" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+    </Window.Resources>
+    <DockPanel>
+        <!-- What is written: the track, the title and the author; how big it shows; print or save as PDF. -->
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="10,8,10,8">
+            <TextBlock Style="{StaticResource Label}" Margin="0,0,6,0" Text="TRACK" />
+            <ComboBox x:Name="TrackBox" Width="180" Height="26" DisplayMemberPath="Name" FontFamily="Segoe UI" FontSize="13"
+                      SelectionChanged="TrackBox_SelectionChanged" />
+            <TextBlock Style="{StaticResource Label}" Text="TITLE" />
+            <TextBox x:Name="TitleBox" Width="240" Height="26" TextChanged="ScoreText_TextChanged" />
+            <TextBlock Style="{StaticResource Label}" Text="AUTHOR" />
+            <TextBox x:Name="AuthorBox" Width="180" Height="26" TextChanged="ScoreText_TextChanged" />
+            <TextBlock Style="{StaticResource Label}" Text="ZOOM" />
+            <Slider x:Name="ZoomSlider" Width="110" Minimum="0.5" Maximum="2" Value="1" VerticalAlignment="Center"
+                    ValueChanged="ZoomSlider_ValueChanged" />
+            <Button Content="PRINT" Margin="18,0,0,0" Click="Print_Click" />
+            <Button Content="PDF" Click="Pdf_Click" />
+        </StackPanel>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="300" />
+            </Grid.ColumnDefinitions>
+            <!-- The pages, as they print. -->
+            <ScrollViewer x:Name="PageScroller" Background="#3A3B3E" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="Pages" Margin="24" HorizontalAlignment="Center">
+                    <StackPanel.LayoutTransform>
+                        <ScaleTransform x:Name="PageScale" ScaleX="1" ScaleY="1" />
+                    </StackPanel.LayoutTransform>
+                </StackPanel>
+            </ScrollViewer>
+            <TextBlock x:Name="EmptyText" FontFamily="Segoe UI" FontSize="14" Foreground="#C9CCD1" TextWrapping="Wrap"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" Margin="40" Visibility="Collapsed"
+                       Text="No track of this pattern has notes yet: record or write some, and the score shows here." />
+            <!-- The words, set a syllable to each note. -->
+            <DockPanel Grid.Column="1" Margin="10,0,10,10">
+                <TextBlock DockPanel.Dock="Top" Style="{StaticResource Label}" Margin="0,0,0,6" Text="LYRICS" />
+                <TextBlock DockPanel.Dock="Bottom" FontFamily="Segoe UI" FontSize="12" Foreground="#AEB2B8" TextWrapping="Wrap" Margin="0,8,0,0"
+                           Text="A syllable goes under each note, in order. Split words with a hyphen (a-mo-re); a lone _ leaves a note without a syllable, to hold one over several notes." />
+                <TextBox x:Name="LyricsBox" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top"
+                         VerticalScrollBarVisibility="Auto" FontSize="14" TextChanged="LyricsBox_TextChanged" />
+            </DockPanel>
+        </Grid>
+    </DockPanel>
+</Window>

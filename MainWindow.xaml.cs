@@ -238,6 +238,7 @@ public partial class MainWindow : Window
         // The windows that belong to no window close with this one.
         _mixerWindow?.Close();
         _soundBrowser?.Close();
+        _cromator?.Close();
 
         if (_mainViewModel is not null)
         {
@@ -1687,6 +1688,33 @@ public partial class MainWindow : Window
     {
         window.Deactivated += (_, _) => _toolDeactivated[window] = DateTime.UtcNow;
         window.Closed += (_, _) => _toolDeactivated.Remove(window);
+    }
+
+    private CromatorWindow? _cromator;
+
+    // Cromator, the score of the selected track: one window, which SCORE brings back or puts in the dock, as MIXER.
+    private void ShowScoreButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        if (_cromator is null)
+        {
+            _cromator = new CromatorWindow(viewModel); // no owner: see ShowMixerWindow
+            _cromator.Closed += (_, _) => _cromator = null;
+            FollowPluginWindow(_cromator);
+            RememberDeactivation(_cromator);
+            _cromator.Show();
+            return;
+        }
+
+        if (!DockIfInFront(_cromator))
+        {
+            _cromator.ShowTrack(viewModel.SelectedTrack);
+            BringBack(_cromator);
+        }
     }
 
     private void ShowMixerButton_Click(object sender, RoutedEventArgs e)

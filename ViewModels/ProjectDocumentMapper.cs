@@ -55,7 +55,8 @@ internal static class ProjectDocumentMapper
             track.NoteBlocks.Count == 0 ? null : track.NoteBlocks.Select(block => new NoteBlockDocument(block.StartStep, block.LengthSteps)).ToList(),
             track.KitPieces.Count == 0 ? null : track.KitPieces.Select(BuildTrackDocument).ToList(),
             track.KitOutput,
-            track.IsHeard);
+            track.IsHeard,
+            string.IsNullOrEmpty(track.Lyrics) ? null : track.Lyrics);
     }
 
     // A track's kit pieces, as saved, each knowing its track.
@@ -145,6 +146,7 @@ internal static class ProjectDocumentMapper
         targetTrack.TrackColorBrush = CreateTrackColorBrush(sourceTrack.TrackColor);
         targetTrack.NoteBlocks = Blocks(sourceTrack.NoteBlocks);
         SetKitPieces(targetTrack, sourceTrack.KitPieces);
+        targetTrack.Lyrics = sourceTrack.Lyrics ?? string.Empty;
         targetTrack.MidiNoteEvents = sourceTrack.MidiNoteEvents is null
             ? Array.Empty<MidiNoteEventViewModel>()
             : sourceTrack.MidiNoteEvents
@@ -236,6 +238,7 @@ internal static class ProjectDocumentMapper
         }
 
         SetKitPieces(track, trackDocument.KitPieces);
+        track.Lyrics = trackDocument.Lyrics ?? string.Empty;
         return track;
     }
 

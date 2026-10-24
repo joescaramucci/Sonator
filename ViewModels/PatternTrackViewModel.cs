@@ -181,6 +181,16 @@ public sealed class PatternTrackViewModel : ViewModelBase
     private string? _soundName;
 
     // The sound last loaded on the track from the sound browser, such as "Grand Piano". Null when none is.
+    private string _lyrics = string.Empty;
+
+    // The words sung on the track's notes, as Cromator sets them under the staff: syllables split by hyphens, an
+    // underscore for a note with none.
+    public string Lyrics
+    {
+        get => _lyrics;
+        set => SetProperty(ref _lyrics, value ?? string.Empty);
+    }
+
     public string? SoundName
     {
         get => _soundName;

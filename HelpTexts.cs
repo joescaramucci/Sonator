@@ -109,6 +109,12 @@ public static class HelpTexts
             "DRUM MAP names the keys by the General MIDI drums (BD bass drum, SN snare, HH C / P / O closed, pedal and open hi-hat, CR crash, RD ride, LT MT HT FT toms...). It is on by itself for a drum track.",
             "Space plays and stops.",
         }),
+        [typeof(CromatorWindow)] = new("Cromator", new[]
+        {
+            "The score of a track of the selected pattern (of the whole song with ARRANGE on): its notes on a staff, in the clef and key they need, with rests, ties, beams and the bar numbers. It follows the track as you record or edit it.",
+            "Write the words under LYRICS: a syllable goes under each note, in order. Split words with a hyphen (a-mo-re); a lone _ leaves a note without a syllable. TITLE and AUTHOR head the first page, and are saved with the project, as the words are with the track.",
+            "PRINT prints it on A4; PDF saves it as a PDF file through Windows' PDF printer, which asks where. SCORE brings the window back, or puts it in the dock.",
+        }),
         [typeof(SoundBrowserWindow)] = new("Sounds", new[]
         {
             "The sounds of your plug-ins and Sonator's grooves, by category. Click one to hear it, then put it on the selected track; the star keeps it among your favourites, and Last used lists the latest ones you put on a track, newest first.",

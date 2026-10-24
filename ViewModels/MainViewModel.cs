@@ -6482,7 +6482,66 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
             MasterVolumeLeft,
             MasterVolumeRight,
             IsMasterLinked,
-            HasLoopRange);
+            HasLoopRange,
+            string.IsNullOrWhiteSpace(ScoreTitle) ? null : ScoreTitle,
+            string.IsNullOrWhiteSpace(ScoreAuthor) ? null : ScoreAuthor);
+    }
+
+    // ---- The score (Cromator) ----
+
+    private string _scoreTitle = string.Empty;
+    private string _scoreAuthor = string.Empty;
+
+    // The title printed at the top of the score; the song's name when none is written.
+    public string ScoreTitle
+    {
+        get => _scoreTitle;
+        set => SetProperty(ref _scoreTitle, value ?? string.Empty);
+    }
+
+    public string ScoreAuthor
+    {
+        get => _scoreAuthor;
+        set => SetProperty(ref _scoreAuthor, value ?? string.Empty);
+    }
+
+    // The tracks of the selected pattern a score can be written for: those with notes to play.
+    public IReadOnlyList<PatternTrackViewModel> ScoreTracks =>
+        SelectedPattern?.Tracks
+            .Where(track => track.SupportsMidiPlayback && (track.MidiNoteEvents.Count > 0 || track.Steps.Any(step => step.IsActive)))
+            .ToList()
+        ?? (IReadOnlyList<PatternTrackViewModel>)Array.Empty<PatternTrackViewModel>();
+
+    // The notes of a track as the score writes them, in steps from the start: through the whole song with ARRANGE
+    // on (the track in the same place of each pattern played), the selected pattern once otherwise; and how many
+    // steps that lasts.
+    public (IReadOnlyList<(double Start, double Length, int Note)> Notes, int TotalSteps) ScoreNotesOf(PatternTrackViewModel track)
+    {
+        var patterns = IsArrangeMode ? GetArrangePlaybackPatterns() : SelectedPattern is { } pattern ? new List<PatternViewModel> { pattern } : new List<PatternViewModel>();
+        var index = SelectedPattern?.Tracks.IndexOf(track) ?? -1;
+        var notes = new List<(double, double, int)>();
+        var offset = 0;
+        foreach (var played in patterns)
+        {
+            var length = PatternBarCount(played, StepsPerBar) * StepsPerBar;
+            var source = ReferenceEquals(played, SelectedPattern) ? track : index >= 0 && index < played.Tracks.Count ? played.Tracks[index] : null;
+            if (source is not null && source.MidiNoteEvents.Count > 0)
+            {
+                notes.AddRange(source.MidiNoteEvents
+                    .Where(note => note.StepIndex < length)
+                    .Select(note => (offset + note.StepIndex + note.StartOffset, Math.Max(0.5, note.DurationSteps + note.LengthFraction), note.NoteNumber)));
+            }
+            else if (source is not null)
+            {
+                notes.AddRange(source.Steps
+                    .Where(step => step.IsActive && step.Index < length)
+                    .Select(step => ((double)offset + step.Index, (double)Math.Max(1, step.DurationSteps), step.MidiNoteNumber ?? source.NoteNumber)));
+            }
+
+            offset += length;
+        }
+
+        return (notes, offset);
     }
 
     private void RestoreMasterEffects(IEnumerable<EffectDocument>? documents)
@@ -6567,6 +6626,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
             }
 
             HasLoopRange = document.HasLoopRange;
+            ScoreTitle = document.ScoreTitle ?? string.Empty;
+            ScoreAuthor = document.ScoreAuthor ?? string.Empty;
 
             SelectedMidiOutputDevice = MidiOutputDevices.FirstOrDefault(device => device.DisplayName == document.SelectedMidiOutputDeviceName)
                 ?? MidiOutputDevices.FirstOrDefault(device => device.IsOff);

@@ -21,7 +21,9 @@ public sealed record ProjectDocument(
         double? MasterVolumeLeft = null,
         double? MasterVolumeRight = null,
         bool MasterFadersLinked = true,
-        bool HasLoopRange = false);
+        bool HasLoopRange = false,
+        string? ScoreTitle = null,
+        string? ScoreAuthor = null);
 
 // From this step on the song plays at Bpm.
 public sealed record TempoChangeDocument(int Step, double Bpm);
@@ -74,7 +76,8 @@ public sealed record TrackDocument(
     List<NoteBlockDocument>? NoteBlocks = null,
     List<TrackDocument>? KitPieces = null,
     int KitOutput = 0,
-    bool KitPieceHeard = false);
+    bool KitPieceHeard = false,
+    string? Lyrics = null);
 
 // A block of a track's notes on the timeline (see NoteBlock).
 public sealed record NoteBlockDocument(int StartStep, int LengthSteps);

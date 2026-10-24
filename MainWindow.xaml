@@ -701,7 +701,7 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="1.45*" />
+                    <ColumnDefinition Width="1.75*" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
                 <Border Grid.Column="0" Style="{StaticResource BarCell}" local:HelpBadge.Topic="Loop" local:HelpBadge.IsSmall="True">
@@ -876,6 +876,8 @@
                         <Button Content="SOUNDS" Style="{StaticResource BottomTabButton}" Width="66" Margin="2,0"
                                 Click="ShowSoundsButton_Click" AutomationProperties.Name="Browse sounds"
                                 ToolTip="Find a sound in all the plug-ins, by category or by name, and load it on the selected track (Ctrl+B)" />
+                        <Button Content="SCORE" Style="{StaticResource BottomTabButton}" Width="58" Margin="2,0"
+                                Click="ShowScoreButton_Click" AutomationProperties.Name="Open Cromator, the score" />
                     </StackPanel>
                 </Border>
                 <!-- How hard the PC is working: CPU, the plug-ins' audio load with its dropouts, and memory. -->
