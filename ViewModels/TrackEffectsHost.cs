@@ -132,6 +132,21 @@ internal sealed class TrackEffectsHost : IDisposable
     // A bus has no sends of its own, nor does the master.
     private void ApplyMix(PatternTrackViewModel track, NativeEffectChain chain)
     {
+        // A kit piece plays at its own fader times its track's, silent with its track, with its own pan and sends.
+        if (track.KitParent is { } parent)
+        {
+            chain.SetGain(IsSilenced(parent) || track.IsMuted
+                ? 0.0
+                : Gain(track.MixVolume, _masterVolume) * parent.MixVolume / UnityVolume);
+            chain.SetPan(track.MixPan);
+            for (var slot = 0; slot < NativeEffectChain.MaxBuses; slot++)
+            {
+                chain.SetSend(slot, Gain(slot < _buses.Count ? track.SendLevel(_buses[slot].BusId) : 0, UnityVolume));
+            }
+
+            return;
+        }
+
         var isMaster = ReferenceEquals(track, _master);
         var isBus = IsBus(track);
         chain.SetGain(isMaster ? 1.0
@@ -174,6 +189,13 @@ internal sealed class TrackEffectsHost : IDisposable
             && sender is PatternTrackViewModel track && _chains.TryGetValue(track, out var chain))
         {
             ApplyMix(track, chain);
+            foreach (var piece in track.KitPieces)
+            {
+                if (_chains.TryGetValue(piece, out var pieceChain))
+                {
+                    ApplyMix(piece, pieceChain);
+                }
+            }
         }
     }
 

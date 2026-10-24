@@ -110,6 +110,10 @@ public sealed class NativeEffectChain : IDisposable
 
     public static void Detach(Vst3ModuleHandle module) => Vst3HostInterop.VstHostBridge_AttachEffectChain(module.NativeHandle, IntPtr.Zero);
 
+    // The chain runs on one of the plug-in's other outputs (1 and up), which then plays apart from the main one.
+    public void AttachToOutput(Vst3ModuleHandle module, int output) =>
+        Vst3HostInterop.VstHostBridge_AttachOutputEffectChain(module.NativeHandle, output, _handle);
+
     public void Dispose()
     {
         if (_handle != IntPtr.Zero)

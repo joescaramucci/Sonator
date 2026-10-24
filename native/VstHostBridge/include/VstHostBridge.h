@@ -81,6 +81,13 @@ VSTHOSTBRIDGE_API int VstHostBridge_TakeEffectLevels(void* chainHandle, int32_t 
 VSTHOSTBRIDGE_API void VstHostBridge_ProcessEffectChain(void* chainHandle, float* interleaved, int32_t frames, int32_t channels, double sampleRate);
 // Runs the chain on the module's plug-in output from now on. A null chain detaches it.
 VSTHOSTBRIDGE_API int VstHostBridge_AttachEffectChain(void* moduleHandle, void* chainHandle);
+// How many audio outputs the plug-in has (a drum plug-in may give each drum its own), at most 32; 0 for none.
+VSTHOSTBRIDGE_API int VstHostBridge_GetOutputBusCount(void* moduleHandle);
+// The name the plug-in gives one of its audio outputs. Returns 1 on success.
+VSTHOSTBRIDGE_API int VstHostBridge_GetOutputBusName(void* moduleHandle, int32_t bus, wchar_t* outName, int32_t nameCapacity);
+// Runs the chain on one of the plug-in's other outputs (bus 1 and up) from now on, apart from output 0: the
+// output then plays through it into the mix. A null chain detaches it, and the output joins output 0 again.
+VSTHOSTBRIDGE_API int VstHostBridge_AttachOutputEffectChain(void* moduleHandle, int32_t bus, void* chainHandle);
 
 // Attempts to load a VST3 module (a .vst3 file or bundle) at the given path,
 // instantiate its first audio effect component and its edit controller.

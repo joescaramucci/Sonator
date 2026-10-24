@@ -230,6 +230,197 @@
                 <TextBlock Style="{StaticResource Legend}" Text="{Binding Bus.Name}" FontSize="7" TextTrimming="CharacterEllipsis" />
             </StackPanel>
         </DataTemplate>
+        <DataTemplate x:Key="ChannelStrip">
+            <!-- One track's channel module, top to bottom as the sound goes: inserts, sends, pan, mute and
+                 solo, the fader with its meter, and the name on tape; narrower for a piece of a drum kit. -->
+            <Border PreviewMouseLeftButtonDown="Strip_PreviewMouseLeftButtonDown">
+                <Border.Style>
+                    <Style TargetType="Border" BasedOn="{StaticResource Module}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                <Setter Property="BorderBrush" Value="#FF963A" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsKitPiece}" Value="True">
+                                <Setter Property="Width" Value="50" />
+                            </DataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsKitPiece}" Value="True" />
+                                    <Condition Binding="{Binding IsHeard}" Value="False" />
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Visibility" Value="Collapsed" />
+                            </MultiDataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Top">
+                        <ContentControl ContentTemplate="{StaticResource Screw}" Margin="0,3,0,2" Focusable="False" />
+                        <Border Height="5" Background="{Binding TrackColorBrush}" Margin="4,0" />
+                        <!-- KIT opens the drum kit's pieces beside the track, as a click on its fader does. Every track's strip
+                             keeps room for it, so the strips stay lined up. -->
+                        <Button Content="KIT" Margin="4,3,4,0" Height="13" FontSize="7" Click="Kit_Click">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource ConsoleButton}">
+                                    <Setter Property="Visibility" Value="Hidden" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasKitPieces}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsKitOpen}" Value="True">
+                                            <Setter Property="Background" Value="#F2C94C" />
+                                            <Setter Property="Foreground" Value="#2A2006" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <TextBlock Style="{StaticResource Legend}" Text="INSERT" Margin="0,4,0,1" />
+                    </StackPanel>
+                    <StackPanel DockPanel.Dock="Bottom">
+                        <Border Height="15" Margin="4,4,4,0" Background="#101113" CornerRadius="2">
+                            <TextBlock Text="{Binding VolumeDisplay}" FontFamily="Consolas" FontSize="8.5" Foreground="#FF8A3D"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <!-- The scribble strip: the track's name on a strip of tape; a kit piece's name is written on it. -->
+                        <Border Height="18" Margin="3,4,3,0" Background="#EFE6C8" CornerRadius="1" Cursor="Hand"
+                                MouseLeftButtonUp="TrackName_MouseLeftButtonUp">
+                            <Grid>
+                                <TextBlock Text="{Binding Name}" FontFamily="Segoe Print" FontSize="9" Foreground="#1E2A6B"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="2,0">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsKitPiece}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}" FontFamily="Segoe Print" FontSize="9" Foreground="#1E2A6B"
+                                         Background="Transparent" BorderThickness="0" Padding="0" HorizontalContentAlignment="Center"
+                                         VerticalContentAlignment="Center" KeyDown="KitPieceName_KeyDown">
+                                    <TextBox.Style>
+                                        <Style TargetType="TextBox">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsKitPiece}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBox.Style>
+                                </TextBox>
+                            </Grid>
+                        </Border>
+                        <ContentControl ContentTemplate="{StaticResource Screw}" Margin="0,4,0,3" Focusable="False" />
+                    </StackPanel>
+                    <Grid DockPanel.Dock="Bottom" Height="230" Margin="1,6,3,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="17" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="5" />
+                        </Grid.ColumnDefinitions>
+                        <local:FaderScale ThumbLength="26" />
+                        <Slider Grid.Column="1" Style="{StaticResource ConsoleFader}" Value="{Binding MixVolume}"
+                                MouseDoubleClick="Fader_MouseDoubleClick"
+                                PreviewMouseLeftButtonDown="Fader_PreviewMouseLeftButtonDown"
+                                PreviewMouseLeftButtonUp="Fader_PreviewMouseLeftButtonUp" />
+                        <local:LedMeter Grid.Column="2" Segments="30" RedSegments="5" Margin="0,13" Level="{Binding SignalLevel}" ToolTip="Track level" />
+                    </Grid>
+                    <StackPanel DockPanel.Dock="Bottom">
+                        <TextBlock Style="{StaticResource Legend}" Text="PAN" Margin="0,4,0,0" />
+                        <local:Knob Width="36" Height="36" Look="Console" IsCentred="True" Accent="#98999B" DefaultPosition="0.5"
+                                    Position="{Binding PanPosition}">
+                            <local:Knob.ToolTip>
+                                <TextBlock>
+                                    <Run Text="Pan: " /><Run Text="{Binding PanDisplay, Mode=OneWay}" />
+                                    <LineBreak /><Run Text="Drag up or down; double-click to centre" />
+                                </TextBlock>
+                            </local:Knob.ToolTip>
+                        </local:Knob>
+                        <DockPanel Margin="10,-6,10,0">
+                            <TextBlock DockPanel.Dock="Right" Style="{StaticResource Legend}" Text="R" FontSize="7" />
+                            <TextBlock Style="{StaticResource Legend}" Text="L" FontSize="7" HorizontalAlignment="Left" />
+                        </DockPanel>
+                        <Grid Margin="4,6,4,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="3" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Button Content="M" Tag="{Binding}" Click="Mute_Click" ToolTip="Mute">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource ConsoleButton}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsMuted}" Value="True">
+                                                <Setter Property="Background" Value="#E8463C" />
+                                                <Setter Property="Foreground" Value="#2A0806" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                            <Button Grid.Column="2" Content="S" Tag="{Binding}" Click="Solo_Click" ToolTip="Solo">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource ConsoleButton}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsKitPiece}" Value="True">
+                                                <Setter Property="Visibility" Value="Hidden" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsSolo}" Value="True">
+                                                <Setter Property="Background" Value="#F2C94C" />
+                                                <Setter Property="Foreground" Value="#2A2006" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+                    <!-- The inserts grow up to ten effects' worth, the sends take the rest, so every bus has its knob. -->
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" MinHeight="40" MaxHeight="184" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" MinHeight="94" />
+                        </Grid.RowDefinitions>
+                        <Border Margin="4,0,4,0" Background="#151618" CornerRadius="2" BorderBrush="#595959" BorderThickness="0,0,1,1">
+                            <ItemsControl ItemsSource="{Binding Effects}" ItemTemplate="{StaticResource InsertTemplate}" Tag="{Binding}" />
+                        </Border>
+                        <StackPanel Grid.Row="1">
+                            <Button Style="{StaticResource ConsoleButton}" Content="FX" Margin="4,3,4,0" Tag="{Binding}" Click="Fx_Click"
+                                    ToolTip="Open the track's effect rack, to add Sonator's or VST effects" />
+                            <TextBlock Style="{StaticResource Legend}" Text="SEND" Margin="0,6,0,1" />
+                        </StackPanel>
+                        <Grid Grid.Row="2">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemTemplate="{StaticResource SendTemplate}">
+                                    <ItemsControl.ItemsSource>
+                                        <MultiBinding Converter="{StaticResource SendControls}">
+                                            <Binding />
+                                            <Binding Path="DataContext.Buses" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                            <Binding Path="DataContext.BusesVersion" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                        </MultiBinding>
+                                    </ItemsControl.ItemsSource>
+                                </ItemsControl>
+                            </ScrollViewer>
+                            <TextBlock Style="{StaticResource Legend}" FontWeight="Normal" FontSize="7" TextAlignment="Center" TextWrapping="Wrap"
+                                       Margin="4,10,4,0" VerticalAlignment="Top" IsHitTestVisible="False" Text="no buses: + BUS adds one">
+                                <TextBlock.Visibility>
+                                    <Binding Path="DataContext.Buses.Count" RelativeSource="{RelativeSource AncestorType=Window}">
+                                        <Binding.Converter>
+                                            <local:ZeroToVisibleConverter />
+                                        </Binding.Converter>
+                                    </Binding>
+                                </TextBlock.Visibility>
+                            </TextBlock>
+                        </Grid>
+                    </Grid>
+                </DockPanel>
+            </Border>
+        </DataTemplate>
     </Window.Resources>
 
     <DockPanel Margin="6">
@@ -388,136 +579,20 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <!-- One track's channel module, top to bottom as the sound goes: inserts, sends, pan, mute and
-                             solo, the fader with its meter, and the name on tape. -->
-                        <Border PreviewMouseLeftButtonDown="Strip_PreviewMouseLeftButtonDown">
-                            <Border.Style>
-                                <Style TargetType="Border" BasedOn="{StaticResource Module}">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                            <Setter Property="BorderBrush" Value="#FF963A" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
-                            <DockPanel>
-                                <StackPanel DockPanel.Dock="Top">
-                                    <ContentControl ContentTemplate="{StaticResource Screw}" Margin="0,3,0,2" Focusable="False" />
-                                    <Border Height="5" Background="{Binding TrackColorBrush}" Margin="4,0" />
-                                    <TextBlock Style="{StaticResource Legend}" Text="INSERT" Margin="0,4,0,1" />
-                                </StackPanel>
-                                <StackPanel DockPanel.Dock="Bottom">
-                                    <Border Height="15" Margin="4,4,4,0" Background="#101113" CornerRadius="2">
-                                        <TextBlock Text="{Binding VolumeDisplay}" FontFamily="Consolas" FontSize="8.5" Foreground="#FF8A3D"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                    </Border>
-                                    <!-- The scribble strip: the track's name on a strip of tape. -->
-                                    <Border Height="18" Margin="3,4,3,0" Background="#EFE6C8" CornerRadius="1" Cursor="Hand"
-                                            ToolTip="{Binding Name}" MouseLeftButtonUp="TrackName_MouseLeftButtonUp">
-                                        <TextBlock Text="{Binding Name}" FontFamily="Segoe Print" FontSize="9" Foreground="#1E2A6B"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="2,0" />
-                                    </Border>
-                                    <ContentControl ContentTemplate="{StaticResource Screw}" Margin="0,4,0,3" Focusable="False" />
-                                </StackPanel>
-                                <Grid DockPanel.Dock="Bottom" Height="230" Margin="1,6,3,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="17" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="5" />
-                                    </Grid.ColumnDefinitions>
-                                    <local:FaderScale ThumbLength="26" />
-                                    <Slider Grid.Column="1" Style="{StaticResource ConsoleFader}" Value="{Binding MixVolume}"
-                                            ToolTip="Track volume (double-click: 0 dB)" MouseDoubleClick="Fader_MouseDoubleClick" />
-                                    <local:LedMeter Grid.Column="2" Segments="30" RedSegments="5" Margin="0,13" Level="{Binding SignalLevel}" ToolTip="Track level" />
-                                </Grid>
-                                <StackPanel DockPanel.Dock="Bottom">
-                                    <TextBlock Style="{StaticResource Legend}" Text="PAN" Margin="0,4,0,0" />
-                                    <local:Knob Width="36" Height="36" Look="Console" IsCentred="True" Accent="#98999B" DefaultPosition="0.5"
-                                                Position="{Binding PanPosition}">
-                                        <local:Knob.ToolTip>
-                                            <TextBlock>
-                                                <Run Text="Pan: " /><Run Text="{Binding PanDisplay, Mode=OneWay}" />
-                                                <LineBreak /><Run Text="Drag up or down; double-click to centre" />
-                                            </TextBlock>
-                                        </local:Knob.ToolTip>
-                                    </local:Knob>
-                                    <DockPanel Margin="10,-6,10,0">
-                                        <TextBlock DockPanel.Dock="Right" Style="{StaticResource Legend}" Text="R" FontSize="7" />
-                                        <TextBlock Style="{StaticResource Legend}" Text="L" FontSize="7" HorizontalAlignment="Left" />
-                                    </DockPanel>
-                                    <Grid Margin="4,6,4,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="3" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <Button Content="M" Tag="{Binding}" Click="Mute_Click" ToolTip="Mute">
-                                            <Button.Style>
-                                                <Style TargetType="Button" BasedOn="{StaticResource ConsoleButton}">
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsMuted}" Value="True">
-                                                            <Setter Property="Background" Value="#E8463C" />
-                                                            <Setter Property="Foreground" Value="#2A0806" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Button.Style>
-                                        </Button>
-                                        <Button Grid.Column="2" Content="S" Tag="{Binding}" Click="Solo_Click" ToolTip="Solo">
-                                            <Button.Style>
-                                                <Style TargetType="Button" BasedOn="{StaticResource ConsoleButton}">
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsSolo}" Value="True">
-                                                            <Setter Property="Background" Value="#F2C94C" />
-                                                            <Setter Property="Foreground" Value="#2A2006" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Button.Style>
-                                        </Button>
-                                    </Grid>
-                                </StackPanel>
-                                <!-- The inserts grow up to ten effects' worth, the sends take the rest, so every bus has its knob. -->
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="*" MinHeight="40" MaxHeight="184" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="*" MinHeight="94" />
-                                    </Grid.RowDefinitions>
-                                    <Border Margin="4,0,4,0" Background="#151618" CornerRadius="2" BorderBrush="#595959" BorderThickness="0,0,1,1">
-                                        <ItemsControl ItemsSource="{Binding Effects}" ItemTemplate="{StaticResource InsertTemplate}" Tag="{Binding}" />
-                                    </Border>
-                                    <StackPanel Grid.Row="1">
-                                        <Button Style="{StaticResource ConsoleButton}" Content="FX" Margin="4,3,4,0" Tag="{Binding}" Click="Fx_Click"
-                                                ToolTip="Open the track's effect rack, to add Sonator's or VST effects" />
-                                        <TextBlock Style="{StaticResource Legend}" Text="SEND" Margin="0,6,0,1" />
-                                    </StackPanel>
-                                    <Grid Grid.Row="2">
-                                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                            <ItemsControl ItemTemplate="{StaticResource SendTemplate}">
-                                                <ItemsControl.ItemsSource>
-                                                    <MultiBinding Converter="{StaticResource SendControls}">
-                                                        <Binding />
-                                                        <Binding Path="DataContext.Buses" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        <Binding Path="DataContext.BusesVersion" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                    </MultiBinding>
-                                                </ItemsControl.ItemsSource>
-                                            </ItemsControl>
-                                        </ScrollViewer>
-                                        <TextBlock Style="{StaticResource Legend}" FontWeight="Normal" FontSize="7" TextAlignment="Center" TextWrapping="Wrap"
-                                                   Margin="4,10,4,0" VerticalAlignment="Top" IsHitTestVisible="False" Text="no buses: + BUS adds one">
-                                            <TextBlock.Visibility>
-                                                <Binding Path="DataContext.Buses.Count" RelativeSource="{RelativeSource AncestorType=Window}">
-                                                    <Binding.Converter>
-                                                        <local:ZeroToVisibleConverter />
-                                                    </Binding.Converter>
-                                                </Binding>
-                                            </TextBlock.Visibility>
-                                        </TextBlock>
-                                    </Grid>
-                                </Grid>
-                            </DockPanel>
-                        </Border>
+                        <!-- The track's strip, and beside it, while open, its kit's pieces: narrower strips of their own. -->
+                        <StackPanel Orientation="Horizontal">
+                            <ContentControl Content="{Binding}" ContentTemplate="{StaticResource ChannelStrip}" Focusable="False" />
+                            <Border Margin="0,0,2,0" Padding="2,0,0,0" BorderThickness="0,3,0,0" BorderBrush="{Binding TrackColorBrush}"
+                                    Background="#1A1B1D" Visibility="{Binding IsKitOpen, Converter={StaticResource VisibleWhenLinked}}">
+                                <ItemsControl ItemsSource="{Binding KitPieces}" ItemTemplate="{StaticResource ChannelStrip}" Focusable="False">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                </ItemsControl>
+                            </Border>
+                        </StackPanel>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>

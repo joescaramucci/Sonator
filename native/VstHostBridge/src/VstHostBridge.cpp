@@ -429,6 +429,9 @@ namespace
     class SonatorPlugFrame; // defined below, needs BridgeModule's full definition
     struct MixerVoice; // defined further below, needs the event list and threading types
 
+    // The most audio outputs of a plug-in played, the first among them.
+    constexpr int32 kMaxOutputBuses = 32;
+
     // Everything the bridge needs to keep alive for one loaded plugin module.
     struct BridgeModule
     {
@@ -485,6 +488,11 @@ namespace
         // reference under the lock (without waiting), so the chain stays alive while it is used.
         std::mutex effectsMutex;
         std::shared_ptr<son::EffectChain> effects;
+
+        // Chains of the plug-in's other outputs, by output bus (a drum plug-in's kick, snare...), under the same
+        // lock; slot 0 is unused, output 0 having the chain above. An output with no chain of its own joins
+        // output 0 ahead of its effects.
+        std::shared_ptr<son::EffectChain> outputEffects[kMaxOutputBuses];
     };
 
     // Runs the module's effects on a block of the plug-in's planar output, and reads how much of it goes to
@@ -1071,6 +1079,20 @@ namespace
         BridgeModule* module = nullptr;
         IAudioProcessor* processor = nullptr; // addRef'd; released by Deactivate
 
+        // The plug-in's outputs after the first, each with its buffers, the chain it plays through (null when
+        // it joins output 0) and how much of it goes to each bus.
+        struct ExtraOutput
+        {
+            int32 channels = 2;
+            std::vector<std::vector<float>> planar;
+            std::vector<Sample32*> pointers;
+            std::shared_ptr<son::EffectChain> chain;
+            float sends[son::MaxBuses]{};
+        };
+        std::vector<ExtraOutput> extraOutputs;
+        std::vector<AudioBusBuffers> allOutputs; // every output's buffers, as the plug-in is handed them
+        int32 activatedExtraOutputs = 0;
+
         // Note events queued by VstHostBridge_SendNoteEvent. The next block the audio thread processes takes them.
         std::mutex midiMutex;
         std::vector<Event> pendingMidi;
@@ -1130,6 +1152,27 @@ namespace
                 activatedOutputBus = true;
             }
 
+            // The other outputs too, such as a drum plug-in's separate drums: each plays apart once it has a
+            // chain of its own, and joins output 0 until then.
+            const int32 outputCount = std::min<int32>(module->component->getBusCount(kAudio, kOutput), kMaxOutputBuses);
+            for (int32 bus = 1; bus < outputCount; ++bus)
+            {
+                BusInfo info{};
+                ExtraOutput output;
+                if (module->component->getBusInfo(kAudio, kOutput, bus, info) == kResultOk && info.channelCount > 0)
+                {
+                    output.channels = info.channelCount;
+                }
+                if (module->component->activateBus(kAudio, kOutput, bus, 1) != kResultOk)
+                {
+                    break;
+                }
+                activatedExtraOutputs = bus;
+                output.planar.assign(static_cast<size_t>(output.channels), std::vector<float>(static_cast<size_t>(maxBlock)));
+                output.pointers.assign(static_cast<size_t>(output.channels), nullptr);
+                extraOutputs.push_back(std::move(output));
+            }
+
             // Instruments take note events on their event input bus.
             if (module->component->getBusCount(kEvent, kInput) > 0)
             {
@@ -1166,12 +1209,19 @@ namespace
             pointers.assign(static_cast<size_t>(channels), nullptr);
             outputBus.numChannels = channels;
             outputBus.silenceFlags = 0;
+            allOutputs.assign(1 + extraOutputs.size(), AudioBusBuffers{});
+            allOutputs[0] = outputBus;
+            for (size_t i = 0; i < extraOutputs.size(); ++i)
+            {
+                allOutputs[i + 1].numChannels = extraOutputs[i].channels;
+                allOutputs[i + 1].silenceFlags = 0;
+            }
             processData.processMode = kRealtime;
             processData.symbolicSampleSize = kSample32;
             processData.numInputs = 0;
             processData.inputs = nullptr;
-            processData.numOutputs = 1;
-            processData.outputs = &outputBus;
+            processData.numOutputs = static_cast<int32>(allOutputs.size());
+            processData.outputs = allOutputs.data();
             return true;
         }
 
@@ -1192,6 +1242,10 @@ namespace
             {
                 module->component->activateBus(kAudio, kOutput, 0, 0);
                 activatedOutputBus = false;
+            }
+            for (; activatedExtraOutputs > 0; --activatedExtraOutputs)
+            {
+                module->component->activateBus(kAudio, kOutput, activatedExtraOutputs, 0);
             }
         }
 
@@ -1237,26 +1291,44 @@ namespace
             {
                 pointers[static_cast<size_t>(ch)] = planar[static_cast<size_t>(ch)].data();
             }
-            outputBus.channelBuffers32 = pointers.data();
+            allOutputs[0].channelBuffers32 = pointers.data();
+            for (size_t i = 0; i < extraOutputs.size(); ++i)
+            {
+                auto& output = extraOutputs[i];
+                for (int32 ch = 0; ch < output.channels; ++ch)
+                {
+                    output.pointers[static_cast<size_t>(ch)] = output.planar[static_cast<size_t>(ch)].data();
+                }
+                allOutputs[i + 1].channelBuffers32 = output.pointers.data();
+            }
             processData.numSamples = frames;
             processor->process(processData);
+            RenderExtraOutputs(frames, sampleRate);
             ApplyEffects(module, pointers.data(), channels, frames, sampleRate, sends);
 
             // Silent after its effects, with no note held and none just played: it may go to sleep. About
             // -100 dBFS counts as silence, well below anything heard.
             constexpr float kSilence = 1.0e-5f;
             bool silent = !notesHeld && !hasEvents;
-            for (int32 ch = 0; silent && ch < channels; ++ch)
+            auto anySound = [&](const std::vector<std::vector<float>>& buffers, int32 count)
             {
-                const float* samples = planar[static_cast<size_t>(ch)].data();
-                for (int32 i = 0; i < frames; ++i)
+                for (int32 ch = 0; ch < count; ++ch)
                 {
-                    if (std::fabs(samples[i]) > kSilence)
+                    const float* samples = buffers[static_cast<size_t>(ch)].data();
+                    for (int32 i = 0; i < frames; ++i)
                     {
-                        silent = false;
-                        break;
+                        if (std::fabs(samples[i]) > kSilence)
+                        {
+                            return true;
+                        }
                     }
                 }
+                return false;
+            };
+            silent = silent && !anySound(planar, channels);
+            for (const auto& output : extraOutputs)
+            {
+                silent = silent && (output.chain == nullptr || !anySound(output.planar, output.channels));
             }
 
             silentFrames = silent ? silentFrames + frames : 0;
@@ -1264,6 +1336,51 @@ namespace
             {
                 asleep = true;
                 silentFrames = 0;
+            }
+        }
+
+        // Puts each of the plug-in's other outputs through its own chain, or into output 0 when it has none,
+        // ahead of output 0's effects. The chains are taken under the module's lock without waiting; when the
+        // lock is busy, the chains of the block before play on.
+        void RenderExtraOutputs(int32 frames, double sampleRate)
+        {
+            if (extraOutputs.empty())
+            {
+                return;
+            }
+
+            {
+                std::unique_lock<std::mutex> lock(module->effectsMutex, std::try_to_lock);
+                if (lock.owns_lock())
+                {
+                    for (size_t i = 0; i < extraOutputs.size(); ++i)
+                    {
+                        extraOutputs[i].chain = module->outputEffects[i + 1];
+                    }
+                }
+            }
+
+            for (auto& output : extraOutputs)
+            {
+                if (output.chain != nullptr)
+                {
+                    for (int bus = 0; bus < son::MaxBuses; ++bus)
+                    {
+                        output.sends[bus] = output.chain->sends[bus].load(std::memory_order_relaxed);
+                    }
+                    output.chain->Process(output.pointers.data(), output.channels, frames, sampleRate);
+                    continue;
+                }
+
+                for (int32 ch = 0; ch < channels; ++ch)
+                {
+                    const float* source = output.planar[static_cast<size_t>(std::min(ch, output.channels - 1))].data();
+                    float* target = planar[static_cast<size_t>(ch)].data();
+                    for (int32 i = 0; i < frames; ++i)
+                    {
+                        target[i] += source[i];
+                    }
+                }
             }
         }
 
@@ -1352,6 +1469,21 @@ namespace
                 left[i] += sourceLeft[i];
                 right[i] += sourceRight[i];
             }
+            for (const auto& output : extraOutputs)
+            {
+                if (output.chain == nullptr)
+                {
+                    continue; // already in output 0
+                }
+
+                const float* outLeft = output.planar[0].data();
+                const float* outRight = output.channels > 1 ? output.planar[1].data() : outLeft;
+                for (int32 i = 0; i < frames; ++i)
+                {
+                    left[i] += outLeft[i];
+                    right[i] += outRight[i];
+                }
+            }
         }
 
         // Adds the block last rendered to a bus, at the track's send level for it.
@@ -1369,6 +1501,32 @@ namespace
             {
                 left[i] += sourceLeft[i] * level;
                 right[i] += sourceRight[i] * level;
+            }
+        }
+
+        // Adds the block last rendered of each output playing apart to a bus, at its own send level for it.
+        void SendExtraOutputsTo(int bus, float* left, float* right, int32 frames) const
+        {
+            if (asleep)
+            {
+                return;
+            }
+
+            for (const auto& output : extraOutputs)
+            {
+                const float level = output.sends[bus];
+                if (output.chain == nullptr || level <= 0.0f)
+                {
+                    continue;
+                }
+
+                const float* outLeft = output.planar[0].data();
+                const float* outRight = output.channels > 1 ? output.planar[1].data() : outLeft;
+                for (int32 i = 0; i < frames; ++i)
+                {
+                    left[i] += outLeft[i] * level;
+                    right[i] += outRight[i] * level;
+                }
             }
         }
     };
@@ -1732,6 +1890,8 @@ namespace
                 {
                     voice->SendTo(bus, g_busBuffers[static_cast<size_t>(bus * 2)].data(),
                                   g_busBuffers[static_cast<size_t>(bus * 2 + 1)].data(), frames);
+                    voice->SendExtraOutputsTo(bus, g_busBuffers[static_cast<size_t>(bus * 2)].data(),
+                                              g_busBuffers[static_cast<size_t>(bus * 2 + 1)].data(), frames);
                 }
             }
         }
@@ -2309,6 +2469,59 @@ int VstHostBridge_AttachEffectChain(void* moduleHandle, void* chainHandle)
 
     std::lock_guard<std::mutex> lock(module->effectsMutex);
     module->effects.swap(chain);
+    return 1;
+}
+
+int VstHostBridge_GetOutputBusCount(void* moduleHandle)
+{
+    auto* module = static_cast<BridgeModule*>(moduleHandle);
+    if (module == nullptr || module->component == nullptr)
+    {
+        return 0;
+    }
+
+    return std::min<int32>(std::max<int32>(module->component->getBusCount(kAudio, kOutput), 0), kMaxOutputBuses);
+}
+
+int VstHostBridge_GetOutputBusName(void* moduleHandle, int32_t bus, wchar_t* outName, int32_t nameCapacity)
+{
+    auto* module = static_cast<BridgeModule*>(moduleHandle);
+    if (module == nullptr || module->component == nullptr || outName == nullptr || nameCapacity <= 0)
+    {
+        return 0;
+    }
+
+    BusInfo info{};
+    if (module->component->getBusInfo(kAudio, kOutput, bus, info) != kResultOk)
+    {
+        return 0;
+    }
+
+    int32_t length = 0;
+    for (; length < nameCapacity - 1 && length < 128 && info.name[length] != 0; ++length)
+    {
+        outName[length] = static_cast<wchar_t>(info.name[length]);
+    }
+    outName[length] = L'\0';
+    return 1;
+}
+
+int VstHostBridge_AttachOutputEffectChain(void* moduleHandle, int32_t bus, void* chainHandle)
+{
+    if (moduleHandle == nullptr || bus < 1 || bus >= kMaxOutputBuses)
+    {
+        return 0;
+    }
+
+    auto* module = static_cast<BridgeModule*>(moduleHandle);
+    std::shared_ptr<son::EffectChain> chain;
+    if (chainHandle != nullptr)
+    {
+        chain = *static_cast<std::shared_ptr<son::EffectChain>*>(chainHandle);
+    }
+
+    std::lock_guard<std::mutex> lock(module->effectsMutex);
+    module->outputEffects[bus].swap(chain);
     return 1;
 }
 

@@ -88,6 +88,7 @@ public static class HelpTexts
             "One strip per track, as on a desk, top to bottom as the sound goes: its inserts (click one to open it in its rack), FX to add effects, the sends to the buses, pan, mute and solo, and the fader with its meter.",
             "+ BUS adds a bus, a strip the tracks send part of their sound to, for a shared reverb or echo. The master strip, on the right, has the effects on the whole mix, its two faders (LINK moves them together, or drag the bar across them), the VU meters, the spectrum and the oscillator to line the meters up: turn CAL until the needles sit on 0.",
             "Drag the master strip's left edge to widen it. Space, the full stop and the arrows work here as in the main window.",
+            "A drum plug-in that plays each drum on its own output gives the track a kit: in EZdrummer 3, open its Mixer page and choose Mixer > Select All Channels, then Mixer > Route Outputs > Multichannel. Once the drums have played, KIT shows on the track's strip: it, or a click on the track's fader, opens a narrower strip for each output that played, with its own fader, pan, mute, effects and sends; click its name to rename it (Out 3/4 is the snare in EZdrummer's layout). The track's own strip plays the main output (the kick) and its fader moves the whole kit.",
         }),
         [typeof(EffectRackWindow)] = new("FX rack", new[]
         {

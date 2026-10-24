@@ -71,7 +71,10 @@ public sealed record TrackDocument(
     Guid? BusId = null,
     List<SendDocument>? Sends = null,
     int AudioClipStartStep = 0,
-    List<NoteBlockDocument>? NoteBlocks = null);
+    List<NoteBlockDocument>? NoteBlocks = null,
+    List<TrackDocument>? KitPieces = null,
+    int KitOutput = 0,
+    bool KitPieceHeard = false);
 
 // A block of a track's notes on the timeline (see NoteBlock).
 public sealed record NoteBlockDocument(int StartStep, int LengthSteps);

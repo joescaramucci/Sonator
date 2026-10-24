@@ -244,4 +244,10 @@ public interface IVst3PluginHost
     /// Reads the buffer size and declared output latency of a running ASIO session.
     /// </summary>
     bool TryGetAsioTiming(Vst3ModuleHandle handle, out int bufferFrames, out int outputLatencyFrames, out double sampleRate);
+
+    /// <summary>
+    /// The names of the plug-in's audio outputs, the main one first: a drum plug-in may give each drum its own.
+    /// Empty when it has none or they cannot be read.
+    /// </summary>
+    IReadOnlyList<string> OutputNames(Vst3ModuleHandle handle) => Array.Empty<string>();
 }

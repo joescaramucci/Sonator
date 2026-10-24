@@ -5367,6 +5367,15 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         {
             var peak = _trackEffects.ExistingChainFor(track)?.TakePeak() ?? 0;
             TrackMeterCalculator.ShowAudioLevel(track, peak);
+            foreach (var piece in track.KitPieces)
+            {
+                var piecePeak = _trackEffects.ExistingChainFor(piece)?.TakePeak() ?? 0;
+                TrackMeterCalculator.ShowAudioLevel(piece, piecePeak);
+                if (piecePeak > KitPieceHeardPeak)
+                {
+                    piece.IsHeard = true;
+                }
+            }
         }
 
         (MasterPeakLeft, MasterPeakRight) = _trackEffects.TakeMasterPeaks();
@@ -5379,6 +5388,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
             TrackMeterCalculator.ShowAudioLevel(armed, _inputRecorder.PeakSinceLastAsked());
         }
     }
+
+    // A kit piece's output louder than this (about -50 dBFS) has played, and shows in the mixer.
+    private const double KitPieceHeardPeak = 0.003;
 
     private double _masterPeakLeft;
     private double _masterPeakRight;

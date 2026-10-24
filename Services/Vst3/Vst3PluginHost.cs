@@ -237,6 +237,34 @@ public sealed class Vst3PluginHost : IVst3PluginHost
         }
     }
 
+    public IReadOnlyList<string> OutputNames(Vst3ModuleHandle handle)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+        if (handle.NativeHandle == IntPtr.Zero)
+        {
+            return Array.Empty<string>();
+        }
+
+        try
+        {
+            var count = Vst3HostInterop.VstHostBridge_GetOutputBusCount(handle.NativeHandle);
+            var names = new List<string>();
+            for (var bus = 0; bus < count; bus++)
+            {
+                var name = new System.Text.StringBuilder(256);
+                names.Add(Vst3HostInterop.VstHostBridge_GetOutputBusName(handle.NativeHandle, bus, name, name.Capacity) != 0
+                    ? name.ToString()
+                    : $"Out {bus + 1}");
+            }
+
+            return names;
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            return Array.Empty<string>();
+        }
+    }
+
     public PluginKind GetPluginKind(Vst3ModuleHandle handle)
     {
         ArgumentNullException.ThrowIfNull(handle);

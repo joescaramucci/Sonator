@@ -84,6 +84,15 @@ internal static class Vst3HostInterop
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int VstHostBridge_AttachEffectChain(IntPtr module, IntPtr chain);
 
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int VstHostBridge_GetOutputBusCount(IntPtr module);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
+    internal static extern int VstHostBridge_GetOutputBusName(IntPtr module, int bus, StringBuilder outName, int nameCapacity);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int VstHostBridge_AttachOutputEffectChain(IntPtr module, int bus, IntPtr chain);
+
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
     internal static extern IntPtr VstHostBridge_LoadModule(string filePath);
 

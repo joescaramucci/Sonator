@@ -267,6 +267,73 @@ public sealed class PatternTrackViewModel : ViewModelBase
     // The controllers played with the notes, as recorded: sustain pedal, mod wheel, pitch bend...
     public IReadOnlyList<MidiControllerEventViewModel> MidiControllerEvents { get; set; } = Array.Empty<MidiControllerEventViewModel>();
 
+    // ---- A drum kit's pieces ----
+
+    // The plug-in's other outputs as channels of their own: a drum plug-in set to play each drum on its own
+    // output (the kick, the snare, the hi-hat...) has each one here, with its own fader, effects and sends. Each
+    // takes the output KitOutput (1 and up); the track's own channel is output 1/2.
+    public ObservableCollection<PatternTrackViewModel> KitPieces { get; } = new();
+
+    // The track a kit piece belongs to; null for a track.
+    public PatternTrackViewModel? KitParent { get; set; }
+
+    public int KitOutput { get; set; }
+
+    public bool IsKitPiece => KitParent is not null;
+
+    // A new kit piece of the track for one of its plug-in's outputs, named after the output: "Out 3/4" for
+    // "EZdrummer 3 3/4". Its strip takes the track's colour.
+    public static PatternTrackViewModel CreateKitPiece(PatternTrackViewModel track, int output, string outputName)
+    {
+        var name = outputName;
+        if (track.PluginName is { Length: > 0 } plugin)
+        {
+            name = name.Replace(plugin, string.Empty, StringComparison.OrdinalIgnoreCase);
+        }
+
+        name = name.Trim(' ', '-', '_', '.');
+        return new PatternTrackViewModel(
+            name.Length == 0 ? $"Out {output + 1}" : $"Out {name}",
+            track.Instrument,
+            track.Channel,
+            track.NoteNumber,
+            new ObservableCollection<StepViewModel>(),
+            trackType: track.TrackType,
+            trackColorBrush: track.TrackColorBrush)
+        {
+            KitParent = track,
+            KitOutput = output,
+        };
+    }
+
+    private bool _isHeard;
+
+    // True once a kit piece's output has played sound: only those show in the mixer, as most outputs of a drum
+    // plug-in are often unused.
+    public bool IsHeard
+    {
+        get => _isHeard;
+        set
+        {
+            if (SetProperty(ref _isHeard, value))
+            {
+                KitParent?.RaisePropertyChanged(nameof(HasKitPieces));
+            }
+        }
+    }
+
+    // True when the track has kit pieces that have played, which the mixer can open beside it.
+    public bool HasKitPieces => KitPieces.Any(piece => piece.IsHeard);
+
+    private bool _isKitOpen;
+
+    // True while the mixer shows the kit's pieces beside the track.
+    public bool IsKitOpen
+    {
+        get => _isKitOpen;
+        set => SetProperty(ref _isKitOpen, value);
+    }
+
     // The blocks the notes are kept in on the timeline (see NoteBlocks.Of, which fills in any the notes need).
     public IReadOnlyList<NoteBlock> NoteBlocks { get; set; } = Array.Empty<NoteBlock>();
 

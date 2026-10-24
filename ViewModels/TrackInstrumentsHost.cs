@@ -63,6 +63,7 @@ internal sealed class TrackInstrumentsHost : IDisposable
         }
 
         _effectsFor(track)?.AttachTo(handle);
+        AttachKitPieces(track, handle);
         string? audioError = null;
         if (!_host.HasAudioProcessor(handle) || !_host.TryStartAudio(handle, selection, out audioError))
         {
@@ -78,6 +79,30 @@ internal sealed class TrackInstrumentsHost : IDisposable
 
         RememberSound(handle);
         return handle;
+    }
+
+    // Each of the plug-in's other outputs plays apart, through the track's kit piece for it, made for an output
+    // that has none yet. Pieces of outputs the plug-in does not have (it was another plug-in) go.
+    private void AttachKitPieces(PatternTrackViewModel track, Vst3ModuleHandle handle)
+    {
+        var names = _host.OutputNames(handle);
+        foreach (var gone in track.KitPieces.Where(piece => piece.KitOutput < 1 || piece.KitOutput >= names.Count).ToList())
+        {
+            track.KitPieces.Remove(gone);
+        }
+
+        for (var output = 1; output < names.Count; output++)
+        {
+            var piece = track.KitPieces.FirstOrDefault(item => item.KitOutput == output);
+            if (piece is null)
+            {
+                piece = PatternTrackViewModel.CreateKitPiece(track, output, names[output]);
+                track.KitPieces.Add(piece);
+            }
+
+            piece.KitParent = track;
+            _effectsFor(piece)?.AttachToOutput(handle, output);
+        }
     }
 
     // The state each running plug-in had when it started or the project was last saved, to tell whether its

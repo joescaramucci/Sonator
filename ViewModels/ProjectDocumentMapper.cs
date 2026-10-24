@@ -52,7 +52,24 @@ internal static class ProjectDocumentMapper
             track.BusId,
             track.Sends.Count == 0 ? null : track.Sends.Select(send => new SendDocument(send.Key, send.Value)).ToList(),
             track.AudioClipStartStep,
-            track.NoteBlocks.Count == 0 ? null : track.NoteBlocks.Select(block => new NoteBlockDocument(block.StartStep, block.LengthSteps)).ToList());
+            track.NoteBlocks.Count == 0 ? null : track.NoteBlocks.Select(block => new NoteBlockDocument(block.StartStep, block.LengthSteps)).ToList(),
+            track.KitPieces.Count == 0 ? null : track.KitPieces.Select(BuildTrackDocument).ToList(),
+            track.KitOutput,
+            track.IsHeard);
+    }
+
+    // A track's kit pieces, as saved, each knowing its track.
+    private static void SetKitPieces(PatternTrackViewModel track, IEnumerable<TrackDocument>? pieces)
+    {
+        track.KitPieces.Clear();
+        foreach (var document in pieces ?? Enumerable.Empty<TrackDocument>())
+        {
+            var piece = ApplyTrackDocument(document);
+            piece.KitParent = track;
+            piece.KitOutput = document.KitOutput;
+            piece.IsHeard = document.KitPieceHeard;
+            track.KitPieces.Add(piece);
+        }
     }
 
     private static IReadOnlyList<NoteBlock> Blocks(IEnumerable<NoteBlockDocument>? documents) =>
@@ -127,6 +144,7 @@ internal static class ProjectDocumentMapper
         }
         targetTrack.TrackColorBrush = CreateTrackColorBrush(sourceTrack.TrackColor);
         targetTrack.NoteBlocks = Blocks(sourceTrack.NoteBlocks);
+        SetKitPieces(targetTrack, sourceTrack.KitPieces);
         targetTrack.MidiNoteEvents = sourceTrack.MidiNoteEvents is null
             ? Array.Empty<MidiNoteEventViewModel>()
             : sourceTrack.MidiNoteEvents
@@ -217,6 +235,7 @@ internal static class ProjectDocumentMapper
             track.Effects.Add(effect);
         }
 
+        SetKitPieces(track, trackDocument.KitPieces);
         return track;
     }
 

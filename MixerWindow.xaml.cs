@@ -105,11 +105,12 @@ public partial class MixerWindow : Window
         return null;
     }
 
-    // A click anywhere on a channel strip selects its track, as on a desk the channel in hand; the knob,
-    // fader or button clicked still does its own work.
+    // A click anywhere on a channel strip selects its track, as on a desk the channel in hand (a kit piece's,
+    // its drum track); the knob, fader or button clicked still does its own work.
     private void Strip_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (sender is FrameworkElement { DataContext: PatternTrackViewModel track } && !ReferenceEquals(_viewModel.SelectedTrack, track))
+        if (sender is FrameworkElement { DataContext: PatternTrackViewModel strip }
+            && (strip.KitParent ?? strip) is var track && !ReferenceEquals(_viewModel.SelectedTrack, track))
         {
             _viewModel.SelectedTrack = track;
         }
@@ -117,10 +118,66 @@ public partial class MixerWindow : Window
 
     private void TrackName_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        if (sender is FrameworkElement { DataContext: PatternTrackViewModel track })
+        if (sender is FrameworkElement { DataContext: PatternTrackViewModel { IsKitPiece: false } track })
         {
             _viewModel.SelectedTrack = track;
         }
+    }
+
+    // ---- A drum kit's pieces, opened beside its track ----
+
+    private void Kit_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: PatternTrackViewModel track })
+        {
+            track.IsKitOpen = !track.IsKitOpen;
+        }
+    }
+
+    // Enter writes a kit piece's name on its tape.
+    private void KitPieceName_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key is Key.Enter or Key.Escape)
+        {
+            Keyboard.ClearFocus();
+            e.Handled = true;
+        }
+    }
+
+    // A click on a drum track's fader that does not move it opens or closes its kit's pieces; a double-click
+    // still puts the fader back at 0 dB, so the click waits a double-click's time to be sure.
+    private double _faderValueAtPress;
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern uint GetDoubleClickTime();
+
+    private System.Windows.Threading.DispatcherTimer? _kitClick;
+
+    private void Fader_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _kitClick?.Stop();
+        if (sender is Slider slider)
+        {
+            _faderValueAtPress = slider.Value;
+        }
+    }
+
+    private void Fader_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not Slider { DataContext: PatternTrackViewModel { HasKitPieces: true } track } slider
+            || Math.Abs(slider.Value - _faderValueAtPress) > 1e-9)
+        {
+            return;
+        }
+
+        _kitClick?.Stop();
+        _kitClick = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(GetDoubleClickTime()) };
+        _kitClick.Tick += (_, _) =>
+        {
+            _kitClick?.Stop();
+            track.IsKitOpen = !track.IsKitOpen;
+        };
+        _kitClick.Start();
     }
 
     private void Mute_Click(object sender, RoutedEventArgs e)
@@ -160,6 +217,7 @@ public partial class MixerWindow : Window
     // A double-click puts the fader back at 0 dB.
     private void Fader_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
+        _kitClick?.Stop();
         if (sender is FrameworkElement { DataContext: PatternTrackViewModel track })
         {
             track.Volume = TrackEffectsHost.UnityVolume;
