@@ -6505,6 +6505,78 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         set => SetProperty(ref _scoreAuthor, value ?? string.Empty);
     }
 
+    // The audio tracks of the selected pattern with a take, a sung one perhaps, to write a score from.
+    public IReadOnlyList<PatternTrackViewModel> VoiceTracks =>
+        SelectedPattern?.Tracks.Where(track => !string.IsNullOrEmpty(track.AudioClipPath) && File.Exists(track.AudioClipPath)).ToList()
+        ?? (IReadOnlyList<PatternTrackViewModel>)Array.Empty<PatternTrackViewModel>();
+
+    // Writes the melody sung on an audio track as notes on a MIDI track (the first empty one of the pattern, or a new
+    // one), where the take sits in the song; with words, the words heard (see SungWords) as its lyrics. The words are
+    // only heard once the speech model is on this computer. Returns the track written, or null with the reason in
+    // the status line. One undo step.
+    public async Task<PatternTrackViewModel?> TranscribeVoiceAsync(PatternTrackViewModel voice, bool words, string language,
+        IProgress<string>? progress, CancellationToken cancellation)
+    {
+        if (voice.AudioClipPath is not { } path || SelectedPattern is not { } pattern)
+        {
+            return null;
+        }
+
+        progress?.Report("Reading the take...");
+        var clip = DecodedClip(path);
+        var mono = Services.Score.VoicePitch.Mono(clip);
+        progress?.Report("Hearing the melody...");
+        var notes = await Task.Run(() => Services.Score.VoicePitch.Notes(mono, clip.SampleRate), cancellation);
+        if (notes.Count == 0)
+        {
+            StatusMessage = $"{voice.Name}: no melody heard in the take";
+            return null;
+        }
+
+        var lyrics = string.Empty;
+        if (words && Services.Score.SungWords.IsModelReady)
+        {
+            var heard = await Task.Run(() => Services.Score.SungWords.RecognizeAsync(mono, clip.SampleRate, language, progress, cancellation), cancellation);
+            lyrics = Services.Score.LyricsAligner.Lyrics(notes, heard);
+        }
+
+        // Where each note falls in the song, by the tempo map from where the take starts.
+        var map = CurrentTempoMap;
+        var takeStart = map.SecondsAt(voice.AudioClipStartStep);
+        var events = notes.Select(note =>
+        {
+            var start = map.StepAt(takeStart + note.Start);
+            var length = Math.Max(0.25, map.StepAt(takeStart + note.End) - start);
+            var step = (int)Math.Floor(start);
+            var whole = (int)Math.Floor(length);
+            return new MidiNoteEventViewModel(step, whole, note.Note, 96, start - step, length - whole);
+        }).ToList();
+
+        CaptureUndoStateIfNeeded();
+        var target = pattern.Tracks.FirstOrDefault(track => track.SupportsMidiPlayback && IsEmptyTrack(track));
+        if (target is null)
+        {
+            if (!TryGetNewTrackDefaults(PatternTrackType.MidiChannel, out var name, out var instrument, out var source, out var channel, out var noteNumber)
+                || !TryAddTrack(PatternTrackType.MidiChannel, name, instrument, source, channel, noteNumber, out _))
+            {
+                StatusMessage = "No track to write the melody on";
+                return null;
+            }
+
+            target = pattern.Tracks[^1];
+        }
+
+        target.Name = $"{voice.Name} melody";
+        target.MidiNoteEvents = events;
+        target.NoteBlocks = Array.Empty<NoteBlock>();
+        target.Lyrics = lyrics;
+        LengthenPatternTo(target, events.Max(note => note.StepIndex + note.StartOffset + note.DurationSteps + note.LengthFraction));
+        TrackNotesChanged?.Invoke(target);
+        RebuildTimeline();
+        StatusMessage = $"{target.Name}: {events.Count} notes from {voice.Name}" + (lyrics.Length > 0 ? ", with the words heard" : string.Empty);
+        return target;
+    }
+
     // The tracks of the selected pattern a score can be written for: those with notes to play.
     public IReadOnlyList<PatternTrackViewModel> ScoreTracks =>
         SelectedPattern?.Tracks

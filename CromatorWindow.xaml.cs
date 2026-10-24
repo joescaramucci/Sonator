@@ -51,6 +51,10 @@ public partial class CromatorWindow : Window
     private void FillTracks(PatternTrackViewModel? preferred)
     {
         _filling = true;
+        var voices = _viewModel.VoiceTracks;
+        var voice = VoiceBox.SelectedItem;
+        VoiceBox.ItemsSource = voices;
+        VoiceBox.SelectedItem = voices.FirstOrDefault(track => ReferenceEquals(track, voice)) ?? voices.FirstOrDefault();
         var tracks = _viewModel.ScoreTracks;
         TrackBox.ItemsSource = tracks;
         TrackBox.SelectedItem = tracks.FirstOrDefault(track => ReferenceEquals(track, preferred)) ?? tracks.FirstOrDefault();
@@ -211,6 +215,70 @@ public partial class CromatorWindow : Window
 
         var dialog = new PrintDialog { PrintQueue = pdf };
         dialog.PrintDocument(new ScorePaginator(_document), PrintName);
+    }
+
+    // ---- From a sung take ----
+
+    private CancellationTokenSource? _transcribing;
+
+    // Writes the melody of the chosen take on a MIDI track, with the words heard when WORDS is on; a second click
+    // stops it. The speech model is downloaded first, if the player agrees, the first time words are asked for.
+    private async void Transcribe_Click(object sender, RoutedEventArgs e)
+    {
+        if (_transcribing is not null)
+        {
+            _transcribing.Cancel();
+            return;
+        }
+
+        if (VoiceBox.SelectedItem is not PatternTrackViewModel voice)
+        {
+            VoiceStatus.Text = "Record a take on an audio track first: it shows here.";
+            return;
+        }
+
+        var words = WordsBox.IsChecked == true;
+        var language = (LanguageBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "auto";
+        var progress = new Progress<string>(text => VoiceStatus.Text = text);
+        _transcribing = new CancellationTokenSource();
+        TranscribeButton.Content = "STOP";
+        try
+        {
+            if (words && !SungWords.IsModelReady)
+            {
+                if (!SonatorMessageDialog.Ask(this, "Cromator",
+                        "To hear the words, Cromator needs Whisper's speech model (about 470 MB), downloaded once and kept on this computer. The words are then heard here, without the internet. Download it now?",
+                        "Download", "Notes only"))
+                {
+                    words = false;
+                }
+                else
+                {
+                    await SungWords.DownloadModelAsync(progress, _transcribing.Token);
+                }
+            }
+
+            var track = await _viewModel.TranscribeVoiceAsync(voice, words, language, progress, _transcribing.Token);
+            VoiceStatus.Text = _viewModel.StatusMessage;
+            if (track is not null)
+            {
+                FillTracks(track);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            VoiceStatus.Text = "Stopped";
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or System.Net.Http.HttpRequestException or InvalidOperationException or DllNotFoundException)
+        {
+            VoiceStatus.Text = $"Could not finish: {ex.Message}";
+        }
+        finally
+        {
+            _transcribing.Dispose();
+            _transcribing = null;
+            TranscribeButton.Content = "WRITE FROM VOICE";
+        }
     }
 
     private string PrintName => string.IsNullOrWhiteSpace(_viewModel.ScoreTitle) ? _viewModel.SongTitle : _viewModel.ScoreTitle;

@@ -113,6 +113,7 @@ public static class HelpTexts
         {
             "The score of a track of the selected pattern (of the whole song with ARRANGE on): its notes on a staff, in the clef and key they need, with rests, ties, beams and the bar numbers. It follows the track as you record or edit it.",
             "Write the words under LYRICS: a syllable goes under each note, in order. Split words with a hyphen (a-mo-re); a lone _ leaves a note without a syllable. TITLE and AUTHOR head the first page, and are saved with the project, as the words are with the track.",
+            "FROM VOICE writes a score from a sung take: choose the audio track it is on and the language, and WRITE FROM VOICE hears the melody as notes on a MIDI track (the first empty one, or a new one), where the take sits in the song. With WORDS on, the words sung are heard too (by Whisper, on this computer: its model is downloaded once) and set under the notes, ready to be corrected under LYRICS.",
             "PRINT prints it on A4; PDF saves it as a PDF file through Windows' PDF printer, which asks where. SCORE brings the window back, or puts it in the dock.",
         }),
         [typeof(SoundBrowserWindow)] = new("Sounds", new[]

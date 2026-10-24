@@ -61,6 +61,23 @@
             <Button Content="PRINT" Margin="18,0,0,0" Click="Print_Click" />
             <Button Content="PDF" Click="Pdf_Click" />
         </StackPanel>
+        <!-- A score from a sung take: its melody heard as notes on a MIDI track, and its words as the lyrics. -->
+        <Border DockPanel.Dock="Top" Margin="10,0,10,8" Padding="8,6" Background="#26272A" BorderBrush="#4A4C50" BorderThickness="1" CornerRadius="3">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Style="{StaticResource Label}" Margin="0,0,6,0" Text="FROM VOICE" />
+                <ComboBox x:Name="VoiceBox" Width="180" Height="26" DisplayMemberPath="Name" FontFamily="Segoe UI" FontSize="13" />
+                <TextBlock Style="{StaticResource Label}" Text="LANGUAGE" />
+                <ComboBox x:Name="LanguageBox" Width="110" Height="26" FontFamily="Segoe UI" FontSize="13" SelectedIndex="0">
+                    <ComboBoxItem Content="Italiano" Tag="it" />
+                    <ComboBoxItem Content="English" Tag="en" />
+                    <ComboBoxItem Content="Auto" Tag="auto" />
+                </ComboBox>
+                <CheckBox x:Name="WordsBox" Content="WORDS" IsChecked="True" Margin="14,0,0,0" VerticalAlignment="Center"
+                          Foreground="#D2D3D5" FontWeight="Bold" />
+                <Button x:Name="TranscribeButton" Content="WRITE FROM VOICE" Margin="14,0,0,0" Click="Transcribe_Click" />
+                <TextBlock x:Name="VoiceStatus" Margin="14,0,0,0" VerticalAlignment="Center" FontFamily="Segoe UI" FontSize="12" Foreground="#AEB2B8" />
+            </StackPanel>
+        </Border>
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
