@@ -1097,6 +1097,281 @@ namespace son
             Singer _lowSection[4];
             Singer _highSection[4];
         };
+
+        // ---------------------------------------------------------------- SonMast
+        // Mastering for the whole song, on the master: a tone EQ (low shelf at 100 Hz, presence at 3 kHz, air shelf
+        // at 10 kHz), a gentle glue compressor (stereo, its ratio and threshold from one knob, its loss made up), a
+        // stereo width (the sides turned up or down), then drive into a look-ahead limiter that never lets a peak
+        // over the ceiling. Its meter is the loudness of the last 3 s in LUFS (short-term, K-weighted, BS.1770).
+        // Parameters: 0 low dB, 1 presence dB, 2 air dB, 3 glue %, 4 width %, 5 drive dB, 6 ceiling dB.
+        class Mastering final : public Effect
+        {
+        public:
+            Mastering() { SetDefaults(*this, {0.0f, 0.0f, 0.0f, 30.0f, 100.0f, 0.0f, -1.0f}); }
+
+            void Prepare(double sampleRate, int /*maxBlock*/) override
+            {
+                _sampleRate = sampleRate;
+                for (auto& filter : _tone)
+                {
+                    filter.Reset();
+                }
+                for (auto& filter : _weighting)
+                {
+                    filter.Reset();
+                }
+                _designed.fill(std::nanf(""));
+
+                // The K-weighting of BS.1770: a high shelf of +4 dB from about 1.7 kHz, and a high-pass at 38 Hz.
+                _weighting[0].Design(Shape::HighShelf, 4.0, 1681.97, 0.7072, sampleRate);
+                _weighting[1].Design(Shape::HighPass, 0.0, 38.135, 0.5003, sampleRate);
+
+                _envelope = 0.0;
+                _lookahead = std::max(1, static_cast<int>(sampleRate * 0.002));
+                for (auto& delay : _delay)
+                {
+                    delay.assign(static_cast<size_t>(_lookahead + 1), 0.0f);
+                }
+                _peaks.assign(static_cast<size_t>(_lookahead + 1), 0.0f);
+                _delayIndex = 0;
+                _limit = 1.0;
+                _blockEnergy = 0.0;
+                _blockFrames = 0;
+                _blocks.fill(0.0);
+                _blockIndex = 0;
+                _meter.store(-70.0f);
+            }
+
+            double Meter() const override { return _meter.load(); }
+
+            void Process(float** channels, int numChannels, int frames) override
+            {
+                Design();
+                const int sides = std::min(numChannels, 2);
+                const double glue = std::clamp(static_cast<double>(parameters[3].load()) / 100.0, 0.0, 1.0);
+                const double ratio = 1.0 + 3.0 * glue;
+                const double threshold = -6.0 - 18.0 * glue;
+                const double makeup = -threshold * (1.0 - 1.0 / ratio) * 0.5;
+                const float width = std::clamp(parameters[4].load() / 100.0f, 0.0f, 2.0f);
+                const double drive = DbToGain(std::clamp(static_cast<double>(parameters[5].load()), 0.0, 18.0) + (glue > 0 ? makeup : 0.0));
+                const double ceiling = DbToGain(std::clamp(static_cast<double>(parameters[6].load()), -6.0, 0.0));
+                const double attack = std::exp(-1.0 / (0.030 * _sampleRate));
+                const double release = std::exp(-1.0 / (0.250 * _sampleRate));
+                const double limitRelease = std::exp(-1.0 / (0.080 * _sampleRate));
+                const int blockLength = static_cast<int>(_sampleRate * 0.1);
+
+                for (int n = 0; n < frames; ++n)
+                {
+                    double left = channels[0][n];
+                    double right = sides > 1 ? channels[1][n] : left;
+
+                    // Tone.
+                    for (int band = 0; band < 3; ++band)
+                    {
+                        if (!_flat[band])
+                        {
+                            left = _tone[band].Run(0, left);
+                            right = _tone[band].Run(1, right);
+                        }
+                    }
+
+                    // Glue: the louder side's level, smoothed, sets how far both are turned down above the threshold.
+                    if (glue > 0.0)
+                    {
+                        const double level = std::max(std::fabs(left), std::fabs(right));
+                        const double coefficient = level > _envelope ? attack : release;
+                        _envelope = level + (_envelope - level) * coefficient;
+                        const double over = GainToDb(_envelope) - threshold;
+                        const double knee = 6.0;
+                        double reduction = 0.0;
+                        if (over > knee / 2)
+                        {
+                            reduction = over * (1.0 - 1.0 / ratio);
+                        }
+                        else if (over > -knee / 2)
+                        {
+                            const double into = over + knee / 2;
+                            reduction = (1.0 - 1.0 / ratio) * into * into / (2.0 * knee);
+                        }
+
+                        const double gain = DbToGain(-reduction);
+                        left *= gain;
+                        right *= gain;
+                    }
+
+                    // Width: the sides against the middle.
+                    if (sides > 1 && std::fabs(width - 1.0f) > 1e-4f)
+                    {
+                        const double mid = (left + right) * 0.5;
+                        const double side = (left - right) * 0.5 * width;
+                        left = mid + side;
+                        right = mid - side;
+                    }
+
+                    left *= drive;
+                    right *= drive;
+
+                    // The limiter looks 2 ms ahead: the gain is already down when the peak comes out.
+                    _delay[0][_delayIndex] = static_cast<float>(left);
+                    _delay[1][_delayIndex] = static_cast<float>(right);
+                    _peaks[_delayIndex] = static_cast<float>(std::max(std::fabs(left), std::fabs(right)));
+                    _delayIndex = (_delayIndex + 1) % _peaks.size();
+                    float ahead = 0.0f;
+                    for (const float peak : _peaks)
+                    {
+                        ahead = std::max(ahead, peak);
+                    }
+
+                    const double needed = ahead > ceiling ? ceiling / ahead : 1.0;
+                    _limit = needed < _limit ? needed : needed + (_limit - needed) * limitRelease;
+                    const double outLeft = std::clamp(_delay[0][_delayIndex] * _limit, -ceiling, ceiling);
+                    const double outRight = std::clamp(_delay[1][_delayIndex] * _limit, -ceiling, ceiling);
+                    channels[0][n] = static_cast<float>(outLeft);
+                    if (sides > 1)
+                    {
+                        channels[1][n] = static_cast<float>(outRight);
+                    }
+
+                    // Loudness: the K-weighted energy of both sides, in blocks of 100 ms, the last 30 of them.
+                    const double weightedLeft = _weighting[1].Run(0, _weighting[0].Run(0, outLeft));
+                    const double weightedRight = _weighting[1].Run(1, _weighting[0].Run(1, outRight));
+                    _blockEnergy += weightedLeft * weightedLeft + (sides > 1 ? weightedRight * weightedRight : weightedLeft * weightedLeft);
+                    if (++_blockFrames >= blockLength)
+                    {
+                        _blocks[_blockIndex] = _blockEnergy / _blockFrames;
+                        _blockIndex = (_blockIndex + 1) % _blocks.size();
+                        _blockEnergy = 0.0;
+                        _blockFrames = 0;
+                        double mean = 0.0;
+                        for (const double block : _blocks)
+                        {
+                            mean += block;
+                        }
+                        mean /= static_cast<double>(_blocks.size());
+                        _meter.store(static_cast<float>(mean > 1e-10 ? -0.691 + 10.0 * std::log10(mean) : -70.0));
+                    }
+                }
+            }
+
+        private:
+            enum class Shape { LowShelf, Peak, HighShelf, HighPass };
+
+            // A two-pole filter of the RBJ cookbook, for both sides.
+            struct Filter
+            {
+                double b0 = 1, b1 = 0, b2 = 0, a1 = 0, a2 = 0;
+                double x1[2]{}, x2[2]{}, y1[2]{}, y2[2]{};
+
+                void Reset()
+                {
+                    for (int c = 0; c < 2; ++c)
+                    {
+                        x1[c] = x2[c] = y1[c] = y2[c] = 0.0;
+                    }
+                }
+
+                double Run(int c, double x)
+                {
+                    const double y = b0 * x + b1 * x1[c] + b2 * x2[c] - a1 * y1[c] - a2 * y2[c];
+                    x2[c] = x1[c];
+                    x1[c] = x;
+                    y2[c] = y1[c];
+                    y1[c] = std::fabs(y) < 1e-20 ? 0.0 : y;
+                    return y;
+                }
+
+                void Design(Shape shape, double gainDb, double frequency, double q, double sampleRate)
+                {
+                    const double a = std::pow(10.0, gainDb / 40.0);
+                    const double w0 = 2.0 * Pi * std::clamp(frequency, 10.0, sampleRate * 0.45) / sampleRate;
+                    const double cosw = std::cos(w0);
+                    const double alpha = std::sin(w0) / (2.0 * q);
+                    double nb0, nb1, nb2, na0, na1, na2;
+                    if (shape == Shape::HighPass)
+                    {
+                        nb0 = (1 + cosw) / 2;
+                        nb1 = -(1 + cosw);
+                        nb2 = (1 + cosw) / 2;
+                        na0 = 1 + alpha;
+                        na1 = -2 * cosw;
+                        na2 = 1 - alpha;
+                    }
+                    else if (shape == Shape::Peak)
+                    {
+                        nb0 = 1 + alpha * a;
+                        nb1 = -2 * cosw;
+                        nb2 = 1 - alpha * a;
+                        na0 = 1 + alpha / a;
+                        na1 = -2 * cosw;
+                        na2 = 1 - alpha / a;
+                    }
+                    else
+                    {
+                        const double rootA = 2 * std::sqrt(a) * alpha;
+                        if (shape == Shape::LowShelf)
+                        {
+                            nb0 = a * ((a + 1) - (a - 1) * cosw + rootA);
+                            nb1 = 2 * a * ((a - 1) - (a + 1) * cosw);
+                            nb2 = a * ((a + 1) - (a - 1) * cosw - rootA);
+                            na0 = (a + 1) + (a - 1) * cosw + rootA;
+                            na1 = -2 * ((a - 1) + (a + 1) * cosw);
+                            na2 = (a + 1) + (a - 1) * cosw - rootA;
+                        }
+                        else
+                        {
+                            nb0 = a * ((a + 1) + (a - 1) * cosw + rootA);
+                            nb1 = -2 * a * ((a - 1) + (a + 1) * cosw);
+                            nb2 = a * ((a + 1) + (a - 1) * cosw - rootA);
+                            na0 = (a + 1) - (a - 1) * cosw + rootA;
+                            na1 = 2 * ((a - 1) - (a + 1) * cosw);
+                            na2 = (a + 1) - (a - 1) * cosw - rootA;
+                        }
+                    }
+
+                    b0 = nb0 / na0;
+                    b1 = nb1 / na0;
+                    b2 = nb2 / na0;
+                    a1 = na1 / na0;
+                    a2 = na2 / na0;
+                }
+            };
+
+            // The tone EQ again only when its knobs changed.
+            void Design()
+            {
+                const std::array<float, 3> now{parameters[0].load(), parameters[1].load(), parameters[2].load()};
+                if (now == _designed)
+                {
+                    return;
+                }
+
+                _designed = now;
+                _tone[0].Design(Shape::LowShelf, std::clamp(now[0], -6.0f, 6.0f), 100.0, 0.7071, _sampleRate);
+                _tone[1].Design(Shape::Peak, std::clamp(now[1], -6.0f, 6.0f), 3000.0, 0.8, _sampleRate);
+                _tone[2].Design(Shape::HighShelf, std::clamp(now[2], -6.0f, 6.0f), 10000.0, 0.7071, _sampleRate);
+                for (int band = 0; band < 3; ++band)
+                {
+                    _flat[band] = std::fabs(now[static_cast<size_t>(band)]) < 0.01f;
+                }
+            }
+
+            double _sampleRate = 44100.0;
+            Filter _tone[3];
+            bool _flat[3] = {true, true, true};
+            std::array<float, 3> _designed{};
+            Filter _weighting[2];
+            double _envelope = 0.0;
+            int _lookahead = 96;
+            std::vector<float> _delay[2];
+            std::vector<float> _peaks;
+            size_t _delayIndex = 0;
+            double _limit = 1.0;
+            double _blockEnergy = 0.0;
+            int _blockFrames = 0;
+            std::array<double, 30> _blocks{};
+            size_t _blockIndex = 0;
+            std::atomic<float> _meter{-70.0f};
+        };
     }
 
     std::unique_ptr<Effect> CreateEffect(EffectType type)
@@ -1117,6 +1392,8 @@ namespace son
             return std::make_unique<Harmonizer>();
         case EffectType::Choir:
             return std::make_unique<Choir>();
+        case EffectType::Mastering:
+            return std::make_unique<Mastering>();
         }
         return nullptr;
     }

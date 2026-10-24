@@ -51,7 +51,7 @@ public sealed class SonEffectsTests
     [Fact]
     public void Catalog_ListsTheSonEffects_WithDefaultsInRange()
     {
-        Assert.Equal(new[] { "SonVerb", "SonDelay", "SonCompress", "SonEQ", "SonLimiter", "SonArmo", "SonCoro" }, EffectCatalog.All.Select(effect => effect.Name));
+        Assert.Equal(new[] { "SonVerb", "SonDelay", "SonCompress", "SonEQ", "SonLimiter", "SonArmo", "SonCoro", "SonMast" }, EffectCatalog.All.Select(effect => effect.Name));
         Assert.All(EffectCatalog.All.SelectMany(effect => effect.Parameters), parameter =>
             Assert.InRange(parameter.Default, parameter.Minimum, parameter.Maximum));
     }

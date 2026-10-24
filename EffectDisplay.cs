@@ -126,6 +126,9 @@ public sealed class EffectDisplay : FrameworkElement
             case EffectKind.Choir:
                 DrawChoir(drawingContext, plot, effect);
                 break;
+            case EffectKind.Mastering:
+                DrawMastering(drawingContext, plot, effect);
+                break;
         }
 
         foreach (var handle in _handles)
@@ -644,6 +647,75 @@ public sealed class EffectDisplay : FrameworkElement
             SetKnob(effect, 0, ceilingNow);
             SetKnob(effect, 2, ceilingNow - (Floor + (point.X - area.X) / area.Width * -Floor));
         }, new[] { 0, 2 }));
+    }
+
+    // ---- Mastering: the tone curve, and the loudness of the last 3 s against the usual targets ----
+
+    private void DrawMastering(DrawingContext drawingContext, Rect plot, TrackEffectViewModel effect)
+    {
+        var lufs = effect.MeterValue;
+        Title(drawingContext, plot, "TONE", lufs > -69 ? string.Format(CultureInfo.CurrentCulture, "{0:0.0} LUFS", lufs) : "PLAY TO MEASURE");
+
+        // The tone: the three bands' gains across 20 Hz to 20 kHz, on a scale of 6 dB either way.
+        var curveArea = new Rect(plot.X, plot.Y, plot.Width * 0.68, plot.Height);
+        double X(double hz) => curveArea.X + curveArea.Width * Math.Log(hz / 20) / Math.Log(1000);
+        double Y(double db) => curveArea.Y + curveArea.Height / 2 - db / 6 * (curveArea.Height / 2 - 2);
+        drawingContext.DrawLine(AxisPen, new Point(curveArea.X, Y(0)), new Point(curveArea.Right, Y(0)));
+        foreach (var (hz, label) in new[] { (100.0, "100"), (1000.0, "1k"), (10000.0, "10k") })
+        {
+            drawingContext.DrawLine(GridPen, new Point(X(hz), curveArea.Top), new Point(X(hz), curveArea.Bottom));
+            AxisLabel(drawingContext, curveArea, X(hz), label);
+        }
+
+        var low = Knob(effect, 0);
+        var presence = Knob(effect, 1);
+        var air = Knob(effect, 2);
+        var curve = new StreamGeometry();
+        using (var line = curve.Open())
+        {
+            for (var x = curveArea.X; x <= curveArea.Right; x += 1)
+            {
+                var hz = 20 * Math.Pow(1000, (x - curveArea.X) / curveArea.Width);
+                var octavesFromPresence = Math.Log2(hz / 3000);
+                var db = low / (1 + Math.Pow(hz / 100, 2))
+                    + presence * Math.Exp(-octavesFromPresence * octavesFromPresence / 1.2)
+                    + air / (1 + Math.Pow(10000 / hz, 2));
+                var point = new Point(x, Y(Math.Clamp(db, -6, 6)));
+                if (x == curveArea.X)
+                {
+                    line.BeginFigure(point, false, false);
+                }
+                else
+                {
+                    line.LineTo(point, true, false);
+                }
+            }
+        }
+
+        curve.Freeze();
+        drawingContext.DrawGeometry(null, CurveGlowPen, curve);
+        drawingContext.DrawGeometry(null, CurvePen, curve);
+
+        // The loudness, from -30 to -6 LUFS, with the marks of TV, the streaming services and a loud master.
+        var bar = new Rect(curveArea.Right + 24, plot.Y, Math.Min(16, plot.Right - curveArea.Right - 60), plot.Height);
+        if (bar.Width < 8)
+        {
+            return;
+        }
+
+        double LevelY(double value) => bar.Bottom - bar.Height * Math.Clamp((value + 30) / 24, 0, 1);
+        drawingContext.DrawRectangle(Solid(0x14, 0x15, 0x17), GridPen, bar);
+        if (lufs > -69)
+        {
+            var fill = lufs > -9 ? OrangeBrush : Solid(0x3C, 0xC8, 0xA6);
+            drawingContext.DrawRectangle(fill, null, new Rect(bar.X + 1, LevelY(lufs), bar.Width - 2, bar.Bottom - LevelY(lufs)));
+        }
+
+        foreach (var (value, label) in new[] { (-23.0, "-23 TV"), (-14.0, "-14 web"), (-9.0, "-9 loud") })
+        {
+            drawingContext.DrawLine(ThresholdPen, new Point(bar.X - 3, LevelY(value)), new Point(bar.Right + 3, LevelY(value)));
+            Label(drawingContext, label, new Point(bar.Right + 5, LevelY(value) - 6), GridInk, 7.5);
+        }
     }
 
     // ---- The choir: its singers across the stereo field, each as far up or down as its detune, as small as it is

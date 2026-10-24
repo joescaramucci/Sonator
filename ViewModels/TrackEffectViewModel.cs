@@ -263,7 +263,7 @@ public sealed class TrackEffectViewModel : ViewModelBase
     public bool HasMeter => Definition.Kind is EffectKind.Compress or EffectKind.Limiter;
 
     // The effects whose meter the rack reads: those above, and the harmonizer, whose meter is the note it hears.
-    public bool ReadsMeter => HasMeter || Definition.Kind == EffectKind.Harmonizer;
+    public bool ReadsMeter => HasMeter || Definition.Kind is EffectKind.Harmonizer or EffectKind.Mastering;
 
     private double _meterValue;
 

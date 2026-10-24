@@ -76,6 +76,16 @@ public static class FactoryPresets
             Factory("Octave Choir", 8, 12, 25, 30, 60, 40, 90, 55),
             Factory("Choir Pad", 16, 30, 50, 70, 0, 0, 100, 75),
         },
+        // Low dB, Presence dB, Air dB, Glue %, Width %, Drive dB, Ceiling dB
+        [EffectKind.Mastering] = new[]
+        {
+            Factory("Transparent", 0, 0, 0, 20, 100, 2, -1),
+            Factory("Streaming", 0, 0, 0.5, 30, 100, 4, -1),
+            Factory("Warm and Glued", 1.5, -0.5, 0.5, 45, 100, 4, -1),
+            Factory("Bright Pop", 0.5, 1.5, 2, 40, 115, 6, -1),
+            Factory("Wide Mix", 0, 0, 1, 30, 130, 3, -1),
+            Factory("Loud", 1, 1, 1, 60, 110, 9, -0.5),
+        },
         // Ceiling dB, Release ms, Drive dB
         [EffectKind.Limiter] = new[]
         {

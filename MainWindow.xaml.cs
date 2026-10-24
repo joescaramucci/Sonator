@@ -1513,7 +1513,7 @@ public partial class MainWindow : Window
         var dialog = new Microsoft.Win32.SaveFileDialog
         {
             Title = "Export audio",
-            Filter = "WAV audio (*.wav)|*.wav",
+            Filter = "WAV audio, 24-bit (*.wav)|*.wav|MP3 audio, 320 kbps (*.mp3)|*.mp3",
             FileName = $"{name}.wav",
         };
         if (dialog.ShowDialog(this) != true)

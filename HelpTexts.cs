@@ -97,6 +97,7 @@ public static class HelpTexts
             "Choose a preset from the list, change it, and SAVE it under a name of yours; RESET goes back to the effect's defaults.",
             "SonArmo sings harmonies with a voice: VOICE 1 and VOICE 2 each a third, fifth, octave... above or below, at their own LEVEL and spread by WIDTH; DRY is the voice itself. Set KEY (and MINOR) to the song's key and each harmony stays in its scale, a third major or minor as the note sung needs; with KEY on None the intervals are fixed. Its screen shows the note sung and the harmony notes.",
             "SonCoro makes a choir of one voice: SINGERS how many, each a little off the others by up to DETUNE, a little late by up to TIMING, its pitch WAVERING slowly on its own, spread by WIDTH; LOW SECTION and HIGH SECTION add singers an octave below and above. MIX sets choir against voice. Its screen shows the singers across the field.",
+            "SonMast masters the finished song: put it on the MASTER (its FX). LOW, PRESENCE and AIR shape the tone, GLUE compresses gently to hold the mix together, WIDTH widens or narrows it, DRIVE makes it louder into a limiter that never lets a peak over CEILING (keep it at -1 dB for MP3). Its screen shows the loudness of the last 3 s in LUFS: about -14 is what the streaming services play at. File > Export audio then makes the WAV or MP3, and says how loud it came out.",
         }),
         [typeof(WaveformEditorWindow)] = new("Waveform editor", new[]
         {

@@ -10,6 +10,7 @@ public enum EffectKind
     Limiter = 5,
     Harmonizer = 6,
     Choir = 7,
+    Mastering = 8,
     Plugin = 100, // a VST3 effect plug-in
 }
 
@@ -97,6 +98,16 @@ public static class EffectCatalog
             new EffectParameterDefinition("High section", 0, 100, 0, "%"),
             new EffectParameterDefinition("Width", 0, 100, 80, "%"),
             new EffectParameterDefinition("Mix", 0, 100, 50, "%"),
+        }),
+        new EffectDefinition(EffectKind.Mastering, "SonMast", "Mastering for the master", new[]
+        {
+            new EffectParameterDefinition("Low", -6, 6, 0, "dB", Decimals: 1),
+            new EffectParameterDefinition("Presence", -6, 6, 0, "dB", Decimals: 1),
+            new EffectParameterDefinition("Air", -6, 6, 0, "dB", Decimals: 1),
+            new EffectParameterDefinition("Glue", 0, 100, 30, "%"),
+            new EffectParameterDefinition("Width", 0, 200, 100, "%"),
+            new EffectParameterDefinition("Drive", 0, 18, 0, "dB", Decimals: 1),
+            new EffectParameterDefinition("Ceiling", -6, 0, -1, "dB", Decimals: 1),
         }),
     };
 

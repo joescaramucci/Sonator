@@ -570,7 +570,7 @@
                         <MenuItem Header="Import _MIDI..." Command="{Binding ImportMidiCommand}" />
                         <MenuItem Header="Import a_udio (WAV, MP3)..." Click="ImportAudioMenuItem_Click"
                                   ToolTip="Put an audio file into the selected track, or the first empty one, or a new audio track. A file can also be dropped on an empty track" />
-                        <MenuItem Header="_Export audio (WAV)..." Click="ExportAudioMenuItem_Click" InputGestureText="Ctrl+E" />
+                        <MenuItem Header="_Export audio (WAV or MP3)..." Click="ExportAudioMenuItem_Click" InputGestureText="Ctrl+E" />
                         <MenuItem Header="Export _MIDI..." Click="ExportMidiMenuItem_Click" />
                         <MenuItem Header="Close _project" Click="CloseProjectMenuItem_Click" />
                         <MenuItem Header="Clean up the audio library..." Click="CleanUpAudioLibraryMenuItem_Click"

@@ -2456,8 +2456,21 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
                 return false;
             }
 
-            await Task.Run(() => WriteWav(path, mix, sampleRate));
-            StatusMessage = $"Exported {seconds + tail:0} s to {path}";
+            var measure = await Task.Run(() =>
+            {
+                if (string.Equals(Path.GetExtension(path), ".mp3", StringComparison.OrdinalIgnoreCase))
+                {
+                    WriteMp3(path, mix, sampleRate);
+                }
+                else
+                {
+                    WriteWav(path, mix, sampleRate);
+                }
+
+                return Loudness.Of(mix, 2, sampleRate);
+            });
+            LastExportLoudness = measure;
+            StatusMessage = $"Exported {seconds + tail:0} s to {Path.GetFileName(path)}: {LoudnessReport(measure)}";
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -2474,6 +2487,51 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
             SeekToStep(startStep);
             StatusMessage = message; // the export's outcome, not the playhead's new place
         }
+    }
+
+    // The loudness of the last song exported, as LoudnessReport words it.
+    public Loudness.Measure? LastExportLoudness { get; private set; }
+
+    // "-14.2 LUFS, true peak -1.0 dBTP", with a word of advice when the peaks would distort in an MP3 or the song is
+    // much quieter or louder than the streaming services play it.
+    public static string LoudnessReport(Loudness.Measure measure)
+    {
+        if (double.IsNegativeInfinity(measure.IntegratedLufs))
+        {
+            return "silent";
+        }
+
+        var report = string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0:0.0} LUFS, true peak {1:0.0} dBTP", measure.IntegratedLufs, measure.TruePeakDb);
+        if (measure.TruePeakDb > -0.9)
+        {
+            report += " (peaks near 0 dB can distort once made MP3: put SonMast on the master, its CEILING at -1 dB)";
+        }
+        else if (measure.IntegratedLufs < -18)
+        {
+            report += " (quieter than streaming plays, about -14 LUFS: more DRIVE on SonMast)";
+        }
+        else if (measure.IntegratedLufs > -8)
+        {
+            report += " (very loud: streaming services will turn it down to about -14 LUFS)";
+        }
+
+        return report;
+    }
+
+    // An MP3 at 320 kbps, through Windows' own encoder.
+    internal static void WriteMp3(string path, float[] interleaved, int sampleRate)
+    {
+        var pcm = new byte[interleaved.Length * 2];
+        for (var i = 0; i < interleaved.Length; i++)
+        {
+            var sample = (short)Math.Clamp(Math.Round(interleaved[i] * 32767.0), short.MinValue, short.MaxValue);
+            pcm[i * 2] = (byte)(sample & 0xFF);
+            pcm[i * 2 + 1] = (byte)((sample >> 8) & 0xFF);
+        }
+
+        NAudio.MediaFoundation.MediaFoundationApi.Startup();
+        using var source = new NAudio.Wave.RawSourceWaveStream(new MemoryStream(pcm), new NAudio.Wave.WaveFormat(sampleRate, 16, 2));
+        NAudio.Wave.MediaFoundationEncoder.EncodeToMp3(source, path, 320000);
     }
 
     private static void WriteWav(string path, float[] interleaved, int sampleRate)
