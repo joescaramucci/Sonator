@@ -253,6 +253,23 @@
                         </Style.Triggers>
                     </Style>
                 </Border.Style>
+                <Grid>
+                <!-- A drum kit open in the mixer: its track's strip and its pieces' take the track's colour, darker. -->
+                <Rectangle Fill="{Binding TrackColorBrush}" Opacity="0.5" IsHitTestVisible="False">
+                    <Rectangle.Style>
+                        <Style TargetType="Rectangle">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsKitPiece}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsKitOpen}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Rectangle.Style>
+                </Rectangle>
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Top">
                         <ContentControl ContentTemplate="{StaticResource Screw}" Margin="0,3,0,2" Focusable="False" />
@@ -419,6 +436,7 @@
                         </Grid>
                     </Grid>
                 </DockPanel>
+                </Grid>
             </Border>
         </DataTemplate>
     </Window.Resources>
@@ -579,11 +597,25 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <!-- The track's strip, and beside it, while open, its kit's pieces: narrower strips of their own. -->
+                        <!-- The track's strip, and beside it, while open, its kit's pieces: narrower strips of their own,
+                             all on a ground of the track's colour, darker, so the kit reads as one (the strips keep their height). -->
+                        <Grid Margin="0,0,2,0">
+                        <Rectangle RadiusX="3" RadiusY="3" Margin="0,-3" Fill="{Binding TrackColorBrush}"
+                                   Visibility="{Binding IsKitOpen, Converter={StaticResource VisibleWhenLinked}}" />
+                        <Rectangle RadiusX="3" RadiusY="3" Margin="0,-3" Fill="#90000000"
+                                   Visibility="{Binding IsKitOpen, Converter={StaticResource VisibleWhenLinked}}" />
                         <StackPanel Orientation="Horizontal">
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsKitOpen}" Value="True">
+                                            <Setter Property="Margin" Value="6,0" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
                             <ContentControl Content="{Binding}" ContentTemplate="{StaticResource ChannelStrip}" Focusable="False" />
-                            <Border Margin="0,0,2,0" Padding="2,0,0,0" BorderThickness="0,3,0,0" BorderBrush="{Binding TrackColorBrush}"
-                                    Background="#1A1B1D" Visibility="{Binding IsKitOpen, Converter={StaticResource VisibleWhenLinked}}">
+                            <Border Visibility="{Binding IsKitOpen, Converter={StaticResource VisibleWhenLinked}}">
                                 <StackPanel Orientation="Horizontal">
                                     <ItemsControl ItemsSource="{Binding KitPieces}" ItemTemplate="{StaticResource ChannelStrip}" Focusable="False">
                                         <ItemsControl.ItemsPanel>
@@ -614,6 +646,7 @@
                                 </StackPanel>
                             </Border>
                         </StackPanel>
+                        </Grid>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>

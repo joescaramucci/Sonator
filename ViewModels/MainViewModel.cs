@@ -3038,9 +3038,24 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         _trackInstruments.KeepOnly(Patterns.SelectMany(pattern => pattern.Tracks));
 
     // Plays a sequencer note through the track's own plug-in, when it is running. Called on the sequencer thread.
-    private bool RouteSequencerNoteToPlugin(PatternTrackViewModel track, int channel, int noteNumber, int velocity, bool isOn) =>
-        _trackInstruments.RunningFor(track) is { } instrument
-        && _liveInstrumentHost.TrySendNote(instrument, channel, noteNumber, velocity, isOn);
+    // The drums struck name the kit's pieces (see KitPieceNamer).
+    private bool RouteSequencerNoteToPlugin(PatternTrackViewModel track, int channel, int noteNumber, int velocity, bool isOn)
+    {
+        if (_trackInstruments.RunningFor(track) is not { } instrument
+            || !_liveInstrumentHost.TrySendNote(instrument, channel, noteNumber, velocity, isOn))
+        {
+            return false;
+        }
+
+        if (isOn)
+        {
+            _kitNamer.Struck(track, noteNumber, velocity);
+        }
+
+        return true;
+    }
+
+    private readonly KitPieceNamer _kitNamer = new();
 
     private void FlashMidiActivity()
     {
@@ -5367,6 +5382,12 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         {
             var peak = _trackEffects.ExistingChainFor(track)?.TakePeak() ?? 0;
             TrackMeterCalculator.ShowAudioLevel(track, peak);
+            if (track.KitPieces.Count == 0)
+            {
+                continue;
+            }
+
+            var piecePeaks = new List<(PatternTrackViewModel, double)>();
             foreach (var piece in track.KitPieces)
             {
                 var piecePeak = _trackEffects.ExistingChainFor(piece)?.TakePeak() ?? 0;
@@ -5375,7 +5396,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
                 {
                     piece.IsHeard = true;
                 }
+
+                piecePeaks.Add((piece, piecePeak));
             }
+
+            _kitNamer.Read(track, piecePeaks);
         }
 
         (MasterPeakLeft, MasterPeakRight) = _trackEffects.TakeMasterPeaks();

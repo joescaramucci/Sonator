@@ -1640,7 +1640,7 @@ public partial class MainWindow : Window
 
     private void ShowSoundsButton_Click(object sender, RoutedEventArgs e) => ShowSoundBrowser();
 
-    // One sound browser at a time; asked for again, it comes to the front.
+    // One sound browser at a time; asked for again, it comes to the front, or goes to the dock when it is in front.
     private void ShowSoundBrowser()
     {
         if (DataContext is not MainViewModel viewModel)
@@ -1653,10 +1653,40 @@ public partial class MainWindow : Window
             _soundBrowser = new SoundBrowserWindow(viewModel); // no owner: see ShowMixerWindow
             _soundBrowser.Closed += (_, _) => _soundBrowser = null;
             FollowPluginWindow(_soundBrowser); // minimized, it goes to the dock with its picture
+            RememberDeactivation(_soundBrowser);
             _soundBrowser.Show();
+        }
+        else if (DockIfInFront(_soundBrowser))
+        {
+            return;
         }
 
         BringBack(_soundBrowser);
+    }
+
+    // MIXER and SOUNDS put their window away in the dock when it was the window in use, as the minimize button
+    // does, and bring it back otherwise. The click on the button has just made this window the one in use, so the
+    // other counts as in use if it was until a moment ago. True when it went to the dock.
+    private bool DockIfInFront(Window window)
+    {
+        var wasInUse = window.IsActive
+            || (_toolDeactivated.TryGetValue(window, out var when) && DateTime.UtcNow - when < TimeSpan.FromMilliseconds(600));
+        if (!window.IsVisible || window.WindowState == WindowState.Minimized || !wasInUse)
+        {
+            return false;
+        }
+
+        DockPluginWindow(window);
+        return true;
+    }
+
+    // When the mixer and the sound browser last stopped being the window in use.
+    private readonly Dictionary<Window, DateTime> _toolDeactivated = new();
+
+    private void RememberDeactivation(Window window)
+    {
+        window.Deactivated += (_, _) => _toolDeactivated[window] = DateTime.UtcNow;
+        window.Closed += (_, _) => _toolDeactivated.Remove(window);
     }
 
     private void ShowMixerButton_Click(object sender, RoutedEventArgs e)
@@ -1679,7 +1709,8 @@ public partial class MainWindow : Window
         Activate();
     }
 
-    // One mixer and one waveform editor at a time: a second click brings the open window forward.
+    // One mixer and one waveform editor at a time: a second click brings the open window forward (the mixer, when
+    // it is in front already, goes to the dock).
     private void ShowMixerWindow()
     {
         if (DataContext is not MainViewModel viewModel)
@@ -1694,11 +1725,15 @@ public partial class MainWindow : Window
             _mixerWindow = new MixerWindow(viewModel);
             _mixerWindow.Closed += (_, _) => _mixerWindow = null;
             FollowPluginWindow(_mixerWindow); // minimized, it goes to the dock with the plug-ins
+            RememberDeactivation(_mixerWindow);
             _mixerWindow.Show();
             return;
         }
 
-        BringBack(_mixerWindow);
+        if (!DockIfInFront(_mixerWindow))
+        {
+            BringBack(_mixerWindow);
+        }
     }
 
     // Track > Detect tempo, or the clip's right-click: finds the clip's tempo (BPM detection) and, if asked,
