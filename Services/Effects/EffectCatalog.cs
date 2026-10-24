@@ -9,6 +9,7 @@ public enum EffectKind
     EQ = 4,
     Limiter = 5,
     Harmonizer = 6,
+    Choir = 7,
     Plugin = 100, // a VST3 effect plug-in
 }
 
@@ -85,6 +86,17 @@ public static class EffectCatalog
             new EffectParameterDefinition("Level 2", 0, 100, 60, "%"),
             new EffectParameterDefinition("Width", 0, 100, 60, "%"),
             new EffectParameterDefinition("Dry", 0, 100, 100, "%"),
+        }),
+        new EffectDefinition(EffectKind.Choir, "SonCoro", "Choir from one voice", new[]
+        {
+            new EffectParameterDefinition("Singers", 2, 16, 8, string.Empty),
+            new EffectParameterDefinition("Detune", 0, 60, 15, "cents"),
+            new EffectParameterDefinition("Timing", 0, 60, 25, "ms"),
+            new EffectParameterDefinition("Wavering", 0, 100, 40, "%"),
+            new EffectParameterDefinition("Low section", 0, 100, 0, "%"),
+            new EffectParameterDefinition("High section", 0, 100, 0, "%"),
+            new EffectParameterDefinition("Width", 0, 100, 80, "%"),
+            new EffectParameterDefinition("Mix", 0, 100, 50, "%"),
         }),
     };
 

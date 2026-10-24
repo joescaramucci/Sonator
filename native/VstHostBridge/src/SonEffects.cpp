@@ -524,28 +524,16 @@ namespace son
             std::atomic<float> _meter{0.0f};
         };
 
-        // ---------------------------------------------------------------- SonArmo
-        // A harmonizer for a voice: two harmony voices made from the sung one, each an interval away in the key's
-        // scale (the sung note is heard every 10 ms, so a third is major or minor as the scale has it there) or, with
-        // no key, a fixed interval; each at its own level, spread left and right. The singer's own intonation is
-        // kept: the harmony is as far from its scale note as the voice is from its. The pitch is moved with two
-        // read heads sliding through a delay line at the new speed and crossfaded, about 40 ms behind the voice;
-        // a head starting again is put a whole number of the voice's periods from the other, so the two read the
-        // same wave in step and never cancel as they cross (pitch-synchronous, as PSOLA).
-        // Parameters: 0 key (0 none, 1..12 C..B), 1 minor (0 or 1), 2 voice 1 and 3 voice 2 in scale steps (-7..7,
-        // 0 none), 4 and 5 their levels %, 6 width %, 7 dry %.
-        class Harmonizer final : public Effect
+        // ---------------------------------------------------------------- Voice tools (SonArmo, SonCoro)
+
+        // Hears the pitch of a single voice every 10 ms: the voice brought down to about 12 kHz, its last 40 ms
+        // looked at by the YIN method. Keeps the last note heard clearly, and the voice's period at the full rate.
+        class PitchTracker
         {
         public:
-            Harmonizer() { SetDefaults(*this, {0.0f, 0.0f, 2.0f, 0.0f, 70.0f, 60.0f, 60.0f, 100.0f}); }
-
-            void Prepare(double sampleRate, int /*maxBlock*/) override
+            void Prepare(double sampleRate)
             {
                 _sampleRate = sampleRate;
-                _grain = std::max(256, static_cast<int>(sampleRate * 0.040));
-                _line.assign(static_cast<size_t>(_grain * 3 + 64), 0.0f);
-                _write = 0;
-
                 _decimate = std::max(1, static_cast<int>(std::lround(sampleRate / 12000.0)));
                 _lowRate = sampleRate / _decimate;
                 _window = static_cast<int>(_lowRate * 0.040);
@@ -560,239 +548,56 @@ namespace son
                 _summed = 0;
                 _hop = std::max(1, static_cast<int>(_lowRate * 0.010));
                 _sinceAnalysis = 0;
-                _sung = -1.0;
-                _period = 0.0;
-                _meter.store(-1.0f);
-                for (auto& voice : _voices)
-                {
-                    voice = Voice{};
-                    voice.span[0] = voice.span[1] = _grain;
-                    voice.delay[0] = MinDelay + _grain * 0.25;
-                    voice.delay[1] = MinDelay + _grain * 0.75;
-                }
+                Sung = -1.0;
+                Period = 0.0;
             }
 
-            double Meter() const override { return _meter.load(); }
-
-            void Process(float** channels, int numChannels, int frames) override
+            // Takes one sample of the voice; true when a new note has just been heard.
+            bool Push(float sample)
             {
-                const int key = static_cast<int>(std::lround(parameters[0].load()));
-                const bool minor = parameters[1].load() > 0.5f;
-                const int steps[2] = {static_cast<int>(std::lround(parameters[2].load())), static_cast<int>(std::lround(parameters[3].load()))};
-                const float levels[2] = {std::clamp(parameters[4].load() / 100.0f, 0.0f, 1.0f), std::clamp(parameters[5].load() / 100.0f, 0.0f, 1.0f)};
-                const float width = std::clamp(parameters[6].load() / 100.0f, 0.0f, 1.0f);
-                const float dry = std::clamp(parameters[7].load() / 100.0f, 0.0f, 1.0f);
-                const float glide = SmoothingCoefficient(12.0, _sampleRate);
-                const size_t length = _line.size();
-
-                // Each voice's place across the stereo field: the first to the left, the second to the right.
-                float panLeft[2];
-                float panRight[2];
-                for (int v = 0; v < 2; ++v)
+                _sum += sample;
+                if (++_summed < _decimate)
                 {
-                    const float pan = (v == 0 ? -1.0f : 1.0f) * width;
-                    panLeft[v] = static_cast<float>(std::sqrt(0.5 * (1.0 - pan)));
-                    panRight[v] = static_cast<float>(std::sqrt(0.5 * (1.0 + pan)));
+                    return false;
                 }
 
-                for (int n = 0; n < frames; ++n)
+                _ring[_ringPosition] = _sum / static_cast<float>(_decimate);
+                _ringPosition = (_ringPosition + 1) % _ring.size();
+                _ringFilled = std::min(_ringFilled + 1, _ring.size());
+                _sum = 0.0f;
+                _summed = 0;
+                if (++_sinceAnalysis < _hop || _ringFilled < _ring.size())
                 {
-                    const float mono = numChannels > 1 ? (channels[0][n] + channels[1][n]) * 0.5f : channels[0][n];
-
-                    // The voice at about 12 kHz, its pitch heard every 10 ms.
-                    _sum += mono;
-                    if (++_summed == _decimate)
-                    {
-                        _ring[_ringPosition] = _sum / static_cast<float>(_decimate);
-                        _ringPosition = (_ringPosition + 1) % _ring.size();
-                        _ringFilled = std::min(_ringFilled + 1, _ring.size());
-                        _sum = 0.0f;
-                        _summed = 0;
-                        if (++_sinceAnalysis >= _hop && _ringFilled == _ring.size())
-                        {
-                            _sinceAnalysis = 0;
-                            const double heard = DetectPitch();
-                            if (heard > 0)
-                            {
-                                _sung = heard;
-                                _period = _sampleRate / (440.0 * std::exp2((heard - 69.0) / 12.0));
-                                _meter.store(static_cast<float>(heard));
-                            }
-                        }
-                    }
-
-                    for (int v = 0; v < 2; ++v)
-                    {
-                        auto& voice = _voices[v];
-                        if (steps[v] == 0)
-                        {
-                            voice.gate = 0.0f;
-                            continue;
-                        }
-
-                        // The shift the voice is gliding to; in a key, from the note last sung (silent until one is).
-                        double target = voice.target;
-                        bool ready = true;
-                        if (key <= 0)
-                        {
-                            target = ChromaticShift(steps[v]);
-                        }
-                        else if (_sung > 0)
-                        {
-                            target = ScaleShift(_sung, steps[v], key - 1, minor);
-                        }
-                        else
-                        {
-                            ready = false;
-                        }
-
-                        voice.target = target;
-                        voice.shift = target + (voice.shift - target) * glide;
-                        voice.gate = (ready ? 1.0f : 0.0f) + (voice.gate - (ready ? 1.0f : 0.0f)) * glide;
-                    }
-
-                    _line[_write] = mono;
-                    float left = 0.0f;
-                    float right = 0.0f;
-                    for (int v = 0; v < 2; ++v)
-                    {
-                        auto& voice = _voices[v];
-                        if (steps[v] == 0 && voice.gate < 1e-4f)
-                        {
-                            continue;
-                        }
-
-                        // Two read heads, each sliding through its span of the line at the new speed and faded in and out
-                        // across it. A head that runs off its span starts again half a span from the other, the span
-                        // fitted to the voice's period, so the two read the wave in step.
-                        const double speed = std::exp2(voice.shift / 12.0) - 1.0;
-                        float sum = 0.0f;
-                        float weights = 0.0f;
-                        for (int head = 0; head < 2; ++head)
-                        {
-                            double& delay = voice.delay[head];
-                            double& span = voice.span[head];
-                            delay -= speed;
-                            if (delay < MinDelay || delay > MinDelay + span)
-                            {
-                                const double other = voice.delay[1 - head];
-                                span = IdealSpan();
-                                delay = speed > 0 ? other + span * 0.5 : other - span * 0.5;
-                                delay = std::clamp(delay, MinDelay, MinDelay + span);
-                            }
-
-                            const double place = std::clamp((delay - MinDelay) / span, 0.0, 1.0);
-                            const float weight = static_cast<float>(std::pow(std::sin(Pi * place), 2.0));
-                            sum += Read(delay, length) * weight;
-                            weights += weight;
-                        }
-
-                        const float sample = (weights > 1e-3f ? sum / weights : 0.0f) * levels[v] * voice.gate;
-                        left += sample * panLeft[v];
-                        right += sample * panRight[v];
-                    }
-
-                    _write = (_write + 1) % length;
-                    if (numChannels > 1)
-                    {
-                        channels[0][n] = channels[0][n] * dry + left;
-                        channels[1][n] = channels[1][n] * dry + right;
-                    }
-                    else
-                    {
-                        channels[0][n] = channels[0][n] * dry + (left + right) * 0.7071f;
-                    }
-                }
-            }
-
-            // The shift for a number of steps of the major scale, with no key: a third is four semitones.
-            static double ChromaticShift(int steps)
-            {
-                static const int major[] = {0, 2, 4, 5, 7, 9, 11, 12};
-                const int size = std::min(std::abs(steps), 7);
-                return steps < 0 ? -major[size] : major[size];
-            }
-
-            // The shift that takes the note sung (in MIDI notes with fractions) a number of steps along the scale of
-            // the key, keeping how far off its scale note the singer is.
-            static double ScaleShift(double sung, int steps, int tonic, bool minor)
-            {
-                static const int majorScale[] = {0, 2, 4, 5, 7, 9, 11};
-                static const int minorScale[] = {0, 2, 3, 5, 7, 8, 10};
-                const int* scale = minor ? minorScale : majorScale;
-
-                // The scale note nearest the voice.
-                int best = 0;
-                int bestDegree = 0;
-                double bestDistance = 1e9;
-                const int rounded = static_cast<int>(std::lround(sung));
-                for (int note = rounded - 2; note <= rounded + 2; ++note)
-                {
-                    const int pitchClass = ((note - tonic) % 12 + 12) % 12;
-                    for (int degree = 0; degree < 7; ++degree)
-                    {
-                        if (scale[degree] == pitchClass && std::fabs(note - sung) < bestDistance)
-                        {
-                            bestDistance = std::fabs(note - sung);
-                            best = note;
-                            bestDegree = degree;
-                        }
-                    }
+                    return false;
                 }
 
-                const int index = bestDegree + steps;
-                const int octaves = static_cast<int>(std::floor(index / 7.0));
-                const int degree = index - octaves * 7;
-                const int target = best - scale[bestDegree] + scale[degree] + 12 * octaves;
-                return static_cast<double>(target - best);
+                _sinceAnalysis = 0;
+                const double heard = Detect();
+                if (heard <= 0)
+                {
+                    return false;
+                }
+
+                Sung = heard;
+                Period = _sampleRate / (440.0 * std::exp2((heard - 69.0) / 12.0));
+                return true;
             }
+
+            // The last note heard, in MIDI notes with fractions (-1 until one is), and its period in samples (0).
+            double Sung = -1.0;
+            double Period = 0.0;
 
         private:
-            static constexpr double MinDelay = 8.0;
-
-            struct Voice
-            {
-                double shift = 0.0;
-                double target = 0.0;
-                float gate = 0.0f;
-                double delay[2] = {MinDelay, MinDelay};
-                double span[2] = {1764.0, 1764.0};
-            };
-
-            // A head's span: an even number of the voice's periods, about the grain long, so the heads half a span
-            // apart are a whole number of periods apart; the grain itself when the voice's pitch is not known.
-            double IdealSpan() const
-            {
-                if (_period <= 0.0)
-                {
-                    return _grain;
-                }
-
-                const double periods = std::max(1.0, std::ceil(_grain / (2.0 * _period)));
-                return std::min(2.0 * periods * _period, 2.5 * _grain);
-            }
-
-            float Read(double delay, size_t length) const
-            {
-                const double position = static_cast<double>(_write) - delay + static_cast<double>(length);
-                const size_t base = static_cast<size_t>(position);
-                const float fraction = static_cast<float>(position - static_cast<double>(base));
-                const float a = _line[base % length];
-                const float b = _line[(base + 1) % length];
-                return a + (b - a) * fraction;
-            }
-
-            // The pitch of the last 40 ms of voice, in MIDI notes, by the YIN method; -1 when it is not clearly
-            // pitched or too quiet.
-            double DetectPitch()
+            // The pitch of the last 40 ms, by YIN; -1 when it is not clearly pitched or too quiet.
+            double Detect()
             {
                 const size_t size = _ring.size();
-                double energy = 0.0;
                 for (size_t i = 0; i < size; ++i)
                 {
                     _linear[i] = _ring[(_ringPosition + i) % size];
                 }
 
+                double energy = 0.0;
                 for (int j = 0; j < _window; ++j)
                 {
                     energy += static_cast<double>(_linear[static_cast<size_t>(j)]) * _linear[static_cast<size_t>(j)];
@@ -855,10 +660,6 @@ namespace son
             }
 
             double _sampleRate = 44100.0;
-            int _grain = 1764;
-            std::vector<float> _line;
-            size_t _write = 0;
-
             int _decimate = 4;
             double _lowRate = 11025.0;
             int _window = 441;
@@ -873,11 +674,428 @@ namespace son
             size_t _ringFilled = 0;
             float _sum = 0.0f;
             int _summed = 0;
+        };
 
-            double _sung = -1.0;
-            double _period = 0.0; // the voice's period in samples, 0 until it is heard
+        // The voice's last moments, to be read back at any delay.
+        class VoiceLine
+        {
+        public:
+            void Prepare(size_t length)
+            {
+                _line.assign(length, 0.0f);
+                _write = 0;
+            }
+
+            void Write(float sample)
+            {
+                _line[_write] = sample;
+            }
+
+            void Advance()
+            {
+                _write = (_write + 1) % _line.size();
+            }
+
+            float Read(double delay) const
+            {
+                const size_t length = _line.size();
+                const double position = static_cast<double>(_write) - delay + static_cast<double>(length);
+                const size_t base = static_cast<size_t>(position);
+                const float fraction = static_cast<float>(position - static_cast<double>(base));
+                const float a = _line[base % length];
+                const float b = _line[(base + 1) % length];
+                return a + (b - a) * fraction;
+            }
+
+        private:
+            std::vector<float> _line;
+            size_t _write = 0;
+        };
+
+        // Moves a voice's pitch: two read heads, each sliding through its span of the line at the new speed and faded
+        // in and out across it. A head that runs off its span starts again half a span from the other, the span an
+        // even number of the voice's periods, so the two read the same wave in step and never cancel as they cross
+        // (pitch-synchronous, as PSOLA). It reads Delay later than the heads' own place.
+        struct PitchShifter
+        {
+            static constexpr double MinDelay = 8.0;
+
+            double delay[2] = {MinDelay, MinDelay};
+            double span[2] = {1764.0, 1764.0};
+
+            void Reset(int grain)
+            {
+                span[0] = span[1] = grain;
+                delay[0] = MinDelay + grain * 0.25;
+                delay[1] = MinDelay + grain * 0.75;
+            }
+
+            // A head's span for the voice's period (in samples, 0 when not known) and the grain.
+            static double IdealSpan(double period, int grain)
+            {
+                if (period <= 0.0)
+                {
+                    return grain;
+                }
+
+                const double periods = std::max(1.0, std::ceil(grain / (2.0 * period)));
+                return std::min(2.0 * periods * period, 2.5 * grain);
+            }
+
+            // The next sample of the voice moved by semitones, read extra samples later.
+            float Next(const VoiceLine& line, double semitones, double period, int grain, double extra)
+            {
+                const double speed = std::exp2(semitones / 12.0) - 1.0;
+                float sum = 0.0f;
+                float weights = 0.0f;
+                for (int head = 0; head < 2; ++head)
+                {
+                    double& at = delay[head];
+                    double& width = span[head];
+                    at -= speed;
+                    if (at < MinDelay || at > MinDelay + width)
+                    {
+                        const double other = delay[1 - head];
+                        width = IdealSpan(period, grain);
+                        at = speed > 0 ? other + width * 0.5 : other - width * 0.5;
+                        at = std::clamp(at, MinDelay, MinDelay + width);
+                    }
+
+                    const double place = std::clamp((at - MinDelay) / width, 0.0, 1.0);
+                    const float weight = static_cast<float>(std::pow(std::sin(Pi * place), 2.0));
+                    sum += line.Read(at + extra) * weight;
+                    weights += weight;
+                }
+
+                return weights > 1e-3f ? sum / weights : 0.0f;
+            }
+        };
+
+        // ---------------------------------------------------------------- SonArmo
+        // A harmonizer for a voice: two harmony voices made from the sung one, each an interval away in the key's
+        // scale (the sung note is heard every 10 ms, so a third is major or minor as the scale has it there) or, with
+        // no key, a fixed interval; each at its own level, spread left and right. The singer's own intonation is
+        // kept: the harmony is as far from its scale note as the voice is from its. The pitch is moved by a
+        // PitchShifter, about 40 ms behind the voice.
+        // Parameters: 0 key (0 none, 1..12 C..B), 1 minor (0 or 1), 2 voice 1 and 3 voice 2 in scale steps (-7..7,
+        // 0 none), 4 and 5 their levels %, 6 width %, 7 dry %.
+        class Harmonizer final : public Effect
+        {
+        public:
+            Harmonizer() { SetDefaults(*this, {0.0f, 0.0f, 2.0f, 0.0f, 70.0f, 60.0f, 60.0f, 100.0f}); }
+
+            void Prepare(double sampleRate, int /*maxBlock*/) override
+            {
+                _sampleRate = sampleRate;
+                _grain = std::max(256, static_cast<int>(sampleRate * 0.040));
+                _line.Prepare(static_cast<size_t>(_grain * 3 + 64));
+                _tracker.Prepare(sampleRate);
+                _meter.store(-1.0f);
+                for (auto& voice : _voices)
+                {
+                    voice = Voice{};
+                    voice.shifter.Reset(_grain);
+                }
+            }
+
+            double Meter() const override { return _meter.load(); }
+
+            void Process(float** channels, int numChannels, int frames) override
+            {
+                const int key = static_cast<int>(std::lround(parameters[0].load()));
+                const bool minor = parameters[1].load() > 0.5f;
+                const int steps[2] = {static_cast<int>(std::lround(parameters[2].load())), static_cast<int>(std::lround(parameters[3].load()))};
+                const float levels[2] = {std::clamp(parameters[4].load() / 100.0f, 0.0f, 1.0f), std::clamp(parameters[5].load() / 100.0f, 0.0f, 1.0f)};
+                const float width = std::clamp(parameters[6].load() / 100.0f, 0.0f, 1.0f);
+                const float dry = std::clamp(parameters[7].load() / 100.0f, 0.0f, 1.0f);
+                const float glide = SmoothingCoefficient(12.0, _sampleRate);
+
+                // Each voice's place across the stereo field: the first to the left, the second to the right.
+                float panLeft[2];
+                float panRight[2];
+                for (int v = 0; v < 2; ++v)
+                {
+                    const float pan = (v == 0 ? -1.0f : 1.0f) * width;
+                    panLeft[v] = static_cast<float>(std::sqrt(0.5 * (1.0 - pan)));
+                    panRight[v] = static_cast<float>(std::sqrt(0.5 * (1.0 + pan)));
+                }
+
+                for (int n = 0; n < frames; ++n)
+                {
+                    const float mono = numChannels > 1 ? (channels[0][n] + channels[1][n]) * 0.5f : channels[0][n];
+                    if (_tracker.Push(mono))
+                    {
+                        _meter.store(static_cast<float>(_tracker.Sung));
+                    }
+
+                    for (int v = 0; v < 2; ++v)
+                    {
+                        auto& voice = _voices[v];
+                        if (steps[v] == 0)
+                        {
+                            voice.gate = 0.0f;
+                            continue;
+                        }
+
+                        // The shift the voice is gliding to; in a key, from the note last sung (silent until one is).
+                        double target = voice.target;
+                        bool ready = true;
+                        if (key <= 0)
+                        {
+                            target = ChromaticShift(steps[v]);
+                        }
+                        else if (_tracker.Sung > 0)
+                        {
+                            target = ScaleShift(_tracker.Sung, steps[v], key - 1, minor);
+                        }
+                        else
+                        {
+                            ready = false;
+                        }
+
+                        voice.target = target;
+                        voice.shift = target + (voice.shift - target) * glide;
+                        voice.gate = (ready ? 1.0f : 0.0f) + (voice.gate - (ready ? 1.0f : 0.0f)) * glide;
+                    }
+
+                    _line.Write(mono);
+                    float left = 0.0f;
+                    float right = 0.0f;
+                    for (int v = 0; v < 2; ++v)
+                    {
+                        auto& voice = _voices[v];
+                        if (steps[v] == 0 && voice.gate < 1e-4f)
+                        {
+                            continue;
+                        }
+
+                        const float sample = voice.shifter.Next(_line, voice.shift, _tracker.Period, _grain, 0.0) * levels[v] * voice.gate;
+                        left += sample * panLeft[v];
+                        right += sample * panRight[v];
+                    }
+
+                    _line.Advance();
+                    if (numChannels > 1)
+                    {
+                        channels[0][n] = channels[0][n] * dry + left;
+                        channels[1][n] = channels[1][n] * dry + right;
+                    }
+                    else
+                    {
+                        channels[0][n] = channels[0][n] * dry + (left + right) * 0.7071f;
+                    }
+                }
+            }
+
+            // The shift for a number of steps of the major scale, with no key: a third is four semitones.
+            static double ChromaticShift(int steps)
+            {
+                static const int major[] = {0, 2, 4, 5, 7, 9, 11, 12};
+                const int size = std::min(std::abs(steps), 7);
+                return steps < 0 ? -major[size] : major[size];
+            }
+
+            // The shift that takes the note sung (in MIDI notes with fractions) a number of steps along the scale of
+            // the key, keeping how far off its scale note the singer is.
+            static double ScaleShift(double sung, int steps, int tonic, bool minor)
+            {
+                static const int majorScale[] = {0, 2, 4, 5, 7, 9, 11};
+                static const int minorScale[] = {0, 2, 3, 5, 7, 8, 10};
+                const int* scale = minor ? minorScale : majorScale;
+
+                // The scale note nearest the voice.
+                int best = 0;
+                int bestDegree = 0;
+                double bestDistance = 1e9;
+                const int rounded = static_cast<int>(std::lround(sung));
+                for (int note = rounded - 2; note <= rounded + 2; ++note)
+                {
+                    const int pitchClass = ((note - tonic) % 12 + 12) % 12;
+                    for (int degree = 0; degree < 7; ++degree)
+                    {
+                        if (scale[degree] == pitchClass && std::fabs(note - sung) < bestDistance)
+                        {
+                            bestDistance = std::fabs(note - sung);
+                            best = note;
+                            bestDegree = degree;
+                        }
+                    }
+                }
+
+                const int index = bestDegree + steps;
+                const int octaves = static_cast<int>(std::floor(index / 7.0));
+                const int degree = index - octaves * 7;
+                const int target = best - scale[bestDegree] + scale[degree] + 12 * octaves;
+                return static_cast<double>(target - best);
+            }
+
+        private:
+            struct Voice
+            {
+                double shift = 0.0;
+                double target = 0.0;
+                float gate = 0.0f;
+                PitchShifter shifter;
+            };
+
+            double _sampleRate = 44100.0;
+            int _grain = 1764;
+            VoiceLine _line;
+            PitchTracker _tracker;
             std::atomic<float> _meter{-1.0f};
             Voice _voices[2];
+        };
+
+        // ---------------------------------------------------------------- SonCoro
+        // A choir from one voice: singers who each sing it a few cents off the others, a little late, each wavering
+        // slowly in pitch on their own, spread across the stereo field; with a section an octave below and one an
+        // octave above if wanted. Each singer is a PitchShifter, its delay, detune, wavering and place drawn once at
+        // random (always the same, so the choir sounds alike each time). The voice is heard as it is at Mix 0.
+        // Parameters: 0 singers (2..16), 1 detune cents, 2 timing ms, 3 wavering %, 4 low section %, 5 high
+        // section %, 6 width %, 7 mix %.
+        class Choir final : public Effect
+        {
+        public:
+            Choir() { SetDefaults(*this, {8.0f, 15.0f, 25.0f, 40.0f, 0.0f, 0.0f, 80.0f, 50.0f}); }
+
+            void Prepare(double sampleRate, int /*maxBlock*/) override
+            {
+                _sampleRate = sampleRate;
+                _grain = std::max(256, static_cast<int>(sampleRate * 0.040));
+                _line.Prepare(static_cast<size_t>(_grain * 3 + sampleRate * 0.065 + 64));
+                _tracker.Prepare(sampleRate);
+
+                // Each singer's character, drawn from a fixed seed: where it stands, how late and how far off it
+                // sings, and how its pitch wavers (two slow cycles).
+                unsigned state = 0x5C0A0u;
+                auto random = [&state]()
+                {
+                    state = state * 1664525u + 1013904223u;
+                    return static_cast<double>(state >> 8) / 16777216.0;
+                };
+                auto draw = [&](Singer& singer, int i)
+                {
+                    singer = Singer{};
+                    singer.shifter.Reset(_grain);
+                    singer.detune = random() * 2.0 - 1.0;
+                    singer.lateness = random();
+                    singer.pan = (i % 2 == 0 ? -1.0 : 1.0) * (0.25 + 0.75 * random());
+                    singer.rateA = 0.15 + 0.35 * random();
+                    singer.rateB = 0.45 + 0.6 * random();
+                    singer.phaseA = random();
+                    singer.phaseB = random();
+                    singer.gain = 0.8 + 0.4 * random();
+                };
+                for (int i = 0; i < Singers; ++i)
+                {
+                    draw(_singers[i], i);
+                }
+
+                for (int i = 0; i < 4; ++i)
+                {
+                    draw(_lowSection[i], i);
+                    draw(_highSection[i], i + 1);
+                }
+            }
+
+            void Process(float** channels, int numChannels, int frames) override
+            {
+                const int singers = std::clamp(static_cast<int>(std::lround(parameters[0].load())), 2, 16);
+                const double detune = std::clamp(static_cast<double>(parameters[1].load()), 0.0, 60.0) / 100.0; // semitones
+                const double timing = std::clamp(static_cast<double>(parameters[2].load()), 0.0, 60.0) * 0.001 * _sampleRate;
+                const double wavering = std::clamp(static_cast<double>(parameters[3].load()) / 100.0, 0.0, 1.0) * 0.25; // semitones
+                const float low = std::clamp(parameters[4].load() / 100.0f, 0.0f, 1.0f);
+                const float high = std::clamp(parameters[5].load() / 100.0f, 0.0f, 1.0f);
+                const float width = std::clamp(parameters[6].load() / 100.0f, 0.0f, 1.0f);
+                const float mix = std::clamp(parameters[7].load() / 100.0f, 0.0f, 1.0f);
+
+                // The main section plays the voice's own octave; up to four singers each sing in the low and high
+                // sections, taken from the end of the list.
+                const int sectionSize = 4;
+                const float unisonGain = 1.0f / std::sqrt(static_cast<float>(singers));
+                const float sectionGain = 1.0f / std::sqrt(static_cast<float>(sectionSize));
+                const double twoPi = 2.0 * Pi;
+
+                for (int n = 0; n < frames; ++n)
+                {
+                    const float mono = numChannels > 1 ? (channels[0][n] + channels[1][n]) * 0.5f : channels[0][n];
+                    _tracker.Push(mono);
+                    _line.Write(mono);
+
+                    float left = 0.0f;
+                    float right = 0.0f;
+                    auto sing = [&](Singer& singer, double octave, float gain)
+                    {
+                        singer.phaseA += singer.rateA / _sampleRate;
+                        singer.phaseB += singer.rateB / _sampleRate;
+                        singer.phaseA -= std::floor(singer.phaseA);
+                        singer.phaseB -= std::floor(singer.phaseB);
+                        const double waver = wavering * (0.65 * std::sin(twoPi * singer.phaseA) + 0.35 * std::sin(twoPi * singer.phaseB));
+                        const double semitones = octave + singer.detune * detune + waver;
+                        const float sample = singer.shifter.Next(_line, semitones, _tracker.Period, _grain, singer.lateness * timing)
+                            * gain * static_cast<float>(singer.gain);
+                        const double pan = singer.pan * width;
+                        left += sample * static_cast<float>(std::sqrt(0.5 * (1.0 - pan)));
+                        right += sample * static_cast<float>(std::sqrt(0.5 * (1.0 + pan)));
+                    };
+
+                    for (int i = 0; i < singers; ++i)
+                    {
+                        sing(_singers[i], 0.0, unisonGain);
+                    }
+
+                    if (low > 1e-4f)
+                    {
+                        for (int i = 0; i < sectionSize; ++i)
+                        {
+                            sing(_lowSection[i], -12.0, sectionGain * low);
+                        }
+                    }
+
+                    if (high > 1e-4f)
+                    {
+                        for (int i = 0; i < sectionSize; ++i)
+                        {
+                            sing(_highSection[i], 12.0, sectionGain * high);
+                        }
+                    }
+
+                    _line.Advance();
+                    if (numChannels > 1)
+                    {
+                        channels[0][n] = channels[0][n] * (1.0f - mix) + left * mix;
+                        channels[1][n] = channels[1][n] * (1.0f - mix) + right * mix;
+                    }
+                    else
+                    {
+                        channels[0][n] = channels[0][n] * (1.0f - mix) + (left + right) * 0.7071f * mix;
+                    }
+                }
+            }
+
+        private:
+            static constexpr int Singers = 16;
+
+            struct Singer
+            {
+                PitchShifter shifter;
+                double detune = 0.0;   // -1 to 1, of the detune knob
+                double lateness = 0.0; // 0 to 1, of the timing knob
+                double pan = 0.0;
+                double rateA = 0.3;
+                double rateB = 0.7;
+                double phaseA = 0.0;
+                double phaseB = 0.0;
+                double gain = 1.0;
+            };
+
+            double _sampleRate = 44100.0;
+            int _grain = 1764;
+            VoiceLine _line;
+            PitchTracker _tracker;
+            Singer _singers[Singers];
+            Singer _lowSection[4];
+            Singer _highSection[4];
         };
     }
 
@@ -897,6 +1115,8 @@ namespace son
             return std::make_unique<Limiter>();
         case EffectType::Harmonizer:
             return std::make_unique<Harmonizer>();
+        case EffectType::Choir:
+            return std::make_unique<Choir>();
         }
         return nullptr;
     }

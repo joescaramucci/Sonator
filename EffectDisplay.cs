@@ -123,6 +123,9 @@ public sealed class EffectDisplay : FrameworkElement
             case EffectKind.Harmonizer:
                 DrawHarmonizer(drawingContext, plot, effect);
                 break;
+            case EffectKind.Choir:
+                DrawChoir(drawingContext, plot, effect);
+                break;
         }
 
         foreach (var handle in _handles)
@@ -641,6 +644,103 @@ public sealed class EffectDisplay : FrameworkElement
             SetKnob(effect, 0, ceilingNow);
             SetKnob(effect, 2, ceilingNow - (Floor + (point.X - area.X) / area.Width * -Floor));
         }, new[] { 0, 2 }));
+    }
+
+    // ---- The choir: its singers across the stereo field, each as far up or down as its detune, as small as it is
+    // late; the sections an octave below and above in their own rows ----
+
+    private void DrawChoir(DrawingContext drawingContext, Rect plot, TrackEffectViewModel effect)
+    {
+        var singers = (int)Math.Round(Knob(effect, 0));
+        var detune = Knob(effect, 1);
+        var timing = Knob(effect, 2);
+        var width = Knob(effect, 6) / 100;
+        var low = Knob(effect, 4) / 100;
+        var high = Knob(effect, 5) / 100;
+        Title(drawingContext, plot, "SINGERS", string.Format(CultureInfo.CurrentCulture, "{0} · ±{1:0} cents", singers, detune));
+
+        // Left to right across the field; the octave above at the top, the voice's octave in the middle, below at the bottom.
+        var middle = plot.Y + plot.Height / 2;
+        var row = plot.Height / 3.2;
+        drawingContext.DrawLine(AxisPen, new Point(plot.X + plot.Width / 2, plot.Top), new Point(plot.X + plot.Width / 2, plot.Bottom));
+        Label(drawingContext, "L", new Point(plot.X, plot.Bottom - 10), GridInk, 8);
+        Label(drawingContext, "R", new Point(plot.Right, plot.Bottom - 10), GridInk, 8, alignRight: true);
+
+        // The same draw of characters as the native choir: a fixed seed, the same order.
+        var state = 0x5C0A0u;
+        double Random()
+        {
+            state = state * 1664525u + 1013904223u;
+            return (state >> 8) / 16777216.0;
+        }
+
+        void Singer(int index, double y, Brush brush, double level)
+        {
+            var spread = Random() * 2 - 1;
+            var lateness = Random();
+            var pan = (index % 2 == 0 ? -1 : 1) * (0.25 + 0.75 * Random());
+            Random();
+            Random();
+            Random();
+            Random();
+            Random();
+            var x = plot.X + plot.Width / 2 + pan * width * (plot.Width / 2 - 8);
+            var radius = (2.5 + 3.5 * (1 - lateness * timing / 60)) * Math.Max(0.35, level);
+            drawingContext.DrawEllipse(brush, null, new Point(x, y - spread * detune / 60 * (row * 0.45)), radius, radius);
+        }
+
+        var teal = Solid(0x3C, 0xC8, 0xA6);
+        for (var i = 0; i < 16; i++)
+        {
+            if (i < singers)
+            {
+                Singer(i, middle, teal, 1);
+            }
+            else
+            {
+                for (var skip = 0; skip < 8; skip++)
+                {
+                    Random();
+                }
+            }
+        }
+
+        for (var i = 0; i < 4; i++)
+        {
+            if (low > 0)
+            {
+                Singer(i, middle + row, OrangeBrush, low);
+            }
+            else
+            {
+                for (var skip = 0; skip < 8; skip++)
+                {
+                    Random();
+                }
+            }
+
+            if (high > 0)
+            {
+                Singer(i + 1, middle - row, DryBrush, high);
+            }
+            else
+            {
+                for (var skip = 0; skip < 8; skip++)
+                {
+                    Random();
+                }
+            }
+        }
+
+        if (low > 0)
+        {
+            Label(drawingContext, "8vb", new Point(plot.X, middle + row - 6), TitleInk, 8);
+        }
+
+        if (high > 0)
+        {
+            Label(drawingContext, "8va", new Point(plot.X, middle - row - 6), TitleInk, 8);
+        }
     }
 
     // ---- The harmonizer: the note sung in the middle of an octave either way, the harmony voices above and below it ----

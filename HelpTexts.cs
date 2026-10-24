@@ -96,6 +96,7 @@ public static class HelpTexts
             "The power key switches an effect on or off. Turn the knobs by dragging up or down (Shift for fine steps), with the mouse wheel, or double-click for the default. The screen beside the knobs shows what the effect does; drag its orange handles too.",
             "Choose a preset from the list, change it, and SAVE it under a name of yours; RESET goes back to the effect's defaults.",
             "SonArmo sings harmonies with a voice: VOICE 1 and VOICE 2 each a third, fifth, octave... above or below, at their own LEVEL and spread by WIDTH; DRY is the voice itself. Set KEY (and MINOR) to the song's key and each harmony stays in its scale, a third major or minor as the note sung needs; with KEY on None the intervals are fixed. Its screen shows the note sung and the harmony notes.",
+            "SonCoro makes a choir of one voice: SINGERS how many, each a little off the others by up to DETUNE, a little late by up to TIMING, its pitch WAVERING slowly on its own, spread by WIDTH; LOW SECTION and HIGH SECTION add singers an octave below and above. MIX sets choir against voice. Its screen shows the singers across the field.",
         }),
         [typeof(WaveformEditorWindow)] = new("Waveform editor", new[]
         {

@@ -66,6 +66,16 @@ public static class FactoryPresets
             Factory("Octaves", 0, 0, 7, -7, 45, 45, 50, 100),
             Factory("Power Fifths", 0, 0, 4, -3, 55, 50, 70, 100),
         },
+        // Singers, Detune cents, Timing ms, Wavering %, Low section %, High section %, Width %, Mix %
+        [EffectKind.Choir] = new[]
+        {
+            Factory("Double Track", 2, 8, 18, 20, 0, 0, 70, 45),
+            Factory("Small Ensemble", 4, 10, 15, 30, 0, 0, 60, 45),
+            Factory("Gospel Choir", 12, 18, 30, 40, 30, 0, 90, 55),
+            Factory("Big Choir", 16, 22, 40, 50, 35, 15, 100, 60),
+            Factory("Octave Choir", 8, 12, 25, 30, 60, 40, 90, 55),
+            Factory("Choir Pad", 16, 30, 50, 70, 0, 0, 100, 75),
+        },
         // Ceiling dB, Release ms, Drive dB
         [EffectKind.Limiter] = new[]
         {
