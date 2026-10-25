@@ -1547,6 +1547,26 @@ public partial class MainWindow : Window
         await viewModel.ExportAudioAsync(dialog.FileName);
     }
 
+    // File > Export stems: a folder of WAV files, one per track and bus, and the mix.
+    private async void ExportStemsMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel || viewModel.IsExporting)
+        {
+            return;
+        }
+
+        var name = viewModel.CurrentProjectPath is { } project
+            ? Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(project))
+            : "Sonator song";
+        var dialog = new Microsoft.Win32.OpenFolderDialog { Title = "Export stems: choose the folder for the stems' folder" };
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        await viewModel.ExportStemsAsync(Path.Combine(dialog.FolderName, $"{name} stems"));
+    }
+
     // File > Export MIDI: the song's notes, controllers, tempo and markers as a standard MIDI file.
     private void ExportMidiMenuItem_Click(object sender, RoutedEventArgs e)
     {

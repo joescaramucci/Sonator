@@ -2029,6 +2029,61 @@ namespace
         g_capture.frames.store(start + (count > 0 ? count : 0), std::memory_order_release);
     }
 
+    // Each track's and each bus's own sound while the song is exported, apart (stems): what each adds to the mix,
+    // after its effects, volume and pan, at the place of the mix's recording. Kept in chunks of half a second
+    // made as the sound comes, zero where a track was silent. The audio thread alone touches them while recording.
+    struct Stem
+    {
+        uintptr_t key = 0; // the plug-in's or clip's module, or 1 + a bus's number
+        std::vector<std::unique_ptr<float[]>> chunks;
+        int64 frames = 0;
+    };
+
+    constexpr int64 kStemChunkFrames = 24000;
+    std::atomic<bool> g_stemsRecording{false};
+    std::vector<std::unique_ptr<Stem>> g_stems;
+    std::vector<float> g_stemLeft;
+    std::vector<float> g_stemRight;
+
+    bool RecordingStems()
+    {
+        return g_stemsRecording.load(std::memory_order_acquire) && g_capture.recording.load(std::memory_order_acquire);
+    }
+
+    void WriteStem(uintptr_t key, const float* left, const float* right, int32 frames)
+    {
+        Stem* stem = nullptr;
+        for (auto& candidate : g_stems)
+        {
+            if (candidate->key == key)
+            {
+                stem = candidate.get();
+                break;
+            }
+        }
+        if (stem == nullptr)
+        {
+            g_stems.push_back(std::make_unique<Stem>());
+            stem = g_stems.back().get();
+            stem->key = key;
+        }
+
+        const int64 at = g_capture.frames.load(std::memory_order_relaxed);
+        for (int32 i = 0; i < frames; ++i)
+        {
+            const int64 frame = at + i;
+            const auto chunk = static_cast<size_t>(frame / kStemChunkFrames);
+            while (stem->chunks.size() <= chunk)
+            {
+                stem->chunks.push_back(std::make_unique<float[]>(static_cast<size_t>(kStemChunkFrames * 2)));
+            }
+            float* samples = stem->chunks[chunk].get() + (frame % kStemChunkFrames) * 2;
+            samples[0] = left[i];
+            samples[1] = right[i];
+        }
+        stem->frames = std::max(stem->frames, at + frames);
+    }
+
     void MixVoicesInto(float* left, float* right, int32 frames, double sampleRate);
 
     // The master's effects, run on the summed mix. The audio thread takes its own reference under the
@@ -2169,6 +2224,10 @@ namespace
                 left[i] += busLeft[i];
                 right[i] += busRight[i];
             }
+            if (RecordingStems())
+            {
+                WriteStem(static_cast<uintptr_t>(1 + bus), busLeft, busRight, frames);
+            }
         }
     }
 
@@ -2256,6 +2315,13 @@ namespace
             }
 
             voice->AddTo(left, right, frames);
+            if (RecordingStems() && !voice->asleep)
+            {
+                g_stemLeft.assign(static_cast<size_t>(frames), 0.0f);
+                g_stemRight.assign(static_cast<size_t>(frames), 0.0f);
+                voice->AddTo(g_stemLeft.data(), g_stemRight.data(), frames);
+                WriteStem(reinterpret_cast<uintptr_t>(voice->module), g_stemLeft.data(), g_stemRight.data(), frames);
+            }
             for (int bus = 0; bus < son::MaxBuses; ++bus)
             {
                 if (g_audioThreadBuses[bus] != nullptr)
@@ -5157,6 +5223,75 @@ int64_t VstHostBridge_StopMixCapture(double* outSampleRate)
         *outSampleRate = g_capture.sampleRate.load();
     }
     return g_capture.frames.load(std::memory_order_acquire);
+}
+
+int VstHostBridge_StartStemCapture(void)
+{
+    g_stemsRecording.store(false, std::memory_order_release);
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    g_stems.clear();
+    g_stemsRecording.store(true, std::memory_order_release);
+    return 1;
+}
+
+int32_t VstHostBridge_StopStemCapture(void)
+{
+    g_stemsRecording.store(false, std::memory_order_release);
+    // A block being written right now finishes within a block's time.
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    return static_cast<int32_t>(g_stems.size());
+}
+
+int VstHostBridge_GetStem(int32_t index, uint64_t* outKey, int64_t* outFrames)
+{
+    if (index < 0 || index >= static_cast<int32_t>(g_stems.size()) || g_stemsRecording.load())
+    {
+        return 0;
+    }
+
+    const auto& stem = *g_stems[static_cast<size_t>(index)];
+    if (outKey != nullptr)
+    {
+        *outKey = static_cast<uint64_t>(stem.key);
+    }
+    if (outFrames != nullptr)
+    {
+        *outFrames = stem.frames;
+    }
+    return 1;
+}
+
+int VstHostBridge_ReadStem(int32_t index, float* interleaved, int64_t frames)
+{
+    if (interleaved == nullptr || frames < 0 || index < 0 || index >= static_cast<int32_t>(g_stems.size()) || g_stemsRecording.load())
+    {
+        return 0;
+    }
+
+    const auto& stem = *g_stems[static_cast<size_t>(index)];
+    for (int64_t start = 0; start < frames; start += kStemChunkFrames)
+    {
+        const auto chunk = static_cast<size_t>(start / kStemChunkFrames);
+        const int64_t count = std::min<int64_t>(kStemChunkFrames, frames - start);
+        float* target = interleaved + start * 2;
+        if (chunk < stem.chunks.size())
+        {
+            std::memcpy(target, stem.chunks[chunk].get(), static_cast<size_t>(count) * 2 * sizeof(float));
+        }
+        else
+        {
+            std::fill(target, target + count * 2, 0.0f);
+        }
+    }
+    return 1;
+}
+
+void VstHostBridge_ClearStems(void)
+{
+    if (!g_stemsRecording.load())
+    {
+        g_stems.clear();
+    }
 }
 
 int VstHostBridge_ReadMixCapture(float* interleaved, int64_t frames)

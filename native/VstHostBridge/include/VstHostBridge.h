@@ -241,6 +241,16 @@ VSTHOSTBRIDGE_API int64_t VstHostBridge_StopMixCapture(double* outSampleRate);
 // Copies the frames recorded (interleaved stereo floats) and frees the recording. Returns 1 when copied.
 VSTHOSTBRIDGE_API int VstHostBridge_ReadMixCapture(float* interleaved, int64_t frames);
 
+// Stems: while the mix is recorded (StartMixCapture first), each track's and each bus's own sound is kept apart,
+// after its effects, volume and pan. Stop returns how many were kept; each has its key (the plug-in's or clip's
+// module, or 1 + a bus's number) and its length in frames of the mix's recording, and is read as interleaved
+// stereo, zeros past its end. Clear lets them go.
+VSTHOSTBRIDGE_API int VstHostBridge_StartStemCapture(void);
+VSTHOSTBRIDGE_API int32_t VstHostBridge_StopStemCapture(void);
+VSTHOSTBRIDGE_API int VstHostBridge_GetStem(int32_t index, uint64_t* outKey, int64_t* outFrames);
+VSTHOSTBRIDGE_API int VstHostBridge_ReadStem(int32_t index, float* interleaved, int64_t frames);
+VSTHOSTBRIDGE_API void VstHostBridge_ClearStems(void);
+
 // Sends a MIDI controller to the module's plug-in: controller 0-127 is a control change (1 the mod wheel, 64
 // the sustain pedal), 128 aftertouch, 129 pitch bend; value from 0 to 1 (pitch bend centred at 0.5). The
 // plug-in hears it, through its own mapping of controllers to its parameters, at the start of the next block.

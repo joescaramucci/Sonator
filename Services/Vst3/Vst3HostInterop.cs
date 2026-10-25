@@ -35,6 +35,21 @@ internal static class Vst3HostInterop
     internal static extern int VstHostBridge_HasSidechainInput(IntPtr moduleHandle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int VstHostBridge_StartStemCapture();
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int VstHostBridge_StopStemCapture();
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int VstHostBridge_GetStem(int index, out ulong key, out long frames);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int VstHostBridge_ReadStem(int index, [Out] float[] interleaved, long frames);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void VstHostBridge_ClearStems();
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int VstHostBridge_GetDelayCompensation(out int samples, out double sampleRate);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]

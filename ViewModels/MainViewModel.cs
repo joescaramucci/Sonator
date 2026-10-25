@@ -2418,7 +2418,14 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
     // recording the mix that comes out of the audio output (every plug-in and audio clip, through their
     // effects and volumes), then writes it to path as a 24-bit WAV. A real-time export, as plug-ins play live.
     // Instruments outside Sonator (on the MIDI output) are not heard in it.
-    public async Task<bool> ExportAudioAsync(string path)
+    public Task<bool> ExportAudioAsync(string path) => ExportAsync(path, stemsFolder: null);
+
+    // The same, writing besides the mix (Mix.wav) each track's and each bus's own sound into a folder, as WAV
+    // files that line up from the song's start (stems): every track after its effects, volume and pan, the buses'
+    // returns apart, the master's effects on the mix alone. One pass, as long as the song.
+    public Task<bool> ExportStemsAsync(string folder) => ExportAsync(Path.Combine(folder, "Mix.wav"), folder);
+
+    private async Task<bool> ExportAsync(string path, string? stemsFolder)
     {
         if (IsExporting)
         {
@@ -2447,8 +2454,10 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
                 EnsureTrackInstrument(pluginTrack);
             }
 
-            if (!_liveInstrumentHost.TryStartMixCapture(seconds + tail + 5))
+            if (!_liveInstrumentHost.TryStartMixCapture(seconds + tail + 5)
+                || (stemsFolder is not null && !_liveInstrumentHost.TryStartStemCapture()))
             {
+                _liveInstrumentHost.StopMixCapture(out _);
                 StatusMessage = "Export: the audio engine is not available";
                 return false;
             }
@@ -2461,6 +2470,8 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
                 await Task.Delay(250);
             }
 
+            // The stems' names, by the module or bus each comes from, taken while the clips still play.
+            var stemNames = stemsFolder is null ? null : StemNames();
             if (IsPlaying)
             {
                 StopPlayback(); // the notes are released and ring out in the tail
@@ -2468,10 +2479,17 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
 
             await Task.Delay(TimeSpan.FromSeconds(tail));
             var mix = _liveInstrumentHost.StopMixCapture(out var sampleRate);
+            var stems = stemsFolder is null ? null : _liveInstrumentHost.StopStemCapture(mix is null ? 0 : mix.Length / 2);
             if (mix is null)
             {
                 StatusMessage = "Export: nothing was heard. Only plug-in and audio tracks are exported";
                 return false;
+            }
+
+            if (stemsFolder is not null && stems is not null && stemNames is not null)
+            {
+                StatusMessage = $"Writing {stems.Count} stems...";
+                await Task.Run(() => WriteStems(stemsFolder, stems, stemNames, sampleRate));
             }
 
             var measure = await Task.Run(() =>
@@ -2488,7 +2506,9 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
                 return Loudness.Of(mix, 2, sampleRate);
             });
             LastExportLoudness = measure;
-            StatusMessage = $"Exported {seconds + tail:0} s to {Path.GetFileName(path)}: {LoudnessReport(measure)}";
+            StatusMessage = stemsFolder is null
+                ? $"Exported {seconds + tail:0} s to {Path.GetFileName(path)}: {LoudnessReport(measure)}"
+                : $"Exported the mix and {stems?.Count ?? 0} stems to {stemsFolder}: {LoudnessReport(measure)}";
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -2504,6 +2524,56 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             var message = StatusMessage;
             SeekToStep(startStep);
             StatusMessage = message; // the export's outcome, not the playhead's new place
+        }
+    }
+
+    // What each stem is called, by its key: a plug-in's or clip's track by its module, a bus by its number.
+    private Dictionary<ulong, string> StemNames()
+    {
+        var names = new Dictionary<ulong, string>();
+        foreach (var track in Patterns.SelectMany(pattern => pattern.Tracks))
+        {
+            if (_trackInstruments.RunningFor(track) is { } module)
+            {
+                names.TryAdd((ulong)module.NativeHandle.ToInt64(), track.Name);
+            }
+        }
+
+        foreach (var (module, track) in _playingClips)
+        {
+            names.TryAdd((ulong)module.NativeHandle.ToInt64(), track.Name);
+        }
+
+        for (var bus = 0; bus < Buses.Count; bus++)
+        {
+            names.TryAdd((ulong)(1 + bus), Buses[bus].Name);
+        }
+
+        return names;
+    }
+
+    // One WAV per stem, numbered in the order the tracks come, each name once; a stem that is all silence is left out.
+    internal static void WriteStems(string folder, IReadOnlyList<(ulong Key, float[] Samples)> stems, IReadOnlyDictionary<ulong, string> names, int sampleRate)
+    {
+        Directory.CreateDirectory(folder);
+        var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var number = 0;
+        foreach (var (key, samples) in stems)
+        {
+            if (!samples.Any(sample => Math.Abs(sample) > 1e-6f))
+            {
+                continue;
+            }
+
+            var name = names.TryGetValue(key, out var known) ? known : $"Track {number + 1}";
+            var safe = string.Concat(name.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c)).Trim();
+            var file = $"{++number:00} {safe}";
+            for (var copy = 2; !used.Add(file); copy++)
+            {
+                file = $"{number:00} {safe} {copy}";
+            }
+
+            WriteWav(Path.Combine(folder, file + ".wav"), samples, sampleRate);
         }
     }
 

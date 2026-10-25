@@ -181,6 +181,17 @@ public interface IVst3PluginHost
     /// </summary>
     float[]? StopMixCapture(out int sampleRate);
 
+    /// <summary>
+    /// Keeps each track's and bus's own sound apart while the mix is recorded (after TryStartMixCapture).
+    /// </summary>
+    bool TryStartStemCapture();
+
+    /// <summary>
+    /// The stems kept, each by its key (a module's native handle, or 1 + a bus's number), as interleaved stereo of
+    /// the given length.
+    /// </summary>
+    IReadOnlyList<(ulong Key, float[] Samples)> StopStemCapture(long frames);
+
     Vst3ModuleHandle? TryCreateClip(float[] interleaved, int channels, int sampleRate, double startSeconds);
 
     /// <summary>

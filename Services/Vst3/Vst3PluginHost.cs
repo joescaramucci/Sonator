@@ -450,6 +450,47 @@ public sealed class Vst3PluginHost : IVst3PluginHost
         }
     }
 
+    public bool TryStartStemCapture()
+    {
+        try
+        {
+            return Vst3HostInterop.VstHostBridge_StartStemCapture() != 0;
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            return false;
+        }
+    }
+
+    public IReadOnlyList<(ulong Key, float[] Samples)> StopStemCapture(long frames)
+    {
+        var stems = new List<(ulong, float[])>();
+        try
+        {
+            var count = Vst3HostInterop.VstHostBridge_StopStemCapture();
+            for (var index = 0; index < count && frames > 0; index++)
+            {
+                if (Vst3HostInterop.VstHostBridge_GetStem(index, out var key, out _) == 0)
+                {
+                    continue;
+                }
+
+                var samples = new float[frames * 2];
+                if (Vst3HostInterop.VstHostBridge_ReadStem(index, samples, frames) != 0)
+                {
+                    stems.Add((key, samples));
+                }
+            }
+
+            Vst3HostInterop.VstHostBridge_ClearStems();
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+        }
+
+        return stems;
+    }
+
     public Vst3ModuleHandle? TryCreateClip(float[] interleaved, int channels, int sampleRate, double startSeconds)
     {
         ArgumentNullException.ThrowIfNull(interleaved);
