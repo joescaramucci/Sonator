@@ -15,3 +15,6 @@ public sealed record SidechainChoice(Guid Id, string Name);
 
 // A track's automation of one parameter: points from 0 to 1, the knob's travel or the plug-in's own value.
 public sealed record ParameterLane(AutomatedParameter Target, IReadOnlyList<AutomationPoint> Points);
+
+// A take of a track: an audio clip and where it starts, or the notes it had; named "Take 3, bar 5" and the like.
+public sealed record TrackTake(string Name, string? AudioPath, int AudioStartStep, IReadOnlyList<MidiNoteEventViewModel>? Notes);

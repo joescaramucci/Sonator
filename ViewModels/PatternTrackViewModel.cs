@@ -252,6 +252,41 @@ public sealed class PatternTrackViewModel : ViewModelBase
     // Where the clip starts on the timeline, in sixteenth-note steps from the start of the pattern.
     public int AudioClipStartStep { get; set; }
 
+    private IReadOnlyList<TrackTake> _takes = Array.Empty<TrackTake>();
+
+    // What the track played before each recording that replaced it, and the loop's other passes: the takes to
+    // choose from, the latest first.
+    public IReadOnlyList<TrackTake> Takes
+    {
+        get => _takes;
+        set
+        {
+            if (SetProperty(ref _takes, value))
+            {
+                RaisePropertyChanged(nameof(HasTakes));
+            }
+        }
+    }
+
+    public bool HasTakes => _takes.Count > 0;
+
+    // What the track plays now, as a take, to keep when another takes its place.
+    public TrackTake AsTake(string name) => new(name, AudioClipPath, AudioClipStartStep, AudioClipPath is null ? MidiNoteEvents : null);
+
+    // Plays a take: its clip, or its notes.
+    public void Play(TrackTake take)
+    {
+        if (take.AudioPath is not null)
+        {
+            AudioClipPath = take.AudioPath;
+            AudioClipStartStep = take.AudioStartStep;
+        }
+        else if (take.Notes is not null)
+        {
+            MidiNoteEvents = take.Notes;
+        }
+    }
+
     private string? _frozenAudioPath;
 
     // The track rendered to audio (its plug-in and effects, before its fader), played in their place while it is

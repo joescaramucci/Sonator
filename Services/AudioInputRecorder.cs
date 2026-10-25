@@ -188,6 +188,22 @@ public sealed class AudioInputRecorder : IDisposable
         while (count == _readBuffer.Length);
     }
 
+    // How many frames the take holds so far, the latency still on its start: the places the loop went back at.
+    public int FramesRecorded
+    {
+        get
+        {
+            Collect();
+            lock (_sync)
+            {
+                return _take?.Count ?? 0;
+            }
+        }
+    }
+
+    // The frames the last take had taken off its start for the latency.
+    public int LastTakeSkippedFrames { get; private set; }
+
     // Ends the take: the mono clip recorded, with the latency taken off its start; null when nothing came in.
     public AudioClip? EndTake()
     {
@@ -205,6 +221,7 @@ public sealed class AudioInputRecorder : IDisposable
         }
 
         var skip = Math.Min(_latencyFrames, take.Count);
+        LastTakeSkippedFrames = skip;
         if (take.Count - skip < _takeRate / 20)
         {
             return null; // less than a twentieth of a second

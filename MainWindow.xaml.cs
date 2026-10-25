@@ -3063,6 +3063,35 @@ public partial class MainWindow : Window
 
     private void ShowVolumeAutomation_Click(object sender, RoutedEventArgs e) => ShowAutomation(sender, AutomationTarget.Volume);
 
+    // The track's takes, the latest first: one chosen plays in place of what the track plays now.
+    private void TakesMenu_SubmenuOpened(object sender, RoutedEventArgs e)
+    {
+        if (!ReferenceEquals(e.OriginalSource, sender) || sender is not MenuItem menu || DataContext is not MainViewModel viewModel
+            || MenuTrack(menu, viewModel) is not { } track)
+        {
+            return;
+        }
+
+        menu.Items.Clear();
+        foreach (var take in track.Takes)
+        {
+            var item = new MenuItem { Header = take.AudioPath is null ? $"{take.Name} (notes)" : take.Name };
+            item.Click += (_, _) => viewModel.PlayTake(track, take);
+            menu.Items.Add(item);
+        }
+
+        if (track.Takes.Count == 0)
+        {
+            menu.Items.Add(new MenuItem { Header = "No takes yet: a recording that replaces the track's sound keeps the old one here", IsEnabled = false });
+            return;
+        }
+
+        menu.Items.Add(new Separator());
+        var clear = new MenuItem { Header = "Clear the takes" };
+        clear.Click += (_, _) => viewModel.ClearTakes(track);
+        menu.Items.Add(clear);
+    }
+
     // Freeze a plug-in track (render it to audio) or unfreeze it; bounce it to a new audio track.
     private async void FreezeMenuItem_Click(object sender, RoutedEventArgs e)
     {

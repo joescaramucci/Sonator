@@ -64,7 +64,9 @@ internal static class ProjectDocumentMapper
                     .ToList(),
             track.AudioFadeInSeconds,
             track.AudioFadeOutSeconds,
-            track.FrozenAudioPath);
+            track.FrozenAudioPath,
+            track.Takes.Count == 0 ? null : track.Takes.Select(take => new TakeDocument(take.Name, take.AudioPath, take.AudioStartStep,
+                take.Notes?.Select(note => new MidiNoteEventDocument(note.StepIndex, note.DurationSteps, note.NoteNumber, note.Velocity, note.StartOffset, note.LengthFraction)).ToList())).ToList());
     }
 
     // A track's kit pieces, as saved, each knowing its track.
@@ -90,6 +92,13 @@ internal static class ProjectDocumentMapper
 
     private static List<AutomationPointDocument>? BuildAutomationDocuments(IReadOnlyList<AutomationPoint> points) =>
         points.Count == 0 ? null : points.Select(point => new AutomationPointDocument(point.Step, point.Value)).ToList();
+
+    private static IReadOnlyList<TrackTake> Takes(IEnumerable<TakeDocument>? documents) =>
+        documents?
+            .Select(take => new TrackTake(take.Name, take.Audio, take.AudioStart,
+                take.Notes?.Select(note => new MidiNoteEventViewModel(note.StepIndex, note.DurationSteps, note.NoteNumber, note.Velocity, note.StartOffset, note.LengthFraction)).ToList()))
+            .ToList()
+        ?? (IReadOnlyList<TrackTake>)Array.Empty<TrackTake>();
 
     private static IReadOnlyList<ParameterLane> ParameterLanes(IEnumerable<ParameterLaneDocument>? documents) =>
         documents?
@@ -168,6 +177,7 @@ internal static class ProjectDocumentMapper
         targetTrack.AudioFadeInSeconds = sourceTrack.AudioFadeIn;
         targetTrack.AudioFadeOutSeconds = sourceTrack.AudioFadeOut;
         targetTrack.FrozenAudioPath = sourceTrack.FrozenAudio;
+        targetTrack.Takes = Takes(sourceTrack.Takes);
         targetTrack.InstrumentIconKey = sourceTrack.InstrumentIcon;
         targetTrack.Effects.Clear();
         foreach (var effect in BuildEffects(sourceTrack.Effects))
@@ -271,6 +281,7 @@ internal static class ProjectDocumentMapper
             AudioFadeInSeconds = trackDocument.AudioFadeIn,
             AudioFadeOutSeconds = trackDocument.AudioFadeOut,
             FrozenAudioPath = trackDocument.FrozenAudio,
+            Takes = Takes(trackDocument.Takes),
             InstrumentIconKey = trackDocument.InstrumentIcon,
             NoteBlocks = Blocks(trackDocument.NoteBlocks)
         };

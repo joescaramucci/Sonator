@@ -3694,17 +3694,144 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             _recordTakeHasNotes = true;
         }
 
-        var path = AudioClipLoader.SaveToLibrary(clip);
-        _decodedClips[path] = clip;
-        _audioWaveforms[path] = AudioWaveformSummary.FromClip(clip);
+        // Each time round the loop is a pass of its own: the last played through is kept, the others are takes.
+        var map = CurrentTempoMap;
+        var passes = LoopPasses(clip, _playbackStartStep, map);
+        var chosen = passes.Count > 1 && passes[^1].Clip.Duration.TotalSeconds < passes[^2].Clip.Duration.TotalSeconds / 2 ? passes[^2] : passes[^1];
+        var stamp = DateTime.Now.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture);
+        var takes = new List<TrackTake>();
+        if (track.AudioClipPath is not null)
+        {
+            takes.Add(track.AsTake($"Before the take at {stamp}"));
+        }
+
+        for (var i = 0; i < passes.Count; i++)
+        {
+            if (passes[i] != chosen && passes[i].Clip.Duration.TotalSeconds >= 0.1)
+            {
+                takes.Add(new TrackTake($"Pass {i + 1} at {stamp}, bar {passes[i].StartStep / StepsPerBar + 1}",
+                    AudioClipLoader.SaveToLibrary(passes[i].Clip), passes[i].StartStep, null));
+            }
+        }
+
+        // With PUNCH, the take replaces the clip only between the locators.
+        var result = chosen.Clip;
+        var resultStep = chosen.StartStep;
+        if (PunchRange is { } punch)
+        {
+            var old = track.AudioClipPath is { } oldPath && File.Exists(oldPath) ? DecodedClip(oldPath) : null;
+            resultStep = old is null ? (int)punch.In : Math.Min(track.AudioClipStartStep, (int)punch.In);
+            result = AudioSplice.Punch(old, map.SecondsAt(track.AudioClipStartStep), chosen.Clip, map.SecondsAt(chosen.StartStep),
+                map.SecondsAt((int)punch.In), map.SecondsAt((int)punch.Out), map.SecondsAt(resultStep));
+        }
+
+        var path = AudioClipLoader.SaveToLibrary(result);
+        _decodedClips[path] = result;
+        _audioWaveforms[path] = AudioWaveformSummary.FromClip(result);
         track.AudioClipPath = path;
-        track.AudioClipStartStep = _playbackStartStep;
+        track.AudioClipStartStep = resultStep;
         track.Instrument = "Audio clip";
+        track.Takes = takes.Concat(track.Takes).ToList();
         LengthenPatternForClip(track);
         RebuildTimeline();
         StatusMessage = $"{track.Name}: recorded {clip.Duration.TotalSeconds:0.0} s from bar {_playbackStartStep / StepsPerBar + 1}"
+            + (PunchRange is not null ? ", punched in between the locators" : string.Empty)
+            + (passes.Count > 1 ? $"; {passes.Count} passes of the loop, the others kept as takes" : string.Empty)
             + (_inputRecorder.Problem is { } problem ? $" ({problem})" : string.Empty);
         return true;
+    }
+
+    // The take cut into the loop's passes when the loop went round while it was recorded: the first from where
+    // playback started to the loop's end, each other a whole loop from its start. One pass otherwise.
+    private List<(AudioClip Clip, int StartStep)> LoopPasses(AudioClip take, int startStep, TempoMap map)
+    {
+        var passes = new List<(AudioClip Clip, int StartStep)>();
+        var seconds = take.Duration.TotalSeconds;
+        if (!IsLoopEnabled || !_hasLoopRange || startStep > _loopEndStep)
+        {
+            passes.Add((take, startStep));
+            return passes;
+        }
+
+        var loopIn = map.SecondsAt(_loopStartStep);
+        var loopOut = map.SecondsAt(_loopEndStep + 1);
+        var offset = 0.0;
+        var passStart = map.SecondsAt(startStep);
+        var passStep = startStep;
+        while (offset < seconds - 0.02 && loopOut > passStart)
+        {
+            var length = loopOut - passStart;
+            passes.Add((AudioSplice.Part(take, offset, Math.Min(seconds, offset + length)), passStep));
+            offset += length;
+            passStart = loopIn;
+            passStep = _loopStartStep;
+        }
+
+        if (passes.Count == 0)
+        {
+            passes.Add((take, startStep));
+        }
+
+        return passes;
+    }
+
+    // ---- Punch and takes ----
+
+    private bool _isPunchEnabled;
+
+    // While on, recording takes effect only between the locators: notes played outside are not kept and those the
+    // track had inside are replaced; an audio take is punched into the clip there, crossfaded at each seam.
+    public bool IsPunchEnabled
+    {
+        get => _isPunchEnabled;
+        set
+        {
+            if (SetProperty(ref _isPunchEnabled, value))
+            {
+                StatusMessage = !value
+                    ? "Punch off: recording takes effect wherever it plays"
+                    : _hasLoopRange
+                        ? $"Punch on: recording takes effect only from {DescribeLoopRange()}"
+                        : "Punch on: set the left and right locators (drag on the ruler) for where recording takes effect";
+            }
+        }
+    }
+
+    // From the left locator to the end of the right one's step, while PUNCH is on and the locators are set.
+    private (double In, double Out)? PunchRange => _isPunchEnabled && _hasLoopRange ? (_loopStartStep, _loopEndStep + 1) : null;
+
+    // Plays one of the track's takes in place of what it plays now, which becomes a take. Undoable.
+    public void PlayTake(PatternTrackViewModel track, TrackTake take)
+    {
+        if (!track.Takes.Contains(take))
+        {
+            return;
+        }
+
+        CaptureUndoStateIfNeeded();
+        var stamp = DateTime.Now.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture);
+        track.Takes = new[] { track.AsTake($"Replaced at {stamp}") }.Concat(track.Takes.Where(other => other != take)).ToList();
+        track.Play(take);
+        if (take.AudioPath is not null)
+        {
+            LengthenPatternForClip(track);
+        }
+
+        RebuildTimeline();
+        TrackNotesChanged?.Invoke(track);
+        StatusMessage = $"{track.Name} now plays {take.Name}";
+    }
+
+    public void ClearTakes(PatternTrackViewModel track)
+    {
+        if (track.Takes.Count == 0)
+        {
+            return;
+        }
+
+        CaptureUndoStateIfNeeded();
+        track.Takes = Array.Empty<TrackTake>();
+        StatusMessage = $"{track.Name}: takes cleared";
     }
 
     // While recording, a key played becomes a note of the selected track: it starts at the playhead and lasts until it is released.
@@ -3728,23 +3855,37 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         if (note.IsOn)
         {
             _keyboardNotesPlayed++;
+            if (PunchRange is { } punch && (at < punch.In || at >= punch.Out))
+            {
+                return; // outside the punch: heard, not kept
+            }
+
             _recordingNotes[note.NoteNumber] = (at, note.Velocity);
             return;
         }
 
         if (_recordingNotes.Remove(note.NoteNumber, out var started))
         {
-            AddRecordedNote(track, note.NoteNumber, started.Velocity, started.StartStep, at);
+            AddRecordedNote(track, note.NoteNumber, started.Velocity, started.StartStep, PunchRange is { } punch ? Math.Min(at, punch.Out) : at);
         }
     }
 
     private void AddRecordedNote(PatternTrackViewModel track, int noteNumber, int velocity, double start, double end)
     {
-        // One undo step for the whole take, taken before its first note.
+        // One undo step for the whole take, taken before its first note. Punched, the take replaces the notes the
+        // track had between the locators, which are kept as a take.
         if (!_recordTakeHasNotes)
         {
             CaptureUndoStateIfNeeded();
             _recordTakeHasNotes = true;
+            if (PunchRange is { } punch)
+            {
+                var stamp = DateTime.Now.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture);
+                track.Takes = new[] { track.AsTake($"Before the take at {stamp}") }.Concat(track.Takes).ToList();
+                track.MidiNoteEvents = track.MidiNoteEvents
+                    .Where(existing => existing.StepIndex + existing.StartOffset < punch.In || existing.StepIndex + existing.StartOffset >= punch.Out)
+                    .ToList();
+            }
         }
 
         var stepStart = Math.Floor(start);
@@ -3784,7 +3925,8 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         {
             foreach (var (noteNumber, started) in _recordingNotes)
             {
-                AddRecordedNote(track, noteNumber, started.Velocity, started.StartStep, Math.Max(started.StartStep, stopPosition));
+                var end = PunchRange is { } punch ? Math.Min(stopPosition, punch.Out) : stopPosition;
+                AddRecordedNote(track, noteNumber, started.Velocity, started.StartStep, Math.Max(started.StartStep, end));
             }
         }
 

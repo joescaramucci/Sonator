@@ -81,7 +81,11 @@ public sealed record TrackDocument(
     List<ParameterLaneDocument>? ParameterAutomation = null,
     double AudioFadeIn = 0,
     double AudioFadeOut = 0,
-    string? FrozenAudio = null);
+    string? FrozenAudio = null,
+    List<TakeDocument>? Takes = null);
+
+// A take of a track (see TrackTake).
+public sealed record TakeDocument(string Name, string? Audio, int AudioStart, List<MidiNoteEventDocument>? Notes);
 
 // A track's automation of a knob of its plug-in (Effect null) or of one of its effects (see ParameterLane).
 public sealed record ParameterLaneDocument(Guid? Effect, uint Parameter, string Name, List<AutomationPointDocument> Points);

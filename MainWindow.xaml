@@ -622,6 +622,9 @@
                             <MenuItem Header="..." />
                         </MenuItem>
                         <Separator />
+                        <MenuItem Header="_Takes" SubmenuOpened="TakesMenu_SubmenuOpened">
+                            <MenuItem Header="..." />
+                        </MenuItem>
                         <MenuItem Header="_Freeze or unfreeze the track" Click="FreezeMenuItem_Click"
                                   ToolTip="Freeze: the song plays once and the track's plug-in and effects are rendered to audio, played in their place so they take no processor time. Unfreeze plays them again" />
                         <MenuItem Header="_Bounce to a new audio track" Click="BounceMenuItem_Click"
@@ -2025,6 +2028,9 @@
                                                         <MenuItem Header="..." />
                                                     </MenuItem>
                                                     <Separator />
+                                                    <MenuItem Header="Takes" SubmenuOpened="TakesMenu_SubmenuOpened">
+                                                        <MenuItem Header="..." />
+                                                    </MenuItem>
                                                     <MenuItem Header="{Binding SourceTrack.FreezeMenuHeader}" Click="FreezeMenuItem_Click" />
                                                     <MenuItem Header="Bounce to a new audio track" Click="BounceMenuItem_Click" />
                                                     <MenuItem Header="Hide automation" Click="HideAutomation_Click" />
@@ -2673,6 +2679,23 @@
                         <Button Content="START" Command="{Binding PlayCommand}" />
                     </UniformGrid>
                     <UniformGrid Columns="2" Margin="0,0,0,4">
+                        <ToggleButton Content="PUNCH" IsChecked="{Binding IsPunchEnabled}"
+                                      ToolTip="While on, recording takes effect only between the left and right locators: what was there is replaced, and kept as a take">
+                            <ToggleButton.Style>
+                                <Style TargetType="ToggleButton" BasedOn="{StaticResource MetronomeToggleStyle}">
+                                    <Setter Property="Margin" Value="{Binding Margin, ElementName=ImportMidiButton}" />
+                                    <Setter Property="FontFamily" Value="{Binding FontFamily, ElementName=ImportMidiButton}" />
+                                    <Setter Property="FontSize" Value="{Binding FontSize, ElementName=ImportMidiButton}" />
+                                    <Setter Property="FontWeight" Value="{Binding FontWeight, ElementName=ImportMidiButton}" />
+                                    <Style.Triggers>
+                                        <Trigger Property="IsChecked" Value="True">
+                                            <Setter Property="Background" Value="#D94C4C" />
+                                            <Setter Property="Foreground" Value="#FFF4F4" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ToggleButton.Style>
+                        </ToggleButton>
                         <ToggleButton Content="AUTO WRITE" IsChecked="{Binding IsAutomationWriteEnabled}"
                                       ToolTip="While on, what you move as the song plays (a fader, a pan knob, a knob of an effect or in a plug-in's window) is written into the track's automation">
                             <ToggleButton.Style>
@@ -2690,8 +2713,8 @@
                                 </Style>
                             </ToggleButton.Style>
                         </ToggleButton>
-                        <Button x:Name="ImportMidiButton" Content="IMPORT MIDI" Command="{Binding ImportMidiCommand}" />
                     </UniformGrid>
+                    <Button x:Name="ImportMidiButton" Content="IMPORT MIDI" Command="{Binding ImportMidiCommand}" Margin="0,0,0,4" />
                     <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="10" Margin="2,2,2,0" />
                 </StackPanel>
                 </GroupBox>
