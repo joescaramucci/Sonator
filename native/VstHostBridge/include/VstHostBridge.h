@@ -44,6 +44,10 @@ VSTHOSTBRIDGE_API int VstHostBridge_GetDspLoad(double* outPeakLoad, double* outA
 // Sets the dropout count back to zero.
 VSTHOSTBRIDGE_API void VstHostBridge_ResetDropouts(void);
 
+// How many samples every track is delayed to, to play in line with the one whose plug-ins and effects make its
+// sound the latest (delay compensation), and the sample rate it is counted at.
+VSTHOSTBRIDGE_API int VstHostBridge_GetDelayCompensation(int32_t* outSamples, double* outSampleRate);
+
 // The song's transport, handed to every plug-in with each block (VST3 ProcessContext): the tempo in BPM,
 // the time signature, and whether it plays. With jump set, the song is at quarterNotes from its start (a
 // start, a loop going back, a seek); otherwise the audio thread moves the position on by itself while it plays.

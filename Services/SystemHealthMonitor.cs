@@ -15,7 +15,8 @@ public sealed record SystemHealthSample(
     long SystemMemoryTotalBytes,
     double? DspPeak,
     double? DspAverage,
-    long Dropouts);
+    long Dropouts,
+    double DelayCompensationSeconds = 0);
 
 // Samples the system and Sonator's CPU use, memory, and the plug-ins' audio load.
 // Each reading covers the time since the previous one.
@@ -57,19 +58,38 @@ public sealed class SystemHealthMonitor
         double? dspPeak = null;
         double? dspAverage = null;
         long dropouts = 0;
+        var compensation = 0.0;
         try
         {
             if (Vst3HostInterop.VstHostBridge_GetDspLoad(out var peak, out var average, out dropouts) != 0)
             {
                 (dspPeak, dspAverage) = (peak, average);
             }
+
+            compensation = DelayCompensationSeconds();
         }
         catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or BadImageFormatException)
         {
             // Without the native bridge there is no audio load to show.
         }
 
-        return new SystemHealthSample(systemCpu, sonatorCpu, _process.WorkingSet64, systemMemoryLoad, usedMemory, totalMemory, dspPeak, dspAverage, dropouts);
+        return new SystemHealthSample(systemCpu, sonatorCpu, _process.WorkingSet64, systemMemoryLoad, usedMemory, totalMemory, dspPeak, dspAverage, dropouts, compensation);
+    }
+
+    // How late every track plays to stay in line with the one whose plug-ins make it latest (delay
+    // compensation), in seconds; 0 without the native bridge.
+    public static double DelayCompensationSeconds()
+    {
+        try
+        {
+            return Vst3HostInterop.VstHostBridge_GetDelayCompensation(out var samples, out var sampleRate) != 0 && sampleRate > 0
+                ? samples / sampleRate
+                : 0;
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or BadImageFormatException)
+        {
+            return 0;
+        }
     }
 
     public static void ResetDropouts()

@@ -302,6 +302,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         };
         _clickPlayer.Start();
         _engine.ClickSound = _clickPlayer.Trigger;
+        Health.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(SystemHealthViewModel.DelayCompensationSeconds))
+            {
+                _clickPlayer.DelaySeconds = Health.DelayCompensationSeconds;
+            }
+        };
         _midiInput.NoteReceived += OnKeyboardNote;
         _midiInput.ControllerReceived += OnKeyboardController;
         _midiInput.MessageReceived += packed => Application.Current?.Dispatcher.BeginInvoke(() => OnMidiMessageReceived(packed));

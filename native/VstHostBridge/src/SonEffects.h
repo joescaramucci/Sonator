@@ -50,6 +50,10 @@ namespace son
         // kept as it is rather than made again. Null for Sonator's own effects.
         virtual const void* Identity() const { return nullptr; }
 
+        // How many samples late the effect's sound comes out, as a limiter's look-ahead: the mixer delays the
+        // other tracks as much, so all stay together.
+        virtual int Latency() const { return 0; }
+
         std::atomic<float> parameters[MaxParameters]{};
         std::atomic<bool> enabled{true};
 
@@ -101,6 +105,10 @@ namespace son
         // The highest absolute sample since the last call, after the effects and the gain.
         float TakePeak();
 
+        // How many samples late the chain's sound comes out: the latencies of its effects switched on, as of
+        // the last block.
+        int Latency() const { return _latency.load(std::memory_order_relaxed); }
+
         // The same, for the left and the right side apart, as for the master's VU meters. Measured apart
         // from TakePeak, so reading one leaves the other as it was.
         void TakeStereoPeak(float& left, float& right);
@@ -116,6 +124,7 @@ namespace son
         int _maxBlock = 0;
         std::atomic<float> _peak{0.0f};
         std::atomic<float> _sidePeaks[2]{};
+        std::atomic<int> _latency{0};
 
         // The gain each channel had at the end of the last block, for gliding to a new one. Negative
         // until the first block.

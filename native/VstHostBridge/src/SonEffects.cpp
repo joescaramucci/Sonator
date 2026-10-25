@@ -1109,6 +1109,8 @@ namespace son
         public:
             Mastering() { SetDefaults(*this, {0.0f, 0.0f, 0.0f, 30.0f, 100.0f, 0.0f, -1.0f}); }
 
+            int Latency() const override { return _lookahead; }
+
             void Prepare(double sampleRate, int /*maxBlock*/) override
             {
                 _sampleRate = sampleRate;
@@ -1545,15 +1547,18 @@ namespace son
             }
 
             // Each effect's level is measured going in and coming out, for its IN and OUT meters.
+            int latency = 0;
             for (auto& effect : _effects)
             {
                 StorePeak(effect->inputPeak, PeakOf(channels, numChannels, frames));
                 if (effect->enabled.load())
                 {
                     effect->Process(channels, numChannels, frames);
+                    latency += std::max(0, effect->Latency());
                 }
                 StorePeak(effect->outputPeak, PeakOf(channels, numChannels, frames));
             }
+            _latency.store(latency, std::memory_order_relaxed);
         }
 
         const float gain = this->gain.load();

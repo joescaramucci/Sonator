@@ -46,9 +46,18 @@ public sealed class SystemHealthViewModel : ViewModelBase
 
     public string DspText => _sample?.DspPeak is null ? "--" : Percent(DspLoad);
 
-    public string DspToolTip => _sample?.DspPeak is null
+    public string DspToolTip => (_sample?.DspPeak is null
         ? "Audio load: no plug-in is playing audio"
-        : $"Audio load of the plug-ins: {Percent(_sample.DspPeak.Value)} at the peak, {Percent(_sample.DspAverage ?? 0)} on average.\nAbove 100% the audio cannot be rendered in time and clicks.";
+        : $"Audio load of the plug-ins: {Percent(_sample.DspPeak.Value)} at the peak, {Percent(_sample.DspAverage ?? 0)} on average.\nAbove 100% the audio cannot be rendered in time and clicks.")
+        + DelayCompensationText;
+
+    // The delay compensation, when a plug-in makes its track late: every other track waits for it.
+    private string DelayCompensationText => _sample is { DelayCompensationSeconds: > 0 } sample
+        ? $"\nDelay compensation: {sample.DelayCompensationSeconds * 1000:0.0} ms, so the tracks whose plug-ins make them late stay in time with the others."
+        : string.Empty;
+
+    // Seconds every track waits for the latest, for the metronome's clicks to wait as long.
+    public double DelayCompensationSeconds => _sample?.DelayCompensationSeconds ?? 0;
 
     public Brush DspBrush => BrushFor(DspLoad);
 
@@ -85,7 +94,7 @@ public sealed class SystemHealthViewModel : ViewModelBase
         foreach (var name in new[]
                  {
                      nameof(CpuLoad), nameof(CpuText), nameof(CpuToolTip), nameof(CpuBrush),
-                     nameof(DspLoad), nameof(DspText), nameof(DspToolTip), nameof(DspBrush),
+                     nameof(DspLoad), nameof(DspText), nameof(DspToolTip), nameof(DspBrush), nameof(DelayCompensationSeconds),
                      nameof(Dropouts), nameof(DropoutsText), nameof(HasDropouts),
                      nameof(RamLoad), nameof(RamText), nameof(RamToolTip), nameof(RamBrush),
                  })

@@ -25,7 +25,15 @@ public sealed class MetronomeClickPlayer : IDisposable
         _output.Play();
     }
 
-    // Starts a click at the next block of audio. Called from the sequencer's thread.
+    // How long a click waits before it sounds, as the plug-ins' tracks wait for the latest of them (delay
+    // compensation), so the clicks stay with the beat heard.
+    public double DelaySeconds
+    {
+        get => _source.DelaySeconds;
+        set => _source.DelaySeconds = Math.Clamp(double.IsFinite(value) ? value : 0, 0, 1);
+    }
+
+    // Starts a click at the next block of audio, or as much later as DelaySeconds. Called from the sequencer's thread.
     public void Trigger(float volume)
     {
         _source.Trigger(volume);
@@ -42,6 +50,9 @@ public sealed class MetronomeClickPlayer : IDisposable
     {
         private readonly object _sync = new();
         private float _pendingVolume;
+        private long _pendingDue;
+
+        public double DelaySeconds { get; set; }
         private int _clickSamplesLeft;
         private float _clickVolume;
         private double _phase;
@@ -53,6 +64,7 @@ public sealed class MetronomeClickPlayer : IDisposable
             lock (_sync)
             {
                 _pendingVolume = volume;
+                _pendingDue = System.Diagnostics.Stopwatch.GetTimestamp() + (long)(DelaySeconds * System.Diagnostics.Stopwatch.Frequency);
             }
         }
 
@@ -60,7 +72,7 @@ public sealed class MetronomeClickPlayer : IDisposable
         {
             lock (_sync)
             {
-                if (_pendingVolume > 0f)
+                if (_pendingVolume > 0f && System.Diagnostics.Stopwatch.GetTimestamp() >= _pendingDue)
                 {
                     _clickVolume = _pendingVolume;
                     _clickSamplesLeft = (int)(ClickSeconds * SampleRate);

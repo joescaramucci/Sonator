@@ -498,7 +498,8 @@ namespace
 
     // Runs the module's effects on a block of the plug-in's planar output, and reads how much of it goes to
     // each bus (all zero when the module has no chain).
-    void ApplyEffects(BridgeModule* module, float** channels, int numChannels, int frames, double sampleRate, float* sends)
+    // Runs the track's effects; returns how many samples late they make its sound.
+    int ApplyEffects(BridgeModule* module, float** channels, int numChannels, int frames, double sampleRate, float* sends)
     {
         std::shared_ptr<son::EffectChain> chain;
         {
@@ -515,8 +516,60 @@ namespace
         if (chain != nullptr)
         {
             chain->Process(channels, numChannels, frames, sampleRate);
+            return chain->Latency();
         }
+        return 0;
     }
+
+    // ---- Delay compensation ----
+    // A plug-in that looks ahead (a limiter, a linear-phase EQ) or works in blocks puts its track's sound out
+    // late. Each track is delayed by what it lacks of the latest one, so all play together, as Cubase's delay
+    // compensation does. The target is the latest track's latency in the block before; the audio thread only.
+    std::atomic<int32> g_compensationTarget{0};
+    std::atomic<double> g_compensationSampleRate{48000.0};
+    constexpr double kMaxCompensationSeconds = 1.0;
+
+    // Delays one output's planar sound by a number of samples, in place.
+    struct CompensationDelay
+    {
+        std::vector<std::vector<float>> ring;
+        size_t write = 0;
+        int32 delay = 0;
+
+        void Apply(float* const* channels, int32 channelCount, int32 frames, int32 wanted)
+        {
+            wanted = std::max<int32>(0, wanted);
+            if (wanted == 0 && delay == 0)
+            {
+                return;
+            }
+
+            const size_t length = static_cast<size_t>(wanted) + static_cast<size_t>(frames) + 1;
+            if (ring.size() < static_cast<size_t>(channelCount) || (!ring.empty() && ring[0].size() < length))
+            {
+                const size_t size = std::max(length, ring.empty() ? size_t{0} : ring[0].size());
+                ring.assign(static_cast<size_t>(channelCount), std::vector<float>(size, 0.0f));
+                write = 0;
+            }
+            delay = wanted;
+
+            const size_t size = ring[0].size();
+            for (int32 c = 0; c < channelCount; ++c)
+            {
+                auto& buffer = ring[static_cast<size_t>(c)];
+                float* samples = channels[c];
+                size_t at = write;
+                for (int32 i = 0; i < frames; ++i)
+                {
+                    buffer[at] = samples[i];
+                    const size_t read = (at + size - static_cast<size_t>(delay)) % size;
+                    samples[i] = buffer[read];
+                    at = (at + 1) % size;
+                }
+            }
+            write = (write + static_cast<size_t>(frames)) % size;
+        }
+    };
 
     // ---- The song's transport, as plug-ins read it ----
     // Sonator's tempo, time signature, position and whether it plays, for the plug-ins that follow the host:
@@ -686,11 +739,20 @@ namespace
             maxBlock_ = maxBlock;
         }
 
+        int Latency() const override { return latency_; }
+
         void Process(float** channels, int numChannels, int frames) override
         {
             if (!active_ || frames > maxBlock_ || numChannels <= 0)
             {
                 return;
+            }
+
+            // Its latency, read again now and then: a plug-in may change it with a setting.
+            if (latencyCountdown_-- <= 0)
+            {
+                latency_ = static_cast<int>(std::min<uint32>(processor_->getLatencySamples(), 1u << 20));
+                latencyCountdown_ = 64;
             }
 
             // The track's sound into the first input, silence into the others.
@@ -779,6 +841,8 @@ namespace
         bool active_ = false;
         bool processing_ = false;
         int maxBlock_ = 0;
+        int latency_ = 0;
+        int latencyCountdown_ = 0;
         std::vector<std::vector<float>> storage_;
         std::vector<AudioBusBuffers> inputs_;
         std::vector<AudioBusBuffers> outputs_;
@@ -1173,6 +1237,7 @@ namespace
             std::vector<Sample32*> pointers;
             std::shared_ptr<son::EffectChain> chain;
             float sends[son::MaxBuses]{};
+            CompensationDelay compensation;
         };
         std::vector<ExtraOutput> extraOutputs;
         std::vector<AudioBusBuffers> allOutputs; // every output's buffers, as the plug-in is handed them
@@ -1195,6 +1260,13 @@ namespace
         int64 silentFrames = 0;
         bool asleep = false;
         bool followsTransport = true;
+
+        // How many samples late the plug-in's sound comes out, read again now and then; with its effects', the
+        // latest of its outputs, for the mixer's delay compensation; and the delay that brings output 0 in line.
+        int32 instrumentLatency = 0;
+        int32 latencyCountdown = 0;
+        std::atomic<int32> reportedLatency{0};
+        CompensationDelay compensation;
         uint32 transportJumpsSeen = 0;
 
         int32 channels = 2;
@@ -1401,8 +1473,15 @@ namespace
             }
             processData.numSamples = frames;
             processor->process(processData);
+            if (latencyCountdown-- <= 0)
+            {
+                instrumentLatency = static_cast<int32>(std::min<uint32>(processor->getLatencySamples(), 1u << 20));
+                latencyCountdown = 64;
+            }
             RenderExtraOutputs(frames, sampleRate);
-            ApplyEffects(module, pointers.data(), channels, frames, sampleRate, sends);
+            const int32 latency = instrumentLatency + ApplyEffects(module, pointers.data(), channels, frames, sampleRate, sends);
+            compensation.Apply(pointers.data(), channels, frames, g_compensationTarget.load(std::memory_order_relaxed) - latency);
+            reportedLatency.store(std::max(latency, extraLatency), std::memory_order_relaxed);
 
             // Silent after its effects, with no note held and none just played: it may go to sleep. About
             // -100 dBFS counts as silence, well below anything heard.
@@ -1440,8 +1519,11 @@ namespace
         // Puts each of the plug-in's other outputs through its own chain, or into output 0 when it has none,
         // ahead of output 0's effects. The chains are taken under the module's lock without waiting; when the
         // lock is busy, the chains of the block before play on.
+        int32 extraLatency = 0;
+
         void RenderExtraOutputs(int32 frames, double sampleRate)
         {
+            extraLatency = 0;
             if (extraOutputs.empty())
             {
                 return;
@@ -1467,6 +1549,10 @@ namespace
                         output.sends[bus] = output.chain->sends[bus].load(std::memory_order_relaxed);
                     }
                     output.chain->Process(output.pointers.data(), output.channels, frames, sampleRate);
+                    const int32 latency = instrumentLatency + output.chain->Latency();
+                    extraLatency = std::max(extraLatency, latency);
+                    output.compensation.Apply(output.pointers.data(), output.channels, frames,
+                        g_compensationTarget.load(std::memory_order_relaxed) - latency);
                     continue;
                 }
 
@@ -1540,7 +1626,9 @@ namespace
 
             pointers[0] = left;
             pointers[1] = right;
-            ApplyEffects(module, pointers.data(), 2, frames, sampleRate, sends);
+            const int32 latency = ApplyEffects(module, pointers.data(), 2, frames, sampleRate, sends);
+            compensation.Apply(pointers.data(), 2, frames, g_compensationTarget.load(std::memory_order_relaxed) - latency);
+            reportedLatency.store(latency, std::memory_order_relaxed);
 
             if (!loops && static_cast<int64>(clipPosition) >= clipFrames)
             {
@@ -1957,6 +2045,16 @@ namespace
         }
 
         const auto& voices = *g_audioThreadVoices;
+
+        // Every track is brought in line with the latest, as it was in the block before.
+        int32 latest = 0;
+        for (const auto& voice : voices)
+        {
+            latest = std::max(latest, voice->reportedLatency.load(std::memory_order_relaxed));
+        }
+        g_compensationTarget.store(std::min(latest, static_cast<int32>(sampleRate * kMaxCompensationSeconds)), std::memory_order_relaxed);
+        g_compensationSampleRate.store(sampleRate, std::memory_order_relaxed);
+
         if (voices.size() == 1)
         {
             voices[0]->Render(frames, sampleRate);
@@ -2361,6 +2459,19 @@ int VstHostBridge_GetDspLoad(double* outPeakLoad, double* outAverageLoad, int64_
 void VstHostBridge_ResetDropouts()
 {
     g_dspMeter.dropouts = 0;
+}
+
+int VstHostBridge_GetDelayCompensation(int32_t* outSamples, double* outSampleRate)
+{
+    if (outSamples != nullptr)
+    {
+        *outSamples = g_compensationTarget.load(std::memory_order_relaxed);
+    }
+    if (outSampleRate != nullptr)
+    {
+        *outSampleRate = g_compensationSampleRate.load(std::memory_order_relaxed);
+    }
+    return 1;
 }
 
 void VstHostBridge_SetTransport(double tempo, int32_t numerator, int32_t denominator, double quarterNotes, int32_t playing, int32_t jump)
