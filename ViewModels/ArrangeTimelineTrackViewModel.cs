@@ -38,6 +38,14 @@ public sealed class ArrangeTimelineTrackViewModel : ViewModelBase
 
     public string AudioPathData => AudioWaveform?.PathData ?? string.Empty;
 
+    // A lane of a piece of a drum kit, under its track's: narrower, with the hits of its drum (KitHits, in steps
+    // along the timeline); all the kit's hits, fainter, for a piece that is not one drum (the room, the overheads).
+    public bool IsKitPiece { get; init; }
+
+    public IReadOnlyList<double> KitHits { get; init; } = Array.Empty<double>();
+
+    public bool KitHitsAreAll { get; init; }
+
     // The track's blocks of notes along the timeline, each pattern's own where the pattern plays.
     public IReadOnlyList<TimelineBlockViewModel> Blocks { get; init; } = Array.Empty<TimelineBlockViewModel>();
 

@@ -38,6 +38,7 @@
         <local:VolumePercentConverter x:Key="VolumePercentConverter" />
         <local:AudioClipWidthConverter x:Key="AudioClipWidthConverter" />
         <BooleanToVisibilityConverter x:Key="VisibleWhenLoopRange" />
+        <BooleanToVisibilityConverter x:Key="VisibleWhenTrue" />
         <local:StepOffsetConverter x:Key="StepOffsetConverter" />
         <local:RulerBarLabelConverter x:Key="RulerBarLabelConverter" />
 
@@ -1410,365 +1411,451 @@
                                 </Setter>
                             </Style>
                         </ListBox.ItemContainerStyle>
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Grid Height="64">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="260" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <Border BorderBrush="{StaticResource Line}" BorderThickness="0.5" Background="{Binding SourceTrack.TrackColorBrush}" Padding="3">
-                                        <Border.ContextMenu>
-                                            <ContextMenu>
-                                                <MenuItem Header="Default" Tag="" Click="TrackColorMenuItem_Click">
-                                                    <MenuItem.Icon>
-                                                        <Border Width="12" Height="12" Background="#3D3D3D" BorderBrush="#6F87A0" BorderThickness="1" />
-                                                    </MenuItem.Icon>
-                                                </MenuItem>
-                                                <MenuItem Header="Red" Tag="#FFD94C4C" Click="TrackColorMenuItem_Click">
-                                                    <MenuItem.Icon>
-                                                        <Border Width="12" Height="12" Background="#FFD94C4C" BorderBrush="#A62B2B" BorderThickness="1" />
-                                                    </MenuItem.Icon>
-                                                </MenuItem>
-                                                <MenuItem Header="Orange" Tag="#FFDE8A3B" Click="TrackColorMenuItem_Click">
-                                                    <MenuItem.Icon>
-                                                        <Border Width="12" Height="12" Background="#FFDE8A3B" BorderBrush="#A86425" BorderThickness="1" />
-                                                    </MenuItem.Icon>
-                                                </MenuItem>
-                                                <MenuItem Header="Yellow" Tag="#FFE6C45B" Click="TrackColorMenuItem_Click">
-                                                    <MenuItem.Icon>
-                                                        <Border Width="12" Height="12" Background="#FFE6C45B" BorderBrush="#AE8F2F" BorderThickness="1" />
-                                                    </MenuItem.Icon>
-                                                </MenuItem>
-                                                <MenuItem Header="Green" Tag="#FF5FB87B" Click="TrackColorMenuItem_Click">
-                                                    <MenuItem.Icon>
-                                                        <Border Width="12" Height="12" Background="#FF5FB87B" BorderBrush="#3F7D53" BorderThickness="1" />
-                                                    </MenuItem.Icon>
-                                                </MenuItem>
-                                                <MenuItem Header="Cyan" Tag="#FF5CAFD6" Click="TrackColorMenuItem_Click">
-                                                    <MenuItem.Icon>
-                                                        <Border Width="12" Height="12" Background="#FF5CAFD6" BorderBrush="#3D7A94" BorderThickness="1" />
-                                                    </MenuItem.Icon>
-                                                </MenuItem>
-                                                <MenuItem Header="Blue" Tag="#FF5F8FDE" Click="TrackColorMenuItem_Click">
-                                                    <MenuItem.Icon>
-                                                        <Border Width="12" Height="12" Background="#FF5F8FDE" BorderBrush="#3C6195" BorderThickness="1" />
-                                                    </MenuItem.Icon>
-                                                </MenuItem>
-                                                <MenuItem Header="Purple" Tag="#FF9C72D8" Click="TrackColorMenuItem_Click">
-                                                    <MenuItem.Icon>
-                                                        <Border Width="12" Height="12" Background="#FF9C72D8" BorderBrush="#6F4F9D" BorderThickness="1" />
-                                                    </MenuItem.Icon>
-                                                </MenuItem>
-                                                <MenuItem Header="Gray" Tag="#FF8E8F91" Click="TrackColorMenuItem_Click">
-                                                    <MenuItem.Icon>
-                                                        <Border Width="12" Height="12" Background="#FF8E8F91" BorderBrush="#696969" BorderThickness="1" />
-                                                    </MenuItem.Icon>
-                                                </MenuItem>
-                                            </ContextMenu>
-                                        </Border.ContextMenu>
-                                        <Grid>
+                        <ListBox.ItemTemplateSelector>
+                            <local:TimelineLaneTemplateSelector>
+                                <local:TimelineLaneTemplateSelector.TrackTemplate>
+                                    <DataTemplate>
+                                        <Grid Height="64">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="54" />
+                                                <ColumnDefinition Width="260" />
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="20" />
-                                                <ColumnDefinition Width="14" />
                                             </Grid.ColumnDefinitions>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="34" />
-                                                <RowDefinition Height="20" />
-                                            </Grid.RowDefinitions>
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Top">
-                                                <Button Content="M"
-                                                        Width="22" Height="18" Padding="0"
-                                                        Command="{Binding DataContext.ToggleTrackMuteCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        CommandParameter="{Binding SourceTrack}">
-                                                    <Button.Style>
-                                                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                                                            <Setter Property="Background" Value="#5C5C5C" />
-                                                            <Setter Property="BorderBrush" Value="#6F87A0" />
-                                                            <Setter Property="Foreground" Value="#CDCED0" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding SourceTrack.IsMuted}" Value="True">
-                                                                    <Setter Property="Background" Value="#49B88D" />
-                                                                    <Setter Property="Foreground" Value="#0F1A14" />
-                                                                    <Setter Property="BorderBrush" Value="#2F8F6A" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </Button.Style>
-                                                </Button>
-                                                <Button Content="S"
-                                                        Width="22" Height="18" Padding="0"
-                                                        Command="{Binding DataContext.ToggleTrackSoloCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        CommandParameter="{Binding SourceTrack}">
-                                                    <Button.Style>
-                                                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                                                            <Setter Property="Background" Value="#555555" />
-                                                            <Setter Property="BorderBrush" Value="#7C7D7F" />
-                                                            <Setter Property="Foreground" Value="#CDCED0" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding SourceTrack.IsSolo}" Value="True">
-                                                                    <Setter Property="Background" Value="#49B88D" />
-                                                                    <Setter Property="Foreground" Value="#0F1A14" />
-                                                                    <Setter Property="BorderBrush" Value="#2F8F6A" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </Button.Style>
-                                                </Button>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="1">
-                                                <TextBlock Text="{Binding SourceTrack.Name}"
-                                                           FontWeight="Bold"
-                                                           Foreground="#EEEFF1"
-                                                           TextTrimming="CharacterEllipsis" />
-                                                <TextBlock FontSize="10" Foreground="#ACADAF">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding SourceTrack.HasPlugin}" Value="True">
+                                            <Border BorderBrush="{StaticResource Line}" BorderThickness="0.5" Background="{Binding SourceTrack.TrackColorBrush}" Padding="3">
+                                                <Border.ContextMenu>
+                                                    <ContextMenu>
+                                                        <MenuItem Header="Default" Tag="" Click="TrackColorMenuItem_Click">
+                                                            <MenuItem.Icon>
+                                                                <Border Width="12" Height="12" Background="#3D3D3D" BorderBrush="#6F87A0" BorderThickness="1" />
+                                                            </MenuItem.Icon>
+                                                        </MenuItem>
+                                                        <MenuItem Header="Red" Tag="#FFD94C4C" Click="TrackColorMenuItem_Click">
+                                                            <MenuItem.Icon>
+                                                                <Border Width="12" Height="12" Background="#FFD94C4C" BorderBrush="#A62B2B" BorderThickness="1" />
+                                                            </MenuItem.Icon>
+                                                        </MenuItem>
+                                                        <MenuItem Header="Orange" Tag="#FFDE8A3B" Click="TrackColorMenuItem_Click">
+                                                            <MenuItem.Icon>
+                                                                <Border Width="12" Height="12" Background="#FFDE8A3B" BorderBrush="#A86425" BorderThickness="1" />
+                                                            </MenuItem.Icon>
+                                                        </MenuItem>
+                                                        <MenuItem Header="Yellow" Tag="#FFE6C45B" Click="TrackColorMenuItem_Click">
+                                                            <MenuItem.Icon>
+                                                                <Border Width="12" Height="12" Background="#FFE6C45B" BorderBrush="#AE8F2F" BorderThickness="1" />
+                                                            </MenuItem.Icon>
+                                                        </MenuItem>
+                                                        <MenuItem Header="Green" Tag="#FF5FB87B" Click="TrackColorMenuItem_Click">
+                                                            <MenuItem.Icon>
+                                                                <Border Width="12" Height="12" Background="#FF5FB87B" BorderBrush="#3F7D53" BorderThickness="1" />
+                                                            </MenuItem.Icon>
+                                                        </MenuItem>
+                                                        <MenuItem Header="Cyan" Tag="#FF5CAFD6" Click="TrackColorMenuItem_Click">
+                                                            <MenuItem.Icon>
+                                                                <Border Width="12" Height="12" Background="#FF5CAFD6" BorderBrush="#3D7A94" BorderThickness="1" />
+                                                            </MenuItem.Icon>
+                                                        </MenuItem>
+                                                        <MenuItem Header="Blue" Tag="#FF5F8FDE" Click="TrackColorMenuItem_Click">
+                                                            <MenuItem.Icon>
+                                                                <Border Width="12" Height="12" Background="#FF5F8FDE" BorderBrush="#3C6195" BorderThickness="1" />
+                                                            </MenuItem.Icon>
+                                                        </MenuItem>
+                                                        <MenuItem Header="Purple" Tag="#FF9C72D8" Click="TrackColorMenuItem_Click">
+                                                            <MenuItem.Icon>
+                                                                <Border Width="12" Height="12" Background="#FF9C72D8" BorderBrush="#6F4F9D" BorderThickness="1" />
+                                                            </MenuItem.Icon>
+                                                        </MenuItem>
+                                                        <MenuItem Header="Gray" Tag="#FF8E8F91" Click="TrackColorMenuItem_Click">
+                                                            <MenuItem.Icon>
+                                                                <Border Width="12" Height="12" Background="#FF8E8F91" BorderBrush="#696969" BorderThickness="1" />
+                                                            </MenuItem.Icon>
+                                                        </MenuItem>
+                                                    </ContextMenu>
+                                                </Border.ContextMenu>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="54" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="20" />
+                                                        <ColumnDefinition Width="14" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="34" />
+                                                        <RowDefinition Height="20" />
+                                                    </Grid.RowDefinitions>
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Top">
+                                                        <Button Content="M"
+                                                                Width="22" Height="18" Padding="0"
+                                                                Command="{Binding DataContext.ToggleTrackMuteCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                CommandParameter="{Binding SourceTrack}">
+                                                            <Button.Style>
+                                                                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                                    <Setter Property="Background" Value="#5C5C5C" />
+                                                                    <Setter Property="BorderBrush" Value="#6F87A0" />
+                                                                    <Setter Property="Foreground" Value="#CDCED0" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding SourceTrack.IsMuted}" Value="True">
+                                                                            <Setter Property="Background" Value="#49B88D" />
+                                                                            <Setter Property="Foreground" Value="#0F1A14" />
+                                                                            <Setter Property="BorderBrush" Value="#2F8F6A" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Button.Style>
+                                                        </Button>
+                                                        <Button Content="S"
+                                                                Width="22" Height="18" Padding="0"
+                                                                Command="{Binding DataContext.ToggleTrackSoloCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                CommandParameter="{Binding SourceTrack}">
+                                                            <Button.Style>
+                                                                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                                    <Setter Property="Background" Value="#555555" />
+                                                                    <Setter Property="BorderBrush" Value="#7C7D7F" />
+                                                                    <Setter Property="Foreground" Value="#CDCED0" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding SourceTrack.IsSolo}" Value="True">
+                                                                            <Setter Property="Background" Value="#49B88D" />
+                                                                            <Setter Property="Foreground" Value="#0F1A14" />
+                                                                            <Setter Property="BorderBrush" Value="#2F8F6A" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Button.Style>
+                                                        </Button>
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="1">
+                                                        <DockPanel>
+                                                            <ToggleButton DockPanel.Dock="Right" Content="KIT" Width="30" Height="15" Padding="0" FontSize="9"
+                                                                          Focusable="False" Style="{StaticResource MetronomeToggleStyle}"
+                                                                          IsChecked="{Binding SourceTrack.IsKitOnTimeline, Mode=OneWay}"
+                                                                          Click="TimelineKit_Click"
+                                                                          Visibility="{Binding SourceTrack.HasHeardKitPieces, Converter={StaticResource VisibleWhenTrue}}" />
+                                                            <TextBlock Text="{Binding SourceTrack.Name}"
+                                                                       FontWeight="Bold"
+                                                                       Foreground="#EEEFF1"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                        </DockPanel>
+                                                        <TextBlock FontSize="10" Foreground="#ACADAF">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding SourceTrack.HasPlugin}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                            <Run Text="{Binding SourceTrack.Instrument, Mode=OneWay}" />
+                                                            <Run Text="  ·  " />
+                                                            <Run Text="{Binding SourceTrack.DisplayTrackType, Mode=OneWay}" />
+                                                            <Run Text="  " />
+                                                            <Run Text="{Binding SourceTrack.RoutingDisplay, Mode=OneWay}" />
+                                                        </TextBlock>
+                                                        <TextBlock Text="{Binding SourceTrack.PluginAndSoundName}"
+                                                                   FontSize="12"
+                                                                   FontWeight="SemiBold"
+                                                                   Foreground="#9FD3F2"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   Cursor="Hand"
+                                                                   Tag="PluginName"
+                                                                   ToolTip="Double-click to open the plug-in window"
+                                                                   MouseLeftButtonDown="TrackPluginName_MouseLeftButtonDown">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
                                                                     <Setter Property="Visibility" Value="Collapsed" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                    <Run Text="{Binding SourceTrack.Instrument, Mode=OneWay}" />
-                                                    <Run Text="  ·  " />
-                                                    <Run Text="{Binding SourceTrack.DisplayTrackType, Mode=OneWay}" />
-                                                    <Run Text="  " />
-                                                    <Run Text="{Binding SourceTrack.RoutingDisplay, Mode=OneWay}" />
-                                                </TextBlock>
-                                                <TextBlock Text="{Binding SourceTrack.PluginAndSoundName}"
-                                                           FontSize="12"
-                                                           FontWeight="SemiBold"
-                                                           Foreground="#9FD3F2"
-                                                           TextTrimming="CharacterEllipsis"
-                                                           Cursor="Hand"
-                                                           Tag="PluginName"
-                                                           ToolTip="Double-click to open the plug-in window"
-                                                           MouseLeftButtonDown="TrackPluginName_MouseLeftButtonDown">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding SourceTrack.HasPlugin}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Visible" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                    </StackPanel>
+                                                    <Grid Grid.Row="1" Grid.ColumnSpan="2">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="24" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <ToggleButton Content="R"
+                                                                      Width="22"
+                                                                      Height="18"
+                                                                      Padding="0"
+                                                                      Focusable="False"
+                                                                      Style="{StaticResource TrackRecordArmButton}"
+                                                                      AutomationProperties.Name="RECORD ARM"
+                                                                      IsChecked="{Binding SourceTrack.IsRecordArmed, Mode=OneWay}" Command="{Binding DataContext.ToggleTrackRecordArmCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding SourceTrack}"
+                                                                      ToolTip="Arm this track. Keys played on the MIDI keyboard are recorded into the armed track while recording is on" />
+                                                        <local:VolumeBar Grid.Column="1"
+                                                                         Height="16"
+                                                                         BarThickness="5"
+                                                                         Margin="3,0,1,0"
+                                                                         IsPan="True"
+                                                                         DefaultValue="0"
+                                                                         Tag="VolumeBar"
+                                                                         AutomationProperties.Name="TRACK PAN"
+                                                                         Value="{Binding SourceTrack.MixPan}"
+                                                                         ToolTip="Pan: drag left or right, double-click to centre" />
+                                                    </Grid>
+                                                   <Slider Grid.RowSpan="2"
+                                                           Grid.Column="2"
+                                                           Width="16"
+                                                           Height="44"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"
+                                                           Minimum="0"
+                                                           Maximum="100"
+                                                           Orientation="Vertical"
+                                                           IsDirectionReversed="False"
+                                                           AutoToolTipPlacement="TopLeft"
+                                                           AutoToolTipPrecision="0"
+                                                           Focusable="False"
+                                                           AutomationProperties.Name="TRACK VOLUME"
+                                                           Value="{Binding SourceTrack.MixVolume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource VolumePercentConverter}}"
+                                                           ToolTip="Track volume" />
+                                                   <ProgressBar Grid.RowSpan="2"
+                                                                Grid.Column="3"
+                                                                Style="{StaticResource VerticalMeter}"
+                                                                Value="{Binding SourceTrack.SignalLevel}"
+                                                                VerticalAlignment="Center"
+                                                                ToolTip="Channel level" />
+                                                </Grid>
+                                            </Border>
+                                            <Grid Grid.Column="1"
+                                                  Width="{Binding DataContext.TimelineContentWidth, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                  Background="Transparent"
+                                                  ClipToBounds="True">
+                                                <Rectangle Fill="{Binding SourceTrack.TrackColorBrush}" Opacity="0.35" IsHitTestVisible="False" />
+                                                <!-- The lane's grid and its active steps, drawn at once: a long song has thousands of steps a lane. -->
+                                                <local:TimelineLane Steps="{Binding Steps}"
+                                                                    StepBrush="{Binding SourceTrack.TrackColorBrush}"
+                                                                    StepWidth="{Binding DataContext.TimelineSixteenthWidth, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                    StepsPerBar="{Binding DataContext.StepsPerBar, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                    StepsPerBeat="{Binding DataContext.Meter.StepsPerBeat, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                    ShowSteps="{Binding HasStepCells}"
+                                                                    IsHitTestVisible="False" />
+                                                <!-- The audio clip, where it starts: drag it along to move it in time (SNAP sets the grid),
+                                                     or onto another empty track to move it there; double-click it to edit it. -->
+                                                <Border HorizontalAlignment="Left"
+                                                        VerticalAlignment="Stretch"
+                                                        CornerRadius="2"
+                                                        Background="#24463F"
+                                                        BorderBrush="#62B7A4"
+                                                        BorderThickness="1"
+                                                        Tag="AudioClip"
+                                                        ToolTip="Audio clip: drag it along to move it in time, or onto another empty track. Double-click to edit it"
+                                                        PreviewMouseLeftButtonDown="AudioClip_PreviewMouseLeftButtonDown"
+                                                        PreviewMouseMove="AudioClip_PreviewMouseMove"
+                                                        PreviewMouseLeftButtonUp="AudioClip_PreviewMouseLeftButtonUp">
+                                                    <Border.ContextMenu>
+                                                        <ContextMenu>
+                                                            <MenuItem Header="Detect tempo and sync the song..." Click="DetectTempoMenuItem_Click" />
+                                                            <MenuItem Header="Edit in the waveform editor" Click="EditClipMenuItem_Click" />
+                                                            <MenuItem Header="Correct the pitch in Sondyne..." Click="SondyneMenuItem_Click" />
+                                                        </ContextMenu>
+                                                    </Border.ContextMenu>
+                                                    <Border.Margin>
+                                                        <MultiBinding Converter="{StaticResource StepOffsetConverter}">
+                                                            <Binding Path="AudioStartStep" />
+                                                            <Binding Path="DataContext.TimelineSixteenthWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        </MultiBinding>
+                                                    </Border.Margin>
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
                                                             <Setter Property="Visibility" Value="Collapsed" />
                                                             <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding SourceTrack.HasPlugin}" Value="True">
+                                                                <DataTrigger Binding="{Binding HasAudioClip}" Value="True">
                                                                     <Setter Property="Visibility" Value="Visible" />
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                            </StackPanel>
-                                            <Grid Grid.Row="1" Grid.ColumnSpan="2">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="24" />
-                                                    <ColumnDefinition Width="*" />
-                                                </Grid.ColumnDefinitions>
-                                                <ToggleButton Content="R"
-                                                              Width="22"
-                                                              Height="18"
-                                                              Padding="0"
-                                                              Focusable="False"
-                                                              Style="{StaticResource TrackRecordArmButton}"
-                                                              AutomationProperties.Name="RECORD ARM"
-                                                              IsChecked="{Binding SourceTrack.IsRecordArmed, Mode=OneWay}" Command="{Binding DataContext.ToggleTrackRecordArmCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding SourceTrack}"
-                                                              ToolTip="Arm this track. Keys played on the MIDI keyboard are recorded into the armed track while recording is on" />
-                                                <local:VolumeBar Grid.Column="1"
-                                                                 Height="16"
-                                                                 BarThickness="5"
-                                                                 Margin="3,0,1,0"
-                                                                 IsPan="True"
-                                                                 DefaultValue="0"
-                                                                 Tag="VolumeBar"
-                                                                 AutomationProperties.Name="TRACK PAN"
-                                                                 Value="{Binding SourceTrack.MixPan}"
-                                                                 ToolTip="Pan: drag left or right, double-click to centre" />
+                                                    </Border.Style>
+                                                    <Border.Width>
+                                                        <MultiBinding Converter="{StaticResource AudioClipWidthConverter}">
+                                                            <Binding Path="AudioLengthSteps" />
+                                                            <Binding Path="DataContext.TimelineSixteenthWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        </MultiBinding>
+                                                    </Border.Width>
+                                                    <Viewbox Stretch="Fill" Margin="2">
+                                                        <Canvas Width="1000" Height="100">
+                                                            <Path Fill="#62B7A4" Data="{Binding AudioPathData}" />
+                                                        </Canvas>
+                                                    </Viewbox>
+                                                </Border>
+                                                <!-- The track's blocks of notes, opaque over the lane's grid. Each keeps its bounds, so blocks
+                                                     side by side show as two until joined. Drag one to move it, drag an edge to stretch it;
+                                                     a rectangle drawn on the lane selects the blocks it touches, and the right button's menu
+                                                     joins them. -->
+                                                <ItemsControl ItemsSource="{Binding Blocks}" Focusable="False">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate><Grid /></ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border CornerRadius="3"
+                                                                    HorizontalAlignment="Left"
+                                                                    VerticalAlignment="Stretch"
+                                                                    Tag="NoteBlock"
+                                                                    PreviewMouseLeftButtonDown="NoteBlock_PreviewMouseLeftButtonDown"
+                                                                    PreviewMouseMove="NoteBlock_PreviewMouseMove"
+                                                                    PreviewMouseLeftButtonUp="NoteBlock_PreviewMouseLeftButtonUp"
+                                                                    ContextMenuOpening="NoteBlock_ContextMenuOpening">
+                                                                <Border.ContextMenu>
+                                                                    <ContextMenu>
+                                                                        <MenuItem Header="Join" Tag="Join" InputGestureText="Ctrl+J" Click="JoinBlocksMenuItem_Click" />
+                                                                        <Separator />
+                                                                        <MenuItem Header="Copy" InputGestureText="Ctrl+C" Click="CopyBlocksMenuItem_Click" />
+                                                                        <MenuItem Header="Paste after the last block" InputGestureText="Ctrl+V" Click="PasteBlocksMenuItem_Click" />
+                                                                        <MenuItem Header="Delete" InputGestureText="Del" Click="DeleteBlocksMenuItem_Click" />
+                                                                    </ContextMenu>
+                                                                </Border.ContextMenu>
+                                                                <Border.Margin>
+                                                                    <MultiBinding Converter="{StaticResource StepOffsetConverter}">
+                                                                        <Binding Path="StartStep" />
+                                                                        <Binding Path="DataContext.TimelineSixteenthWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                                    </MultiBinding>
+                                                                </Border.Margin>
+                                                                <Border.Width>
+                                                                    <MultiBinding Converter="{StaticResource AudioClipWidthConverter}">
+                                                                        <Binding Path="LengthSteps" />
+                                                                        <Binding Path="DataContext.TimelineSixteenthWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                                    </MultiBinding>
+                                                                </Border.Width>
+                                                                <Border.Style>
+                                                                    <Style TargetType="Border">
+                                                                        <!-- Opaque, so the block reads as one colour over the lane's grid. -->
+                                                                        <Setter Property="Background" Value="{StaticResource Paper}" />
+                                                                        <Setter Property="BorderBrush" Value="#F7F8FA" />
+                                                                        <Setter Property="BorderThickness" Value="0.5" />
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsRepeat}" Value="True">
+                                                                                <Setter Property="Opacity" Value="0.55" />
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                                <Setter Property="BorderBrush" Value="#FFD24C" />
+                                                                                <Setter Property="BorderThickness" Value="1" />
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </Border.Style>
+                                                                <Grid>
+                                                                    <Border CornerRadius="2" Background="{Binding TrackColorBrush}" />
+                                                                    <Border CornerRadius="2" Background="{StaticResource Bevel.Sheen}" IsHitTestVisible="False" />
+                                                                    <Border HorizontalAlignment="Left"
+                                                                            Width="10"
+                                                                            Background="Transparent"
+                                                                            BorderBrush="#F7F8FA"
+                                                                            BorderThickness="1.5,0,0,0"
+                                                                            Cursor="SizeWE"
+                                                                            Tag="NoteBlockStartEdge" />
+                                                                    <Border HorizontalAlignment="Right"
+                                                                            Width="10"
+                                                                            Background="Transparent"
+                                                                            BorderBrush="#F7F8FA"
+                                                                            BorderThickness="0,0,1.5,0"
+                                                                            Cursor="SizeWE"
+                                                                            Tag="NoteBlockEdge" />
+                                                                </Grid>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                                <!-- The track's volume or pan automation, over the row while it is shown (Track menu). -->
+                                                <local:AutomationLane Tag="AutomationLane"
+                                                                      Points="{Binding SourceTrack.ShownAutomationPoints}"
+                                                                      Minimum="{Binding SourceTrack.ShownAutomationMinimum}"
+                                                                      IdleValue="{Binding SourceTrack.ShownAutomationIdleValue, Mode=OneWay}"
+                                                                      StepWidth="{Binding DataContext.TimelineSixteenthWidth, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                      EditStarting="AutomationLane_EditStarting">
+                                                    <local:AutomationLane.Style>
+                                                        <Style TargetType="local:AutomationLane">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding SourceTrack.ShownAutomation}" Value="{x:Static vm:AutomationTarget.None}">
+                                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </local:AutomationLane.Style>
+                                                </local:AutomationLane>
                                             </Grid>
-                                           <Slider Grid.RowSpan="2"
-                                                   Grid.Column="2"
-                                                   Width="16"
-                                                   Height="44"
-                                                   HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center"
-                                                   Minimum="0"
-                                                   Maximum="100"
-                                                   Orientation="Vertical"
-                                                   IsDirectionReversed="False"
-                                                   AutoToolTipPlacement="TopLeft"
-                                                   AutoToolTipPrecision="0"
-                                                   Focusable="False"
-                                                   AutomationProperties.Name="TRACK VOLUME"
-                                                   Value="{Binding SourceTrack.MixVolume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource VolumePercentConverter}}"
-                                                   ToolTip="Track volume" />
-                                           <ProgressBar Grid.RowSpan="2"
-                                                        Grid.Column="3"
-                                                        Style="{StaticResource VerticalMeter}"
-                                                        Value="{Binding SourceTrack.SignalLevel}"
-                                                        VerticalAlignment="Center"
-                                                        ToolTip="Channel level" />
                                         </Grid>
-                                    </Border>
-                                    <Grid Grid.Column="1"
-                                          Width="{Binding DataContext.TimelineContentWidth, RelativeSource={RelativeSource AncestorType=Window}}"
-                                          Background="Transparent"
-                                          ClipToBounds="True">
-                                        <Rectangle Fill="{Binding SourceTrack.TrackColorBrush}" Opacity="0.35" IsHitTestVisible="False" />
-                                        <!-- The lane's grid and its active steps, drawn at once: a long song has thousands of steps a lane. -->
-                                        <local:TimelineLane Steps="{Binding Steps}"
-                                                            StepBrush="{Binding SourceTrack.TrackColorBrush}"
-                                                            StepWidth="{Binding DataContext.TimelineSixteenthWidth, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                            StepsPerBar="{Binding DataContext.StepsPerBar, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                            StepsPerBeat="{Binding DataContext.Meter.StepsPerBeat, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                            ShowSteps="{Binding HasStepCells}"
-                                                            IsHitTestVisible="False" />
-                                        <!-- The audio clip, where it starts: drag it along to move it in time (SNAP sets the grid),
-                                             or onto another empty track to move it there; double-click it to edit it. -->
-                                        <Border HorizontalAlignment="Left"
-                                                VerticalAlignment="Stretch"
-                                                CornerRadius="2"
-                                                Background="#24463F"
-                                                BorderBrush="#62B7A4"
-                                                BorderThickness="1"
-                                                Tag="AudioClip"
-                                                ToolTip="Audio clip: drag it along to move it in time, or onto another empty track. Double-click to edit it"
-                                                PreviewMouseLeftButtonDown="AudioClip_PreviewMouseLeftButtonDown"
-                                                PreviewMouseMove="AudioClip_PreviewMouseMove"
-                                                PreviewMouseLeftButtonUp="AudioClip_PreviewMouseLeftButtonUp">
-                                            <Border.ContextMenu>
-                                                <ContextMenu>
-                                                    <MenuItem Header="Detect tempo and sync the song..." Click="DetectTempoMenuItem_Click" />
-                                                    <MenuItem Header="Edit in the waveform editor" Click="EditClipMenuItem_Click" />
-                                                    <MenuItem Header="Correct the pitch in Sondyne..." Click="SondyneMenuItem_Click" />
-                                                </ContextMenu>
-                                            </Border.ContextMenu>
-                                            <Border.Margin>
-                                                <MultiBinding Converter="{StaticResource StepOffsetConverter}">
-                                                    <Binding Path="AudioStartStep" />
-                                                    <Binding Path="DataContext.TimelineSixteenthWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                </MultiBinding>
-                                            </Border.Margin>
-                                            <Border.Style>
-                                                <Style TargetType="Border">
-                                                    <Setter Property="Visibility" Value="Collapsed" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding HasAudioClip}" Value="True">
-                                                            <Setter Property="Visibility" Value="Visible" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Border.Style>
-                                            <Border.Width>
-                                                <MultiBinding Converter="{StaticResource AudioClipWidthConverter}">
-                                                    <Binding Path="AudioLengthSteps" />
-                                                    <Binding Path="DataContext.TimelineSixteenthWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                </MultiBinding>
-                                            </Border.Width>
-                                            <Viewbox Stretch="Fill" Margin="2">
-                                                <Canvas Width="1000" Height="100">
-                                                    <Path Fill="#62B7A4" Data="{Binding AudioPathData}" />
-                                                </Canvas>
-                                            </Viewbox>
-                                        </Border>
-                                        <!-- The track's blocks of notes, opaque over the lane's grid. Each keeps its bounds, so blocks
-                                             side by side show as two until joined. Drag one to move it, drag an edge to stretch it;
-                                             a rectangle drawn on the lane selects the blocks it touches, and the right button's menu
-                                             joins them. -->
-                                        <ItemsControl ItemsSource="{Binding Blocks}" Focusable="False">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate><Grid /></ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Border CornerRadius="3"
-                                                            HorizontalAlignment="Left"
-                                                            VerticalAlignment="Stretch"
-                                                            Tag="NoteBlock"
-                                                            PreviewMouseLeftButtonDown="NoteBlock_PreviewMouseLeftButtonDown"
-                                                            PreviewMouseMove="NoteBlock_PreviewMouseMove"
-                                                            PreviewMouseLeftButtonUp="NoteBlock_PreviewMouseLeftButtonUp"
-                                                            ContextMenuOpening="NoteBlock_ContextMenuOpening">
-                                                        <Border.ContextMenu>
-                                                            <ContextMenu>
-                                                                <MenuItem Header="Join" Tag="Join" InputGestureText="Ctrl+J" Click="JoinBlocksMenuItem_Click" />
-                                                                <Separator />
-                                                                <MenuItem Header="Copy" InputGestureText="Ctrl+C" Click="CopyBlocksMenuItem_Click" />
-                                                                <MenuItem Header="Paste after the last block" InputGestureText="Ctrl+V" Click="PasteBlocksMenuItem_Click" />
-                                                                <MenuItem Header="Delete" InputGestureText="Del" Click="DeleteBlocksMenuItem_Click" />
-                                                            </ContextMenu>
-                                                        </Border.ContextMenu>
-                                                        <Border.Margin>
-                                                            <MultiBinding Converter="{StaticResource StepOffsetConverter}">
-                                                                <Binding Path="StartStep" />
-                                                                <Binding Path="DataContext.TimelineSixteenthWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                            </MultiBinding>
-                                                        </Border.Margin>
-                                                        <Border.Width>
-                                                            <MultiBinding Converter="{StaticResource AudioClipWidthConverter}">
-                                                                <Binding Path="LengthSteps" />
-                                                                <Binding Path="DataContext.TimelineSixteenthWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                            </MultiBinding>
-                                                        </Border.Width>
-                                                        <Border.Style>
-                                                            <Style TargetType="Border">
-                                                                <!-- Opaque, so the block reads as one colour over the lane's grid. -->
-                                                                <Setter Property="Background" Value="{StaticResource Paper}" />
-                                                                <Setter Property="BorderBrush" Value="#F7F8FA" />
-                                                                <Setter Property="BorderThickness" Value="0.5" />
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding IsRepeat}" Value="True">
-                                                                        <Setter Property="Opacity" Value="0.55" />
-                                                                    </DataTrigger>
-                                                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                                        <Setter Property="BorderBrush" Value="#FFD24C" />
-                                                                        <Setter Property="BorderThickness" Value="1" />
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </Border.Style>
-                                                        <Grid>
-                                                            <Border CornerRadius="2" Background="{Binding TrackColorBrush}" />
-                                                            <Border CornerRadius="2" Background="{StaticResource Bevel.Sheen}" IsHitTestVisible="False" />
-                                                            <Border HorizontalAlignment="Left"
-                                                                    Width="10"
-                                                                    Background="Transparent"
-                                                                    BorderBrush="#F7F8FA"
-                                                                    BorderThickness="1.5,0,0,0"
-                                                                    Cursor="SizeWE"
-                                                                    Tag="NoteBlockStartEdge" />
-                                                            <Border HorizontalAlignment="Right"
-                                                                    Width="10"
-                                                                    Background="Transparent"
-                                                                    BorderBrush="#F7F8FA"
-                                                                    BorderThickness="0,0,1.5,0"
-                                                                    Cursor="SizeWE"
-                                                                    Tag="NoteBlockEdge" />
-                                                        </Grid>
-                                                    </Border>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                        <!-- The track's volume or pan automation, over the row while it is shown (Track menu). -->
-                                        <local:AutomationLane Tag="AutomationLane"
-                                                              Points="{Binding SourceTrack.ShownAutomationPoints}"
-                                                              Minimum="{Binding SourceTrack.ShownAutomationMinimum}"
-                                                              IdleValue="{Binding SourceTrack.ShownAutomationIdleValue, Mode=OneWay}"
-                                                              StepWidth="{Binding DataContext.TimelineSixteenthWidth, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                              EditStarting="AutomationLane_EditStarting">
-                                            <local:AutomationLane.Style>
-                                                <Style TargetType="local:AutomationLane">
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding SourceTrack.ShownAutomation}" Value="{x:Static vm:AutomationTarget.None}">
-                                                            <Setter Property="Visibility" Value="Collapsed" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </local:AutomationLane.Style>
-                                        </local:AutomationLane>
-                                    </Grid>
-                                </Grid>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
+                                    </DataTemplate>
+                                </local:TimelineLaneTemplateSelector.TrackTemplate>
+                                <local:TimelineLaneTemplateSelector.PieceTemplate>
+                                    <!-- A piece of a drum kit, under its track while KIT is on: narrower, in the track's colour made darker,
+                                         with its mute, solo and volume, and the hits of its drum along the lane. -->
+                                    <DataTemplate>
+                                        <Grid Height="30">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="260" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Border Margin="16,0,0,0" BorderBrush="{StaticResource Line}" BorderThickness="0.5" Background="{Binding SourceTrack.TrackColorBrush}">
+                                                <Grid>
+                                                    <Rectangle Fill="#80000000" IsHitTestVisible="False" />
+                                                    <DockPanel Margin="3,0,3,0" VerticalAlignment="Center">
+                                                        <Button DockPanel.Dock="Left" Content="M" Width="20" Height="16" Padding="0" FontSize="10"
+                                                                Command="{Binding DataContext.ToggleTrackMuteCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                CommandParameter="{Binding SourceTrack}">
+                                                            <Button.Style>
+                                                                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                                    <Setter Property="Background" Value="#5C5C5C" />
+                                                                    <Setter Property="Foreground" Value="#CDCED0" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding SourceTrack.IsMuted}" Value="True">
+                                                                            <Setter Property="Background" Value="#49B88D" />
+                                                                            <Setter Property="Foreground" Value="#0F1A14" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Button.Style>
+                                                        </Button>
+                                                        <Button DockPanel.Dock="Left" Content="S" Width="20" Height="16" Padding="0" FontSize="10" Margin="2,0,0,0"
+                                                                Command="{Binding DataContext.ToggleTrackSoloCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                CommandParameter="{Binding SourceTrack}">
+                                                            <Button.Style>
+                                                                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                                    <Setter Property="Background" Value="#555555" />
+                                                                    <Setter Property="Foreground" Value="#CDCED0" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding SourceTrack.IsSolo}" Value="True">
+                                                                            <Setter Property="Background" Value="#49B88D" />
+                                                                            <Setter Property="Foreground" Value="#0F1A14" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Button.Style>
+                                                        </Button>
+                                                        <ProgressBar DockPanel.Dock="Right" Style="{StaticResource VerticalMeter}" Height="22"
+                                                                     Value="{Binding SourceTrack.SignalLevel}" VerticalAlignment="Center" />
+                                                        <local:VolumeBar DockPanel.Dock="Right" Width="70" Height="14" BarThickness="4" Margin="4,0,4,0"
+                                                                         DefaultValue="0.75" Tag="VolumeBar" Value="{Binding SourceTrack.MixVolume}" />
+                                                        <TextBlock Text="{Binding SourceTrack.Name}" Margin="6,0,0,0" VerticalAlignment="Center"
+                                                                   FontSize="11" FontWeight="SemiBold" Foreground="#EEEFF1" TextTrimming="CharacterEllipsis" />
+                                                    </DockPanel>
+                                                </Grid>
+                                            </Border>
+                                            <Grid Grid.Column="1"
+                                                  Width="{Binding DataContext.TimelineContentWidth, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                  HorizontalAlignment="Left"
+                                                  Background="Transparent"
+                                                  ClipToBounds="True">
+                                                <Rectangle Fill="{Binding SourceTrack.TrackColorBrush}" Opacity="0.22" IsHitTestVisible="False" />
+                                                <Rectangle Fill="#40000000" IsHitTestVisible="False" />
+                                                <local:TimelineLane Steps="{Binding Steps}"
+                                                                    StepWidth="{Binding DataContext.TimelineSixteenthWidth, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                    StepsPerBar="{Binding DataContext.StepsPerBar, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                    StepsPerBeat="{Binding DataContext.Meter.StepsPerBeat, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                    ShowSteps="False"
+                                                                    IsHitTestVisible="False" />
+                                                <local:KitHitsLane Hits="{Binding KitHits}" IsFaint="{Binding KitHitsAreAll}"
+                                                                   HitBrush="{Binding SourceTrack.TrackColorBrush}"
+                                                                   StepWidth="{Binding DataContext.TimelineSixteenthWidth, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                   IsHitTestVisible="False" />
+                                            </Grid>
+                                        </Grid>
+                                    </DataTemplate>
+                                </local:TimelineLaneTemplateSelector.PieceTemplate>
+                            </local:TimelineLaneTemplateSelector>
+                        </ListBox.ItemTemplateSelector>
                     </ListBox>
                 </DockPanel>
                 <!-- The bar lines on the ruler; on the lanes, each lane draws them under its blocks. -->
@@ -2543,6 +2630,35 @@
                             <ScrollViewer.ContextMenu>
                                 <ContextMenu />
                             </ScrollViewer.ContextMenu>
+                            <StackPanel>
+                            <!-- Sonator's own effects, each pictured by its screen: a click puts it on the selected track and
+                                 opens its rack, a drag puts it on the track dropped on. -->
+                            <TextBlock Text="SONATOR EFFECTS" FontSize="11" Margin="2,0,0,3" Foreground="#CDCED0" />
+                            <ItemsControl x:Name="SonEffectList" Margin="0,0,0,8">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Columns="2" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Height="80" Margin="2" Background="#1E2023" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                                                Cursor="Hand" ToolTip="{Binding Description}"
+                                                MouseLeftButtonDown="SonEffect_MouseLeftButtonDown"
+                                                MouseMove="SonEffect_MouseMove"
+                                                MouseLeftButtonUp="SonEffect_MouseLeftButtonUp">
+                                            <Grid>
+                                                <Image Source="{Binding Picture}" Stretch="UniformToFill" />
+                                                <Border VerticalAlignment="Bottom" Background="#CC1A1B1D" Padding="4,2">
+                                                    <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold" TextAlignment="Center"
+                                                               Foreground="#FF963A" TextTrimming="CharacterEllipsis" />
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="VST PLUG-INS" FontSize="11" Margin="2,0,0,3" Foreground="#CDCED0" />
                             <ItemsControl ItemsSource="{Binding VstPlugins}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
@@ -2620,6 +2736,7 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
+                            </StackPanel>
                         </ScrollViewer>
                     </DockPanel>
                 </GroupBox>

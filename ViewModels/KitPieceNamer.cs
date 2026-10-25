@@ -54,6 +54,21 @@ internal sealed class KitPieceNamer
         _ => -1,
     };
 
+    // The kind of drum a piece plays, by the name Sonator gave it (Snare, Snare 2, Hi-hat...), or -1 when it is not
+    // one drum (Room, an output not yet named, a name of the player's).
+    internal static int KindOfName(string name)
+    {
+        for (var kind = 0; kind < Kinds.Length; kind++)
+        {
+            if (name == Kinds[kind] || name.StartsWith(Kinds[kind] + " ", StringComparison.Ordinal))
+            {
+                return kind;
+            }
+        }
+
+        return -1;
+    }
+
     // A note the track's plug-in was sent. Any thread.
     public void Struck(PatternTrackViewModel track, int note, int velocity)
     {

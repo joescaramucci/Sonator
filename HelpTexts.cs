@@ -31,6 +31,7 @@ public static class HelpTexts
             "The ruler: drag along the bars to choose a part to loop (drag its L or R edge to change it), click to go there, right-click to add a marker or a change of tempo. Drag a recorded block or an audio clip to move it; double-click a block for the piano roll, a clip for the waveform editor, right-click a clip to detect its tempo.",
             "Each block of notes keeps its bounds: a block pasted after another stays a block of its own. Click a block to select it, Ctrl+click to add another, or drag a rectangle on the lanes around the blocks you want. Ctrl+C copies them and Ctrl+V puts the copy right after the track's last block, again and again; quicker, hold the right button and left-click once for each copy. Right-click for Join (Ctrl+J), which makes the selected blocks of a track one. The middle button drags the timeline along.",
             "ZOOM, or the mouse wheel, widens the bars; FIT shows them all. QUANT sets the grid recorded notes snap to, SNAP the grid blocks and clips move on. Drop a plug-in from the right on a track to play it, or a WAV or MP3 on an empty track.",
+            "A drum track whose plug-in plays each drum on its own output (see the mixer's KIT) has KIT by its name: it opens a narrower lane under the track for each drum that has played, in the track's colour, with its mute, solo and volume and the hits of its drum.",
         }),
         ["Track"] = new("Track", new[]
         {
@@ -45,6 +46,7 @@ public static class HelpTexts
         }),
         ["VstPlugins"] = new("VST plug-ins", new[]
         {
+            "SONATOR EFFECTS, at the top, are Sonator's own (SonVerb, SonDelay, SonArmo, SonCoro, SonMast...), each pictured by its screen: click one to put it on the selected track and open its rack, or drag it onto a track.",
             "Your VST instruments and effects, found in the usual folders and in the one chosen here (Browse... picks another). Drag one onto a track to play it there, or drag the pictures to put them in your order; the star marks your favourites, which come first.",
         }),
         ["Loop"] = new("Loop", new[]

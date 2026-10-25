@@ -1158,6 +1158,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
                 return;
             }
 
+            // A kit piece's lane selects its track.
+            if (value?.KitParent is { } kitTrack)
+            {
+                value = kitTrack;
+                RaisePropertyChanged();
+            }
+
             if (!_selectedBlocks.Any(item => ReferenceEquals(item.Track, value)))
             {
                 ClearBlockSelection();
@@ -4826,6 +4833,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
             }
 
             TimelineTracks.Add(new ArrangeTimelineTrackViewModel(sourceTrack, timelineSteps, LoadAudioWaveform(sourceTrack), Tempo) { Blocks = blocks });
+            if (sourceTrack.IsKitOnTimeline)
+            {
+                AddKitLanes(sourceTrack, timelinePatterns, trackIndex);
+            }
         }
 
         RaisePropertyChanged(nameof(TimelineContentWidth));
@@ -4839,6 +4850,45 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
     }
 
     private bool _rebuildingTimeline;
+
+    // The lanes of a drum kit's pieces that have played, under its track's: each with the hits of its drum, from the
+    // notes of the track in each pattern played (all of them for a piece that is not one drum).
+    private void AddKitLanes(PatternTrackViewModel track, IReadOnlyList<PatternViewModel> patterns, int trackIndex)
+    {
+        var hits = new List<(double Step, int Kind)>();
+        var offset = 0;
+        foreach (var pattern in patterns)
+        {
+            if (trackIndex < pattern.Tracks.Count)
+            {
+                var played = pattern.Tracks[trackIndex];
+                hits.AddRange(played.MidiNoteEvents.Select(note => (offset + note.StepIndex + note.StartOffset, KitPieceNamer.KindOf(note.NoteNumber))));
+                hits.AddRange(played.MidiNoteEvents.Count == 0
+                    ? played.Steps.Where(step => step.IsActive).Select(step => ((double)offset + step.Index, KitPieceNamer.KindOf(step.MidiNoteNumber ?? played.NoteNumber)))
+                    : Enumerable.Empty<(double, int)>());
+            }
+
+            offset += PatternBarCount(pattern, StepsPerBar) * StepsPerBar;
+        }
+
+        foreach (var piece in track.KitPieces.Where(piece => piece.IsHeard))
+        {
+            var kind = KitPieceNamer.KindOfName(piece.Name);
+            TimelineTracks.Add(new ArrangeTimelineTrackViewModel(piece, new ObservableCollection<ArrangeTimelineStepViewModel>())
+            {
+                IsKitPiece = true,
+                KitHitsAreAll = kind < 0,
+                KitHits = hits.Where(hit => kind < 0 ? hit.Kind >= 0 : hit.Kind == kind).Select(hit => hit.Step).ToList(),
+            });
+        }
+    }
+
+    // Shows or hides a drum kit's pieces under its track on the timeline.
+    public void ToggleKitOnTimeline(PatternTrackViewModel track)
+    {
+        track.IsKitOnTimeline = !track.IsKitOnTimeline;
+        RebuildTimeline();
+    }
 
     private List<PatternViewModel> GetSelectedPatternTimelinePatterns()
     {

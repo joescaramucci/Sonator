@@ -344,6 +344,15 @@ public sealed class PatternTrackViewModel : ViewModelBase
     // plug-in to play them apart.
     public bool HasHeardKitPieces => KitPieces.Any(piece => piece.IsHeard);
 
+    private bool _isKitOnTimeline;
+
+    // True while the timeline shows the kit's pieces under the track, as narrower lanes.
+    public bool IsKitOnTimeline
+    {
+        get => _isKitOnTimeline;
+        set => SetProperty(ref _isKitOnTimeline, value);
+    }
+
     private bool _isKitOpen;
 
     // True while the mixer shows the kit's pieces beside the track.

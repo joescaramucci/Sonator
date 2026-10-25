@@ -8,6 +8,7 @@ using System.Windows.Media;
 using System.ComponentModel;
 using Sonator.Models;
 using Sonator.Services;
+using Sonator.Services.Effects;
 using Sonator.Services.Vst3;
 using Sonator.ViewModels;
 
@@ -180,6 +181,7 @@ public partial class MainWindow : Window
         viewModel.EffectPluginUnloading += ClosePluginWindowsOf;
         viewModel.SavedInstrumentStarted += DockSavedInstrument;
         OfferToRecover(viewModel);
+        FillSonEffectList();
         viewModel.VstPlugins.CollectionChanged += (_, args) =>
         {
             if (args.NewItems is null)
@@ -1898,7 +1900,7 @@ public partial class MainWindow : Window
     // A track takes a plug-in dropped on it, or an audio file dropped on it when the track is empty.
     private void TimelineBodyListBox_DragOver(object sender, DragEventArgs e)
     {
-        e.Effects = GetDroppedPluginTrack(e) is not null
+        e.Effects = GetDroppedPluginTrack(e) is not null || GetDroppedSonEffectTrack(e) is not null
             || (GetDroppedAudioTrack(e) is { } track && MainViewModel.IsEmptyTrack(track))
                 ? DragDropEffects.Copy
                 : DragDropEffects.None;
@@ -1909,6 +1911,13 @@ public partial class MainWindow : Window
     {
         if (DataContext is not MainViewModel viewModel)
         {
+            return;
+        }
+
+        if (GetDroppedSonEffectTrack(e) is { } effectTrack && e.Data.GetData(SonEffectDragFormat) is EffectDefinition dropped)
+        {
+            AddSonEffect(viewModel, effectTrack, dropped);
+            e.Handled = true;
             return;
         }
 
@@ -1937,7 +1946,7 @@ public partial class MainWindow : Window
         }
 
         var item = FindVisualAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
-        return item?.DataContext is ArrangeTimelineTrackViewModel { SourceTrack.SupportsMidiPlayback: true } timelineTrack
+        return item?.DataContext is ArrangeTimelineTrackViewModel { IsKitPiece: false, SourceTrack.SupportsMidiPlayback: true } timelineTrack
             ? timelineTrack.SourceTrack
             : null;
     }
@@ -1963,7 +1972,118 @@ public partial class MainWindow : Window
         }
 
         var item = FindVisualAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
-        return item?.DataContext is ArrangeTimelineTrackViewModel timelineTrack ? timelineTrack.SourceTrack : null;
+        return item?.DataContext is ArrangeTimelineTrackViewModel { IsKitPiece: false } timelineTrack ? timelineTrack.SourceTrack : null;
+    }
+
+    // ---- Sonator's own effects in the plug-in list ----
+
+    private const string SonEffectDragFormat = "Sonator.SonEffect";
+
+    // A tile of the list: the effect, and its screen at its defaults as its picture.
+    private sealed record SonEffectTile(EffectDefinition Definition, ImageSource Picture)
+    {
+        public string Name => Definition.Name;
+
+        public string Description => $"{Definition.Description}: click to put it on the selected track, or drag it onto a track";
+    }
+
+    private void FillSonEffectList()
+    {
+        SonEffectList.ItemsSource = EffectCatalog.All.Select(definition => new SonEffectTile(definition, PictureOf(definition))).ToList();
+    }
+
+    // The effect's screen, drawn at its defaults (a big choir for the choir; a note sung and a level for those that
+    // show them).
+    private static ImageSource PictureOf(EffectDefinition definition)
+    {
+        var values = definition.Kind == EffectKind.Choir ? FactoryPresets.For(definition.Kind).FirstOrDefault(preset => preset.Name == "Big Choir")?.Values : null;
+        var effect = new TrackEffectViewModel(definition, values: values)
+        {
+            MeterValue = definition.Kind switch { EffectKind.Harmonizer => 57, EffectKind.Mastering => -14, _ => 0 },
+        };
+        var display = new EffectDisplay { Effect = effect, Width = 260, Height = 120 };
+        display.Measure(new Size(260, 120));
+        display.Arrange(new Rect(0, 0, 260, 120));
+        var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(260, 120, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(display);
+        bitmap.Freeze();
+        return bitmap;
+    }
+
+    private Point? _sonEffectPress;
+
+    private void SonEffect_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _sonEffectPress = e.GetPosition((IInputElement)sender);
+        e.Handled = true;
+    }
+
+    private void SonEffect_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (_sonEffectPress is not { } press || e.LeftButton != MouseButtonState.Pressed
+            || sender is not FrameworkElement { DataContext: SonEffectTile tile } element)
+        {
+            return;
+        }
+
+        var offset = e.GetPosition(element) - press;
+        if (Math.Abs(offset.X) < SystemParameters.MinimumHorizontalDragDistance && Math.Abs(offset.Y) < SystemParameters.MinimumVerticalDragDistance)
+        {
+            return;
+        }
+
+        _sonEffectPress = null;
+        DragDrop.DoDragDrop(element, new DataObject(SonEffectDragFormat, tile.Definition), DragDropEffects.Copy);
+        e.Handled = true;
+    }
+
+    // A click puts the effect on the selected track and opens its rack there.
+    private void SonEffect_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        var wasClick = _sonEffectPress is not null;
+        _sonEffectPress = null;
+        if (!wasClick || sender is not FrameworkElement { DataContext: SonEffectTile tile } || DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        if (viewModel.SelectedTrack is not { } track)
+        {
+            SonatorMessageDialog.Show(this, tile.Name, "Select a track first: the effect goes on the selected track.");
+            return;
+        }
+
+        AddSonEffect(viewModel, track, tile.Definition);
+        e.Handled = true;
+    }
+
+    private void AddSonEffect(MainViewModel viewModel, PatternTrackViewModel track, EffectDefinition definition)
+    {
+        viewModel.SelectedTrack = track;
+        if (viewModel.AddEffect(track, definition) is { } effect)
+        {
+            OpenFxRack(viewModel, track, effect);
+        }
+    }
+
+    private static PatternTrackViewModel? GetDroppedSonEffectTrack(DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent(SonEffectDragFormat))
+        {
+            return null;
+        }
+
+        var item = FindVisualAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
+        return item?.DataContext is ArrangeTimelineTrackViewModel { IsKitPiece: false } lane ? lane.SourceTrack : null;
+    }
+
+    // KIT on a drum track shows its kit's pieces under it on the timeline, or hides them.
+    private void TimelineKit_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: ArrangeTimelineTrackViewModel lane } && DataContext is MainViewModel viewModel)
+        {
+            viewModel.ToggleKitOnTimeline(lane.SourceTrack);
+        }
     }
 
     private static T? FindVisualAncestor<T>(DependencyObject? element)
