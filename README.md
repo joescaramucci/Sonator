@@ -64,6 +64,15 @@ More views are in the [screenshot gallery](docs/GALLERY.md).
     starts with a track for each.
 - **Sounds browser.** Search instrument presets and Toontrack grooves by name,
   category, instrument and bank, or keep only those that suit a genre.
+- **Your samples and Kontakt libraries.** Add the folders where they are kept:
+  - Every sample (WAV, AIFF, FLAC, MP3, OGG) and every Kontakt instrument is
+    filed by its name and folders, alongside the plug-ins' sounds.
+  - A loop whose name gives its tempo follows the song's tempo.
+  - Kontakt instruments are heard from the preview recordings their libraries
+    include, without loading Kontakt, and each shows how much its library
+    weighs.
+  - To load one, Sonator opens Kontakt on the track and you drag the
+    instrument into it.
 - **Preview and load.** Preview a sound and load it on the track. Favorites and
   recent sounds are kept.
 

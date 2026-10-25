@@ -13,6 +13,11 @@ It includes or uses the following third-party components.
 - Package: `TagLibSharp` 2.3.0 (NuGet), used for reading and writing the tags of song files (MP3, WAV...).
 - License: LGPL 2.1. Copyright (c) the TagLib# authors. It is linked as a separate, replaceable library.
 
+## NAudio.Vorbis and NVorbis
+
+- Packages: `NAudio.Vorbis` 1.5.0 and its dependency `NVorbis` 0.10.4 (NuGet), used for playing Ogg Vorbis files: OGG samples and the preview recordings of Kontakt instruments.
+- License: MIT. Copyright (c) Andrew Ward.
+
 ## VST 3 interfaces (pluginterfaces)
 
 - Location: `native/VstHostBridge/thirdparty/pluginterfaces/`.

@@ -41,6 +41,9 @@ public sealed class AppSettings
 
     // The width of the mixer's master strip, as dragged. Null means its default.
     public double? MixerMasterWidth { get; set; }
+
+    // The folders whose samples and Kontakt instruments the sound browser lists, with the plug-ins' sounds.
+    public List<string> SoundFolders { get; set; } = new();
 }
 
 public static class RecentProjectList

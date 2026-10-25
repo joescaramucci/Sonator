@@ -54,14 +54,32 @@ internal sealed class SoundPreviewer : IDisposable
         }
     }
 
-    // True when the sound can be heard at once.
+    // True when the sound can be heard at once: a sample always is.
     public bool IsReady(SoundEntry sound) =>
-        Find(sound) is not null && (sound.Kind != SoundKind.Groove || _grooves.ContainsKey(sound));
+        sound.Kind == SoundKind.Sample
+        || (sound.Kind == SoundKind.KontaktInstrument && FolderSoundSource.PreviewOf(sound) is not null)
+        || (sound.Kind != SoundKind.KontaktInstrument && Find(sound) is not null && (sound.Kind != SoundKind.Groove || _grooves.ContainsKey(sound)));
+
+    // Why a Kontakt instrument without a preview recording is not heard before it is loaded: Kontakt takes one
+    // only dropped on its window, and a library may weigh gigabytes.
+    private static string KontaktNotPreviewed(SoundEntry sound) =>
+        $"{sound.Name} has no preview: it is heard once in Kontakt (load it on the track, then drag it into Kontakt's window)"
+        + (sound.IsHeavy ? $". {sound.Designer} is a {sound.Weight} library" : string.Empty);
 
     // Gets one sound ready in an instance, starting the plug-in if needed, and a groove's notes read. Null
     // when ready, else why not.
     public string? Prepare(SoundEntry sound)
     {
+        if (sound.Kind == SoundKind.Sample)
+        {
+            return null;
+        }
+
+        if (sound.Kind == SoundKind.KontaktInstrument)
+        {
+            return FolderSoundSource.PreviewOf(sound) is null ? KontaktNotPreviewed(sound) : null;
+        }
+
         if (SlotFor(sound, out var error) is null)
         {
             return error;
@@ -100,6 +118,17 @@ internal sealed class SoundPreviewer : IDisposable
     public string? Preview(SoundEntry sound, double tempoBpm)
     {
         Stop();
+        // A Kontakt instrument is heard from the recording its library keeps of it: Kontakt is not loaded.
+        if (sound.Kind == SoundKind.KontaktInstrument)
+        {
+            return FolderSoundSource.PreviewOf(sound) is { } recording ? PlayFile(sound, recording) : KontaktNotPreviewed(sound);
+        }
+
+        if (sound.Kind == SoundKind.Sample)
+        {
+            return PlayFile(sound, sound.PresetPath);
+        }
+
         _wanted.Add(sound);
         if (SlotFor(sound, out var error) is not { } slot)
         {
@@ -136,6 +165,7 @@ internal sealed class SoundPreviewer : IDisposable
     // Silences the preview playing, if any. Returns once no more notes can be sent, so its instance can go.
     public void Stop()
     {
+        StopFile();
         _playing?.Cancel();
         _playing = null;
         _player?.Wait(TimeSpan.FromSeconds(1));
@@ -145,6 +175,45 @@ internal sealed class SoundPreviewer : IDisposable
             _host.ReleaseAllNotes(_playingSlot.Instrument);
             _playingSlot = null;
         }
+    }
+
+    // ---- Samples ----
+
+    // A sample, or a Kontakt instrument's preview recording, is heard from its file, on the Windows output, as
+    // the waveform editor plays: at most its first twenty seconds.
+    private NAudio.Wave.WaveOutEvent? _fileOutput;
+    private NAudio.Wave.WaveStream? _fileReader;
+
+    private string? PlayFile(SoundEntry sample, string path)
+    {
+        try
+        {
+            // Ogg Vorbis (Kontakt's previews, OGG samples) through NVorbis, which Windows may not decode.
+            _fileReader = path.EndsWith(".ogg", StringComparison.OrdinalIgnoreCase)
+                ? new NAudio.Vorbis.VorbisWaveReader(path)
+                : new NAudio.Wave.AudioFileReader(path);
+            _fileOutput = new NAudio.Wave.WaveOutEvent();
+            _fileOutput.Init(new NAudio.Wave.SampleProviders.SampleToWaveProvider(
+                new NAudio.Wave.SampleProviders.OffsetSampleProvider(NAudio.Wave.WaveExtensionMethods.ToSampleProvider(_fileReader)) { Take = TimeSpan.FromSeconds(20) }));
+            _fileOutput.Play();
+            return null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException
+                                       or FormatException or ArgumentException or NAudio.MmException
+                                       or System.Runtime.InteropServices.COMException)
+        {
+            StopFile();
+            return $"{sample.Name} could not be played: {ex.Message}";
+        }
+    }
+
+    private void StopFile()
+    {
+        _fileOutput?.Stop();
+        _fileOutput?.Dispose();
+        _fileOutput = null;
+        _fileReader?.Dispose();
+        _fileReader = null;
     }
 
     public void Dispose()

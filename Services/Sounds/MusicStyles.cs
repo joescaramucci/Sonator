@@ -102,8 +102,8 @@ public static class MusicStyles
             AcousticDrums: true,
             new[]
             {
-                Role("Piano", PianoCategories, "ballad, ballads, grand, soft, warm, felt, intimate", "Piano V, Augmented GRAND"),
-                Role("Strings", StringsCategories, "ensemble, legato, warm, soft", "BBC Symphony, Augmented STRINGS, Solina"),
+                Role("Piano", PianoCategories, "ballad, ballads, grand, soft, warm, felt, intimate", "Piano V, Augmented GRAND, Kontakt"),
+                Role("Strings", StringsCategories, "ensemble, legato, warm, soft", "BBC Symphony, Augmented STRINGS, Solina, Kontakt"),
                 Role("Pad", PadCategories, "warm, soft, strings, choir", "Jup-8, CS-80, OP-Xa"),
                 Role("Bass", BassCategories, "soft, round, warm, finger, upright"),
                 Role("Drums", DrumsCategories, "ballad, sidestick, soft, brushes"),
@@ -368,12 +368,12 @@ public static class MusicStyles
             AcousticDrums: false,
             new[]
             {
-                Role("Strings", StringsCategories, "orchestra, ensemble, legato, epic", "BBC Symphony, Augmented STRINGS"),
-                Role("Brass", BrassCategories, "orchestra, horns, epic", "BBC Symphony"),
-                Role("Woodwinds", WindsCategories, "orchestra, flute, oboe, clarinet", "BBC Symphony"),
-                Role("Piano", PianoCategories, "cinematic, grand, felt", "Piano V, Augmented GRAND"),
-                Role("Choir", ChoirCategories, "choir, epic, cinematic", "Augmented VOICES"),
-                Role("Percussion", DrumsCategories.Concat(FxCategories).ToArray(), "epic, cinematic, taiko, hit, trailer"),
+                Role("Strings", StringsCategories, "orchestra, ensemble, legato, epic", "BBC Symphony, Augmented STRINGS, Kontakt"),
+                Role("Brass", BrassCategories, "orchestra, horns, epic", "BBC Symphony, Kontakt"),
+                Role("Woodwinds", WindsCategories, "orchestra, flute, oboe, clarinet, woods", "BBC Symphony, Kontakt"),
+                Role("Piano", PianoCategories, "cinematic, grand, felt", "Piano V, Augmented GRAND, Kontakt"),
+                Role("Choir", ChoirCategories, "choir, epic, cinematic, vocalise", "Augmented VOICES, Kontakt"),
+                Role("Percussion", DrumsCategories.Concat(FxCategories).ToArray(), "epic, cinematic, taiko, hit, trailer, ensemble", "Kontakt"),
             }),
         new MusicStyle(
             "Jazz & Blues",
@@ -483,6 +483,14 @@ public static class SoundMatcher
     // A genre's name as it is compared: "Soul / R&B" and "Soul/R&B" are one genre.
     public static string GenreKey(string genre) => genre.Replace(" ", string.Empty).ToLowerInvariant();
 
+    // Words of orchestral libraries, which their makers file under no genre: they are film music's.
+    private static readonly string[] OrchestralWords =
+    {
+        "spitfire", "albion", "orchestra", "orchestral", "symphonic", "symphony", "cinestrings", "cinematic", "heavyocity", "trailer",
+    };
+
+    private static readonly string[] FilmGenres = { GenreKey("Cinematic"), GenreKey("Soundtrack"), GenreKey("Classical") };
+
     // The genres a sound is filed under: its maker's, or, for an orchestral library filed under none, those of
     // film music.
     public static IReadOnlyCollection<string> GenresOf(SoundEntry sound)
@@ -493,8 +501,8 @@ public static class SoundMatcher
                 .Select(GenreKey).ToHashSet();
         }
 
-        return sound.Kind == SoundKind.NksPreset && HasWord(sound.SearchText, "spitfire")
-            ? new[] { GenreKey("Cinematic"), GenreKey("Soundtrack"), GenreKey("Classical") }
+        return sound.Kind is SoundKind.NksPreset or SoundKind.KontaktInstrument && OrchestralWords.Any(word => HasWord(sound.SearchText, word))
+            ? FilmGenres
             : Array.Empty<string>();
     }
 
@@ -519,9 +527,10 @@ public static class SoundMatcher
     // How well a sound suits a part of a style; null when it is not a sound for the part at all.
     public static double? Score(SoundEntry sound, MusicStyle style, StyleRole role)
     {
-        if (!role.Categories.Contains(sound.Category))
+        if (!role.Categories.Contains(sound.Category)
+            || (sound.Kind == SoundKind.Sample && !sound.Subcategory.StartsWith("Loop", StringComparison.Ordinal)))
         {
-            return null;
+            return null; // a one-shot sample is a note, not a part a song is played with
         }
 
         var text = sound.SearchText;
@@ -585,7 +594,10 @@ public static class SoundMatcher
         var wanted = count * (page + 1);
         foreach (var sound in ranked)
         {
-            var source = sound.Kind == SoundKind.Groove ? $"{sound.Designer}/{sound.Bank}" : sound.PluginName;
+            // Grooves and Kontakt instruments all play in one plug-in: they vary by library and folder.
+            var source = sound.Kind is SoundKind.Groove or SoundKind.KontaktInstrument or SoundKind.Sample
+                ? $"{sound.Designer}/{sound.Bank}"
+                : sound.PluginName;
             if (perSource.GetValueOrDefault(source) >= 2 || !names.Add($"{sound.PluginName}/{sound.Name}"))
             {
                 continue;

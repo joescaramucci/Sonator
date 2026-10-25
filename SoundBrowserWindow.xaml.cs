@@ -343,6 +343,69 @@ public partial class SoundBrowserWindow : Window
 
     private void SoundList_MouseDoubleClick(object sender, MouseButtonEventArgs e) => LoadSelected();
 
+    // ---- Samples and Kontakt instruments dragged out ----
+
+    // A sample or a Kontakt instrument can be dragged out of the list as its file: into Kontakt's window, which
+    // takes an instrument no other way, or anywhere else files are dropped.
+    private Point? _dragStart;
+
+    private void SoundList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e) => _dragStart = e.GetPosition(SoundList);
+
+    private void SoundList_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (e.LeftButton != MouseButtonState.Pressed || _dragStart is not { } start
+            || SoundList.SelectedItem is not SoundEntry { Kind: SoundKind.KontaktInstrument or SoundKind.Sample } sound)
+        {
+            return;
+        }
+
+        var moved = e.GetPosition(SoundList) - start;
+        if (Math.Abs(moved.X) < SystemParameters.MinimumHorizontalDragDistance && Math.Abs(moved.Y) < SystemParameters.MinimumVerticalDragDistance)
+        {
+            return;
+        }
+
+        _dragStart = null;
+        StatusText.Text = sound.Kind == SoundKind.KontaktInstrument
+            ? $"Drop {sound.Name} on Kontakt's window to load it"
+            : $"Drop {sound.Name} where it is wanted";
+        DragDrop.DoDragDrop(SoundList, new DataObject(DataFormats.FileDrop, new[] { sound.PresetPath }), DragDropEffects.Copy);
+    }
+
+    // ---- Sound folders ----
+
+    private async void FoldersButton_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SoundFoldersWindow(_viewModel.SoundFolders) { Owner = this };
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        _viewModel.SetSoundFolders(dialog.Folders);
+        StatusText.Text = "Reading the sounds again, with the folders' samples and Kontakt instruments...";
+        IsEnabled = false;
+        try
+        {
+            _sounds = await _viewModel.SoundsAsync();
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"The sounds could not be read: {ex.Message}";
+            return;
+        }
+        finally
+        {
+            IsEnabled = true;
+        }
+
+        _fits.Clear();
+        ShowCategories();
+        ShowSounds();
+        var fromFolders = _sounds.Count(sound => sound.Kind is SoundKind.Sample or SoundKind.KontaktInstrument);
+        StatusText.Text = $"{fromFolders} samples and Kontakt instruments from {dialog.Folders.Count} folders.";
+    }
+
     private void SoundList_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.Enter)
@@ -468,7 +531,8 @@ public partial class SoundBrowserWindow : Window
     // Gets the next sound coming up ready, then the next, each when the window has nothing else to do.
     private void PrepareNext()
     {
-        if (_preparing || _comingUp.FirstOrDefault(sound => !_viewModel.IsSoundReady(sound)) is not { } next)
+        // A Kontakt instrument is never got ready: it is heard once dragged into Kontakt.
+        if (_preparing || _comingUp.FirstOrDefault(sound => sound.Kind != SoundKind.KontaktInstrument && !_viewModel.IsSoundReady(sound)) is not { } next)
         {
             return;
         }

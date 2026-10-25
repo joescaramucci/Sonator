@@ -249,7 +249,12 @@ public partial class NewSongWindow : Window
     // is the same for all of them).
     private static string Source(SoundEntry sound)
     {
-        var from = sound.Kind == SoundKind.Groove && !string.IsNullOrWhiteSpace(sound.Designer) ? sound.Designer : sound.PluginName;
+        if (sound.Kind == SoundKind.KontaktInstrument)
+        {
+            return $"{(sound.IsHeavy ? "⚖ " : string.Empty)}Kontakt · {sound.DesignerAndWeight}";
+        }
+
+        var from = sound.Kind is SoundKind.Groove or SoundKind.Sample && !string.IsNullOrWhiteSpace(sound.Designer) ? sound.Designer : sound.PluginName;
         return string.IsNullOrWhiteSpace(sound.Bank) ? from : $"{from} · {sound.Bank}";
     }
 
@@ -264,6 +269,11 @@ public partial class NewSongWindow : Window
         if (!string.IsNullOrWhiteSpace(sound.Genres))
         {
             lines.Add($"Genres: {sound.Genres.Replace("|", ", ")}");
+        }
+
+        if (sound.Kind == SoundKind.KontaktInstrument)
+        {
+            lines.Add($"Not heard here: Kontakt opens on the track, and the instrument is dragged into it. {sound.Designer} weighs {sound.Weight}.");
         }
 
         return string.Join(Environment.NewLine, lines);

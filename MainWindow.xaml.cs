@@ -165,6 +165,13 @@ public partial class MainWindow : Window
                     Mouse.OverrideCursor = null;
                 }
 
+                // Kontakt is open on its tracks; its instruments are dragged in from here.
+                var kontakt = newSong.Parts.Where(part => part.Sound.Kind == Services.Sounds.SoundKind.KontaktInstrument).ToList();
+                if (kontakt.Count > 0)
+                {
+                    new KontaktDropWindow(kontakt) { Owner = this }.Show();
+                }
+
                 break;
         }
     }
@@ -202,6 +209,13 @@ public partial class MainWindow : Window
 
         viewModel.Health.Start();
         viewModel.TracksReplaced += ReopenFxRacks;
+        viewModel.PluginWindowWanted += track =>
+        {
+            if (track.PluginFilePath is { Length: > 0 } path)
+            {
+                OpenPluginWindowFor(viewModel, track, path);
+            }
+        };
         viewModel.TrackInstrumentStopping += ClosePluginWindowsOf;
         viewModel.EffectPluginUnloading += ClosePluginWindowsOf;
         viewModel.SavedInstrumentStarted += DockSavedInstrument;

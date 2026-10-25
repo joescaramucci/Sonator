@@ -5,17 +5,21 @@ using Microsoft.Data.Sqlite;
 namespace Sonator.Services.Sounds;
 
 // What loading a sound does: a preset becomes the plug-in's sound (an NKS preset's state wrapped first, see
-// NksSoundSource.StateFor); a groove's notes go into the track.
+// NksSoundSource.StateFor); a groove's notes go into the track; a sample becomes the track's audio clip; a
+// Kontakt instrument is dragged into Kontakt, which has no other way to be given one.
 public enum SoundKind
 {
     Preset,
     Groove,
     NksPreset,
+    Sample,
+    KontaktInstrument,
 }
 
 // One sound a plug-in can play: a preset, or a groove of notes to play it with, where it is stored, and how
-// it is filed. PresetPath is the preset's file, or the groove's MIDI file. Genres are the music genres its
-// maker files it under, split by |, when the maker does (Arturia does).
+// it is filed. PresetPath is the preset's file, or the groove's MIDI file, or the sample's or the Kontakt
+// instrument's file. Genres are the music genres its maker files it under, split by |, when the maker does
+// (Arturia does). Bytes is how much it weighs: a sample's file, the whole library of a Kontakt instrument.
 public sealed record SoundEntry(
     string Name,
     string Category,
@@ -27,8 +31,25 @@ public sealed record SoundEntry(
     string Designer,
     string Tags,
     SoundKind Kind = SoundKind.Preset,
-    string Genres = "")
+    string Genres = "",
+    long Bytes = 0)
 {
+    // A library this size or more takes long to load and much memory: never loaded just to be heard.
+    public const long HeavyBytes = 2L << 30;
+
+    public bool IsHeavy => Bytes >= HeavyBytes;
+
+    // What a sound weighs, as it is shown: "51.7 GB", "820 MB".
+    public string Weight => WeightOf(Bytes);
+
+    // The designer as the sound browser lists it: a Kontakt instrument's library with what it weighs.
+    public string DesignerAndWeight => Kind == SoundKind.KontaktInstrument && Bytes > 0 ? $"{Designer} · {Weight}" : Designer;
+
+    public static string WeightOf(long bytes) =>
+        bytes >= 1L << 30 ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{bytes / (double)(1L << 30):0.0} GB")
+        : bytes > 0 ? $"{Math.Max(1, bytes >> 20)} MB"
+        : string.Empty;
+
     // Everything a search looks through, in lower case.
     public string SearchText { get; } = $"{Name} {Category} {Subcategory} {PluginName} {Bank} {Designer} {Tags}".ToLowerInvariant();
 }

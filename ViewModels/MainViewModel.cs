@@ -2779,20 +2779,42 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             var installed = VstPlugins
                 .GroupBy(plugin => Path.GetFileNameWithoutExtension(plugin.FilePath.TrimEnd('\\', '/')), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(group => group.Key, group => group.First().FilePath, StringComparer.OrdinalIgnoreCase);
+            var folders = SoundFolders;
             _sounds = Task.Run(() => (IReadOnlyList<Services.Sounds.SoundEntry>)Services.Sounds.ArturiaSoundSource.Read(installed)
                 .Concat(Services.Sounds.NksSoundSource.Read(installed))
                 .Concat(Services.Sounds.ToontrackGrooveSource.Read(installed))
+                .Concat(Services.Sounds.FolderSoundSource.Read(folders, installed))
                 .ToList());
         }
 
         return _sounds;
     }
 
+    // The folders whose samples and Kontakt instruments are listed with the plug-ins' sounds.
+    public IReadOnlyList<string> SoundFolders => _appSettingsService.Load().SoundFolders;
+
+    // Sets the sound folders; the sounds are read again the next time they are asked for.
+    public void SetSoundFolders(IEnumerable<string> folders)
+    {
+        var settings = _appSettingsService.Load();
+        settings.SoundFolders = folders.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        _appSettingsService.Save(settings);
+        _sounds = null;
+    }
+
+    // Asks the window for a track's plug-in window to open: a Kontakt instrument is dragged into it.
+    public event Action<PatternTrackViewModel>? PluginWindowWanted;
+
     // Loads a sound on the selected track: the track takes the sound's plug-in if it plays another, and the
     // plug-in takes the preset. The keyboard then plays it. False, with the reason in the status line, when
     // it cannot.
     public bool LoadSound(Services.Sounds.SoundEntry sound)
     {
+        if (sound.Kind == Services.Sounds.SoundKind.Sample)
+        {
+            return LoadSample(sound);
+        }
+
         if (SelectedTrack is not { SupportsMidiPlayback: true } track)
         {
             StatusMessage = "Select a MIDI track to load the sound on";
@@ -2814,6 +2836,18 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         if (sound.Kind == Services.Sounds.SoundKind.Groove)
         {
             return LoadGroove(track, instrument, sound);
+        }
+
+        if (sound.Kind == Services.Sounds.SoundKind.KontaktInstrument)
+        {
+            // Kontakt takes an instrument only from its own browser or a file dropped on it: its window opens
+            // for the instrument to be dragged in.
+            LiveInstrumentRegistry.Set(instrument);
+            track.SoundName = SoundDisplayName(sound);
+            PluginWindowWanted?.Invoke(track);
+            StatusMessage = $"{track.Name} now plays through {sound.PluginName}: drag {sound.Name} from Sounds into its window"
+                + (sound.IsHeavy ? $" ({sound.Designer} is a {sound.Weight} library: it takes a while to load)" : string.Empty);
+            return true;
         }
 
         byte[] preset;
@@ -2838,6 +2872,33 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         LiveInstrumentRegistry.Set(instrument);
         track.SoundName = SoundDisplayName(sound);
         StatusMessage = $"{track.Name} now plays {sound.Name} ({sound.PluginName})";
+        return true;
+    }
+
+    // A sample goes in as audio (see ImportAudioFile); a loop whose name says its tempo follows the song's,
+    // stretched from that tempo.
+    private bool LoadSample(Services.Sounds.SoundEntry sample)
+    {
+        StopSoundPreview();
+        if (!File.Exists(sample.PresetPath))
+        {
+            StatusMessage = $"{sample.Name}: the file is no longer there";
+            return false;
+        }
+
+        if (!ImportAudioFile(sample.PresetPath) || SelectedTrack is not { } track)
+        {
+            return false;
+        }
+
+        if (sample.Subcategory.StartsWith("Loop", StringComparison.Ordinal)
+            && Services.Sounds.FolderSoundSource.BpmOf(sample.Name, loop: true) is { } bpm)
+        {
+            track.AudioClipBpm = bpm;
+            RebuildTimeline();
+            StatusMessage = $"{track.Name}: {sample.Name}, a loop at {bpm:0.##} BPM, follows the song's tempo";
+        }
+
         return true;
     }
 
