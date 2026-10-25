@@ -2054,7 +2054,7 @@ public partial class MainWindow : Window
     private void AddSonEffect(MainViewModel viewModel, PatternTrackViewModel track, EffectDefinition definition)
     {
         viewModel.SelectedTrack = track;
-        if (viewModel.AddEffect(track, definition) is { } effect)
+        if (viewModel.PutEffect(track, definition) is { } effect)
         {
             OpenFxRack(viewModel, track, effect);
         }

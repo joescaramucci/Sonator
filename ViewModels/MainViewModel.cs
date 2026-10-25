@@ -2720,8 +2720,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         }
 
         track.HasOpenedFxRack = true;
-        if (track.Effects is not [{ Definition.Kind: EffectKind.Verb, IsEnabled: false, IsPresetModified: false } verb]
-            || verb.PresetName != PatternFactory.DefaultVerbPreset)
+        if (DefaultReverbOf(track) is not { } verb)
         {
             return false;
         }
@@ -2729,6 +2728,34 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         CaptureUndoStateIfNeeded();
         verb.IsEnabled = true;
         return true;
+    }
+
+    // The reverb every new track starts with, while the track's rack holds only it, switched off and untouched.
+    private static TrackEffectViewModel? DefaultReverbOf(PatternTrackViewModel track) =>
+        track.Effects is [{ Definition.Kind: EffectKind.Verb, IsEnabled: false, IsPresetModified: false } verb]
+        && verb.PresetName == PatternFactory.DefaultVerbPreset
+            ? verb
+            : null;
+
+    // Puts an effect of the plug-in list on a track, whose rack then opens. SonVerb on a track that still has only
+    // the reverb it started with switches that one on instead of adding a second; any other effect leaves it off.
+    public TrackEffectViewModel? PutEffect(PatternTrackViewModel? track, EffectDefinition definition)
+    {
+        if (track is null)
+        {
+            return null;
+        }
+
+        track.HasOpenedFxRack = true;
+        if (definition.Kind == EffectKind.Verb && DefaultReverbOf(track) is { } verb)
+        {
+            CaptureUndoStateIfNeeded();
+            verb.IsEnabled = true;
+            StatusMessage = $"{definition.Name} switched on on {track.Name}";
+            return verb;
+        }
+
+        return AddEffect(track, definition);
     }
 
     // Adds an effect at the end of the track's chain, at its default settings.

@@ -1,3 +1,4 @@
+using Sonator.Services.Effects;
 using Sonator.ViewModels;
 using Xunit;
 
@@ -26,6 +27,34 @@ public sealed class DefaultReverbTests
         {
             throw new Xunit.Sdk.XunitException(failure.ToString());
         }
+    }
+
+    [Fact]
+    public void SonVerbFromTheList_SwitchesTheDefaultReverbOn_InsteadOfAddingASecond()
+    {
+        OnSta(() =>
+        {
+            using var viewModel = new MainViewModel();
+            var track = viewModel.Tracks[0];
+            var verb = Assert.Single(track.Effects);
+
+            Assert.Same(verb, viewModel.PutEffect(track, EffectCatalog.Get(EffectKind.Verb)));
+            Assert.True(verb.IsEnabled);
+            Assert.Single(track.Effects);
+
+            // Once it is on, another SonVerb is a second one.
+            viewModel.PutEffect(track, EffectCatalog.Get(EffectKind.Verb));
+            Assert.Equal(2, track.Effects.Count);
+
+            // Another effect goes after the reverb and leaves it off, now and when the rack is opened later.
+            var other = viewModel.Tracks[1];
+            var delay = viewModel.PutEffect(other, EffectCatalog.Get(EffectKind.Delay));
+            Assert.Equal(new[] { EffectKind.Verb, EffectKind.Delay }, other.Effects.Select(effect => effect.Definition.Kind));
+            Assert.False(other.Effects[0].IsEnabled);
+            Assert.False(viewModel.SwitchOnDefaultReverb(other));
+            Assert.False(other.Effects[0].IsEnabled);
+            Assert.NotNull(delay);
+        });
     }
 
     [Fact]
