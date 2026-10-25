@@ -56,9 +56,12 @@ public partial class MainWindow : Window
     }
 
     // Exit, the window's X and Alt+F4 all ask whether to save the project first, when it has unsaved changes.
+    // Set when Sonator closes by itself after exporting from the command line.
+    private bool _closingWithoutAsking;
+
     private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
-        if (_mainViewModel is null || !_mainViewModel.HasUnsavedChanges)
+        if (_closingWithoutAsking || _mainViewModel is null || !_mainViewModel.HasUnsavedChanges)
         {
             return;
         }
@@ -182,10 +185,18 @@ public partial class MainWindow : Window
         viewModel.SavedInstrumentStarted += DockSavedInstrument;
         OfferToRecover(viewModel);
 
-        // A project given on the command line, as when its file is opened from Explorer.
-        if (Environment.GetCommandLineArgs() is [_, var project, ..] && File.Exists(project))
+        // A project given on the command line, as when its file is opened from Explorer. With --export and a WAV
+        // or MP3 file after it, the song is exported there once the plug-ins have loaded, and Sonator closes.
+        var arguments = Environment.GetCommandLineArgs();
+        if (arguments is [_, var project, ..] && File.Exists(project) && viewModel.OpenProject(Path.GetFullPath(project))
+            && Array.IndexOf(arguments, "--export") is var at and > 0 && at + 1 < arguments.Length)
         {
-            viewModel.OpenProject(Path.GetFullPath(project));
+            var output = Path.GetFullPath(arguments[at + 1]);
+            await Task.Delay(TimeSpan.FromSeconds(3));
+            await viewModel.ExportAudioAsync(output);
+            _closingWithoutAsking = true;
+            Close();
+            return;
         }
 
         FillSonEffectList(viewModel);
