@@ -1413,6 +1413,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             if (SetProperty(ref _tempo, value))
             {
                 _engine.UpdateTempo(value);
+                PrepareStretchedClips();
                 if (Tracks.Any(track => !string.IsNullOrEmpty(track.AudioClipPath)))
                 {
                     RebuildTimeline(); // audio clip lengths on the timeline depend on the tempo
@@ -2366,7 +2367,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             try
             {
                 using var reader = new NAudio.Wave.MediaFoundationReader(path);
-                clip = track.AudioClipStartStep + reader.TotalTime.TotalSeconds * Tempo / 60.0 * 4;
+                clip = track.AudioClipStartStep + reader.TotalTime.TotalSeconds * ClipTempo(track) / 60.0 * 4;
             }
             catch (Exception ex) when (ex is IOException or System.Runtime.InteropServices.COMException or InvalidOperationException)
             {
@@ -3730,6 +3731,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         _audioWaveforms[path] = AudioWaveformSummary.FromClip(result);
         track.AudioClipPath = path;
         track.AudioClipStartStep = resultStep;
+        track.AudioClipBpm = Tempo; // played in time with the song: it follows its tempo
         track.Instrument = "Audio clip";
         track.Takes = takes.Concat(track.Takes).ToList();
         LengthenPatternForClip(track);
@@ -4515,6 +4517,10 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             try
             {
                 clip = DecodedClip(ClipPathOf(track)!);
+                if (!track.IsFrozen && track.AudioClipBpm is { } clipBpm)
+                {
+                    clip = StretchedClip(ClipPathOf(track)!, clip, clipBpm / Tempo);
+                }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
             {
@@ -4556,6 +4562,79 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
     }
 
     internal const double MinimumClipFade = 0.004;
+
+    // ---- Clips that follow the song's tempo ----
+
+    // The tempo a clip's length on the timeline is counted at: its own when it follows the song's (it is stretched
+    // to the song's), the song's otherwise.
+    private double ClipTempo(PatternTrackViewModel track) => track.AudioClipBpm ?? Tempo;
+
+    // Clips stretched for a tempo, by file and ratio (output length over input), made once in the background.
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<(string Path, int Ratio), AudioClip> _stretchedClips = new();
+
+    private static int RatioKey(double ratio) => (int)Math.Round(ratio * 1000);
+
+    // The clip stretched by ratio, its pitch kept: from the cache, or made now.
+    private AudioClip StretchedClip(string path, AudioClip clip, double ratio)
+    {
+        if (Math.Abs(ratio - 1) < 0.001)
+        {
+            return clip;
+        }
+
+        return _stretchedClips.GetOrAdd((path, RatioKey(ratio)), _ =>
+            new AudioClip(TimeStretcher.Stretch(clip.Samples, clip.Channels, ratio), clip.Channels, clip.SampleRate));
+    }
+
+    // At a new tempo, the clips that follow it are stretched in the background, so playing starts at once.
+    private void PrepareStretchedClips()
+    {
+        foreach (var key in _stretchedClips.Keys.ToList())
+        {
+            if (!Tracks.Any(track => track.AudioClipPath == key.Path))
+            {
+                _stretchedClips.TryRemove(key, out _);
+            }
+        }
+
+        foreach (var track in Tracks.Where(track => track.AudioClipBpm is not null && !string.IsNullOrEmpty(track.AudioClipPath)))
+        {
+            var path = track.AudioClipPath!;
+            var ratio = track.AudioClipBpm!.Value / Tempo;
+            if (Math.Abs(ratio - 1) < 0.001 || _stretchedClips.ContainsKey((path, RatioKey(ratio))))
+            {
+                continue;
+            }
+
+            AudioClip clip;
+            try
+            {
+                clip = DecodedClip(path);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
+            {
+                continue;
+            }
+
+            _ = Task.Run(() => StretchedClip(path, clip, ratio));
+        }
+    }
+
+    // Makes the track's clip follow the song's tempo from now on (stretched at another tempo), or play as it is.
+    public void SetClipFollowsTempo(PatternTrackViewModel track, bool follows)
+    {
+        if (string.IsNullOrEmpty(track.AudioClipPath) || track.FollowsTempo == follows)
+        {
+            return;
+        }
+
+        CaptureUndoStateIfNeeded();
+        track.AudioClipBpm = follows ? Tempo : null;
+        RebuildTimeline();
+        StatusMessage = follows
+            ? $"{track.Name}: the clip follows the song's tempo from {Tempo:0.##} BPM: at another tempo it plays stretched, its pitch kept"
+            : $"{track.Name}: the clip plays as it is, whatever the tempo";
+    }
 
     // The audio a track plays: its frozen sound, from the song's start, or its clip.
     private static string? ClipPathOf(PatternTrackViewModel track) =>
@@ -4747,7 +4826,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         }
 
         var tempoMap = CurrentTempoMap;
-        var endStep = tempoMap.StepAt(tempoMap.SecondsAt(track.AudioClipStartStep) + waveform.DurationSeconds);
+        var endStep = tempoMap.StepAt(tempoMap.SecondsAt(track.AudioClipStartStep) + waveform.DurationSeconds * ClipTempo(track) / Tempo);
         if (LengthenPatternTo(track, endStep) is { } bars)
         {
             StatusMessage = $"{StatusMessage}; the pattern now lasts {bars} bars, to play the whole clip";
@@ -4827,6 +4906,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         try
         {
             Tempo = Math.Round(bpm, 2);
+            track.AudioClipBpm = Tempo; // the clip's own tempo: it follows the song's from now on
             if (leadFrames > 0)
             {
                 var samples = new float[clip.Samples.Length + leadFrames * clip.Channels];
@@ -5232,7 +5312,11 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
                 }
             }
 
-            TimelineTracks.Add(new ArrangeTimelineTrackViewModel(sourceTrack, timelineSteps, LoadAudioWaveform(sourceTrack), Tempo) { Blocks = blocks });
+            TimelineTracks.Add(new ArrangeTimelineTrackViewModel(sourceTrack, timelineSteps, LoadAudioWaveform(sourceTrack), ClipTempo(sourceTrack))
+            {
+                Blocks = blocks,
+                SongTempo = Tempo,
+            });
             if (sourceTrack.IsKitOnTimeline)
             {
                 AddKitLanes(sourceTrack, timelinePatterns, trackIndex);

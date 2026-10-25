@@ -1668,6 +1668,9 @@
                                                         <ContextMenu>
                                                             <MenuItem Header="Detect tempo and sync the song..." Click="DetectTempoMenuItem_Click" />
                                                             <MenuItem Header="Edit in the waveform editor" Click="EditClipMenuItem_Click" />
+                                                            <MenuItem Header="Follow the song's tempo" IsCheckable="True" IsChecked="{Binding SourceTrack.FollowsTempo, Mode=OneWay}"
+                                                                      Click="FollowTempoMenuItem_Click"
+                                                                      ToolTip="At another tempo the clip plays stretched or squeezed, its pitch kept, to stay with the beat" />
                                                             <MenuItem Header="Correct the pitch in Sondyne..." Click="SondyneMenuItem_Click" />
                                                         </ContextMenu>
                                                     </Border.ContextMenu>

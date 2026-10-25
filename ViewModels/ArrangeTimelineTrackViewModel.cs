@@ -52,8 +52,11 @@ public sealed class ArrangeTimelineTrackViewModel : ViewModelBase
     // The clip's length in sixteenth-note steps at the song tempo.
     public double AudioLengthSteps { get; }
 
-    // How long the clip is, in seconds.
-    public double AudioSeconds => AudioWaveform?.DurationSeconds ?? 0;
+    // The song's tempo, when the clip's length on the timeline is counted at its own (it follows the song's).
+    public double? SongTempo { get; init; }
+
+    // How long the clip plays, in seconds: stretched to the song's tempo when it follows it.
+    public double AudioSeconds => SongTempo is { } tempo && tempo > 0 ? AudioLengthSteps * 15 / tempo : AudioWaveform?.DurationSeconds ?? 0;
 
     // Where the clip starts, in sixteenth-note steps.
     public int AudioStartStep => SourceTrack.AudioClipStartStep;

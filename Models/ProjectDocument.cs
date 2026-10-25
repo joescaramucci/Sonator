@@ -86,7 +86,8 @@ public sealed record TrackDocument(
     double AudioFadeIn = 0,
     double AudioFadeOut = 0,
     string? FrozenAudio = null,
-    List<TakeDocument>? Takes = null);
+    List<TakeDocument>? Takes = null,
+    double? AudioClipBpm = null);
 
 // A take of a track (see TrackTake).
 public sealed record TakeDocument(string Name, string? Audio, int AudioStart, List<MidiNoteEventDocument>? Notes);

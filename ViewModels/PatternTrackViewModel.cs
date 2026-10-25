@@ -308,6 +308,24 @@ public sealed class PatternTrackViewModel : ViewModelBase
 
     public string FreezeMenuHeader => IsFrozen ? "Unfreeze (play the plug-in and effects again)" : "Freeze (render to audio, frees the processor)";
 
+    private double? _audioClipBpm;
+
+    // The tempo the clip was played at, when it follows the song's tempo: at another tempo it plays stretched or
+    // squeezed (its pitch kept) to stay with the beat. Null for a clip that plays as it is.
+    public double? AudioClipBpm
+    {
+        get => _audioClipBpm;
+        set
+        {
+            if (SetProperty(ref _audioClipBpm, value is { } bpm && double.IsFinite(bpm) && bpm > 0 ? bpm : null))
+            {
+                RaisePropertyChanged(nameof(FollowsTempo));
+            }
+        }
+    }
+
+    public bool FollowsTempo => _audioClipBpm is not null;
+
     private double _audioFadeInSeconds;
     private double _audioFadeOutSeconds;
 

@@ -3120,6 +3120,14 @@ public partial class MainWindow : Window
         menu.Items.Add(clear);
     }
 
+    private void FollowTempoMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel && sender is MenuItem { DataContext: ArrangeTimelineTrackViewModel timeline })
+        {
+            viewModel.SetClipFollowsTempo(timeline.SourceTrack, !timeline.SourceTrack.FollowsTempo);
+        }
+    }
+
     // Freeze a plug-in track (render it to audio) or unfreeze it; bounce it to a new audio track.
     private async void FreezeMenuItem_Click(object sender, RoutedEventArgs e)
     {

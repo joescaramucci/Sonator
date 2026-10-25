@@ -66,7 +66,8 @@ internal static class ProjectDocumentMapper
             track.AudioFadeOutSeconds,
             track.FrozenAudioPath,
             track.Takes.Count == 0 ? null : track.Takes.Select(take => new TakeDocument(take.Name, take.AudioPath, take.AudioStartStep,
-                take.Notes?.Select(note => new MidiNoteEventDocument(note.StepIndex, note.DurationSteps, note.NoteNumber, note.Velocity, note.StartOffset, note.LengthFraction)).ToList())).ToList());
+                take.Notes?.Select(note => new MidiNoteEventDocument(note.StepIndex, note.DurationSteps, note.NoteNumber, note.Velocity, note.StartOffset, note.LengthFraction)).ToList())).ToList(),
+            track.AudioClipBpm);
     }
 
     // A track's kit pieces, as saved, each knowing its track.
@@ -178,6 +179,7 @@ internal static class ProjectDocumentMapper
         targetTrack.AudioFadeOutSeconds = sourceTrack.AudioFadeOut;
         targetTrack.FrozenAudioPath = sourceTrack.FrozenAudio;
         targetTrack.Takes = Takes(sourceTrack.Takes);
+        targetTrack.AudioClipBpm = sourceTrack.AudioClipBpm;
         targetTrack.InstrumentIconKey = sourceTrack.InstrumentIcon;
         targetTrack.Effects.Clear();
         foreach (var effect in BuildEffects(sourceTrack.Effects))
@@ -282,6 +284,7 @@ internal static class ProjectDocumentMapper
             AudioFadeOutSeconds = trackDocument.AudioFadeOut,
             FrozenAudioPath = trackDocument.FrozenAudio,
             Takes = Takes(trackDocument.Takes),
+            AudioClipBpm = trackDocument.AudioClipBpm,
             InstrumentIconKey = trackDocument.InstrumentIcon,
             NoteBlocks = Blocks(trackDocument.NoteBlocks)
         };
