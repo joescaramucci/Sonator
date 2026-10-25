@@ -470,11 +470,32 @@ public partial class MainWindow : Window
     private Point _clipPressPoint;
     private int _clipMoveSteps;
 
+    private void ClipFade_EditStarting(object? sender, EventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel && sender is FrameworkElement { DataContext: ArrangeTimelineTrackViewModel timeline } overlay)
+        {
+            viewModel.BeginClipFadeEdit();
+
+            // The clip playing fades as it is dragged.
+            void Apply(object? _, System.ComponentModel.PropertyChangedEventArgs args)
+            {
+                if (args.PropertyName is nameof(PatternTrackViewModel.AudioFadeInSeconds) or nameof(PatternTrackViewModel.AudioFadeOutSeconds))
+                {
+                    viewModel.ApplyClipFades(timeline.SourceTrack);
+                }
+            }
+
+            timeline.SourceTrack.PropertyChanged -= Apply;
+            timeline.SourceTrack.PropertyChanged += Apply;
+            overlay.LostMouseCapture += (_, _) => timeline.SourceTrack.PropertyChanged -= Apply;
+        }
+    }
+
     private void AudioClip_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (sender is not Border clip || clip.DataContext is not ArrangeTimelineTrackViewModel timeline)
+        if (sender is not Border clip || clip.DataContext is not ArrangeTimelineTrackViewModel timeline || e.OriginalSource is ClipFadeOverlay)
         {
-            return;
+            return; // a fade's handle drags the fade, not the clip
         }
 
         // A double-click opens the clip in the waveform editor.

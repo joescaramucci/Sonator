@@ -196,6 +196,11 @@ public interface IVst3PluginHost
     void SeekClip(Vst3ModuleHandle handle, double seconds);
 
     /// <summary>
+    /// How long a clip that plays once fades in at its start and out at its end, in seconds.
+    /// </summary>
+    void SetClipFades(Vst3ModuleHandle handle, double fadeInSeconds, double fadeOutSeconds);
+
+    /// <summary>
     /// Makes a clip only to be heard, as the master's test tone: it joins the output after the master's
     /// effects, is left out of the recorded mix, and the master's meters see it at meterPeak (linear) whatever
     /// gain it plays at.

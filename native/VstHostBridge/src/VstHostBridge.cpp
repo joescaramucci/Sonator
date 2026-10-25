@@ -474,6 +474,11 @@ namespace
         std::atomic<bool> clipLoops{false};
         std::atomic<float> clipGain{1.0f};
 
+        // How long a clip that plays once fades in from silence at its start and out to silence at its end, in
+        // seconds of the clip: an equal-power curve, so the sound comes and goes without a click.
+        std::atomic<double> clipFadeInSeconds{0.0};
+        std::atomic<double> clipFadeOutSeconds{0.0};
+
         // A clip only to be heard, as the master's test tone: it joins the output after the master's effects
         // and after the mix is recorded for exporting, and the master's meters see it at clipMeterPeak instead
         // of the level it plays at.
@@ -1726,6 +1731,22 @@ namespace
             const double step = module->clipSampleRate / sampleRate;
             const bool loops = module->clipLoops.load() && clipFrames > 1;
             const float gain = module->clipGain.load();
+            const double fadeInFrames = loops ? 0.0 : module->clipFadeInSeconds.load() * module->clipSampleRate;
+            const double fadeOutFrames = loops ? 0.0 : module->clipFadeOutSeconds.load() * module->clipSampleRate;
+            auto fadeAt = [&](double position)
+            {
+                double fade = 1.0;
+                if (position < fadeInFrames)
+                {
+                    fade *= std::sin(1.5707963267948966 * std::max(0.0, position) / fadeInFrames);
+                }
+                const double left = static_cast<double>(clipFrames) - position;
+                if (left < fadeOutFrames)
+                {
+                    fade *= std::sin(1.5707963267948966 * std::max(0.0, left) / fadeOutFrames);
+                }
+                return static_cast<float>(fade);
+            };
             float* left = planar[0].data();
             float* right = planar[1].data();
             for (int32 i = 0; i < frames; ++i)
@@ -1747,8 +1768,9 @@ namespace
                     const auto fraction = static_cast<float>(clipPosition - static_cast<double>(frame));
                     const float* a = &samples[static_cast<size_t>(frame * clipChannels)];
                     const float* b = frame + 1 < clipFrames ? a + clipChannels : samples.data();
-                    left[i] = (a[0] + (b[0] - a[0]) * fraction) * gain;
-                    right[i] = (clipChannels > 1 ? a[1] + (b[1] - a[1]) * fraction : a[0] + (b[0] - a[0]) * fraction) * gain;
+                    const float level = (fadeInFrames > 0.0 || fadeOutFrames > 0.0) ? gain * fadeAt(clipPosition) : gain;
+                    left[i] = (a[0] + (b[0] - a[0]) * fraction) * level;
+                    right[i] = (clipChannels > 1 ? a[1] + (b[1] - a[1]) * fraction : a[0] + (b[0] - a[0]) * fraction) * level;
                 }
                 else
                 {
@@ -2965,6 +2987,18 @@ int VstHostBridge_LoadState(void* moduleHandle, int32_t part, const uint8_t* dat
     }
 
     return 0;
+}
+
+void VstHostBridge_SetClipFades(void* moduleHandle, double fadeInSeconds, double fadeOutSeconds)
+{
+    if (moduleHandle == nullptr)
+    {
+        return;
+    }
+
+    auto* module = static_cast<BridgeModule*>(moduleHandle);
+    module->clipFadeInSeconds.store(std::isfinite(fadeInSeconds) ? std::max(0.0, fadeInSeconds) : 0.0);
+    module->clipFadeOutSeconds.store(std::isfinite(fadeOutSeconds) ? std::max(0.0, fadeOutSeconds) : 0.0);
 }
 
 void* VstHostBridge_CreateClipModule(const float* interleaved, int32_t frames, int32_t channels, double sampleRate, double startSeconds)

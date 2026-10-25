@@ -61,7 +61,9 @@ internal static class ProjectDocumentMapper
                 ? null
                 : track.ParameterAutomation
                     .Select(lane => new ParameterLaneDocument(lane.Target.Effect, lane.Target.Parameter, lane.Target.Name, BuildAutomationDocuments(lane.Points) ?? new()))
-                    .ToList());
+                    .ToList(),
+            track.AudioFadeInSeconds,
+            track.AudioFadeOutSeconds);
     }
 
     // A track's kit pieces, as saved, each knowing its track.
@@ -152,6 +154,8 @@ internal static class ProjectDocumentMapper
         targetTrack.MidiControllerEvents = Controllers(sourceTrack.MidiControllerEvents);
         targetTrack.AudioClipPath = sourceTrack.AudioClipPath;
         targetTrack.AudioClipStartStep = sourceTrack.AudioClipStartStep;
+        targetTrack.AudioFadeInSeconds = sourceTrack.AudioFadeIn;
+        targetTrack.AudioFadeOutSeconds = sourceTrack.AudioFadeOut;
         targetTrack.InstrumentIconKey = sourceTrack.InstrumentIcon;
         targetTrack.Effects.Clear();
         foreach (var effect in BuildEffects(sourceTrack.Effects))
@@ -252,6 +256,8 @@ internal static class ProjectDocumentMapper
             MidiControllerEvents = Controllers(trackDocument.MidiControllerEvents),
             AudioClipPath = trackDocument.AudioClipPath,
             AudioClipStartStep = Math.Max(0, trackDocument.AudioClipStartStep),
+            AudioFadeInSeconds = trackDocument.AudioFadeIn,
+            AudioFadeOutSeconds = trackDocument.AudioFadeOut,
             InstrumentIconKey = trackDocument.InstrumentIcon,
             NoteBlocks = Blocks(trackDocument.NoteBlocks)
         };

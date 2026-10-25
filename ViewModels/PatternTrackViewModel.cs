@@ -252,6 +252,22 @@ public sealed class PatternTrackViewModel : ViewModelBase
     // Where the clip starts on the timeline, in sixteenth-note steps from the start of the pattern.
     public int AudioClipStartStep { get; set; }
 
+    private double _audioFadeInSeconds;
+    private double _audioFadeOutSeconds;
+
+    // How long the clip fades in from silence at its start and out to silence at its end, in seconds.
+    public double AudioFadeInSeconds
+    {
+        get => _audioFadeInSeconds;
+        set => SetProperty(ref _audioFadeInSeconds, double.IsFinite(value) ? Math.Max(0, value) : 0);
+    }
+
+    public double AudioFadeOutSeconds
+    {
+        get => _audioFadeOutSeconds;
+        set => SetProperty(ref _audioFadeOutSeconds, double.IsFinite(value) ? Math.Max(0, value) : 0);
+    }
+
     public string Source
     {
         get => _source;

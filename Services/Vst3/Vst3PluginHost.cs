@@ -490,6 +490,23 @@ public sealed class Vst3PluginHost : IVst3PluginHost
         }
     }
 
+    public void SetClipFades(Vst3ModuleHandle handle, double fadeInSeconds, double fadeOutSeconds)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+        if (handle.NativeHandle == IntPtr.Zero)
+        {
+            return;
+        }
+
+        try
+        {
+            Vst3HostInterop.VstHostBridge_SetClipFades(handle.NativeHandle, fadeInSeconds, fadeOutSeconds);
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+        }
+    }
+
     public void SeekClip(Vst3ModuleHandle handle, double seconds)
     {
         ArgumentNullException.ThrowIfNull(handle);

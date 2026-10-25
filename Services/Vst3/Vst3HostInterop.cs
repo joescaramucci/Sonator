@@ -181,6 +181,9 @@ internal static class Vst3HostInterop
     internal static extern void VstHostBridge_SetClipPlayback(IntPtr moduleHandle, int loops, float gain);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void VstHostBridge_SetClipFades(IntPtr moduleHandle, double fadeInSeconds, double fadeOutSeconds);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern void VstHostBridge_SeekClip(IntPtr moduleHandle, double seconds);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]

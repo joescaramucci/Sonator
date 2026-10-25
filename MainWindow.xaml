@@ -1677,11 +1677,18 @@
                                                             <Binding Path="DataContext.TimelineSixteenthWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
                                                         </MultiBinding>
                                                     </Border.Width>
-                                                    <Viewbox Stretch="Fill" Margin="2">
-                                                        <Canvas Width="1000" Height="100">
-                                                            <Path Fill="#62B7A4" Data="{Binding AudioPathData}" />
-                                                        </Canvas>
-                                                    </Viewbox>
+                                                    <Grid>
+                                                        <Viewbox Stretch="Fill" Margin="2">
+                                                            <Canvas Width="1000" Height="100">
+                                                                <Path Fill="#62B7A4" Data="{Binding AudioPathData}" />
+                                                            </Canvas>
+                                                        </Viewbox>
+                                                        <!-- The clip's fades, each with its handle on top. -->
+                                                        <local:ClipFadeOverlay FadeIn="{Binding SourceTrack.AudioFadeInSeconds}"
+                                                                               FadeOut="{Binding SourceTrack.AudioFadeOutSeconds}"
+                                                                               ClipSeconds="{Binding AudioSeconds}"
+                                                                               EditStarting="ClipFade_EditStarting" />
+                                                    </Grid>
                                                 </Border>
                                                 <!-- The track's blocks of notes, opaque over the lane's grid. Each keeps its bounds, so blocks
                                                      side by side show as two until joined. Drag one to move it, drag an edge to stretch it;

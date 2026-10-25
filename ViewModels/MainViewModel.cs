@@ -4257,6 +4257,8 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             var secondsFromStart = tempoMap.SecondsAt(fromStep) - tempoMap.SecondsAt(track.AudioClipStartStep);
             if (_liveInstrumentHost.TryCreateClip(clip.Samples, clip.Channels, clip.SampleRate, secondsFromStart) is { } module)
             {
+                // Every clip comes and goes over a few milliseconds at least, so its edges never click.
+                _liveInstrumentHost.SetClipFades(module, Math.Max(MinimumClipFade, track.AudioFadeInSeconds), Math.Max(MinimumClipFade, track.AudioFadeOutSeconds));
                 _trackEffects.ChainFor(track)?.AttachTo(module);
                 if (_liveInstrumentHost.TryStartAudio(module, selection, out var error))
                 {
@@ -4281,6 +4283,22 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         {
             AudioTrackPlayback.Play(fallback);
             _clipsOnFallback = true;
+        }
+    }
+
+    internal const double MinimumClipFade = 0.004;
+
+    // Called as a clip's fade is dragged, before the change, so it can be undone; the clips playing take it at once.
+    public void BeginClipFadeEdit() => CaptureUndoStateIfNeeded();
+
+    public void ApplyClipFades(PatternTrackViewModel track)
+    {
+        foreach (var (module, playing) in _playingClips)
+        {
+            if (ReferenceEquals(playing, track))
+            {
+                _liveInstrumentHost.SetClipFades(module, Math.Max(MinimumClipFade, track.AudioFadeInSeconds), Math.Max(MinimumClipFade, track.AudioFadeOutSeconds));
+            }
         }
     }
 

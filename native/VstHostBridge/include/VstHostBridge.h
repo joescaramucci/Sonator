@@ -193,6 +193,9 @@ VSTHOSTBRIDGE_API void* VstHostBridge_CreateClipModule(const float* interleaved,
 // change while it plays, as for the master's test tone.
 VSTHOSTBRIDGE_API void VstHostBridge_SetClipPlayback(void* moduleHandle, int32_t loops, float gain);
 
+// How long a clip that plays once fades in at its start and out at its end, in seconds (0 for none).
+VSTHOSTBRIDGE_API void VstHostBridge_SetClipFades(void* moduleHandle, double fadeInSeconds, double fadeOutSeconds);
+
 // Makes a playing clip go on from seconds into it (negative: silence that long first), as when a loop goes
 // back to its start; taken by the audio thread at its next block, without loading the clip again.
 VSTHOSTBRIDGE_API void VstHostBridge_SeekClip(void* moduleHandle, double seconds);
