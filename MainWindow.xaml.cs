@@ -1977,7 +1977,7 @@ public partial class MainWindow : Window
 
     // ---- Sonator's own effects in the plug-in list ----
 
-    private const string SonEffectDragFormat = "Sonator.SonEffect";
+    internal const string SonEffectDragFormat = "Sonator.SonEffect";
 
     // A tile of the list: the effect, and its module as it looks in the rack as its picture.
     private sealed record SonEffectTile(EffectDefinition Definition, ImageSource Picture)

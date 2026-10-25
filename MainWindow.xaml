@@ -2643,7 +2643,7 @@
                                                 MouseMove="SonEffect_MouseMove"
                                                 MouseLeftButtonUp="SonEffect_MouseLeftButtonUp">
                                             <StackPanel>
-                                                <Image Source="{Binding Picture}" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
+                                                <Image Source="{Binding Picture}" Stretch="Uniform" Margin="26,0" RenderOptions.BitmapScalingMode="HighQuality" />
                                                 <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold" Margin="0,1,0,0" TextAlignment="Center"
                                                            Foreground="#FF963A" TextTrimming="CharacterEllipsis" />
                                             </StackPanel>
@@ -2660,7 +2660,7 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Height="100"
+                                        <Border Height="90"
                                                 Margin="2"
                                                 Background="{StaticResource Shade}"
                                                 BorderBrush="{StaticResource Line}"

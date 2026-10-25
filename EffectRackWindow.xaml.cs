@@ -4,6 +4,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using Sonator.Services.Effects;
 using Sonator.ViewModels;
 
 namespace Sonator;
@@ -281,11 +282,15 @@ public partial class EffectRackWindow : Window
         DragDrop.DoDragDrop(grip, new DataObject(typeof(TrackEffectViewModel), effect), DragDropEffects.Move);
     }
 
-    // A gold line on the top or bottom edge of the module under the mouse shows where the effect will land.
+    // An effect dragged here from the plug-in list of the main window.
+    private static EffectDefinition? DroppedDefinition(DragEventArgs e) => e.Data.GetData(MainWindow.SonEffectDragFormat) as EffectDefinition;
+
+    // A gold line on the top or bottom edge of the module under the mouse shows where the effect will land, one of
+    // the rack's moved or one from the plug-in list.
     private void Module_DragOver(object sender, DragEventArgs e)
     {
-        if (sender is not Border { DataContext: TrackEffectViewModel } module
-            || e.Data.GetData(typeof(TrackEffectViewModel)) is not TrackEffectViewModel)
+        var moving = e.Data.GetData(typeof(TrackEffectViewModel)) is TrackEffectViewModel;
+        if (sender is not Border { DataContext: TrackEffectViewModel } module || (!moving && DroppedDefinition(e) is null))
         {
             e.Effects = DragDropEffects.None;
             e.Handled = true;
@@ -295,7 +300,7 @@ public partial class EffectRackWindow : Window
         var above = e.GetPosition(module).Y < module.ActualHeight / 2;
         module.BorderBrush = DropLineBrush;
         module.BorderThickness = above ? new Thickness(1, 3, 1, 1) : new Thickness(1, 1, 1, 3);
-        e.Effects = DragDropEffects.Move;
+        e.Effects = moving ? DragDropEffects.Move : DragDropEffects.Copy;
         e.Handled = true;
     }
 
@@ -309,8 +314,18 @@ public partial class EffectRackWindow : Window
 
     private void Module_Drop(object sender, DragEventArgs e)
     {
-        if (sender is not Border { DataContext: TrackEffectViewModel target } module
-            || e.Data.GetData(typeof(TrackEffectViewModel)) is not TrackEffectViewModel dragged)
+        if (sender is not Border { DataContext: TrackEffectViewModel target } module)
+        {
+            return;
+        }
+
+        var dragged = e.Data.GetData(typeof(TrackEffectViewModel)) as TrackEffectViewModel;
+        if (dragged is null && DroppedDefinition(e) is { } definition)
+        {
+            dragged = _viewModel.PutEffect(Track, definition);
+        }
+
+        if (dragged is null)
         {
             return;
         }
@@ -324,7 +339,24 @@ public partial class EffectRackWindow : Window
         }
 
         _viewModel.MoveEffectTo(Track, dragged, index);
+        ShowEffect(dragged);
         e.Handled = true;
+    }
+
+    // An effect from the plug-in list dropped on the rack but not on a module goes at the end of the chain.
+    private void Rack_DragOver(object sender, DragEventArgs e)
+    {
+        e.Effects = DroppedDefinition(e) is not null ? DragDropEffects.Copy : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private void Rack_Drop(object sender, DragEventArgs e)
+    {
+        if (DroppedDefinition(e) is { } definition && _viewModel.PutEffect(Track, definition) is { } effect)
+        {
+            ShowEffect(effect);
+            e.Handled = true;
+        }
     }
 
     private static void ClearDropLine(Border module)
