@@ -168,6 +168,6 @@ dotnet test tests/Sonator.Tests
 
 Sonator is free software, licensed under the GNU General Public License v3.0.
 See [LICENSE.txt](LICENSE.txt). Third-party components are listed in
-[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). The screenshots show
-third-party plug-ins (Toontrack, Arturia), which are trademarks of their
-owners and are not part of Sonator.
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). Plug-in names shown in the
+screenshots are trademarks of their owners; the plug-ins are not part of
+Sonator.

@@ -21,13 +21,12 @@ The master has VU meters, a spectrum view and a test oscillator.
 
 ![Mixer with kit strips](images/sonator-mixer-kit.png)
 
-## Effects rack and VST3 instruments
+## Effects rack
 
-A channel's effects rack (SonVerb, SonLimiter, SonArmo) with two VST3
-instruments' own editors open: Arturia Emulator II V and DX7 V. The plug-in
-browser on the right shows thumbnails of each plug-in's real editor.
+A channel's effects rack, here with SonVerb. Each effect has its own controls,
+a display of what it does, presets, and arrows to move it up or down the chain.
 
-![Effects rack and VST3 instrument editors](images/sonator-fx-rack-instruments.png)
+![Effects rack with SonVerb](images/sonator-fx-rack.png)
 
 ## Sounds
 
@@ -51,5 +50,5 @@ placed under the notes. It saves to PDF.
 
 ![Score with lyrics](images/sonator-score.png)
 
-The screenshots show third-party plug-ins (Toontrack EZdrummer, Arturia V
-Collection). They are trademarks of their owners and are not part of Sonator.
+Plug-in names shown in the screenshots are trademarks of their owners; the
+plug-ins are not part of Sonator.
