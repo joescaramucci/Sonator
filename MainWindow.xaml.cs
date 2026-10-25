@@ -181,6 +181,13 @@ public partial class MainWindow : Window
         viewModel.EffectPluginUnloading += ClosePluginWindowsOf;
         viewModel.SavedInstrumentStarted += DockSavedInstrument;
         OfferToRecover(viewModel);
+
+        // A project given on the command line, as when its file is opened from Explorer.
+        if (Environment.GetCommandLineArgs() is [_, var project, ..] && File.Exists(project))
+        {
+            viewModel.OpenProject(Path.GetFullPath(project));
+        }
+
         FillSonEffectList(viewModel);
         viewModel.VstPlugins.CollectionChanged += (_, args) =>
         {
