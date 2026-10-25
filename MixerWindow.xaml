@@ -295,7 +295,17 @@
                                 </Style>
                             </Button.Style>
                         </Button>
-                        <TextBlock Style="{StaticResource Legend}" Text="INSERT" Margin="0,4,0,1" />
+                        <TextBlock Text="INSERT" Margin="0,4,0,1">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource Legend}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsKitMainOutput}" Value="True">
+                                            <Setter Property="Visibility" Value="Hidden" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
                     </StackPanel>
                     <StackPanel DockPanel.Dock="Bottom">
                         <Border Height="15" Margin="4,4,4,0" Background="#101113" CornerRadius="2">
@@ -396,8 +406,18 @@
                             </Button>
                         </Grid>
                     </StackPanel>
-                    <!-- The inserts grow up to ten effects' worth, the sends take the rest, so every bus has its knob. -->
+                    <!-- The inserts grow up to ten effects' worth, the sends take the rest, so every bus has its knob. The
+                         kit's main output has none of its own: it goes through its track's. -->
                     <Grid>
+                        <Grid.Style>
+                            <Style TargetType="Grid">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsKitMainOutput}" Value="True">
+                                        <Setter Property="Visibility" Value="Hidden" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*" MinHeight="40" MaxHeight="184" />
                             <RowDefinition Height="Auto" />

@@ -127,13 +127,20 @@ internal sealed class TrackEffectsHost : IDisposable
     // A track that makes its own sound (a plug-in or an audio clip) is silent while muted, or while another
     // track is soloed and it is not; its fader glides there and back, so muting never clicks.
     // A piece of a drum kit is silent with its track, or while other pieces of the kit are soloed and it is not;
-    // the track's own output too, while pieces of its kit are soloed and it is not.
+    // the track's own output too, while pieces of its kit are soloed and it is not, or its own piece (the main
+    // output's, once heard) is muted or not soloed.
     internal bool IsSilenced(PatternTrackViewModel track) => track.KitParent is { } parent
         ? IsSilenced(parent, ownOutput: false) || track.IsMuted || (parent.HasSoloedPiece && !track.IsSolo)
         : IsSilenced(track, ownOutput: true);
 
     private bool IsSilenced(PatternTrackViewModel track, bool ownOutput) =>
-        track.IsMuted || (_isSoloActive && !track.IsSoloed) || (ownOutput && track.HasSoloedPiece && !track.IsSolo);
+        track.IsMuted || (_isSoloActive && !track.IsSoloed)
+        || (ownOutput && (HeardMainOutput(track) is { } main
+            ? main.IsMuted || (track.HasSoloedPiece && !main.IsSolo && !track.IsSolo)
+            : track.HasSoloedPiece && !track.IsSolo));
+
+    private static PatternTrackViewModel? HeardMainOutput(PatternTrackViewModel track) =>
+        track.KitMainOutput is { IsHeard: true } main ? main : null;
 
     // A track's gain takes the master volume in; a bus's does not, since what reaches it already has it.
     // A bus has no sends of its own, nor does the master.
@@ -154,12 +161,14 @@ internal sealed class TrackEffectsHost : IDisposable
             return;
         }
 
+        // A drum kit's own output plays at its piece's fader times the track's, and with its piece's pan.
         var isMaster = ReferenceEquals(track, _master);
         var isBus = IsBus(track);
+        var main = HeardMainOutput(track);
         chain.SetGain(isMaster ? 1.0
             : isBus ? (track.IsMuted ? 0.0 : Gain(track.MixVolume, UnityVolume))
-            : IsSilenced(track) ? 0.0 : Gain(track.MixVolume, _masterVolume));
-        chain.SetPan(isMaster ? _masterBalance : track.MixPan);
+            : IsSilenced(track) ? 0.0 : Gain(track.MixVolume, _masterVolume) * (main?.MixVolume ?? UnityVolume) / UnityVolume);
+        chain.SetPan(isMaster ? _masterBalance : (main ?? track).MixPan);
         for (var slot = 0; slot < NativeEffectChain.MaxBuses; slot++)
         {
             var level = !isMaster && !isBus && slot < _buses.Count ? track.SendLevel(_buses[slot].BusId) : 0;
@@ -193,6 +202,7 @@ internal sealed class TrackEffectsHost : IDisposable
     {
         if (e.PropertyName is nameof(PatternTrackViewModel.MixVolume) or nameof(PatternTrackViewModel.MixPan)
                 or nameof(PatternTrackViewModel.Sends) or nameof(PatternTrackViewModel.IsMuted) or nameof(PatternTrackViewModel.IsSolo)
+                or nameof(PatternTrackViewModel.IsHeard)
             && sender is PatternTrackViewModel changed && (changed.KitParent ?? changed) is var track
             && _chains.TryGetValue(track, out var chain))
         {

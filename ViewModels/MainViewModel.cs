@@ -5527,25 +5527,35 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         foreach (var track in Patterns.SelectMany(pattern => pattern.Tracks).Where(track => track.HasOwnAudio))
         {
             var peak = _trackEffects.ExistingChainFor(track)?.TakePeak() ?? 0;
-            TrackMeterCalculator.ShowAudioLevel(track, peak);
             if (track.KitPieces.Count == 0)
             {
+                TrackMeterCalculator.ShowAudioLevel(track, peak);
                 continue;
             }
 
+            // A kit's pieces each with their own output's level, the main output's being the track's own; the
+            // track's meter shows the loudest of the kit. The main output counts as a piece of its own once another
+            // has played apart: until then it is the whole kit.
+            var kitPeak = peak;
             var piecePeaks = new List<(PatternTrackViewModel, double)>();
             foreach (var piece in track.KitPieces)
             {
-                var piecePeak = _trackEffects.ExistingChainFor(piece)?.TakePeak() ?? 0;
+                var piecePeak = piece.IsKitMainOutput ? peak : _trackEffects.ExistingChainFor(piece)?.TakePeak() ?? 0;
                 TrackMeterCalculator.ShowAudioLevel(piece, piecePeak);
-                if (piecePeak > KitPieceHeardPeak)
+                kitPeak = Math.Max(kitPeak, piecePeak);
+                if (piecePeak > KitPieceHeardPeak
+                    && (!piece.IsKitMainOutput || track.KitPieces.Any(other => !other.IsKitMainOutput && other.IsHeard)))
                 {
                     piece.IsHeard = true;
                 }
 
-                piecePeaks.Add((piece, piecePeak));
+                if (piece.IsHeard || !piece.IsKitMainOutput)
+                {
+                    piecePeaks.Add((piece, piecePeak));
+                }
             }
 
+            TrackMeterCalculator.ShowAudioLevel(track, kitPeak);
             _kitNamer.Read(track, piecePeaks);
         }
 

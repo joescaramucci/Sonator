@@ -82,26 +82,31 @@ internal sealed class TrackInstrumentsHost : IDisposable
     }
 
     // Each of the plug-in's other outputs plays apart, through the track's kit piece for it, made for an output
-    // that has none yet. Pieces of outputs the plug-in does not have (it was another plug-in) go.
+    // that has none yet; the main output gets a piece too, first, for its own fader (it plays through the track's
+    // chain). Pieces of outputs the plug-in does not have (it was another plug-in) go, all of them for a plug-in
+    // with one output.
     private void AttachKitPieces(PatternTrackViewModel track, Vst3ModuleHandle handle)
     {
         var names = _host.OutputNames(handle);
-        foreach (var gone in track.KitPieces.Where(piece => piece.KitOutput < 1 || piece.KitOutput >= names.Count).ToList())
+        foreach (var gone in track.KitPieces.Where(piece => piece.KitOutput < 0 || piece.KitOutput >= names.Count || names.Count < 2).ToList())
         {
             track.KitPieces.Remove(gone);
         }
 
-        for (var output = 1; output < names.Count; output++)
+        for (var output = 0; output < names.Count && names.Count > 1; output++)
         {
             var piece = track.KitPieces.FirstOrDefault(item => item.KitOutput == output);
             if (piece is null)
             {
                 piece = PatternTrackViewModel.CreateKitPiece(track, output, names[output]);
-                track.KitPieces.Add(piece);
+                track.KitPieces.Insert(output == 0 ? 0 : track.KitPieces.Count, piece);
             }
 
             piece.KitParent = track;
-            _effectsFor(piece)?.AttachToOutput(handle, output);
+            if (output > 0)
+            {
+                _effectsFor(piece)?.AttachToOutput(handle, output);
+            }
         }
     }
 

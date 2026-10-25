@@ -286,7 +286,8 @@ public sealed class PatternTrackViewModel : ViewModelBase
 
     // The plug-in's other outputs as channels of their own: a drum plug-in set to play each drum on its own
     // output (the kick, the snare, the hi-hat...) has each one here, with its own fader, effects and sends. Each
-    // takes the output KitOutput (1 and up); the track's own channel is output 1/2.
+    // takes the output KitOutput (1 and up). The piece of output 0, the track's own channel (the kick, in EZdrummer),
+    // is its fader, mute, solo and pan only: that output goes through the track's effects and sends.
     public ObservableCollection<PatternTrackViewModel> KitPieces { get; } = new();
 
     // The track a kit piece belongs to; null for a track.
@@ -295,6 +296,11 @@ public sealed class PatternTrackViewModel : ViewModelBase
     public int KitOutput { get; set; }
 
     public bool IsKitPiece => KitParent is not null;
+
+    // The piece of the plug-in's main output, the track's own channel.
+    public bool IsKitMainOutput => KitParent is not null && KitOutput == 0;
+
+    public PatternTrackViewModel? KitMainOutput => KitPieces.FirstOrDefault(piece => piece.KitOutput == 0);
 
     // A new kit piece of the track for one of its plug-in's outputs, named after the output: "Out 3/4" for
     // "EZdrummer 3 3/4". Its strip takes the track's colour.
