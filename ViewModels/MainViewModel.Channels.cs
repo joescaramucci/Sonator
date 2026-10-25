@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using static Sonator.ViewModels.TimelineFormatting;
 
 namespace Sonator.ViewModels;
 
@@ -50,6 +51,88 @@ public sealed partial class MainViewModel
         var index = TrackIndexOf(track);
         return pattern is not null && index >= 0 && index < pattern.Tracks.Count ? pattern.Tracks[index] : track;
     }
+
+    // ---- The pattern on the timeline, in the song ----
+
+    // The arrangement's sections in order: each pattern played, the song step it starts at and how long it is.
+    internal IReadOnlyList<(PatternViewModel Pattern, int Start, int Length)> ArrangeSections()
+    {
+        var sections = new List<(PatternViewModel Pattern, int Start, int Length)>();
+        var start = 0;
+        foreach (var pattern in GetArrangePlaybackPatterns())
+        {
+            var length = PatternBarCount(pattern, StepsPerBar) * StepsPerBar;
+            sections.Add((pattern, start, length));
+            start += length;
+        }
+
+        return sections;
+    }
+
+    // Where in the song the pattern on the timeline starts: in the arrangement, the place it is playing at, or the
+    // place selected in the pattern list, or its first; 0 when a pattern plays on its own.
+    public int ShownSectionStart
+    {
+        get
+        {
+            if (!IsArrangeMode || SelectedPattern is not { } shown)
+            {
+                return 0;
+            }
+
+            var sections = ArrangeSections();
+            var at = sections.FirstOrDefault(section => CurrentStepIndex >= section.Start && CurrentStepIndex < section.Start + section.Length);
+            if (ReferenceEquals(at.Pattern, shown))
+            {
+                return at.Start;
+            }
+
+            if (TryGetSelectedArrangePatternRange(out var startRow, out _, out _)
+                && sections.FirstOrDefault(section => section.Start == startRow * StepsPerBar) is { Pattern: { } selected } place
+                && ReferenceEquals(selected, shown))
+            {
+                return place.Start;
+            }
+
+            return sections.FirstOrDefault(section => ReferenceEquals(section.Pattern, shown)).Start;
+        }
+    }
+
+    // A step of the timeline (of the pattern shown) as a step of the song.
+    public int SongStepOf(int timelineStep) => timelineStep + ShownSectionStart;
+
+    // A step of the song as a step of the pattern playing there; the step itself when a pattern plays on its own.
+    internal double PatternStepOf(double songStep)
+    {
+        if (!IsArrangeMode)
+        {
+            return songStep;
+        }
+
+        foreach (var (_, start, length) in ArrangeSections())
+        {
+            if (songStep >= start && songStep < start + length)
+            {
+                return songStep - start;
+            }
+        }
+
+        return songStep;
+    }
+
+    // Tells the views the pattern on the timeline moved in the song.
+    private void RaiseShownSectionChanged()
+    {
+        RaisePropertyChanged(nameof(ShownSectionStart));
+        RaisePropertyChanged(nameof(TimelineLoopStartStep));
+        RaisePropertyChanged(nameof(TimelineLoopEndStep));
+        RaisePropertyChanged(nameof(RulerFlags));
+    }
+
+    // The loop's range on the timeline of the pattern shown.
+    public int TimelineLoopStartStep => LoopStartStep - ShownSectionStart;
+
+    public int TimelineLoopEndStep => LoopEndStep - ShownSectionStart;
 
     // True when the track is in one of the song's patterns.
     public bool IsInSong(PatternTrackViewModel track) => Patterns.Any(pattern => pattern.Tracks.Contains(track));

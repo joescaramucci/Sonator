@@ -54,8 +54,8 @@ public sealed class KitLanesTests
             Assert.Same(snare, lanes[at + 1].SourceTrack);
             Assert.Same(room, lanes[at + 2].SourceTrack);
             Assert.DoesNotContain(lanes, lane => ReferenceEquals(lane.SourceTrack, silent));
-            // The pattern plays again along the timeline, and so do its hits.
-            Assert.Equal(new[] { 4.0, 12.0, 20.0, 28.0 }, lanes[at + 1].KitHits.Take(4));
+            // The timeline shows the pattern once, and its hits.
+            Assert.Equal(new[] { 4.0, 12.0 }, lanes[at + 1].KitHits);
             Assert.True(lanes[at + 2].KitHitsAreAll);
             Assert.Equal(2 * lanes[at + 1].KitHits.Count, lanes[at + 2].KitHits.Count);
 

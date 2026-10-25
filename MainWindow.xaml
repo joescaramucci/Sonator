@@ -596,7 +596,8 @@
                     </MenuItem>
                     <MenuItem Header="_Arrange">
                         <MenuItem Header="Create arrange pattern" Command="{Binding CreateArrangePatternCommand}" />
-                        <MenuItem Header="Copy arrange pattern" Command="{Binding CopyArrangePatternCommand}" />
+                        <MenuItem Header="Copy arrange pattern (a clone: changed in both places)" Command="{Binding CopyArrangePatternCommand}" />
+                        <MenuItem Header="Copy as an independent pattern" Command="{Binding CopyArrangePatternApartCommand}" />
                         <Separator />
                         <MenuItem Header="Move pattern up" Command="{Binding MoveArrangePatternUpCommand}" />
                         <MenuItem Header="Move pattern down" Command="{Binding MoveArrangePatternDownCommand}" />
@@ -1059,7 +1060,8 @@
                         <UniformGrid Columns="4" Margin="0,3,0,0">
                             <Button Content="&#x2191; PREV" Command="{Binding MoveArrangePatternUpCommand}" />
                             <Button Content="&#x2193; NEXT" Command="{Binding MoveArrangePatternDownCommand}" />
-                            <Button Content="COPY" Command="{Binding CopyArrangePatternCommand}" />
+                            <Button Content="COPY" Command="{Binding CopyArrangePatternCommand}"
+                                    ToolTip="Places the pattern again right after it: a clone, so what you change in one place changes in every place. Arrange menu: copy as an independent pattern" />
                             <Button Content="DELETE" Command="{Binding DeleteArrangePatternCommand}" />
                         </UniformGrid>
                         <Button Content="CREATE NEW PATTERN"
@@ -1943,7 +1945,7 @@
                     <Border Grid.Column="1" HorizontalAlignment="Left" Background="#24FFD24C" BorderBrush="#FFD24C" BorderThickness="1.5,0,1.5,0">
                         <Border.Margin>
                             <MultiBinding Converter="{StaticResource StepOffsetConverter}">
-                                <Binding Path="LoopStartStep" />
+                                <Binding Path="TimelineLoopStartStep" />
                                 <Binding Path="TimelineSixteenthWidth" />
                             </MultiBinding>
                         </Border.Margin>

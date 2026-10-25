@@ -43,7 +43,7 @@ public sealed partial class MainViewModel
     // the song is.
     internal void RunAutomation()
     {
-        var step = IsPlaying ? _engine.LivePosition : CurrentStepIndex;
+        var step = PatternStepOf(IsPlaying ? _engine.LivePosition : CurrentStepIndex);
         WatchTracksForAutomation();
         ReadPluginEdits();
         _automationRecorder.Commit(Stopwatch.GetTimestamp(), all: !IsPlaying, CaptureUndoStateIfNeeded);
@@ -91,7 +91,7 @@ public sealed partial class MainViewModel
         LastTouchedControl = (track, target, null);
         if (IsWritingAutomation)
         {
-            _automationRecorder.Record(track, target, null, _engine.LivePosition, target == AutomationTarget.Volume ? track.Volume : track.Pan, Stopwatch.GetTimestamp());
+            _automationRecorder.Record(track, target, null, PatternStepOf(_engine.LivePosition), target == AutomationTarget.Volume ? track.Volume : track.Pan, Stopwatch.GetTimestamp());
         }
     }
 
@@ -115,7 +115,7 @@ public sealed partial class MainViewModel
         LastTouchedControl = (track, AutomationTarget.Parameter, parameter);
         if (IsWritingAutomation)
         {
-            _automationRecorder.Record(track, AutomationTarget.Parameter, parameter, _engine.LivePosition, value, Stopwatch.GetTimestamp());
+            _automationRecorder.Record(track, AutomationTarget.Parameter, parameter, PatternStepOf(_engine.LivePosition), value, Stopwatch.GetTimestamp());
         }
     }
 

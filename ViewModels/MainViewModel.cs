@@ -276,6 +276,20 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
 
         Patterns = BuildDefaultPatterns();
         LinkChannels();
+
+        // The loop and the flags on the timeline are drawn in the steps of the pattern shown.
+        PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(LoopStartStep) or nameof(LoopEndStep))
+            {
+                RaisePropertyChanged(nameof(TimelineLoopStartStep));
+                RaisePropertyChanged(nameof(TimelineLoopEndStep));
+            }
+            else if (e.PropertyName == nameof(IsArrangeMode))
+            {
+                RaiseShownSectionChanged();
+            }
+        };
         ArrangeBarNumbers = new ObservableCollection<int>();
         ArrangeRows = new ObservableCollection<ArrangeRowViewModel>();
         SongArrangeRows = new ObservableCollection<SongArrangeRowViewModel>();
@@ -1048,7 +1062,8 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         moveArrangePatternDownCommand = new RelayCommand(_ => MoveSelectedArrangePattern(1), _ => CanMoveSelectedArrangePattern(1));
         deleteArrangePatternCommand = new RelayCommand(_ => DeleteSelectedArrangePattern(), _ => CanDeleteSelectedArrangePattern());
         createArrangePatternCommand = new RelayCommand(_ => CreateArrangePattern());
-        copyArrangePatternCommand = new RelayCommand(_ => CopySelectedArrangePattern(), _ => CanCopySelectedArrangePattern());
+        copyArrangePatternCommand = new RelayCommand(_ => CloneSelectedArrangePattern(), _ => CanCopySelectedArrangePattern());
+        CopyArrangePatternApartCommand = new RelayCommand(_ => CopySelectedArrangePattern(), _ => CanCopySelectedArrangePattern());
         undoCommand = new RelayCommand(_ => Undo(), _ => _history.CanUndo);
         redoCommand = new RelayCommand(_ => Redo(), _ => _history.CanRedo);
         saveProjectCommand = new RelayCommand(_ => SaveProject(), _ => SelectedPattern is not null);
@@ -1120,6 +1135,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         get => _selectedPattern;
         set
         {
+            var selectedPlace = SelectedTrack is { } before ? TrackIndexOf(before) : -1;
             if (SetProperty(ref _selectedPattern, value))
             {
                 Tracks.Clear();
@@ -1130,7 +1146,8 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
                         Tracks.Add(track);
                     }
 
-                    SelectedTrack = value.Tracks.FirstOrDefault();
+                    // The same channel stays selected from pattern to pattern.
+                    SelectedTrack = selectedPlace >= 0 && selectedPlace < value.Tracks.Count ? value.Tracks[selectedPlace] : value.Tracks.FirstOrDefault();
                 }
                 else
                 {
@@ -1146,8 +1163,10 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
                 if (!_isFollowingArrangePlayback)
                 {
                     ConfigurePlaybackSource();
-                    RebuildTimeline();
                 }
+
+                RebuildTimeline();
+                RaiseShownSectionChanged();
                 UpdateSelectedArrangeBlockState();
                 ResetTrackMeters();
                 StatusMessage = value is null ? "No pattern selected" : $"Loaded pattern {value.Name}";
@@ -1261,6 +1280,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
                 MoveArrangePatternDownCommand?.RaiseCanExecuteChanged();
                 DeleteArrangePatternCommand?.RaiseCanExecuteChanged();
                 CopyArrangePatternCommand?.RaiseCanExecuteChanged();
+                CopyArrangePatternApartCommand?.RaiseCanExecuteChanged();
                 RaisePropertyChanged(nameof(SelectedArrangePatternLength));
             }
         }
@@ -1896,10 +1916,19 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
     }
 
     // The tempo changes and markers as flags on the timeline's ruler, placed for the zoom.
-    public IReadOnlyList<RulerFlag> RulerFlags =>
-        _tempoChanges.Select(change => new RulerFlag(change.Step, $"{change.Bpm:0.##} BPM", true, change.Step * TimelineSixteenthWidth))
-            .Concat(_markers.Select(marker => new RulerFlag(marker.Step, marker.Name, false, marker.Step * TimelineSixteenthWidth)))
-            .ToList();
+    public IReadOnlyList<RulerFlag> RulerFlags
+    {
+        get
+        {
+            // In the arrangement, those of the section shown, where they fall in it.
+            var start = ShownSectionStart;
+            var end = IsArrangeMode && SelectedPattern is { } shown ? start + PatternBarCount(shown, StepsPerBar) * StepsPerBar : int.MaxValue;
+            return _tempoChanges.Select(change => new RulerFlag(change.Step, $"{change.Bpm:0.##} BPM", true, (change.Step - start) * TimelineSixteenthWidth))
+                .Concat(_markers.Select(marker => new RulerFlag(marker.Step, marker.Name, false, (marker.Step - start) * TimelineSixteenthWidth)))
+                .Where(flag => flag.Step >= start && flag.Step < end)
+                .ToList();
+        }
+    }
 
     // From this step on the song plays at bpm. At the very start, that is the project's tempo.
     public void SetTempoChange(int step, double bpm)
@@ -2151,6 +2180,9 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
     public RelayCommand CreateArrangePatternCommand { get; }
 
     public RelayCommand CopyArrangePatternCommand { get; }
+
+    // A copy of the selected pattern that is a pattern of its own.
+    public RelayCommand CopyArrangePatternApartCommand { get; private set; }
 
     public RelayCommand UndoCommand { get; }
 
@@ -3819,6 +3851,22 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             return false;
         }
 
+        // Played with the arrangement, it goes into the section it was played in, at that pattern's steps.
+        if (part.WithSong && IsArrangeMode)
+        {
+            var played = part.Notes.Min(note => note.StepIndex + note.StartOffset);
+            var section = ArrangeSections().FirstOrDefault(section => played >= section.Start && played < section.Start + section.Length);
+            if (section.Pattern is not null && section.Start > 0)
+            {
+                track = PartIn(section.Pattern, track);
+                part = part with
+                {
+                    Notes = part.Notes.Select(note => note with { StepIndex = note.StepIndex - section.Start }).ToList(),
+                    Controllers = part.Controllers.Select(controller => controller with { Step = Math.Max(0, controller.Step - section.Start) }).ToList(),
+                };
+            }
+        }
+
         CaptureUndoStateIfNeeded();
         track.MidiNoteEvents = track.MidiNoteEvents.Concat(part.Notes).ToList();
         if (part.Controllers.Count > 0)
@@ -3907,6 +3955,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
     // position is where the sequencer was when the key arrived, taken on the MIDI thread.
     private void RecordLiveNote(MidiNoteMessage note, double position)
     {
+        position = PatternStepOf(position); // in the arrangement, a step of the pattern playing
         var track = RecordTarget;
         if (!IsRecording || !IsPlaying || track is null || !track.SupportsMidiPlayback)
         {
@@ -5300,7 +5349,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         if (recordedTake)
         {
             var takeMessage = StatusMessage;
-            FinishRecordingTake(stopPosition);
+            FinishRecordingTake(PatternStepOf(stopPosition));
             SeekToStep(_playbackStartStep); // back to where the take began, ready to listen to it
             if (audioTake)
             {
@@ -5431,9 +5480,8 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
     private void RebuildTimeline()
     {
         var rebuildStart = Stopwatch.GetTimestamp();
-        var timelinePatterns = IsArrangeMode
-            ? GetArrangePlaybackPatterns()
-            : GetSelectedPatternTimelinePatterns();
+        // One pattern at a time: the one selected, which in the arrangement is the one playing.
+        var timelinePatterns = SelectedPattern is { } shown ? new List<PatternViewModel> { shown } : new List<PatternViewModel>();
 
         _rebuildingTimeline = true;
         TimelineTracks.Clear();
@@ -5572,7 +5620,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
 
     private void UpdateSongTimelinePosition(int absoluteStep)
     {
-        TimelinePlayheadStep = Math.Max(0, absoluteStep);
+        TimelinePlayheadStep = Math.Max(0, absoluteStep - ShownSectionStart);
 
         CurrentSongBarNumber = Math.Max(1, absoluteStep / StepsPerBar + 1);
         var rowIndex = Math.Clamp(CurrentSongBarNumber - 1, 0, Math.Max(0, SongArrangeRows.Count - 1));
@@ -6983,6 +7031,28 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         StatusMessage = $"Created {patternName}";
     }
 
+    // COPY places the same pattern again right after it: a clone, not a copy, so what is changed in one place of the
+    // song is changed in every place the pattern plays.
+    private void CloneSelectedArrangePattern()
+    {
+        var pattern = SelectedPattern;
+        if (pattern is null || !TryGetSelectedArrangePatternRange(out var startRow, out var column, out var length))
+        {
+            return;
+        }
+
+        CaptureUndoStateIfNeeded();
+        var assignments = GetSongArrangeAssignments();
+        var insertBarIndex = startRow + length;
+        SongArrangeLayout.InsertPatternRows(assignments, insertBarIndex, length, column, pattern.Slot);
+        RebuildSongArrangeRows(assignments);
+        _selectedArrangePatternCell = SongArrangeRows[insertBarIndex].Cells[column];
+        SelectedArrangeCell = _selectedArrangePatternCell;
+        RebuildTimeline();
+        StatusMessage = $"{pattern.Name} placed again at bar {insertBarIndex + 1}: the same pattern, changed in both places at once";
+    }
+
+    // A copy of the pattern as a pattern of its own, changed apart from it.
     private void CopySelectedArrangePattern()
     {
         var sourcePattern = SelectedPattern;

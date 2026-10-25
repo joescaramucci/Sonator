@@ -726,12 +726,12 @@ public partial class MainWindow : Window
         }
 
         var width = viewModel.TimelineSixteenthWidth;
-        if (Math.Abs(x - viewModel.LoopStartStep * width) <= RulerEdgeGrip)
+        if (Math.Abs(x - viewModel.TimelineLoopStartStep * width) <= RulerEdgeGrip)
         {
             return RulerDrag.StartEdge;
         }
 
-        return Math.Abs(x - (viewModel.LoopEndStep + 1) * width) <= RulerEdgeGrip ? RulerDrag.EndEdge : null;
+        return Math.Abs(x - (viewModel.TimelineLoopEndStep + 1) * width) <= RulerEdgeGrip ? RulerDrag.EndEdge : null;
     }
 
     private void TimelineRuler_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -747,7 +747,7 @@ public partial class MainWindow : Window
         {
             RulerDrag.StartEdge => viewModel.LoopEndStep + 1, // the other edge stays where it is
             RulerDrag.EndEdge => viewModel.LoopStartStep,
-            _ => viewModel.SnapStep(RulerStep(viewModel, x)),
+            _ => viewModel.SongStepOf(viewModel.SnapStep(RulerStep(viewModel, x))),
         };
         _rulerMoved = false;
         _timelineRulerDragStartX = x;
@@ -777,7 +777,7 @@ public partial class MainWindow : Window
 
         // The edges snap to the SNAP grid; the range covers the steps between them.
         _rulerMoved = true;
-        var edge = viewModel.SnapStep(RulerStep(viewModel, x + viewModel.TimelineSixteenthWidth / 2));
+        var edge = viewModel.SongStepOf(viewModel.SnapStep(RulerStep(viewModel, x + viewModel.TimelineSixteenthWidth / 2)));
         if (edge != _rulerAnchorStep)
         {
             viewModel.SetLoopRange(Math.Min(edge, _rulerAnchorStep), Math.Max(edge, _rulerAnchorStep) - 1);
@@ -799,7 +799,7 @@ public partial class MainWindow : Window
             ruler.ReleaseMouseCapture();
             if (!_rulerMoved && DataContext is MainViewModel viewModel)
             {
-                viewModel.SeekToStep(RulerStep(viewModel, e.GetPosition(ruler).X)); // a click goes there
+                viewModel.SeekToStep(viewModel.SongStepOf(RulerStep(viewModel, e.GetPosition(ruler).X))); // a click goes there
             }
         }
 
@@ -1637,7 +1637,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var step = RulerStep(e, viewModel, ruler);
+        var step = viewModel.SongStepOf(RulerStep(e, viewModel, ruler));
         var menu = new ContextMenu { PlacementTarget = ruler };
         var marker = new MenuItem { Header = "Add marker here..." };
         marker.Click += (_, _) => AskMarkerName(viewModel, step, viewModel.NextMarkerName());
