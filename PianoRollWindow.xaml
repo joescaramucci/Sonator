@@ -154,6 +154,12 @@
             <ToggleButton x:Name="QuantizeEndsToggle" Content="ENDS" Width="56" Height="26" Margin="6,0,0,0"
                           Style="{StaticResource MetronomeToggleStyle}" />
             <Button Content="APPLY" Width="70" Margin="6,0,0,0" Click="QuantizeButton_Click" />
+            <Button Content="SWING" Width="70" Margin="6,0,0,0" Click="SwingButton_Click"
+                    ToolTip="Moves only the notes on the grid's off-beats later, by the swing chosen, leaving the others where they are" />
+            <TextBlock Margin="20,0,8,0" VerticalAlignment="Center" FontSize="12" FontWeight="Bold" Text="HUMANIZE" />
+            <ComboBox x:Name="HumanizeBox" Width="90" Height="26" DisplayMemberPath="Label" />
+            <Button Content="APPLY" Width="70" Margin="6,0,0,0" Click="HumanizeButton_Click"
+                    ToolTip="Plays the notes as a hand would: each a little early or late, a little softer or harder" />
         </StackPanel>
         <ScrollViewer x:Name="PianoRollScroller" Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
             <Canvas x:Name="PianoRollCanvas" Background="Transparent" HorizontalAlignment="Left" VerticalAlignment="Top"

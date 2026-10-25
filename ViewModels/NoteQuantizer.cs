@@ -3,6 +3,9 @@ namespace Sonator.ViewModels;
 // A choice in a quantize list: a grid size in sixteenth-note steps, a strength or a swing amount.
 public sealed record QuantizeOption(string Label, double Value);
 
+// A choice in the humanize list: how far a note's start may move, in steps, and its velocity.
+public sealed record HumanizeOption(string Label, double TimingSteps, int Velocity);
+
 // Moves notes toward a grid, as a DAW's quantize does. Positions and grid sizes are in sixteenth-note steps.
 public static class NoteQuantizer
 {
@@ -79,6 +82,53 @@ public static class NoteQuantizer
             }
 
             return ToNote(note, newStart, newEnd - newStart);
+        }).ToList();
+    }
+
+    // How loosely Humanize plays the notes: how far a start may move (in steps) and a velocity change.
+    public static IReadOnlyList<HumanizeOption> Humanizings { get; } = new[]
+    {
+        new HumanizeOption("Subtle", 0.06, 6),
+        new HumanizeOption("Medium", 0.12, 12),
+        new HumanizeOption("Loose", 0.22, 20),
+    };
+
+    // Swings the notes on the grid's off-beats (every second grid point, within a quarter of the grid) later by the
+    // swing chosen (100% to the triplet position), leaving the others where they are, as a groove's swing does.
+    public static IReadOnlyList<MidiNoteEventViewModel> Swing(IEnumerable<MidiNoteEventViewModel> notes, double grid, double swing)
+    {
+        if (grid <= 0 || swing <= 0)
+        {
+            return notes.ToList();
+        }
+
+        return notes.Select(note =>
+        {
+            var start = note.StepIndex + note.StartOffset;
+            var index = Math.Round(start / grid);
+            if (Math.Abs(index % 2) != 1 || Math.Abs(start - index * grid) > grid / 4)
+            {
+                return note;
+            }
+
+            var length = Math.Max(0.05, note.DurationSteps + note.LengthFraction);
+            return ToNote(note, start + swing * grid / 3.0, length);
+        }).ToList();
+    }
+
+    // Plays the notes as a hand would: each start a little early or late, each velocity a little softer or harder,
+    // by up to the amounts chosen; a note's end moves with its start. The same seed gives the same result.
+    public static IReadOnlyList<MidiNoteEventViewModel> Humanize(IEnumerable<MidiNoteEventViewModel> notes, HumanizeOption amount, int seed)
+    {
+        var random = new Random(seed);
+        return notes.Select(note =>
+        {
+            // Two draws added make small changes likelier than large ones.
+            double Spread() => (random.NextDouble() + random.NextDouble() - 1.0);
+            var start = Math.Max(0, note.StepIndex + note.StartOffset + Spread() * amount.TimingSteps);
+            var length = Math.Max(0.05, note.DurationSteps + note.LengthFraction);
+            var velocity = (int)Math.Clamp(Math.Round(note.Velocity + Spread() * amount.Velocity), 1, 127);
+            return ToNote(note with { Velocity = velocity }, start, length);
         }).ToList();
     }
 

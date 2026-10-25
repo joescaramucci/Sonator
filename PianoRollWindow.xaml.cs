@@ -78,6 +78,8 @@ public partial class PianoRollWindow : Window
         QuantizeStrengthBox.SelectedIndex = 0;
         QuantizeSwingBox.ItemsSource = NoteQuantizer.Swings;
         QuantizeSwingBox.SelectedIndex = 0;
+        HumanizeBox.ItemsSource = NoteQuantizer.Humanizings;
+        HumanizeBox.SelectedIndex = 0;
 
         Loaded += (_, _) =>
         {
@@ -662,6 +664,35 @@ public partial class PianoRollWindow : Window
         var quantized = NoteQuantizer.Quantize(_notes, grid.Value, strength.Value, swing.Value, QuantizeEndsToggle.IsChecked == true);
         _notes.Clear();
         _notes.AddRange(quantized);
+        CommitNotes();
+        Redraw();
+    }
+
+    private void SwingButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_notes.Count == 0
+            || QuantizeGridBox.SelectedItem is not QuantizeOption grid
+            || QuantizeSwingBox.SelectedItem is not QuantizeOption { Value: > 0 } swing)
+        {
+            _viewModel.StatusMessage = "Swing: choose a swing amount beside the grid first";
+            return;
+        }
+
+        ReplaceNotes(NoteQuantizer.Swing(_notes, grid.Value, swing.Value));
+    }
+
+    private void HumanizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_notes.Count > 0 && HumanizeBox.SelectedItem is HumanizeOption amount)
+        {
+            ReplaceNotes(NoteQuantizer.Humanize(_notes, amount, Environment.TickCount));
+        }
+    }
+
+    private void ReplaceNotes(IReadOnlyList<MidiNoteEventViewModel> notes)
+    {
+        _notes.Clear();
+        _notes.AddRange(notes);
         CommitNotes();
         Redraw();
     }
