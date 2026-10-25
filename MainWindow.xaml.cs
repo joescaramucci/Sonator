@@ -141,9 +141,31 @@ public partial class MainWindow : Window
 
     private void NewProject(MainViewModel viewModel)
     {
-        if (MayLeaveProject(viewModel, "New project", "Do you want to save the project before starting a new one?"))
+        if (!MayLeaveProject(viewModel, "New project", "Do you want to save the project before starting a new one?"))
         {
-            viewModel.NewProjectCommand.Execute(null);
+            return;
+        }
+
+        // The kind of music asked first, and the sounds for each of its parts.
+        var newSong = new NewSongWindow(viewModel) { Owner = this };
+        newSong.ShowDialog();
+        switch (newSong.Result)
+        {
+            case NewSongWindow.Choice.Empty:
+                viewModel.NewProjectCommand.Execute(null);
+                break;
+            case NewSongWindow.Choice.Song when newSong.ChosenStyle is { } style:
+                Mouse.OverrideCursor = Cursors.Wait; // each part's plug-in starts
+                try
+                {
+                    viewModel.CreateSong(style, newSong.Tempo, newSong.Parts);
+                }
+                finally
+                {
+                    Mouse.OverrideCursor = null;
+                }
+
+                break;
         }
     }
 

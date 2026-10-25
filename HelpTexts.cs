@@ -130,6 +130,12 @@ public static class HelpTexts
         [typeof(SoundBrowserWindow)] = new("Sounds", new[]
         {
             "The sounds of your plug-ins and Sonator's grooves, by category. Click one to hear it, then put it on the selected track; the star keeps it among your favourites, and Last used lists the latest ones you put on a track, newest first.",
+            "GENRE keeps only the sounds and grooves that suit a kind of music (Pop, House, Jazz...), those that suit it best first: from the genres and character their makers file them under, and from their names (a groove library's Motown or Nashville, an 808, a Rhodes).",
+        }),
+        [typeof(NewSongWindow)] = new("New song", new[]
+        {
+            "Choose the kind of music you want to make: each style lists the parts its hits are played with (drums, bass, piano, pads...) and, for each part, the sounds of your plug-ins and grooves that suit it best, from how their makers file them (genre, character) and from their names. Click a sound to hear it at the style's tempo and choose it; OTHERS shows more.",
+            "CREATE SONG starts a new project at the tempo shown, with a track for each part ticked, named after it and playing the sound chosen; a groove's notes go into its track from the first bar. EMPTY PROJECT starts one with eight empty tracks, as before.",
         }),
         [typeof(TrackEditDialog)] = new("Track", new[]
         {

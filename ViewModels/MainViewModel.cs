@@ -2853,10 +2853,10 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
     private SoundPreviewer? _previewer;
 
     // Plays a sound before it is loaded: a short phrase, or the start of a groove at the song's tempo.
-    public bool PreviewSound(Services.Sounds.SoundEntry sound)
+    public bool PreviewSound(Services.Sounds.SoundEntry sound, double? tempo = null)
     {
         _previewer ??= new SoundPreviewer(_liveInstrumentHost);
-        var error = _previewer.Preview(sound, Tempo);
+        var error = _previewer.Preview(sound, tempo ?? Tempo);
         StatusMessage = error ?? $"Previewing {sound.Name} ({sound.PluginName})";
         return error is null;
     }
@@ -3202,6 +3202,52 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         _trackInstruments.KeepOnly(Array.Empty<PatternTrackViewModel>());
         PointKeyboardAtSelectedTrack();
         TracksReplaced?.Invoke();
+    }
+
+    // A new song in a style of music: a new project at the style's tempo, with a track for each part chosen
+    // (Drums, Bass, Piano...) playing the sound chosen for it, a groove's notes from the first bar. The song's
+    // tags take the style's genre. Parts whose sound does not load are left as plain tracks, the reason said.
+    public void CreateSong(Services.Sounds.MusicStyle style, int tempo, IReadOnlyList<(string Part, Services.Sounds.SoundEntry Sound)> parts)
+    {
+        CreateNewProject();
+        Tempo = Math.Clamp(tempo, 20, 300);
+        if (SelectedPattern is not { } pattern)
+        {
+            return;
+        }
+
+        while (pattern.Tracks.Count < parts.Count)
+        {
+            AddTrack("midi");
+        }
+
+        var failed = new List<string>();
+        for (var index = 0; index < parts.Count; index++)
+        {
+            var track = pattern.Tracks[index];
+            track.Name = parts[index].Part;
+            SelectedTrack = track;
+            if (!LoadSound(parts[index].Sound))
+            {
+                failed.Add($"{parts[index].Part}: {StatusMessage}");
+            }
+        }
+
+        // The default tracks no part took go.
+        while (pattern.Tracks.Count > Math.Max(1, parts.Count))
+        {
+            SelectedTrack = pattern.Tracks[^1];
+            DeleteSelectedTrack();
+        }
+
+        SongTags = SongTags.Empty with { Genre = style.TagGenre };
+        pattern.Summary = $"{style.Name} song: {string.Join(", ", parts.Select(part => part.Part))}";
+        SelectedTrack = pattern.Tracks.FirstOrDefault();
+        _history.Clear(); // the song starts here: Undo does not take its tracks away one by one
+        RaiseHistoryStateChanged();
+        StatusMessage = failed.Count == 0
+            ? $"New {style.Name} song at {Tempo} BPM: {string.Join(", ", parts.Select(part => part.Part))}"
+            : $"New {style.Name} song; not loaded: {string.Join("; ", failed)}";
     }
 
     private void ApplySelectedMidiOutputDevice()

@@ -108,6 +108,9 @@
                 <TextBlock x:Name="TargetText" Foreground="#98999B" FontSize="11" />
             </StackPanel>
             <TextBlock x:Name="CountText" DockPanel.Dock="Right" VerticalAlignment="Bottom" Foreground="#98999B" FontSize="11" />
+            <ComboBox x:Name="GenreBox" DockPanel.Dock="Right" Width="190" Height="30" Margin="0,4,14,0" VerticalAlignment="Center"
+                      SelectionChanged="GenreBox_SelectionChanged" AutomationProperties.Name="GENRE"
+                      ToolTip="Only the sounds and grooves that suit a kind of music, those that suit it best first: from how their makers file them (genre, character) and from their names" />
             <Border Margin="24,4,16,0" Height="30" CornerRadius="5" Background="#1A1B1D" BorderBrush="#6C6C6C" BorderThickness="1" VerticalAlignment="Center">
                 <Grid>
                     <TextBox x:Name="SearchBox"

@@ -64,6 +64,10 @@ public partial class SoundBrowserWindow : Window
                 return;
             }
 
+            GenreBox.ItemsSource = new[] { AnyGenre }.Concat(MusicStyles.All.Select(style => style.Name)).ToList();
+            _updatingCategories = true;
+            GenreBox.SelectedIndex = 0;
+            _updatingCategories = false;
             ShowCategories();
             StatusText.Text = _sounds.Count == 0
                 ? "No sounds found. Sounds are read from the presets of Arturia's installed instruments."
@@ -96,16 +100,72 @@ public partial class SoundBrowserWindow : Window
     private readonly RecentSounds _recent = new();
     private bool _updatingCategories;
 
+    // ---- Sounds by kind of music ----
+
+    private const string AnyGenre = "Any genre";
+
+    // How well each sound of a kind of music suits it, worked out the first time the kind is chosen.
+    private readonly Dictionary<string, IReadOnlyDictionary<SoundEntry, double>> _fits = new();
+
+    // The kind of music chosen, or null for any.
+    private MusicStyle? ChosenGenre => GenreBox.SelectedItem is string name ? MusicStyles.Named(name) : null;
+
+    private IReadOnlyDictionary<SoundEntry, double>? FitsOfChosenGenre()
+    {
+        if (ChosenGenre is not { } style)
+        {
+            return null;
+        }
+
+        if (!_fits.TryGetValue(style.Name, out var fits))
+        {
+            fits = _sounds
+                .Select(sound => (Sound: sound, Fit: SoundMatcher.StyleFit(sound, style)))
+                .Where(pair => pair.Fit >= 2)
+                .ToDictionary(pair => pair.Sound, pair => pair.Fit);
+            _fits[style.Name] = fits;
+        }
+
+        return fits;
+    }
+
+    // The sounds shown: all, or those of the kind of music chosen.
+    private IEnumerable<SoundEntry> Catalog() => FitsOfChosenGenre() is { } fits ? _sounds.Where(fits.ContainsKey) : _sounds;
+
+    private void GenreBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_updatingCategories || _sounds.Count == 0)
+        {
+            return;
+        }
+
+        Mouse.OverrideCursor = Cursors.Wait; // the first time, every sound is weighed
+        try
+        {
+            ShowCategories();
+            ShowSounds();
+        }
+        finally
+        {
+            Mouse.OverrideCursor = null;
+        }
+
+        StatusText.Text = ChosenGenre is { } style
+            ? $"{CountText.Text} for {style.Name}, those that suit it best first. Like: {string.Join(" · ", style.Hits)}"
+            : "All the sounds.";
+    }
+
     // The categories with their counts, All, the favorites and the last used first; the one selected stays selected.
     private void ShowCategories()
     {
         var keep = (CategoryList.SelectedItem as CategoryItem)?.Category;
-        var counts = _sounds.GroupBy(sound => sound.Category).ToDictionary(group => group.Key, group => group.Count());
+        var catalog = Catalog().ToList();
+        var counts = catalog.GroupBy(sound => sound.Category).ToDictionary(group => group.Key, group => group.Count());
         var items = new List<CategoryItem>
         {
-            new(null, "All sounds", _sounds.Count),
-            new(FavoritesKey, "★ Favorites", _sounds.Count(_favorites.Contains)),
-            new(RecentKey, "↺ Last used", _recent.Of(_sounds).Count()),
+            new(null, "All sounds", catalog.Count),
+            new(FavoritesKey, "★ Favorites", catalog.Count(_favorites.Contains)),
+            new(RecentKey, "↺ Last used", _recent.Of(catalog).Count()),
         };
         items.AddRange(SoundCategories.All
             .Where(counts.ContainsKey)
@@ -165,17 +225,23 @@ public partial class SoundBrowserWindow : Window
     private void ShowSounds()
     {
         var category = (CategoryList.SelectedItem as CategoryItem)?.Category;
+        var catalog = Catalog();
         var pool = category switch
         {
-            FavoritesKey => _sounds.Where(_favorites.Contains),
-            RecentKey => _recent.Of(_sounds),
-            _ => _sounds,
+            FavoritesKey => catalog.Where(_favorites.Contains),
+            RecentKey => _recent.Of(catalog),
+            _ => catalog,
         };
         var ownList = category is FavoritesKey or RecentKey;
-        // The last used keep their order, the latest first, until a column is chosen or something is searched.
+        // The last used keep their order, the latest first, until a column is chosen or something is searched;
+        // a kind of music chosen puts the sounds that suit it best first, until a column is chosen.
         var found = category == RecentKey && _sortColumn is null && string.IsNullOrWhiteSpace(SearchBox.Text)
             ? pool.ToList()
             : Sorted(SoundSearch.Filter(pool, SearchBox.Text, ownList ? null : category)).ToList();
+        if (_sortColumn is null && category != RecentKey && FitsOfChosenGenre() is { } fits)
+        {
+            found = found.OrderByDescending(sound => fits[sound]).ToList(); // a stable sort: the search's order among equals
+        }
         SoundList.ItemsSource = found;
         CountText.Text = $"{found.Count} sounds";
         if (found.Count > 0)

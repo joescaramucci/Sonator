@@ -14,7 +14,8 @@ public enum SoundKind
 }
 
 // One sound a plug-in can play: a preset, or a groove of notes to play it with, where it is stored, and how
-// it is filed. PresetPath is the preset's file, or the groove's MIDI file.
+// it is filed. PresetPath is the preset's file, or the groove's MIDI file. Genres are the music genres its
+// maker files it under, split by |, when the maker does (Arturia does).
 public sealed record SoundEntry(
     string Name,
     string Category,
@@ -25,7 +26,8 @@ public sealed record SoundEntry(
     string Bank,
     string Designer,
     string Tags,
-    SoundKind Kind = SoundKind.Preset)
+    SoundKind Kind = SoundKind.Preset,
+    string Genres = "")
 {
     // Everything a search looks through, in lower case.
     public string SearchText { get; } = $"{Name} {Category} {Subcategory} {PluginName} {Bank} {Designer} {Tags}".ToLowerInvariant();
@@ -181,7 +183,11 @@ public static class ArturiaSoundSource
                     SELECT p.name, IFNULL(t.name, ''), IFNULL(s.name, ''), p.file_path, IFNULL(d.name, ''),
                            IFNULL((SELECT group_concat(c.name, ' ') FROM Preset_Characteristics pc
                                    JOIN Characteristics c ON c.key_id = pc.characteristic_key
-                                   WHERE pc.preset_key = p.key_id), '')
+                                   WHERE pc.preset_key = p.key_id), ''),
+                           IFNULL((SELECT group_concat(c.name, '|') FROM Preset_Characteristics pc
+                                   JOIN Characteristics c ON c.key_id = pc.characteristic_key
+                                   JOIN Characteristics_Types ct ON ct.key_id = c.type_key
+                                   WHERE pc.preset_key = p.key_id AND ct.name = 'Genres'), '')
                     FROM Preset_Id p
                     LEFT JOIN Types_V2 t ON t.key_id = p.type_v2
                     LEFT JOIN Subtypes_V2 s ON s.key_id = p.subtype_v2
@@ -192,7 +198,7 @@ public static class ArturiaSoundSource
                 while (reader.Read())
                 {
                     if (ToEntry(reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetString(3),
-                            reader.GetString(4), reader.GetString(5), installedPlugins) is { } entry)
+                            reader.GetString(4), reader.GetString(5), installedPlugins, reader.GetString(6)) is { } entry)
                     {
                         sounds.Add(entry);
                     }
@@ -218,7 +224,7 @@ public static class ArturiaSoundSource
     // A preset is at .../Presets/<plug-in>/<Factory or User>/<bank>/<name>. Null when its plug-in is not
     // installed, its file is gone, or it is one of the templates presets start from.
     internal static SoundEntry? ToEntry(string name, string type, string subtype, string filePath, string designer,
-        string tags, IReadOnlyDictionary<string, string> installedPlugins)
+        string tags, IReadOnlyDictionary<string, string> installedPlugins, string genres = "")
     {
         var parts = filePath.Replace('\\', '/').Split('/');
         var presets = Array.FindIndex(parts, part => part.Equals("Presets", StringComparison.OrdinalIgnoreCase));
@@ -240,6 +246,7 @@ public static class ArturiaSoundSource
             filePath,
             bank,
             designer,
-            $"{type} {tags}");
+            $"{type} {tags}",
+            Genres: genres);
     }
 }

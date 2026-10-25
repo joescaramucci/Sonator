@@ -50,8 +50,20 @@ More views are in the [screenshot gallery](docs/GALLERY.md).
 
 ### Sounds
 
+- **New song by style.** A new project starts by asking what kind of music
+  you want to make: Pop, Ballad, Rock, Funk & Disco, Soul & R&B,
+  Hip-Hop & Trap, Lo-fi, House, Techno, Trance, Synthwave & 80s, Cinematic,
+  Jazz & Blues, Country, Latin, Reggae and more, each at its usual tempo and
+  with hits to know it by.
+  - For each part the style is played with (drums, bass, piano, pads,
+    lead...), Sonator suggests the installed sounds and grooves that suit it.
+    It ranks them by the genres and character their makers file them under,
+    and by their names: a groove library's Motown or Nashville, an 808, a
+    Rhodes.
+  - You hear a suggestion with a click, choose one per part, and the song
+    starts with a track for each.
 - **Sounds browser.** Search instrument presets and Toontrack grooves by name,
-  category, instrument and bank.
+  category, instrument and bank, or keep only those that suit a genre.
 - **Preview and load.** Preview a sound and load it on the track. Favorites and
   recent sounds are kept.
 
