@@ -1,72 +1,137 @@
 # Sonator
 
-Sonator is a Windows MIDI sequencer and lightweight DAW inspired by the
-pattern-based workflow of classic music software such as Notator.
+Sonator is a Windows DAW built around patterns, in the spirit of classic
+sequencers such as Notator. A song is made of sections (intro, verse,
+chorus...) that you build as patterns and line up in the arrangement. It hosts
+VST3 instruments and effects, records MIDI and audio, mixes, and exports a
+finished, tagged MP3 or WAV.
 
-Built with .NET 8 and WPF, it combines MIDI composition, multitrack import,
-drag-and-drop song arrangement, per-track mixing controls, project management,
-and native VST3 instrument hosting in a single desktop application.
+It is written in C# with .NET 8 and WPF. A native C++ bridge hosts VST3
+plug-ins and runs Sonator's own effects.
 
-## Screenshot
+![Sonator with a six-section pop song: EZdrummer 3 on a multi-output kit, bass, piano, pad, pluck and lead](docs/images/sonator-overview.png)
 
-![Sonator application overview](docs/images/sonator-overview.png)
-
-See the [Screenshot Gallery](docs/GALLERY.md) for detailed Arrange, mixer, and
-VST3 browser views.
+More views are in the [screenshot gallery](docs/GALLERY.md).
 
 ## Features
 
-- Full-width, multibar Arrange timeline with pattern sequencing
-- Drag-and-drop pattern reordering with adjustable pattern lengths
-- Eight-track default patterns with dynamic track creation and deletion
-- MIDI file import preserving source track names, channels, instruments,
-  velocity, duration, and song length
-- Piano-roll and sixteenth-note step-sequencer editing
-- MIDI note, velocity, duration, transpose, and quantize controls
-- MIDI output device selection and rescanning
-- Per-track mute, solo, volume, signal meter, and record-arm controls
-- Arrange, selected-pattern, and pattern-loop playback modes
-- Spacebar START/STOP transport with synchronized pattern and timeline
-  playheads
-- Horizontally scrollable timeline with mouse-wheel zoom, zoom slider, and
-  draggable ruler sizing
-- Distinct bar, quarter-note, and sixteenth-note grid lines
-- Copy, paste, undo, and redo workflows
-- Song open, save, and **Save As** support
-- Configurable VST3 scan paths, including the standard Windows directory
-  `C:\Program Files\Common Files\VST3`
-- VST3 plug-in browser with real native-editor thumbnails generated in
-  isolated helper processes
-- Real VST3 module loading and parameter editing
-- Native VST3 editor windows through `IPlugView`, with DPI-aware sizing
-- Real-time VST3 instrument audio through `IAudioProcessor` and WASAPI
+### Patterns and arrangement
 
-## VST3 support
+- **Patterns as song sections.** The patterns are the song's sections, played
+  in the order of the arrangement.
+- **Shared channels.** A track is one channel in every pattern: the same
+  plug-in, effects, mixer strip and kit. Each pattern keeps its own notes and
+  clips.
+- **Follow the song.** The timeline shows one pattern at a time and follows the
+  arrangement while the song plays.
+- **Clone copies.** COPY places a clone of a pattern, so editing the kick in the
+  intro changes every copy of the intro. *Copy as an independent pattern* makes
+  a separate one.
+- **Lengths and reordering.** Drag patterns to reorder them; each pattern has
+  its own length. Arrange mode is saved with the project.
 
-Sonator includes a native C++ bridge that loads real VST3 plug-ins, creates
-their `IComponent` and `IEditController` instances, exposes plug-in
-parameters, hosts native editor windows, and sends generated audio to the
-Windows audio device.
+### VST3 hosting
 
-Native-editor thumbnail capture runs out of process, so an incompatible or
-crashing plug-in cannot terminate Sonator while the browser cache is being
-generated.
+- **Instruments and effects.** Sonator hosts VST3 instruments and effects with
+  their own editor windows. Plug-ins are checked in separate helper processes,
+  so a plug-in that crashes does not take Sonator down.
+- **Plug-in browser.** The browser shows thumbnails of each plug-in's real
+  editor.
+- **Host sync.** Plug-ins receive tempo, position and play state, so built-in
+  arpeggiators and groove players stay in time with Sonator.
+- **Plug-in delay compensation.**
+- **Recorded edits.** Parameter edits made in a plug-in's own window are picked
+  up for automation and MIDI Learn.
+- **Multi-output drum kits** (for example EZdrummer in Multichannel mode):
+  - each kit piece gets its own mixer strip under **KIT**;
+  - each piece gets its own lane on the timeline, showing its hits.
+- **Sidechain.** Sidechain input reaches VST3 effects that have one and the
+  SonCompress compressor.
 
-The bridge uses only Steinberg's MIT-licensed `pluginterfaces` module. A
-prebuilt Windows DLL is included and copied beside the application during a
-normal .NET build. Native editor and real-time audio operation have been
-verified with TAL-NoiseMaker.
+### Sounds
 
-See [VST3 hosting architecture](docs/VST3_HOSTING.md) and the
-[native bridge README](native/VstHostBridge/README.md) for implementation and
-build details.
+- **Sounds browser.** Search instrument presets and Toontrack grooves by name,
+  category, instrument and bank.
+- **Preview and load.** Preview a sound and load it on the track. Favorites and
+  recent sounds are kept.
+
+### Mixer and effects
+
+- **Mixer.** Faders, pan, mute and solo, meters, buses with sends, and a master
+  with VU meters, a spectrum view and a test oscillator.
+- **Effects rack.** Each channel has an effects rack where effects can be
+  reordered by dragging and saved as presets.
+- **Sonator effects**, running natively:
+
+  | Effect | What it does |
+  | --- | --- |
+  | SonVerb | Reverb |
+  | SonDelay | Delay |
+  | SonCompress | Compressor, with sidechain |
+  | SonEQ | Equalizer |
+  | SonLimiter | Peak limiter |
+  | SonArmo | Vocal harmonizer |
+  | SonCoro | Chorus |
+  | SonMast | Mastering chain, with streaming presets |
+
+### Recording and editing
+
+- **MIDI.**
+  - Record from MIDI keyboards.
+  - Record-arm per track.
+  - Punch in and out, with every pass kept as a take you can audition.
+  - **CAPTURE** recovers what you played while not recording.
+- **Audio.** Recording from ASIO or WASAPI inputs.
+- **Piano roll.** Velocity editing, quantize, swing and humanize. A step
+  sequencer for quick drum programming.
+- **Automation.**
+  - Volume, pan and any plug-in parameter, drawn on lanes or recorded with
+    **AUTO WRITE**.
+  - **MIDI Learn** maps hardware knobs and faders to parameters.
+- **Audio clips.**
+  - The clip's waveform is drawn on the timeline.
+  - Fade-in and fade-out handles.
+  - Time-stretch that follows the song's tempo.
+- **Freeze and bounce.** Freeze or bounce a track to audio to save CPU.
+- **Undo and redo** everywhere, plus autosave.
+
+### Voice tools
+
+- **Sondyne** corrects a sung take's pitch note by note. You can move notes,
+  center them on their semitone and steady their drift.
+- **Cromator** turns a sung take into a melody on a MIDI track, with the words
+  it hears under the notes. It prints the track as a score or saves it as PDF.
+
+### Export
+
+- **Song export.** Export the song to WAV or MP3, with a loudness report.
+- **Stem export.** Export each channel to its own WAV.
+- **Song info and tags.** Title, artist, album, genre, year, composer, comment
+  and cover picture are written into every exported file. The same window
+  edits the tags of any existing MP3 or WAV.
+- **MIDI.** Import and export standard MIDI files.
+- **Command-line export:**
+
+  ```powershell
+  Sonator.exe "My Song.sonator.json" --export "My Song.mp3"
+  ```
+
+### Workspace
+
+- **Panels.** Dockable plug-in windows and a mixer that opens in its own
+  window.
+- **System monitor.** A CPU, DSP-load and RAM monitor.
+- **Help.** A `?` help badge on every panel.
+- **Clock.** Transport with locators, loop, metronome, tempo and time
+  signature, and a seven-segment time and bar display.
 
 ## Requirements
 
 - Windows 10 or Windows 11
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- A MIDI output device or virtual MIDI port for external MIDI playback
-- Optional VST3 instruments for plug-in hosting
+- An ASIO driver or any WASAPI audio device
+- VST3 instruments and effects (optional; Sonator's own effects need none)
+- A MIDI keyboard (optional, for recording)
 
 ## Build and run
 
@@ -77,20 +142,32 @@ dotnet restore
 dotnet run --project Sonator.csproj
 ```
 
-The included prebuilt `VstHostBridge.dll` is copied automatically to the
-application output directory. Rebuilding the native bridge is only necessary
-when changing its C++ source.
+A prebuilt `VstHostBridge.dll` is copied beside the application during the
+build. Rebuild the native bridge only when changing its C++ source. See the
+[native bridge README](native/VstHostBridge/README.md) and
+[VST3 hosting architecture](docs/VST3_HOSTING.md).
+
+Tests:
+
+```powershell
+dotnet test tests/Sonator.Tests
+```
 
 ## Technology
 
-- C# / .NET 8
-- WPF
+- C# / .NET 8, WPF
+- C++17 native bridge for VST3 hosting and Sonator effects, built only on
+  Steinberg's MIT-licensed `pluginterfaces`
+- NAudio (ASIO, WASAPI, MP3)
 - DryWetMIDI
-- C++17 native VST3 bridge
-- WASAPI shared-mode audio output
+- TagLibSharp (song tags)
+- Whisper.net (lyrics for Cromator)
+- Microsoft.Data.Sqlite (sound library)
 
 ## License
 
 Sonator is free software, licensed under the GNU General Public License v3.0.
 See [LICENSE.txt](LICENSE.txt). Third-party components are listed in
-[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). The screenshots show
+third-party plug-ins (Toontrack, Arturia), which are trademarks of their
+owners and are not part of Sonator.
