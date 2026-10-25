@@ -11,13 +11,18 @@ internal sealed class TrackInstrumentsHost : IDisposable
 {
     private readonly IVst3PluginHost _host;
     private readonly Func<PatternTrackViewModel, NativeEffectChain?> _effectsFor;
+    private readonly Action<PatternTrackViewModel>? _followMainOutput;
     private readonly Dictionary<PatternTrackViewModel, Vst3ModuleHandle> _instruments = new();
     private readonly object _sync = new();
 
-    public TrackInstrumentsHost(IVst3PluginHost host, Func<PatternTrackViewModel, NativeEffectChain?> effectsFor)
+    public TrackInstrumentsHost(
+        IVst3PluginHost host,
+        Func<PatternTrackViewModel, NativeEffectChain?> effectsFor,
+        Action<PatternTrackViewModel>? followMainOutput = null)
     {
         _host = host;
         _effectsFor = effectsFor;
+        _followMainOutput = followMainOutput;
     }
 
     // The track's plug-in when it is running, from any thread. Null when it has not started yet.
@@ -106,6 +111,10 @@ internal sealed class TrackInstrumentsHost : IDisposable
             if (output > 0)
             {
                 _effectsFor(piece)?.AttachToOutput(handle, output);
+            }
+            else
+            {
+                _followMainOutput?.Invoke(piece);
             }
         }
     }

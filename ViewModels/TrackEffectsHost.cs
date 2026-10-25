@@ -142,6 +142,14 @@ internal sealed class TrackEffectsHost : IDisposable
     private static PatternTrackViewModel? HeardMainOutput(PatternTrackViewModel track) =>
         track.KitMainOutput is { IsHeard: true } main ? main : null;
 
+    // The piece of a drum kit's main output has no chain of its own: what is changed on it is mixed into its
+    // track's.
+    public void FollowMainOutput(PatternTrackViewModel piece)
+    {
+        piece.PropertyChanged -= OnTrackPropertyChanged;
+        piece.PropertyChanged += OnTrackPropertyChanged;
+    }
+
     // A track's gain takes the master volume in; a bus's does not, since what reaches it already has it.
     // A bus has no sends of its own, nor does the master.
     private void ApplyMix(PatternTrackViewModel track, NativeEffectChain chain)

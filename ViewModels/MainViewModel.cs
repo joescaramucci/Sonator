@@ -250,7 +250,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
     {
         _trackEffects = new TrackEffectsHost(_liveInstrumentHost);
         _inputRecorder = new AudioInputRecorder(_liveInstrumentHost, () => AudioOutputSelection.FromSettings(new AppSettingsService().Load()));
-        _trackInstruments = new TrackInstrumentsHost(_liveInstrumentHost, track => _trackEffects.ChainFor(track));
+        _trackInstruments = new TrackInstrumentsHost(_liveInstrumentHost, track => _trackEffects.ChainFor(track), _trackEffects.FollowMainOutput);
         _trackEffects.UseAsMaster(MasterTrack);
         _engine = engine ?? new SequencerEngine();
         _projectFileService = projectFileService ?? new ProjectFileService();

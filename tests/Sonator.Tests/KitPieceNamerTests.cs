@@ -62,4 +62,16 @@ public sealed class KitPieceNamerTests
         Assert.Equal("Room", room.Name);
         Assert.Equal("My snare", mine.Name);
     }
+
+    [Theory]
+    [InlineData("Kick", "kick")]
+    [InlineData("Snare 2", "snare")]
+    [InlineData("Hi-hat", "hat")]
+    [InlineData("Toms", "tom")]
+    [InlineData("Room", null)]
+    [InlineData("Out 19/20", null)]
+    public void APiece_IsSearchedForAmongTheSounds_ByItsDrum(string name, string? word)
+    {
+        Assert.Equal(word, KitPieceNamer.SearchWordOf(name));
+    }
 }

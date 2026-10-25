@@ -185,6 +185,19 @@ public partial class SoundBrowserWindow : Window
         }
     }
 
+    // Searches all the sounds for these words, as if typed: a drum kit's piece asks for its drum's.
+    public void Search(string words)
+    {
+        SearchBox.Text = words;
+        SearchBox.CaretIndex = words.Length;
+        if (CategoryList.ItemsSource is IReadOnlyList<CategoryItem> { Count: > 0 } items)
+        {
+            CategoryList.SelectedItem = items[0];
+        }
+
+        SearchBox.Focus();
+    }
+
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
     {
         _searchDelay.Stop();
