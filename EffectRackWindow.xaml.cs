@@ -123,6 +123,59 @@ public partial class EffectRackWindow : Window
     // The rack grows with its effects up to most of the screen, then scrolls.
     public double MaxRackHeight => SystemParameters.WorkArea.Height * 0.75;
 
+    // A picture of an effect's module as it looks in a rack, from a rack never shown that holds only it: the plug-in
+    // list pictures Sonator's effects with it.
+    internal static ImageSource PictureOfModule(MainViewModel viewModel, TrackEffectViewModel effect)
+    {
+        var track = new PatternTrackViewModel(effect.Name, effect.Name, 0, 60, new System.Collections.ObjectModel.ObservableCollection<StepViewModel>());
+        track.Effects.Add(effect);
+        var rack = new EffectRackWindow(viewModel, track);
+        rack._meterTimer.Stop();
+        try
+        {
+            var content = (FrameworkElement)rack.Content;
+            content.Measure(new Size(rack.Width, double.PositiveInfinity));
+            content.Arrange(new Rect(content.DesiredSize));
+            content.UpdateLayout();
+
+            var module = FindModule(content, effect) ?? content;
+            var size = new Size(Math.Ceiling(module.ActualWidth), Math.Ceiling(module.ActualHeight));
+            var drawing = new DrawingVisual();
+            using (var drawingContext = drawing.RenderOpen())
+            {
+                drawingContext.DrawRectangle(new VisualBrush(module) { Stretch = Stretch.None, AlignmentX = AlignmentX.Left, AlignmentY = AlignmentY.Top }, null, new Rect(size));
+            }
+
+            var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)size.Width, (int)size.Height, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(drawing);
+            bitmap.Freeze();
+            return bitmap;
+        }
+        finally
+        {
+            rack.Close();
+        }
+    }
+
+    private static FrameworkElement? FindModule(DependencyObject parent, TrackEffectViewModel effect)
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is ContentPresenter { Content: TrackEffectViewModel shown } presenter && shown == effect)
+            {
+                return presenter;
+            }
+
+            if (FindModule(child, effect) is { } found)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
     // Brings an effect's module into view, such as one just added or clicked in the track panel.
     public void ShowEffect(TrackEffectViewModel effect)
     {

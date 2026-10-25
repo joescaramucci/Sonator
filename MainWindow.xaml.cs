@@ -181,7 +181,7 @@ public partial class MainWindow : Window
         viewModel.EffectPluginUnloading += ClosePluginWindowsOf;
         viewModel.SavedInstrumentStarted += DockSavedInstrument;
         OfferToRecover(viewModel);
-        FillSonEffectList();
+        FillSonEffectList(viewModel);
         viewModel.VstPlugins.CollectionChanged += (_, args) =>
         {
             if (args.NewItems is null)
@@ -1979,7 +1979,7 @@ public partial class MainWindow : Window
 
     private const string SonEffectDragFormat = "Sonator.SonEffect";
 
-    // A tile of the list: the effect, and its screen at its defaults as its picture.
+    // A tile of the list: the effect, and its module as it looks in the rack as its picture.
     private sealed record SonEffectTile(EffectDefinition Definition, ImageSource Picture)
     {
         public string Name => Definition.Name;
@@ -1987,27 +1987,21 @@ public partial class MainWindow : Window
         public string Description => $"{Definition.Description}: click to put it on the selected track, or drag it onto a track";
     }
 
-    private void FillSonEffectList()
+    private void FillSonEffectList(MainViewModel viewModel)
     {
-        SonEffectList.ItemsSource = EffectCatalog.All.Select(definition => new SonEffectTile(definition, PictureOf(definition))).ToList();
+        SonEffectList.ItemsSource = EffectCatalog.All.Select(definition => new SonEffectTile(definition, PictureOf(viewModel, definition))).ToList();
     }
 
-    // The effect's screen, drawn at its defaults (a big choir for the choir; a note sung and a level for those that
-    // show them).
-    private static ImageSource PictureOf(EffectDefinition definition)
+    // The effect's module as it looks in the rack, at its defaults (a big choir for the choir; a note sung and a level
+    // for those that show them).
+    private static ImageSource PictureOf(MainViewModel viewModel, EffectDefinition definition)
     {
         var values = definition.Kind == EffectKind.Choir ? FactoryPresets.For(definition.Kind).FirstOrDefault(preset => preset.Name == "Big Choir")?.Values : null;
         var effect = new TrackEffectViewModel(definition, values: values)
         {
             MeterValue = definition.Kind switch { EffectKind.Harmonizer => 57, EffectKind.Mastering => -14, _ => 0 },
         };
-        var display = new EffectDisplay { Effect = effect, Width = 260, Height = 120 };
-        display.Measure(new Size(260, 120));
-        display.Arrange(new Rect(0, 0, 260, 120));
-        var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(260, 120, 96, 96, PixelFormats.Pbgra32);
-        bitmap.Render(display);
-        bitmap.Freeze();
-        return bitmap;
+        return EffectRackWindow.PictureOfModule(viewModel, effect);
     }
 
     private Point? _sonEffectPress;
