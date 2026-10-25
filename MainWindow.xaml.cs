@@ -2168,10 +2168,27 @@ public partial class MainWindow : Window
     // KIT on a drum track shows its kit's pieces under it on the timeline, or hides them.
     private void TimelineKit_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement { DataContext: ArrangeTimelineTrackViewModel lane } && DataContext is MainViewModel viewModel)
+        if (sender is not FrameworkElement { DataContext: ArrangeTimelineTrackViewModel lane } element || DataContext is not MainViewModel viewModel)
         {
-            viewModel.ToggleKitOnTimeline(lane.SourceTrack);
+            return;
         }
+
+        // Until a drum has played on its own output there are no pieces to show: how to set the plug-in to play them apart.
+        if (!lane.SourceTrack.HasHeardKitPieces)
+        {
+            if (element is System.Windows.Controls.Primitives.ToggleButton toggle)
+            {
+                toggle.IsChecked = false;
+            }
+
+            SonatorMessageDialog.Show(this, "KIT: no drum plays on its own output yet",
+                "Set the plug-in to send each drum to its own output. In EZdrummer 3: PLUGIN WINDOW, the Mixer page, then the Mixer "
+                + "menu at the top left: 1. Select All Channels, 2. Route Outputs > Multichannel. Then play: each drum gets a lane "
+                + "here as soon as it sounds. Save the project afterwards, so the plug-in keeps that setting.");
+            return;
+        }
+
+        viewModel.ToggleKitOnTimeline(lane.SourceTrack);
     }
 
     private static T? FindVisualAncestor<T>(DependencyObject? element)

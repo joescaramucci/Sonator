@@ -1506,7 +1506,7 @@
                                                                           Focusable="False" Style="{StaticResource MetronomeToggleStyle}"
                                                                           IsChecked="{Binding SourceTrack.IsKitOnTimeline, Mode=OneWay}"
                                                                           Click="TimelineKit_Click"
-                                                                          Visibility="{Binding SourceTrack.HasHeardKitPieces, Converter={StaticResource VisibleWhenTrue}}" />
+                                                                          Visibility="{Binding SourceTrack.ShowsKit, Converter={StaticResource VisibleWhenTrue}}" />
                                                             <TextBlock Text="{Binding SourceTrack.Name}"
                                                                        FontWeight="Bold"
                                                                        Foreground="#EEEFF1"
@@ -2128,7 +2128,7 @@
                                                                       IsChecked="{Binding SourceTrack.IsKitOnTimeline, Mode=OneWay}"
                                                                       Click="TimelineKit_Click"
                                                                       ToolTip="Show or hide the drum kit's pieces under the track"
-                                                                      Visibility="{Binding SourceTrack.HasHeardKitPieces, Converter={StaticResource VisibleWhenTrue}}" />
+                                                                      Visibility="{Binding SourceTrack.ShowsKit, Converter={StaticResource VisibleWhenTrue}}" />
                                                         <TextBlock Text="{Binding SourceTrack.Name}"
                                                                    FontWeight="Bold"
                                                                    Foreground="#EEEFF1"

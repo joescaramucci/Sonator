@@ -661,7 +661,7 @@
                                         <LineBreak /><Run Text="1. Select All Channels" />
                                         <LineBreak /><Run Text="2. Route Outputs > Multichannel" />
                                         <LineBreak /><LineBreak />
-                                        <Run Text="Then play: each drum gets a strip here as soon as it sounds." />
+                                        <Run Text="Then play: each drum gets a strip here as soon as it sounds. Save the project afterwards, so the plug-in keeps that setting." />
                                     </TextBlock>
                                 </StackPanel>
                             </Border>
