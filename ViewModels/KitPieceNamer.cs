@@ -69,20 +69,6 @@ internal sealed class KitPieceNamer
         return -1;
     }
 
-    // The word to search the sounds with for a piece, by its name: "kick", "snare", "hat"...; null when the piece
-    // is not one drum.
-    internal static string? SearchWordOf(string name) => KindOfName(name) switch
-    {
-        0 => "kick",
-        1 => "snare",
-        2 => "hat",
-        3 => "tom",
-        4 => "crash",
-        5 => "ride",
-        6 => "perc",
-        _ => null,
-    };
-
     // A note the track's plug-in was sent. Any thread.
     public void Struck(PatternTrackViewModel track, int note, int velocity)
     {

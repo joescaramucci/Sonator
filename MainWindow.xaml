@@ -1829,8 +1829,6 @@
                                                         <local:VolumeBar DockPanel.Dock="Right" Width="70" Height="14" BarThickness="4" Margin="4,0,4,0"
                                                                          DefaultValue="0.75" Tag="VolumeBar" Value="{Binding SourceTrack.MixVolume}" />
                                                         <TextBlock Text="{Binding SourceTrack.Name}" Margin="6,0,0,0" VerticalAlignment="Center"
-                                                                   Cursor="Hand" ToolTip="Click: SOUNDS, searching for another sound for this drum, which plays it on a new track"
-                                                                   MouseLeftButtonUp="KitPieceName_MouseLeftButtonUp"
                                                                    FontSize="11" FontWeight="SemiBold" Foreground="#EEEFF1" TextTrimming="CharacterEllipsis" />
                                                     </DockPanel>
                                                 </Grid>
@@ -2345,8 +2343,6 @@
                                                 <local:VolumeBar DockPanel.Dock="Right" Width="70" Height="14" BarThickness="4" Margin="4,0,4,0"
                                                                  DefaultValue="0.75" Tag="VolumeBar" Value="{Binding SourceTrack.MixVolume}" />
                                                 <TextBlock Text="{Binding SourceTrack.Name}" Margin="6,0,0,0" VerticalAlignment="Center"
-                                                                   Cursor="Hand" ToolTip="Click: SOUNDS, searching for another sound for this drum, which plays it on a new track"
-                                                                   MouseLeftButtonUp="KitPieceName_MouseLeftButtonUp"
                                                            FontSize="11" FontWeight="SemiBold" Foreground="#EEEFF1" TextTrimming="CharacterEllipsis" />
                                             </DockPanel>
                                         </Grid>

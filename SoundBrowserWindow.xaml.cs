@@ -75,24 +75,13 @@ public partial class SoundBrowserWindow : Window
     {
         if (e.PropertyName is nameof(MainViewModel.SelectedTrack))
         {
-            if (_viewModel.SelectedTrack != _kitPiece?.KitParent)
-            {
-                _kitPiece = null;
-            }
-
             ShowTarget();
         }
     }
 
-    // The drum kit's piece the sounds are searched for, when a click on its name opened them: the sound loaded
-    // plays it on a new track (see MainViewModel.ReplaceKitPiece).
-    private PatternTrackViewModel? _kitPiece;
-
     private void ShowTarget()
     {
-        TargetText.Text = _kitPiece is { KitParent: { } kit } piece
-            ? $"Plays the {piece.Name.ToLowerInvariant()} of {kit.Name} on a new track, the kit's own muted"
-            : _viewModel.SelectedTrack is { } track
+        TargetText.Text = _viewModel.SelectedTrack is { } track
             ? $"Loads on {track.Name}{(track.PluginName is { } plugin ? $" — now {plugin}" : string.Empty)}"
             : "Select a track to load sounds on";
     }
@@ -194,22 +183,6 @@ public partial class SoundBrowserWindow : Window
             SoundList.SelectedIndex = 0;
             SoundList.ScrollIntoView(found[0]);
         }
-    }
-
-    // Searches all the sounds for these words, as if typed: a drum kit's piece asks for its drum's, and the sound
-    // loaded then plays the piece.
-    public void Search(string words, PatternTrackViewModel? kitPiece = null)
-    {
-        _kitPiece = kitPiece;
-        ShowTarget();
-        SearchBox.Text = words;
-        SearchBox.CaretIndex = words.Length;
-        if (CategoryList.ItemsSource is IReadOnlyList<CategoryItem> { Count: > 0 } items)
-        {
-            CategoryList.SelectedItem = items[0];
-        }
-
-        SearchBox.Focus();
     }
 
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -520,18 +493,7 @@ public partial class SoundBrowserWindow : Window
         Mouse.OverrideCursor = Cursors.Wait;
         try
         {
-            if (_kitPiece is { } piece)
-            {
-                // The next sound goes on the new track, in place of this one.
-                if (_viewModel.ReplaceKitPiece(piece, sound) is not null)
-                {
-                    _kitPiece = null;
-                }
-            }
-            else
-            {
-                _viewModel.LoadSound(sound);
-            }
+            _viewModel.LoadSound(sound);
         }
         finally
         {

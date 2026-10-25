@@ -1647,20 +1647,8 @@ public partial class MainWindow : Window
 
     private void ShowSoundsButton_Click(object sender, RoutedEventArgs e) => ShowSoundBrowser();
 
-    // A click on a drum kit piece's name on the timeline opens SOUNDS searching for its drum's sounds; the one
-    // loaded plays the piece on a new track.
-    private void KitPieceName_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-    {
-        if (sender is FrameworkElement { DataContext: ArrangeTimelineTrackViewModel { IsKitPiece: true } lane })
-        {
-            ShowSoundBrowser(KitPieceNamer.SearchWordOf(lane.SourceTrack.Name) ?? string.Empty, lane.SourceTrack);
-            e.Handled = true;
-        }
-    }
-
     // One sound browser at a time; asked for again, it comes to the front, or goes to the dock when it is in front.
-    // Asked for with words to search, it comes to the front searching for them.
-    private void ShowSoundBrowser(string? search = null, PatternTrackViewModel? kitPiece = null)
+    private void ShowSoundBrowser()
     {
         if (DataContext is not MainViewModel viewModel)
         {
@@ -1675,16 +1663,12 @@ public partial class MainWindow : Window
             RememberDeactivation(_soundBrowser);
             _soundBrowser.Show();
         }
-        else if (search is null && DockIfInFront(_soundBrowser))
+        else if (DockIfInFront(_soundBrowser))
         {
             return;
         }
 
         BringBack(_soundBrowser);
-        if (search is not null)
-        {
-            _soundBrowser.Search(search, kitPiece);
-        }
     }
 
     // MIXER and SOUNDS put their window away in the dock when it was the window in use, as the minimize button
