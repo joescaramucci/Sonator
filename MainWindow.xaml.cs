@@ -902,6 +902,13 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (e.Key == Key.R && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift))
+        {
+            viewModel.CapturePerformance();
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key == Key.S && (Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) == (ModifierKeys.Control | ModifierKeys.Shift))
         {
             viewModel.SaveProjectAsCommand.Execute(null);
@@ -3089,6 +3096,15 @@ public partial class MainWindow : Window
         var forget = new MenuItem { Header = "Forget them all" };
         forget.Click += (_, _) => viewModel.ForgetAllMidiMappings();
         menu.Items.Add(forget);
+    }
+
+    // CAPTURE: the part just played goes on the track, as if it had been recorded.
+    private void CaptureButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel)
+        {
+            viewModel.CapturePerformance();
+        }
     }
 
     // The track's takes, the latest first: one chosen plays in place of what the track plays now.

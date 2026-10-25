@@ -1611,6 +1611,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
     // At each turn of the loop, the clips start again from its start, in time with the notes.
     private void OnLooped(object? sender, int step)
     {
+        Interlocked.Increment(ref _performancePass); // a new pass for CAPTURE
         if (IsPlaying && Tracks.Any(track => !string.IsNullOrEmpty(track.AudioClipPath)))
         {
             SeekAudioTracks(step);
@@ -3777,6 +3778,58 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         return passes;
     }
 
+    // ---- CAPTURE: what was played without recording ----
+
+    private readonly PerformanceBuffer _performance = new();
+    private int _performancePass;
+
+    // On the MIDI thread: every key played is kept, but those being recorded already.
+    private void KeepPlayed(MidiNoteMessage note, double position)
+    {
+        if (_isPlaying && IsRecording)
+        {
+            return;
+        }
+
+        _performance.Note(Stopwatch.GetTimestamp(), _isPlaying ? Math.Max(0, position) : null, _isPlaying ? _performancePass : -1,
+            note.NoteNumber, note.Velocity, note.IsOn);
+    }
+
+    // Puts the part just played on the MIDI keyboard on the record track, as if it had been recorded: played with
+    // the song, where it was played (the last time round the loop); played with the song stopped, from the
+    // playhead at the song's tempo. The record grid snaps the notes as recording does. One undo step.
+    public bool CapturePerformance()
+    {
+        if (RecordTarget is not { SupportsMidiPlayback: true } track)
+        {
+            StatusMessage = "Capture: select a MIDI or plug-in track to put the part on";
+            return false;
+        }
+
+        if (_performance.Take(CurrentStepIndex, Tempo, RecordGrid.Steps) is not { Notes.Count: > 0 } part)
+        {
+            StatusMessage = "Capture: nothing has been played on the MIDI keyboard since the last capture";
+            return false;
+        }
+
+        CaptureUndoStateIfNeeded();
+        track.MidiNoteEvents = track.MidiNoteEvents.Concat(part.Notes).ToList();
+        if (part.Controllers.Count > 0)
+        {
+            track.MidiControllerEvents = track.MidiControllerEvents.Concat(part.Controllers).OrderBy(controller => controller.Step).ToList();
+        }
+
+        var end = part.Notes.Max(note => note.StepIndex + note.StartOffset + note.DurationSteps + note.LengthFraction);
+        LengthenPatternTo(track, end);
+        RebuildTimeline();
+        TrackNotesChanged?.Invoke(track);
+        SelectBlock(track);
+        var first = part.Notes.Min(note => note.StepIndex + note.StartOffset);
+        StatusMessage = $"Captured {part.Notes.Count} notes into {track.Name}, from bar {FormatBarBeat((int)first, StepsPerBar, Meter.StepsPerBeat)}"
+            + (part.WithSong ? ", where they were played" : ", from the playhead");
+        return true;
+    }
+
     // ---- Punch and takes ----
 
     private bool _isPunchEnabled;
@@ -3953,6 +4006,15 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         }
 
         var position = _engine.LivePosition;
+        if (_isPlaying && !IsRecording)
+        {
+            _performance.Controller(Stopwatch.GetTimestamp(), position, _performancePass, controller.Controller, controller.Value);
+        }
+        else if (!_isPlaying)
+        {
+            _performance.Controller(Stopwatch.GetTimestamp(), null, -1, controller.Controller, controller.Value);
+        }
+
         if (IsLiveKeyboardEnabled && LiveInstrumentRegistry.Current is { } instrument)
         {
             _liveInstrumentHost.TrySendController(instrument, controller.Channel, controller.Controller, controller.Value);
@@ -4020,6 +4082,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
     {
         // Taken here, when the key arrives: by the time the UI thread handles the note the sequencer has moved on.
         var position = _engine.LivePosition;
+        KeepPlayed(note, position);
         var route = KeyboardRoute.None;
         if (IsLiveKeyboardEnabled)
         {
@@ -5077,6 +5140,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
 
     private void StartPlayback()
     {
+        Interlocked.Increment(ref _performancePass);
         if (FitSelectedPatternToArrangeLength())
         {
             ConfigurePlaybackSource();

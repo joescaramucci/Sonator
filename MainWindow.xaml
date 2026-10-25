@@ -622,6 +622,8 @@
                             <MenuItem Header="..." />
                         </MenuItem>
                         <Separator />
+                        <MenuItem Header="_Capture the part just played" Click="CaptureButton_Click" InputGestureText="Ctrl+Shift+R"
+                                  ToolTip="Puts the part just played on the MIDI keyboard on the track, as if recording had been on" />
                         <MenuItem Header="_Takes" SubmenuOpened="TakesMenu_SubmenuOpened">
                             <MenuItem Header="..." />
                         </MenuItem>
@@ -2723,7 +2725,11 @@
                             </ToggleButton.Style>
                         </ToggleButton>
                     </UniformGrid>
-                    <Button x:Name="ImportMidiButton" Content="IMPORT MIDI" Command="{Binding ImportMidiCommand}" Margin="0,0,0,4" />
+                    <UniformGrid Columns="2" Margin="0,0,0,4">
+                        <Button Content="CAPTURE" Click="CaptureButton_Click"
+                                ToolTip="Puts the part just played on the MIDI keyboard on the track, as if recording had been on: played with the song, where it was played; with the song stopped, from the playhead (Ctrl+Shift+R)" />
+                        <Button x:Name="ImportMidiButton" Content="IMPORT MIDI" Command="{Binding ImportMidiCommand}" />
+                    </UniformGrid>
                     <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="10" Margin="2,2,2,0" />
                 </StackPanel>
                 </GroupBox>
