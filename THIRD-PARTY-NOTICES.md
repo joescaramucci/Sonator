@@ -8,6 +8,11 @@ It includes or uses the following third-party components.
 - Package: `Melanchall.DryWetMidi` 8.0.3 (NuGet), used for MIDI file reading and writing.
 - License: MIT. Copyright (c) Melanchall.
 
+## TagLibSharp
+
+- Package: `TagLibSharp` 2.3.0 (NuGet), used for reading and writing the tags of song files (MP3, WAV...).
+- License: LGPL 2.1. Copyright (c) the TagLib# authors. It is linked as a separate, replaceable library.
+
 ## VST 3 interfaces (pluginterfaces)
 
 - Location: `native/VstHostBridge/thirdparty/pluginterfaces/`.
