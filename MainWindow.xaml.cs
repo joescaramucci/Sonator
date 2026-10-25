@@ -2366,6 +2366,7 @@ public partial class MainWindow : Window
     // A track has one plug-in, so its previous plug-in window closes when another plug-in takes its place.
     private void OpenPluginWindowFor(MainViewModel viewModel, PatternTrackViewModel track, string filePath)
     {
+        track = viewModel.ChannelOf(track); // one window per channel, whatever pattern it is opened from
         // The track's window is still open, maybe minimized: it comes back as it was.
         if (_trackPluginWindows.TryGetValue(track, out var open) && open.Tag is string openPath
             && string.Equals(openPath, filePath, StringComparison.OrdinalIgnoreCase))
@@ -2428,10 +2429,12 @@ public partial class MainWindow : Window
     private void DockSavedInstrument(PatternTrackViewModel track)
     {
         if (DataContext is not MainViewModel viewModel || track.PluginFilePath is not { } filePath
-            || _trackPluginWindows.ContainsKey(track))
+            || _trackPluginWindows.ContainsKey(viewModel.ChannelOf(track)))
         {
             return;
         }
+
+        track = viewModel.ChannelOf(track);
 
         var window = PrepareTrackPluginWindow(viewModel, track, filePath, playFromKeyboard: false);
         PluginDockItems.ItemsSource ??= _dockedPluginWindows;
@@ -2444,6 +2447,7 @@ public partial class MainWindow : Window
     // then plays this plug-in, as when its window is opened on purpose.
     private Window PrepareTrackPluginWindow(MainViewModel viewModel, PatternTrackViewModel track, string filePath, bool playFromKeyboard)
     {
+        track = viewModel.ChannelOf(track);
         if (_trackPluginWindows.Remove(track, out var previous))
         {
             previous.Close();
@@ -3060,7 +3064,7 @@ public partial class MainWindow : Window
 
         // The track whose FX is clicked becomes the selected one, so the EFFECTS panel shows the same effects.
         viewModel.SelectedTrack = timelineTrack.SourceTrack;
-        if (_fxRacks.TryGetValue(timelineTrack.SourceTrack, out var open))
+        if (_fxRacks.TryGetValue(viewModel.ChannelOf(timelineTrack.SourceTrack), out var open))
         {
             // Minimized or in the dock, it is out of sight: the button brings it back rather than closing it.
             if (open.WindowState == WindowState.Minimized || !open.IsVisible)
@@ -3371,6 +3375,7 @@ public partial class MainWindow : Window
     // One rack window per track: opening it again brings the open one to the front, showing the effect.
     private void OpenFxRack(MainViewModel viewModel, PatternTrackViewModel track, TrackEffectViewModel? effect)
     {
+        track = viewModel.ChannelOf(track); // one rack per channel
         if (!_fxRacks.TryGetValue(track, out var rack))
         {
             rack = new EffectRackWindow(viewModel, track) { Owner = this };
@@ -3398,7 +3403,7 @@ public partial class MainWindow : Window
 
         var stale = _fxRacks
             // Racks still on a current track need nothing, nor does the master's, which is always the same.
-            .Where(entry => entry.Key != viewModel.MasterTrack && !viewModel.Tracks.Contains(entry.Key))
+            .Where(entry => entry.Key != viewModel.MasterTrack && !viewModel.IsInSong(entry.Key))
             .Select(entry => entry.Value)
             .ToList();
         foreach (var window in stale)

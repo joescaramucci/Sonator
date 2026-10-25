@@ -43,36 +43,138 @@ public sealed class PatternTrackViewModel : ViewModelBase
         _programNumber = programNumber;
         _trackType = trackType;
         _source = source ?? string.Empty;
-        KitPieces.CollectionChanged += (_, _) =>
-        {
-            RaisePropertyChanged(nameof(HasKitPieces));
-            RaisePropertyChanged(nameof(HasHeardKitPieces));
-        };
+        KitPieces = new ObservableCollection<PatternTrackViewModel>();
+        KitPieces.CollectionChanged += OnKitPiecesChanged;
         _volume = Math.Clamp(volume, 0.0, 1.0);
         _isRecordArmed = isRecordArmed;
         _trackColorBrush = trackColorBrush ?? new SolidColorBrush(Color.FromRgb(38, 53, 69));
         Steps = steps;
         _midiNoteEvents = midiNoteEvents ?? Array.Empty<MidiNoteEventViewModel>();
-        Effects.CollectionChanged += (_, args) =>
+        Effects = new ObservableCollection<TrackEffectViewModel>();
+        Effects.CollectionChanged += OnEffectsCollectionChanged;
+    }
+
+    private void OnEffectsCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs args)
+    {
+        foreach (TrackEffectViewModel effect in args.OldItems ?? Array.Empty<TrackEffectViewModel>())
         {
-            foreach (TrackEffectViewModel effect in args.OldItems ?? Array.Empty<TrackEffectViewModel>())
+            effect.Changed -= OnEffectChanged;
+        }
+        foreach (TrackEffectViewModel effect in args.NewItems ?? Array.Empty<TrackEffectViewModel>())
+        {
+            effect.Changed += OnEffectChanged;
+        }
+        EffectsChanged?.Invoke(this, new TrackEffectChange(null, -1));
+        RaisePropertyChanged(nameof(HasActiveEffects));
+    }
+
+    private void OnKitPiecesChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs args)
+    {
+        RaisePropertyChanged(nameof(HasKitPieces));
+        RaisePropertyChanged(nameof(HasHeardKitPieces));
+    }
+
+    // ---- The channel a track plays through ----
+
+    // The track's settings that belong to its channel, the same in every pattern: what it is called, what plays it
+    // and how it sits in the mix. Its notes, clip, automation and takes are the pattern's own.
+    internal static readonly IReadOnlySet<string> ChannelProperties = new HashSet<string>
+    {
+        nameof(Name), nameof(Instrument), nameof(Channel), nameof(NoteNumber), nameof(ProgramNumber), nameof(TrackType),
+        nameof(Source), nameof(Volume), nameof(Pan), nameof(IsMuted), nameof(IsSolo), nameof(IsRecordArmed),
+        nameof(TrackColorBrush), nameof(PluginFilePath), nameof(SoundName), nameof(InstrumentIconKey), nameof(Sends),
+        nameof(AutomatedVolume), nameof(AutomatedPan), nameof(FrozenAudioPath), nameof(IsKitOpen), nameof(IsKitOnTimeline),
+    };
+
+    // Takes one setting of the channel from another track of it.
+    internal void CopyChannelProperty(PatternTrackViewModel from, string property)
+    {
+        switch (property)
+        {
+            case nameof(Name): Name = from.Name; break;
+            case nameof(Instrument): Instrument = from.Instrument; break;
+            case nameof(Channel): Channel = from.Channel; break;
+            case nameof(NoteNumber): NoteNumber = from.NoteNumber; break;
+            case nameof(ProgramNumber): ProgramNumber = from.ProgramNumber; break;
+            case nameof(TrackType): TrackType = from.TrackType; break;
+            case nameof(Source): Source = from.Source; break;
+            case nameof(Volume): Volume = from.Volume; break;
+            case nameof(Pan): Pan = from.Pan; break;
+            case nameof(IsMuted): IsMuted = from.IsMuted; break;
+            case nameof(IsSolo): IsSolo = from.IsSolo; break;
+            case nameof(IsRecordArmed): IsRecordArmed = from.IsRecordArmed; break;
+            case nameof(TrackColorBrush): TrackColorBrush = from.TrackColorBrush; break;
+            case nameof(PluginFilePath):
+                PluginFilePath = from.PluginFilePath;
+                PluginState = from.PluginState;
+                PluginEditorState = from.PluginEditorState;
+                break;
+            case nameof(SoundName):
+                SoundName = from.SoundName;
+                PluginState = from.PluginState;
+                PluginEditorState = from.PluginEditorState;
+                break;
+            case nameof(InstrumentIconKey): InstrumentIconKey = from.InstrumentIconKey; break;
+            case nameof(Sends): Sends = from.Sends; break;
+            case nameof(AutomatedVolume): AutomatedVolume = from.AutomatedVolume; break;
+            case nameof(AutomatedPan): AutomatedPan = from.AutomatedPan; break;
+            case nameof(FrozenAudioPath): FrozenAudioPath = from.FrozenAudioPath; break;
+            case nameof(IsKitOpen): IsKitOpen = from.IsKitOpen; break;
+            case nameof(IsKitOnTimeline): IsKitOnTimeline = from.IsKitOnTimeline; break;
+        }
+    }
+
+    // Makes the track a part of lead's channel: the very same effects and kit pieces, and its channel's settings
+    // and sound. Its notes, clip, automation and takes stay its own.
+    internal void JoinChannel(PatternTrackViewModel lead)
+    {
+        if (ReferenceEquals(lead, this))
+        {
+            return;
+        }
+
+        foreach (var property in ChannelProperties)
+        {
+            CopyChannelProperty(lead, property);
+        }
+
+        PluginState = lead.PluginState;
+        PluginEditorState = lead.PluginEditorState;
+        BusId = lead.BusId;
+        if (!ReferenceEquals(Effects, lead.Effects))
+        {
+            Effects.CollectionChanged -= OnEffectsCollectionChanged;
+            foreach (var effect in Effects)
             {
                 effect.Changed -= OnEffectChanged;
             }
-            foreach (TrackEffectViewModel effect in args.NewItems ?? Array.Empty<TrackEffectViewModel>())
+
+            Effects = lead.Effects;
+            Effects.CollectionChanged += OnEffectsCollectionChanged;
+            foreach (var effect in Effects)
             {
                 effect.Changed += OnEffectChanged;
             }
-            EffectsChanged?.Invoke(this, new TrackEffectChange(null, -1));
+
+            RaisePropertyChanged(nameof(Effects));
             RaisePropertyChanged(nameof(HasActiveEffects));
-        };
+        }
+
+        if (!ReferenceEquals(KitPieces, lead.KitPieces))
+        {
+            KitPieces.CollectionChanged -= OnKitPiecesChanged;
+            KitPieces = lead.KitPieces;
+            KitPieces.CollectionChanged += OnKitPiecesChanged;
+            RaisePropertyChanged(nameof(KitPieces));
+            OnKitPiecesChanged(null, new(System.Collections.Specialized.NotifyCollectionChangedAction.Reset));
+        }
     }
 
     // True when at least one of the track's effects is switched on: its FX button is lit.
     public bool HasActiveEffects => Effects.Any(effect => effect.IsEnabled);
 
     // The track's insert effects, in the order the audio goes through them.
-    public ObservableCollection<TrackEffectViewModel> Effects { get; } = new();
+    public ObservableCollection<TrackEffectViewModel> Effects { get; private set; }
 
     private bool _isFxRackOpen;
 
@@ -378,7 +480,7 @@ public sealed class PatternTrackViewModel : ViewModelBase
     // output (the kick, the snare, the hi-hat...) has each one here, with its own fader, effects and sends. Each
     // takes the output KitOutput (1 and up). The piece of output 0, the track's own channel (the kick, in EZdrummer),
     // is its fader, mute, solo and pan only: that output goes through the track's effects and sends.
-    public ObservableCollection<PatternTrackViewModel> KitPieces { get; } = new();
+    public ObservableCollection<PatternTrackViewModel> KitPieces { get; private set; }
 
     // The track a kit piece belongs to; null for a track.
     public PatternTrackViewModel? KitParent { get; set; }
@@ -535,7 +637,7 @@ public sealed class PatternTrackViewModel : ViewModelBase
     // ---- Buses and sends ----
 
     // Who this is when it is a bus, for the tracks' sends to name it. Kept through undo and saving.
-    public Guid BusId { get; init; } = Guid.NewGuid();
+    public Guid BusId { get; internal set; } = Guid.NewGuid();
 
     private IReadOnlyDictionary<Guid, double> _sends = new Dictionary<Guid, double>();
 

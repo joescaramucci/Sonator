@@ -20,7 +20,7 @@ public partial class EffectRackWindow : Window
     {
         _viewModel = viewModel;
         Track = track;
-        TrackIndex = viewModel.Tracks.IndexOf(track);
+        TrackIndex = viewModel.TrackIndexOf(track);
         InitializeComponent();
         WindowFrame.UseDarkFrame(this);
         DataContext = this;

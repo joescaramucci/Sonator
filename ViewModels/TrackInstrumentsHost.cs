@@ -25,9 +25,15 @@ internal sealed class TrackInstrumentsHost : IDisposable
         _followMainOutput = followMainOutput;
     }
 
+    // The track a track's plug-in runs for: its channel's (see MainViewModel.ChannelOf). Any thread.
+    public Func<PatternTrackViewModel, PatternTrackViewModel>? ChannelOf { get; init; }
+
+    private PatternTrackViewModel Channel(PatternTrackViewModel track) => ChannelOf?.Invoke(track) ?? track;
+
     // The track's plug-in when it is running, from any thread. Null when it has not started yet.
     public Vst3ModuleHandle? RunningFor(PatternTrackViewModel track)
     {
+        track = Channel(track);
         lock (_sync)
         {
             return _instruments.TryGetValue(track, out var handle) && IsFor(track, handle) ? handle : null;
@@ -38,6 +44,7 @@ internal sealed class TrackInstrumentsHost : IDisposable
     public Vst3ModuleHandle? Ensure(PatternTrackViewModel track, AudioOutputSelection selection, out string? error)
     {
         error = null;
+        track = Channel(track);
         if (string.IsNullOrEmpty(track.PluginFilePath))
         {
             return null;
@@ -152,6 +159,7 @@ internal sealed class TrackInstrumentsHost : IDisposable
     // Stops and unloads the track's plug-in, if it runs one.
     public void Release(PatternTrackViewModel track)
     {
+        track = Channel(track);
         Vst3ModuleHandle? handle;
         lock (_sync)
         {
@@ -167,7 +175,7 @@ internal sealed class TrackInstrumentsHost : IDisposable
     // Stops the plug-ins of tracks that are gone or have changed plug-in.
     public void KeepOnly(IEnumerable<PatternTrackViewModel> tracks)
     {
-        var kept = tracks.ToHashSet();
+        var kept = tracks.Select(Channel).ToHashSet();
         List<Vst3ModuleHandle> stale;
         lock (_sync)
         {

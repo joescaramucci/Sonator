@@ -203,6 +203,7 @@ internal sealed class TrackEffectsHost : IDisposable
     // The track's chain, made on first use. Null when the native bridge is not available.
     public NativeEffectChain? ChainFor(PatternTrackViewModel track)
     {
+        track = Channel(track);
         if (_chains.TryGetValue(track, out var chain))
         {
             return chain;
@@ -255,7 +256,7 @@ internal sealed class TrackEffectsHost : IDisposable
 
     // The track's chain if it has one already, without making it.
     public NativeEffectChain? ExistingChainFor(PatternTrackViewModel track) =>
-        _chains.TryGetValue(track, out var chain) ? chain : null;
+        _chains.TryGetValue(Channel(track), out var chain) ? chain : null;
 
     // ---- VST3 effects ----
 
@@ -307,6 +308,7 @@ internal sealed class TrackEffectsHost : IDisposable
     // The track being rendered to audio, to freeze it, or null: its chain plays it at 0 dB (see ApplyMix).
     public void SetRendering(PatternTrackViewModel? track)
     {
+        track = track is null ? null : Channel(track);
         var before = _rendering;
         _rendering = track;
         foreach (var changed in new[] { before, track }.OfType<PatternTrackViewModel>())
@@ -325,6 +327,11 @@ internal sealed class TrackEffectsHost : IDisposable
             }
         }
     }
+
+    // The track whose chain a track plays through: its channel's (see MainViewModel.ChannelOf).
+    public Func<PatternTrackViewModel, PatternTrackViewModel>? ChannelOf { get; init; }
+
+    private PatternTrackViewModel Channel(PatternTrackViewModel track) => ChannelOf?.Invoke(track) ?? track;
 
     // Finds a track by its BusId, for the effects that take their sidechain from it.
     public Func<Guid, PatternTrackViewModel?>? FindTrack { get; set; }
@@ -363,7 +370,7 @@ internal sealed class TrackEffectsHost : IDisposable
     // track uses any more. Called when the tracks are replaced, as by undo or opening a project.
     public void KeepOnly(IEnumerable<PatternTrackViewModel> tracks)
     {
-        var kept = tracks.Concat(_buses).ToHashSet();
+        var kept = tracks.Select(Channel).Concat(_buses).ToHashSet();
         foreach (var track in _chains.Keys.Where(track => !kept.Contains(track) && !ReferenceEquals(track, _master)).ToList())
         {
             var chain = _chains[track];

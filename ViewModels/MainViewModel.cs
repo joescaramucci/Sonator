@@ -250,10 +250,14 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
     {
         _trackEffects = new TrackEffectsHost(_liveInstrumentHost)
         {
+            ChannelOf = track => ChannelOf(track),
             FindTrack = id => Tracks.Concat(Tracks.SelectMany(track => track.KitPieces)).FirstOrDefault(track => track.BusId == id),
         };
         _inputRecorder = new AudioInputRecorder(_liveInstrumentHost, () => AudioOutputSelection.FromSettings(new AppSettingsService().Load()));
-        _trackInstruments = new TrackInstrumentsHost(_liveInstrumentHost, track => _trackEffects.ChainFor(track), _trackEffects.FollowMainOutput);
+        _trackInstruments = new TrackInstrumentsHost(_liveInstrumentHost, track => _trackEffects.ChainFor(track), _trackEffects.FollowMainOutput)
+        {
+            ChannelOf = track => ChannelOf(track),
+        };
         _trackEffects.UseAsMaster(MasterTrack);
         _engine = engine ?? new SequencerEngine();
         _projectFileService = projectFileService ?? new ProjectFileService();
@@ -271,6 +275,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         _engine.Looped += OnLooped;
 
         Patterns = BuildDefaultPatterns();
+        LinkChannels();
         ArrangeBarNumbers = new ObservableCollection<int>();
         ArrangeRows = new ObservableCollection<ArrangeRowViewModel>();
         SongArrangeRows = new ObservableCollection<SongArrangeRowViewModel>();
@@ -3058,6 +3063,8 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             {
                 Patterns.Add(pattern);
             }
+
+            LinkChannels();
             ResetArrangeRows();
             ResetSongArrangeRows();
             ResetArrangeBlocks();
@@ -3272,7 +3279,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
 
         if (isOn)
         {
-            _kitNamer.Struck(track, noteNumber, velocity);
+            _kitNamer.Struck(ChannelOf(track), noteNumber, velocity);
         }
 
         return true;
@@ -4412,6 +4419,14 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
     }
 
     // Opens the project file at path in place of the one open now. Returns false when it cannot be read.
+    // A song read from a document, as opening a project does, without a file: for tests.
+    internal void LoadDocument(ProjectDocument document)
+    {
+        _history.Clear();
+        RestoreProjectDocument(document);
+        MarkProjectSaved();
+    }
+
     public bool OpenProject(string path)
     {
         try
@@ -4498,6 +4513,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
                 "01",
                 tracks);
             Patterns.Add(songPattern);
+            LinkChannels();
 
             var assignments = importedSong.Bars
                 .Select(_ => new[] { songPattern.Slot, string.Empty, string.Empty, string.Empty })
@@ -6043,14 +6059,27 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
     // Reads the measured output of every track that makes its own sound, about twenty times a second.
     private readonly DispatcherTimer _audioMeterTimer = new() { Interval = TimeSpan.FromMilliseconds(50) };
 
+    // A channel's level, on its track in every pattern.
+    private void ShowChannelLevel(PatternTrackViewModel channel, double peak)
+    {
+        TrackMeterCalculator.ShowAudioLevel(channel, peak);
+        foreach (var track in TracksOfChannel(channel))
+        {
+            if (!ReferenceEquals(track, channel))
+            {
+                TrackMeterCalculator.ShowAudioLevel(track, peak);
+            }
+        }
+    }
+
     private void ShowAudioLevels()
     {
-        foreach (var track in Patterns.SelectMany(pattern => pattern.Tracks).Where(track => track.HasOwnAudio))
+        foreach (var track in Patterns.SelectMany(pattern => pattern.Tracks).Where(track => track.HasOwnAudio).Select(ChannelOf).Distinct())
         {
             var peak = _trackEffects.ExistingChainFor(track)?.TakePeak() ?? 0;
             if (track.KitPieces.Count == 0)
             {
-                TrackMeterCalculator.ShowAudioLevel(track, peak);
+                ShowChannelLevel(track, peak);
                 continue;
             }
 
@@ -6076,7 +6105,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
                 }
             }
 
-            TrackMeterCalculator.ShowAudioLevel(track, kitPeak);
+            ShowChannelLevel(track, kitPeak);
             _kitNamer.Read(track, piecePeaks);
         }
 
@@ -6495,6 +6524,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
 
         pattern.Tracks.Add(track);
         Tracks.Add(track);
+        LinkChannels(); // the other patterns get it too
         SelectedTrack = track;
         ConfigurePlaybackSource();
         RebuildTimeline();
@@ -6519,8 +6549,13 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         }
 
         CaptureUndoStateIfNeeded();
-        pattern.Tracks.RemoveAt(trackIndex);
+        foreach (var other in Patterns.Where(other => trackIndex < other.Tracks.Count))
+        {
+            other.Tracks.RemoveAt(trackIndex); // the channel goes from every pattern
+        }
+
         Tracks.Remove(track);
+        LinkChannels();
         SelectedTrack = pattern.Tracks.Count == 0
             ? null
             : pattern.Tracks[Math.Min(trackIndex, pattern.Tracks.Count - 1)];
@@ -6840,8 +6875,9 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
 
         CaptureUndoStateIfNeeded();
         var insertPatternIndex = SelectedPattern is null ? Patterns.Count : Patterns.IndexOf(SelectedPattern) + 1;
-        var pattern = CreatePattern(patternName, "New pattern", patternSlot);
+        var pattern = NewSectionPattern(patternName, "New pattern", patternSlot, ArrangementPatternLength);
         Patterns.Insert(insertPatternIndex, pattern);
+        LinkChannels();
 
         var assignments = GetSongArrangeAssignments();
         var insertBarIndex = TryGetSelectedArrangePatternRange(out var startRow, out _, out var length)
@@ -6890,6 +6926,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         patternCopy.Slot = patternSlot;
         var insertPatternIndex = Patterns.IndexOf(sourcePattern) + 1;
         Patterns.Insert(insertPatternIndex, patternCopy);
+        LinkChannels();
 
         var assignments = GetSongArrangeAssignments();
         var insertBarIndex = startRow + length;
@@ -7326,6 +7363,8 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             {
                 Patterns.Add(ApplyPatternDocument(patternDocument));
             }
+
+            LinkChannels();
 
             ArrangeRows.Clear();
             foreach (var arrangeDocument in document.ArrangeRows)
