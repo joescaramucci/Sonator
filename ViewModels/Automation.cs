@@ -10,6 +10,7 @@ public enum AutomationTarget
     None,
     Volume,
     Pan,
+    Parameter, // a knob of a plug-in or of an effect (see AutomatedParameter)
 }
 
 public static class Automation

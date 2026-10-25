@@ -143,6 +143,10 @@ VSTHOSTBRIDGE_API double VstHostBridge_GetParameterNormalized(void* moduleHandle
 // Returns 1 on success, 0 on failure (e.g. no usable edit controller).
 VSTHOSTBRIDGE_API int VstHostBridge_SetParameterNormalized(void* moduleHandle, uint32_t paramId, double value);
 
+// The knobs turned in the plug-in's window since the last call, oldest first, up to capacity: each parameter's id,
+// its new value (0 to 1) and what happened (0 a new value, 1 the knob grabbed, 2 let go). Returns how many.
+VSTHOSTBRIDGE_API int32_t VstHostBridge_TakeParameterEdits(void* moduleHandle, uint32_t* outIds, double* outValues, int32_t* outKinds, int32_t capacity);
+
 // --- Real-time audio processing (IAudioProcessor + WASAPI output) --------
 
 // Returns 1 if the plugin exposes a usable IAudioProcessor (VST3 requires

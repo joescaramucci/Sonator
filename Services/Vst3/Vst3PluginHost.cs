@@ -147,6 +147,58 @@ public sealed class Vst3PluginHost : IVst3PluginHost
         }
     }
 
+    public double? GetParameterValue(Vst3ModuleHandle handle, uint parameterId)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+        if (handle.NativeHandle == IntPtr.Zero)
+        {
+            return null;
+        }
+
+        try
+        {
+            return Vst3HostInterop.VstHostBridge_GetParameterNormalized(handle.NativeHandle, parameterId);
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            return null;
+        }
+    }
+
+    private readonly uint[] _editIds = new uint[256];
+    private readonly double[] _editValues = new double[256];
+    private readonly int[] _editKinds = new int[256];
+
+    public IReadOnlyList<Vst3ParameterEdit> TakeParameterEdits(Vst3ModuleHandle handle)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+        if (handle.NativeHandle == IntPtr.Zero)
+        {
+            return Array.Empty<Vst3ParameterEdit>();
+        }
+
+        try
+        {
+            List<Vst3ParameterEdit>? edits = null;
+            int count;
+            do
+            {
+                count = Vst3HostInterop.VstHostBridge_TakeParameterEdits(handle.NativeHandle, _editIds, _editValues, _editKinds, _editIds.Length);
+                for (var i = 0; i < count; i++)
+                {
+                    (edits ??= new()).Add(new Vst3ParameterEdit(_editIds[i], _editValues[i], (Vst3EditKind)_editKinds[i]));
+                }
+            }
+            while (count == _editIds.Length);
+
+            return edits ?? (IReadOnlyList<Vst3ParameterEdit>)Array.Empty<Vst3ParameterEdit>();
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            return Array.Empty<Vst3ParameterEdit>();
+        }
+    }
+
     public bool HasNativeEditor(Vst3ModuleHandle handle)
     {
         ArgumentNullException.ThrowIfNull(handle);

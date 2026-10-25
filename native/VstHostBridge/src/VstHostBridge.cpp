@@ -434,6 +434,8 @@ namespace
     constexpr int32 kMaxOutputBuses = 32;
 
     // Everything the bridge needs to keep alive for one loaded plugin module.
+    class SonatorComponentHandler;
+
     struct BridgeModule
     {
         HMODULE hmodule = nullptr;
@@ -494,6 +496,119 @@ namespace
         // lock; slot 0 is unused, output 0 having the chain above. An output with no chain of its own joins
         // output 0 ahead of its effects.
         std::shared_ptr<son::EffectChain> outputEffects[kMaxOutputBuses];
+
+        // Parameters changed for the processor, by a knob turned in the plug-in's window or by Sonator's
+        // automation, taken by the audio thread with the next block; and the window's edits for Sonator to
+        // read, to record them as automation (kind 0 a value, 1 a knob grabbed, 2 let go). Under paramMutex.
+        struct ParamEdit
+        {
+            ParamID id;
+            ParamValue value;
+            int32 kind;
+        };
+        std::mutex paramMutex;
+        std::vector<std::pair<ParamID, ParamValue>> pendingParams;
+        std::vector<ParamEdit> edits;
+        SonatorComponentHandler* handler = nullptr;
+
+        void QueueParameter(ParamID id, ParamValue value)
+        {
+            std::lock_guard<std::mutex> lock(paramMutex);
+            for (auto& pending : pendingParams)
+            {
+                if (pending.first == id)
+                {
+                    pending.second = value;
+                    return;
+                }
+            }
+            if (pendingParams.size() < 512)
+            {
+                pendingParams.emplace_back(id, value);
+            }
+        }
+
+        void NoteEdit(ParamID id, ParamValue value, int32 kind)
+        {
+            std::lock_guard<std::mutex> lock(paramMutex);
+            if (edits.size() >= 8192)
+            {
+                edits.erase(edits.begin(), edits.begin() + 4096); // nobody reads them: the oldest go
+            }
+            edits.push_back({id, value, kind});
+        }
+
+        // Moves the parameters waiting into a block's changes, without waiting for the lock. Audio thread.
+        template <typename Add>
+        void TakeParameters(Add add)
+        {
+            std::unique_lock<std::mutex> lock(paramMutex, std::try_to_lock);
+            if (!lock.owns_lock() || pendingParams.empty())
+            {
+                return;
+            }
+            for (const auto& pending : pendingParams)
+            {
+                add(pending.first, pending.second);
+            }
+            pendingParams.clear();
+        }
+    };
+
+    // The host's side of a plug-in's controller: a knob turned in its window reaches its processor, and Sonator
+    // hears of it to record it as automation.
+    class SonatorComponentHandler final : public IComponentHandler
+    {
+    public:
+        explicit SonatorComponentHandler(BridgeModule* module) : module_(module) {}
+
+        tresult PLUGIN_API queryInterface(const TUID iid, void** obj) override
+        {
+            if (obj == nullptr)
+            {
+                return kInvalidArgument;
+            }
+
+            if (TuidEquals(iid, FUnknown_iid) || TuidEquals(iid, IComponentHandler_iid))
+            {
+                *obj = static_cast<IComponentHandler*>(this);
+                return kResultOk;
+            }
+
+            *obj = nullptr;
+            return kNoInterface;
+        }
+
+        // Owned by its module, which deletes it after the controller has let it go.
+        uint32 PLUGIN_API addRef() override { return 1; }
+        uint32 PLUGIN_API release() override { return 1; }
+
+        tresult PLUGIN_API beginEdit(ParamID id) override
+        {
+            module_->NoteEdit(id, 0.0, 1);
+            return kResultOk;
+        }
+
+        tresult PLUGIN_API performEdit(ParamID id, ParamValue valueNormalized) override
+        {
+            module_->QueueParameter(id, valueNormalized);
+            module_->NoteEdit(id, valueNormalized, 0);
+            return kResultOk;
+        }
+
+        tresult PLUGIN_API endEdit(ParamID id) override
+        {
+            module_->NoteEdit(id, 0.0, 2);
+            return kResultOk;
+        }
+
+        tresult PLUGIN_API restartComponent(int32 /*flags*/) override
+        {
+            return kResultOk; // latency is read again by itself; parameters are read when asked for
+        }
+
+    private:
+        BridgeModule* module_;
     };
 
     // Runs the module's effects on a block of the plug-in's planar output, and reads how much of it goes to
@@ -520,6 +635,128 @@ namespace
         }
         return 0;
     }
+
+    // One parameter's changes within a block: MIDI controllers mapped to the plug-in's parameters, knobs turned
+    // in its window, automation.
+    class BlockParamQueue final : public IParamValueQueue
+    {
+    public:
+        tresult PLUGIN_API queryInterface(const TUID iid, void** obj) override
+        {
+            if (obj == nullptr)
+            {
+                return kInvalidArgument;
+            }
+
+            if (TuidEquals(iid, FUnknown_iid) || TuidEquals(iid, IParamValueQueue_iid))
+            {
+                *obj = static_cast<IParamValueQueue*>(this);
+                return kResultOk;
+            }
+
+            *obj = nullptr;
+            return kNoInterface;
+        }
+
+        uint32 PLUGIN_API addRef() override { return 1; }
+        uint32 PLUGIN_API release() override { return 1; }
+
+        ParamID PLUGIN_API getParameterId() override { return id; }
+        int32 PLUGIN_API getPointCount() override { return count; }
+
+        tresult PLUGIN_API getPoint(int32 index, int32& sampleOffset, ParamValue& value) override
+        {
+            if (index < 0 || index >= count)
+            {
+                return kInvalidArgument;
+            }
+
+            sampleOffset = offsets[index];
+            value = values[index];
+            return kResultOk;
+        }
+
+        tresult PLUGIN_API addPoint(int32 sampleOffset, ParamValue value, int32& index) override
+        {
+            if (count >= kMaxPoints)
+            {
+                return kResultFalse;
+            }
+
+            offsets[count] = sampleOffset;
+            values[count] = value;
+            index = count++;
+            return kResultOk;
+        }
+
+        static constexpr int32 kMaxPoints = 16;
+        ParamID id = 0;
+        int32 count = 0;
+        int32 offsets[kMaxPoints]{};
+        ParamValue values[kMaxPoints]{};
+    };
+
+    // The parameter changes handed to a plug-in with one block. Its queues are made once, so the audio thread
+    // never allocates.
+    class BlockParameterChanges final : public IParameterChanges
+    {
+    public:
+        tresult PLUGIN_API queryInterface(const TUID iid, void** obj) override
+        {
+            if (obj == nullptr)
+            {
+                return kInvalidArgument;
+            }
+
+            if (TuidEquals(iid, FUnknown_iid) || TuidEquals(iid, IParameterChanges_iid))
+            {
+                *obj = static_cast<IParameterChanges*>(this);
+                return kResultOk;
+            }
+
+            *obj = nullptr;
+            return kNoInterface;
+        }
+
+        uint32 PLUGIN_API addRef() override { return 1; }
+        uint32 PLUGIN_API release() override { return 1; }
+
+        int32 PLUGIN_API getParameterCount() override { return used; }
+
+        IParamValueQueue* PLUGIN_API getParameterData(int32 index) override
+        {
+            return index >= 0 && index < used ? &queues[static_cast<size_t>(index)] : nullptr;
+        }
+
+        IParamValueQueue* PLUGIN_API addParameterData(const ParamID& id, int32& index) override
+        {
+            for (int32 i = 0; i < used; ++i)
+            {
+                if (queues[static_cast<size_t>(i)].id == id)
+                {
+                    index = i;
+                    return &queues[static_cast<size_t>(i)];
+                }
+            }
+
+            if (used >= kMaxQueues)
+            {
+                return nullptr;
+            }
+
+            auto& queue = queues[static_cast<size_t>(used)];
+            queue.id = id;
+            queue.count = 0;
+            index = used++;
+            return &queue;
+        }
+
+        void Clear() { used = 0; }
+
+        static constexpr int32 kMaxQueues = 32;
+        std::array<BlockParamQueue, kMaxQueues> queues{};
+        int32 used = 0;
+    };
 
     // ---- Delay compensation ----
     // A plug-in that looks ahead (a limiter, a linear-phase EQ) or works in blocks puts its track's sound out
@@ -755,6 +992,19 @@ namespace
                 latencyCountdown_ = 64;
             }
 
+            // Knobs turned in its window and automation, at the start of the block.
+            changes_.Clear();
+            module_->TakeParameters([this](ParamID id, ParamValue value)
+            {
+                int32 index = 0;
+                if (auto* queue = changes_.addParameterData(id, index))
+                {
+                    int32 point = 0;
+                    queue->addPoint(0, value, point);
+                }
+            });
+            data_.inputParameterChanges = changes_.used > 0 ? &changes_ : nullptr;
+
             // The track's sound into the first input, silence into the others.
             for (size_t bus = 0; bus < inputs_.size(); ++bus)
             {
@@ -843,6 +1093,7 @@ namespace
         int maxBlock_ = 0;
         int latency_ = 0;
         int latencyCountdown_ = 0;
+        BlockParameterChanges changes_;
         std::vector<std::vector<float>> storage_;
         std::vector<AudioBusBuffers> inputs_;
         std::vector<AudioBusBuffers> outputs_;
@@ -1041,127 +1292,6 @@ namespace
         }
 
         std::vector<Event> events;
-    };
-
-    // One parameter's changes within a block, here MIDI controllers mapped to the plug-in's parameters.
-    class BlockParamQueue final : public IParamValueQueue
-    {
-    public:
-        tresult PLUGIN_API queryInterface(const TUID iid, void** obj) override
-        {
-            if (obj == nullptr)
-            {
-                return kInvalidArgument;
-            }
-
-            if (TuidEquals(iid, FUnknown_iid) || TuidEquals(iid, IParamValueQueue_iid))
-            {
-                *obj = static_cast<IParamValueQueue*>(this);
-                return kResultOk;
-            }
-
-            *obj = nullptr;
-            return kNoInterface;
-        }
-
-        uint32 PLUGIN_API addRef() override { return 1; }
-        uint32 PLUGIN_API release() override { return 1; }
-
-        ParamID PLUGIN_API getParameterId() override { return id; }
-        int32 PLUGIN_API getPointCount() override { return count; }
-
-        tresult PLUGIN_API getPoint(int32 index, int32& sampleOffset, ParamValue& value) override
-        {
-            if (index < 0 || index >= count)
-            {
-                return kInvalidArgument;
-            }
-
-            sampleOffset = offsets[index];
-            value = values[index];
-            return kResultOk;
-        }
-
-        tresult PLUGIN_API addPoint(int32 sampleOffset, ParamValue value, int32& index) override
-        {
-            if (count >= kMaxPoints)
-            {
-                return kResultFalse;
-            }
-
-            offsets[count] = sampleOffset;
-            values[count] = value;
-            index = count++;
-            return kResultOk;
-        }
-
-        static constexpr int32 kMaxPoints = 16;
-        ParamID id = 0;
-        int32 count = 0;
-        int32 offsets[kMaxPoints]{};
-        ParamValue values[kMaxPoints]{};
-    };
-
-    // The parameter changes handed to a plug-in with one block. Its queues are made once, so the audio thread
-    // never allocates.
-    class BlockParameterChanges final : public IParameterChanges
-    {
-    public:
-        tresult PLUGIN_API queryInterface(const TUID iid, void** obj) override
-        {
-            if (obj == nullptr)
-            {
-                return kInvalidArgument;
-            }
-
-            if (TuidEquals(iid, FUnknown_iid) || TuidEquals(iid, IParameterChanges_iid))
-            {
-                *obj = static_cast<IParameterChanges*>(this);
-                return kResultOk;
-            }
-
-            *obj = nullptr;
-            return kNoInterface;
-        }
-
-        uint32 PLUGIN_API addRef() override { return 1; }
-        uint32 PLUGIN_API release() override { return 1; }
-
-        int32 PLUGIN_API getParameterCount() override { return used; }
-
-        IParamValueQueue* PLUGIN_API getParameterData(int32 index) override
-        {
-            return index >= 0 && index < used ? &queues[static_cast<size_t>(index)] : nullptr;
-        }
-
-        IParamValueQueue* PLUGIN_API addParameterData(const ParamID& id, int32& index) override
-        {
-            for (int32 i = 0; i < used; ++i)
-            {
-                if (queues[static_cast<size_t>(i)].id == id)
-                {
-                    index = i;
-                    return &queues[static_cast<size_t>(i)];
-                }
-            }
-
-            if (used >= kMaxQueues)
-            {
-                return nullptr;
-            }
-
-            auto& queue = queues[static_cast<size_t>(used)];
-            queue.id = id;
-            queue.count = 0;
-            index = used++;
-            return &queue;
-        }
-
-        void Clear() { used = 0; }
-
-        static constexpr int32 kMaxQueues = 32;
-        std::array<BlockParamQueue, kMaxQueues> queues{};
-        int32 used = 0;
     };
 
     // A MIDI controller (or pitch bend, as controller 129) mapped to a plug-in parameter, waiting for the next block.
@@ -1432,6 +1562,10 @@ namespace
                 blockControllers.swap(pendingControllers);
                 pendingControllers.clear();
                 notesHeld = heldNotes > 0 || std::any_of(std::begin(sustainHeld), std::end(sustainHeld), [](bool held) { return held; });
+            }
+            if (module != nullptr && module->component != nullptr)
+            {
+                module->TakeParameters([this](ParamID id, ParamValue value) { blockControllers.push_back({id, value}); });
             }
             processData.inputEvents = &blockEvents;
 
@@ -3180,6 +3314,11 @@ void* VstHostBridge_LoadModule(const wchar_t* filePath)
     module->pluginName = pluginName;
     module->subCategories = subCategories;
     module->exitDll = exitDll;
+    if (controller != nullptr)
+    {
+        module->handler = new SonatorComponentHandler(module);
+        controller->setComponentHandler(module->handler);
+    }
     return module;
 }
 
@@ -3197,6 +3336,7 @@ void VstHostBridge_UnloadModule(void* moduleHandle)
 
     if (module->controller != nullptr)
     {
+        module->controller->setComponentHandler(nullptr);
         if (!module->controllerIsComponent)
         {
             module->controller->terminate();
@@ -3222,6 +3362,7 @@ void VstHostBridge_UnloadModule(void* moduleHandle)
         ReleaseLibrary(module->hmodule, module->exitDll);
     }
 
+    delete module->handler;
     delete module;
 }
 
@@ -3345,7 +3486,30 @@ int VstHostBridge_SetParameterNormalized(void* moduleHandle, uint32_t paramId, d
         return 0;
     }
 
+    // The window shows it, and the processor plays it from the next block.
+    module->QueueParameter(paramId, value);
     return module->controller->setParamNormalized(paramId, value) == kResultOk ? 1 : 0;
+}
+
+int32_t VstHostBridge_TakeParameterEdits(void* moduleHandle, uint32_t* outIds, double* outValues, int32_t* outKinds, int32_t capacity)
+{
+    if (moduleHandle == nullptr || capacity <= 0)
+    {
+        return 0;
+    }
+
+    auto* module = static_cast<BridgeModule*>(moduleHandle);
+    std::lock_guard<std::mutex> lock(module->paramMutex);
+    const int32_t count = std::min<int32_t>(capacity, static_cast<int32_t>(module->edits.size()));
+    for (int32_t i = 0; i < count; ++i)
+    {
+        const auto& edit = module->edits[static_cast<size_t>(i)];
+        outIds[i] = edit.id;
+        outValues[i] = edit.value;
+        outKinds[i] = edit.kind;
+    }
+    module->edits.erase(module->edits.begin(), module->edits.begin() + count);
+    return count;
 }
 
 int VstHostBridge_HasEditor(void* moduleHandle)

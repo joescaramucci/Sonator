@@ -512,7 +512,77 @@ public sealed class PatternTrackViewModel : ViewModelBase
         }
     }
 
-    public bool HasAutomation => _volumeAutomation.Count > 0 || _panAutomation.Count > 0;
+    public bool HasAutomation => _volumeAutomation.Count > 0 || _panAutomation.Count > 0 || _parameterAutomation.Count > 0;
+
+    private IReadOnlyList<ParameterLane> _parameterAutomation = Array.Empty<ParameterLane>();
+    private AutomatedParameter? _shownParameter;
+    private double _shownParameterValue;
+
+    // The knobs of the track's plug-ins and effects drawn over the song, one lane each.
+    public IReadOnlyList<ParameterLane> ParameterAutomation
+    {
+        get => _parameterAutomation;
+        set
+        {
+            if (SetProperty(ref _parameterAutomation, value))
+            {
+                RaiseAutomationChanged();
+            }
+        }
+    }
+
+    // The points of a parameter's lane; empty when it has none.
+    public IReadOnlyList<AutomationPoint> ParameterPoints(AutomatedParameter parameter) =>
+        _parameterAutomation.FirstOrDefault(lane => lane.Target.Equals(parameter))?.Points ?? Array.Empty<AutomationPoint>();
+
+    // Gives a parameter's lane these points, made when it has none, gone when there are none.
+    public void SetParameterPoints(AutomatedParameter parameter, IReadOnlyList<AutomationPoint> points)
+    {
+        var lanes = _parameterAutomation.Where(lane => !lane.Target.Equals(parameter)).ToList();
+        var index = _parameterAutomation.ToList().FindIndex(lane => lane.Target.Equals(parameter));
+        if (points.Count > 0)
+        {
+            lanes.Insert(index < 0 ? lanes.Count : index, new ParameterLane(parameter, points));
+        }
+
+        ParameterAutomation = lanes;
+    }
+
+    // The parameter whose lane is shown while ShownAutomation is Parameter.
+    public AutomatedParameter? ShownParameter
+    {
+        get => _shownParameter;
+        set
+        {
+            if (SetProperty(ref _shownParameter, value))
+            {
+                RaisePropertyChanged(nameof(ShownAutomationPoints));
+                RaisePropertyChanged(nameof(ShownAutomationTitle));
+            }
+        }
+    }
+
+    // Where the shown parameter's knob is now (0 to 1), for the lane's dashed line while it has no points.
+    public double ShownParameterValue
+    {
+        get => _shownParameterValue;
+        set
+        {
+            if (SetProperty(ref _shownParameterValue, value) && _shownAutomation == AutomationTarget.Parameter)
+            {
+                RaisePropertyChanged(nameof(ShownAutomationIdleValue));
+            }
+        }
+    }
+
+    // What the lane shown moves, written in its corner.
+    public string ShownAutomationTitle => _shownAutomation switch
+    {
+        AutomationTarget.Volume => "Volume",
+        AutomationTarget.Pan => "Pan",
+        AutomationTarget.Parameter => _shownParameter?.Name ?? string.Empty,
+        _ => string.Empty,
+    };
 
     // The automation lane drawn over the track's row in the timeline, or None.
     public AutomationTarget ShownAutomation
@@ -525,6 +595,7 @@ public sealed class PatternTrackViewModel : ViewModelBase
                 RaisePropertyChanged(nameof(ShownAutomationPoints));
                 RaisePropertyChanged(nameof(ShownAutomationMinimum));
                 RaisePropertyChanged(nameof(ShownAutomationIdleValue));
+                RaisePropertyChanged(nameof(ShownAutomationTitle));
             }
         }
     }
@@ -536,6 +607,7 @@ public sealed class PatternTrackViewModel : ViewModelBase
         {
             AutomationTarget.Volume => _volumeAutomation,
             AutomationTarget.Pan => _panAutomation,
+            AutomationTarget.Parameter when _shownParameter is { } parameter => ParameterPoints(parameter),
             _ => Array.Empty<AutomationPoint>(),
         };
         set
@@ -548,13 +620,22 @@ public sealed class PatternTrackViewModel : ViewModelBase
             {
                 PanAutomation = value;
             }
+            else if (_shownAutomation == AutomationTarget.Parameter && _shownParameter is { } parameter)
+            {
+                SetParameterPoints(parameter, value);
+            }
         }
     }
 
     public double ShownAutomationMinimum => Automation.Minimum(_shownAutomation);
 
     // The fader's value, which the lane shows as a dashed line while it has no points.
-    public double ShownAutomationIdleValue => _shownAutomation == AutomationTarget.Pan ? _pan : _volume;
+    public double ShownAutomationIdleValue => _shownAutomation switch
+    {
+        AutomationTarget.Pan => _pan,
+        AutomationTarget.Parameter => _shownParameterValue,
+        _ => _volume,
+    };
 
     private void RaiseAutomationChanged()
     {

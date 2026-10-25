@@ -56,7 +56,12 @@ internal static class ProjectDocumentMapper
             track.KitPieces.Count == 0 ? null : track.KitPieces.Select(BuildTrackDocument).ToList(),
             track.KitOutput,
             track.IsHeard,
-            string.IsNullOrEmpty(track.Lyrics) ? null : track.Lyrics);
+            string.IsNullOrEmpty(track.Lyrics) ? null : track.Lyrics,
+            track.ParameterAutomation.Count == 0
+                ? null
+                : track.ParameterAutomation
+                    .Select(lane => new ParameterLaneDocument(lane.Target.Effect, lane.Target.Parameter, lane.Target.Name, BuildAutomationDocuments(lane.Points) ?? new()))
+                    .ToList());
     }
 
     // A track's kit pieces, as saved, each knowing its track.
@@ -83,6 +88,13 @@ internal static class ProjectDocumentMapper
     private static List<AutomationPointDocument>? BuildAutomationDocuments(IReadOnlyList<AutomationPoint> points) =>
         points.Count == 0 ? null : points.Select(point => new AutomationPointDocument(point.Step, point.Value)).ToList();
 
+    private static IReadOnlyList<ParameterLane> ParameterLanes(IEnumerable<ParameterLaneDocument>? documents) =>
+        documents?
+            .Select(lane => new ParameterLane(new AutomatedParameter(lane.Effect, lane.Parameter, lane.Name), AutomationPoints(lane.Points)))
+            .Where(lane => lane.Points.Count > 0)
+            .ToList()
+        ?? (IReadOnlyList<ParameterLane>)Array.Empty<ParameterLane>();
+
     // In order of step, whatever order the file had them in.
     private static IReadOnlyList<AutomationPoint> AutomationPoints(IEnumerable<AutomationPointDocument>? documents) =>
         documents?.Select(point => new AutomationPoint(point.Step, point.Value)).OrderBy(point => point.Step).ToList()
@@ -96,7 +108,7 @@ internal static class ProjectDocumentMapper
                 .Select(effect => new EffectDocument(
                     effect.Name, effect.IsEnabled, effect.Values.ToList(), effect.PresetName, effect.IsPresetModified,
                     effect.PluginPath, effect.PluginState, effect.PluginEditorState,
-                    effect.IsPlugin ? effect.InstanceId : null))
+                    effect.InstanceId))
                 .ToList();
 
     private static IReadOnlyList<MidiControllerEventViewModel> Controllers(IEnumerable<MidiControllerEventDocument>? documents) =>
@@ -111,6 +123,9 @@ internal static class ProjectDocumentMapper
                 ? TrackEffectViewModel.ForPlugin(pluginPath, document.Name, document.IsEnabled, document.PluginState, document.PluginEditorState, document.PluginInstance)
                 : EffectCatalog.FindByName(document.Name) is { } definition
                     ? new TrackEffectViewModel(definition, document.IsEnabled, document.Values, document.Preset, document.PresetModified)
+                    {
+                        InstanceId = document.PluginInstance ?? Guid.NewGuid(), // kept, for its automation
+                    }
                     : null)
             .OfType<TrackEffectViewModel>();
 
@@ -127,6 +142,7 @@ internal static class ProjectDocumentMapper
         targetTrack.Pan = sourceTrack.Pan;
         targetTrack.VolumeAutomation = AutomationPoints(sourceTrack.VolumeAutomation);
         targetTrack.PanAutomation = AutomationPoints(sourceTrack.PanAutomation);
+        var lanes = ParameterLanes(sourceTrack.ParameterAutomation);
         targetTrack.Sends = Sends(sourceTrack.Sends);
         targetTrack.IsRecordArmed = sourceTrack.IsRecordArmed;
         targetTrack.PluginFilePath = sourceTrack.PluginFilePath;
@@ -140,9 +156,15 @@ internal static class ProjectDocumentMapper
         targetTrack.Effects.Clear();
         foreach (var effect in BuildEffects(sourceTrack.Effects))
         {
-            // A pasted track's plug-in effects are instances of their own, apart from the copied track's.
-            targetTrack.Effects.Add(effect.IsPlugin ? effect.AsNewInstance() : effect);
+            // A pasted track's plug-in effects are instances of their own, apart from the copied track's; their
+            // automation goes with them.
+            var placed = effect.IsPlugin ? effect.AsNewInstance() : effect;
+            targetTrack.Effects.Add(placed);
+            lanes = lanes
+                .Select(lane => lane.Target.Effect == effect.InstanceId ? lane with { Target = lane.Target with { Effect = placed.InstanceId } } : lane)
+                .ToList();
         }
+        targetTrack.ParameterAutomation = lanes;
         targetTrack.TrackColorBrush = CreateTrackColorBrush(sourceTrack.TrackColor);
         targetTrack.NoteBlocks = Blocks(sourceTrack.NoteBlocks);
         SetKitPieces(targetTrack, sourceTrack.KitPieces);
@@ -220,6 +242,7 @@ internal static class ProjectDocumentMapper
             Pan = trackDocument.Pan,
             VolumeAutomation = AutomationPoints(trackDocument.VolumeAutomation),
             PanAutomation = AutomationPoints(trackDocument.PanAutomation),
+            ParameterAutomation = ParameterLanes(trackDocument.ParameterAutomation),
             BusId = trackDocument.BusId ?? Guid.NewGuid(),
             Sends = Sends(trackDocument.Sends),
             PluginFilePath = trackDocument.PluginFilePath,

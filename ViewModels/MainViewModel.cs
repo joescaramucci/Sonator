@@ -25,7 +25,7 @@ public sealed record CountInOption(int Bars, string Label);
 
 public sealed record ClickOption(int ClicksPerBeat, string Label);
 
-public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
+public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
 {
     private const int ArrangementPatternLength = 8;
     public const double TimelineTrackHeaderWidth = 260;
@@ -315,7 +315,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         _midiActivityTimer.Tick += (_, _) => IsMidiActivityVisible = false;
         _audioMeterTimer.Tick += (_, _) => ShowAudioLevels();
         _audioMeterTimer.Start();
-        _automationTimer.Tick += (_, _) => ApplyAutomationAt(IsPlaying ? _engine.LivePosition : CurrentStepIndex);
+        _automationTimer.Tick += (_, _) => RunAutomation();
         _automationTimer.Start();
         _recordRefreshTimer.Tick += (_, _) => RefreshRecordedTrack();
         _autosaveTimer.Tick += (_, _) => AutosaveNow();
@@ -5869,8 +5869,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
     {
         foreach (var track in Tracks)
         {
-            track.AutomatedVolume = Automation.ValueAt(track.VolumeAutomation, step);
-            track.AutomatedPan = Automation.ValueAt(track.PanAutomation, step);
+            // A fader the hand is writing plays where the hand puts it.
+            track.AutomatedVolume = _automationRecorder.IsWriting(track, AutomationTarget.Volume) ? null : Automation.ValueAt(track.VolumeAutomation, step);
+            track.AutomatedPan = _automationRecorder.IsWriting(track, AutomationTarget.Pan) ? null : Automation.ValueAt(track.PanAutomation, step);
+            ApplyParameterAutomation(track, step);
         }
     }
 
@@ -5904,7 +5906,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
 
         CaptureUndoStateIfNeeded();
         track.ShownAutomationPoints = Array.Empty<AutomationPoint>();
-        StatusMessage = $"{track.Name}: {track.ShownAutomation.ToString().ToLowerInvariant()} automation cleared";
+        StatusMessage = $"{track.Name}: {track.ShownAutomationTitle} automation cleared";
     }
 
     private void ResetTrackMeters()
@@ -6888,6 +6890,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
             {
                 for (var t = 0; t < previousTracks[p].Count && t < Patterns[p].Tracks.Count; t++)
                 {
+                    Patterns[p].Tracks[t].ShownParameter = previousTracks[p][t].ShownParameter;
                     Patterns[p].Tracks[t].ShownAutomation = previousTracks[p][t].ShownAutomation;
                 }
             }

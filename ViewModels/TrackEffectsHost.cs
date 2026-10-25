@@ -279,6 +279,10 @@ internal sealed class TrackEffectsHost : IDisposable
     // True when the effect's plug-in could not be loaded: the rack shows it as missing.
     public bool IsPluginMissing(TrackEffectViewModel effect) => _failedPlugins.Contains(effect.InstanceId);
 
+    // The effect's plug-in when it is loaded, without loading it.
+    public Vst3ModuleHandle? LoadedPluginModule(TrackEffectViewModel effect) =>
+        effect.IsPlugin && _pluginModules.TryGetValue(effect.InstanceId, out var module) ? module : null;
+
     // Takes each loaded effect plug-in's state into its effects, so saving or copying keeps its settings.
     public void CaptureStates()
     {

@@ -3022,6 +3022,93 @@ public partial class MainWindow : Window
 
     private void ShowVolumeAutomation_Click(object sender, RoutedEventArgs e) => ShowAutomation(sender, AutomationTarget.Volume);
 
+    // The parameters a track's automation can move, made as the menu opens: the knob last turned on the track,
+    // the lanes it has, the knobs of each of its effects, and its plug-ins' parameters, chosen from a list.
+    private void AutomateMenu_SubmenuOpened(object sender, RoutedEventArgs e)
+    {
+        if (!ReferenceEquals(e.OriginalSource, sender) || sender is not MenuItem menu || DataContext is not MainViewModel viewModel
+            || MenuTrack(menu, viewModel) is not { } track)
+        {
+            return;
+        }
+
+        menu.Items.Clear();
+        MenuItem Show(AutomatedParameter parameter, string? header = null)
+        {
+            var item = new MenuItem
+            {
+                Header = header ?? parameter.Name,
+                IsChecked = track.ShownAutomation == AutomationTarget.Parameter && parameter.Equals(track.ShownParameter),
+            };
+            item.Click += (_, _) => viewModel.ShowParameterAutomation(track, parameter);
+            return item;
+        }
+
+        if (viewModel.LastTouchedParameter is { } touched && ReferenceEquals(touched.Track, track))
+        {
+            menu.Items.Add(Show(touched.Parameter, $"Last touched: {touched.Parameter.Name}"));
+            menu.Items.Add(new Separator());
+        }
+
+        if (track.ParameterAutomation.Count > 0)
+        {
+            foreach (var lane in track.ParameterAutomation)
+            {
+                menu.Items.Add(Show(lane.Target));
+            }
+
+            menu.Items.Add(new Separator());
+        }
+
+        foreach (var effect in track.Effects)
+        {
+            if (!effect.IsPlugin)
+            {
+                var knobs = new MenuItem { Header = effect.Name };
+                foreach (var parameter in viewModel.AutomatableParameters(track, effect))
+                {
+                    knobs.Items.Add(Show(parameter, parameter.Name[(parameter.Name.IndexOf(" · ", StringComparison.Ordinal) + 3)..]));
+                }
+
+                menu.Items.Add(knobs);
+                continue;
+            }
+
+            var pick = new MenuItem { Header = $"{effect.Name}..." };
+            pick.Click += (_, _) => PickParameter(viewModel, track, effect);
+            menu.Items.Add(pick);
+        }
+
+        if (track.PluginName is { } plugin)
+        {
+            var pick = new MenuItem { Header = $"{plugin}..." };
+            pick.Click += (_, _) => PickParameter(viewModel, track, null);
+            menu.Items.Add(pick);
+        }
+
+        if (menu.Items.Count == 0)
+        {
+            menu.Items.Add(new MenuItem { Header = "The track has no plug-in or effect to automate", IsEnabled = false });
+        }
+    }
+
+    private void PickParameter(MainViewModel viewModel, PatternTrackViewModel track, TrackEffectViewModel? effect)
+    {
+        var parameters = viewModel.AutomatableParameters(track, effect);
+        var name = effect?.Name ?? track.PluginName ?? track.Name;
+        if (parameters.Count == 0)
+        {
+            SonatorMessageDialog.Show(this, name, $"{name} has no parameters to automate, or could not be loaded.");
+            return;
+        }
+
+        var picker = new ParameterPickerWindow($"Automate a parameter of {name}", parameters) { Owner = this };
+        if (picker.ShowDialog() == true && picker.Chosen is { } chosen)
+        {
+            viewModel.ShowParameterAutomation(track, chosen);
+        }
+    }
+
     private void ShowPanAutomation_Click(object sender, RoutedEventArgs e) => ShowAutomation(sender, AutomationTarget.Pan);
 
     private void HideAutomation_Click(object sender, RoutedEventArgs e) => ShowAutomation(sender, AutomationTarget.None);

@@ -91,6 +91,16 @@ public interface IVst3PluginHost
     bool SetParameterValue(Vst3ModuleHandle handle, uint parameterId, double normalizedValue);
 
     /// <summary>
+    /// The normalized value ([0,1]) of a parameter now, or null when it cannot be read.
+    /// </summary>
+    double? GetParameterValue(Vst3ModuleHandle handle, uint parameterId);
+
+    /// <summary>
+    /// The knobs turned in the plug-in's own window since the last call, oldest first.
+    /// </summary>
+    IReadOnlyList<Vst3ParameterEdit> TakeParameterEdits(Vst3ModuleHandle handle);
+
+    /// <summary>
     /// True if the plugin exposes a native editor view (IPlugView) that can
     /// be embedded as a Win32 HWND.
     /// </summary>
@@ -251,3 +261,14 @@ public interface IVst3PluginHost
     /// </summary>
     IReadOnlyList<string> OutputNames(Vst3ModuleHandle handle) => Array.Empty<string>();
 }
+
+// A knob turned in a plug-in's window: its parameter, its new value (0 to 1), and whether it was grabbed, moved
+// or let go.
+public enum Vst3EditKind
+{
+    Value = 0,
+    Grabbed = 1,
+    Released = 2,
+}
+
+public readonly record struct Vst3ParameterEdit(uint ParameterId, double Value, Vst3EditKind Kind);

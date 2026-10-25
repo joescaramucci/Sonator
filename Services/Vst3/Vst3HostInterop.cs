@@ -133,6 +133,9 @@ internal static class Vst3HostInterop
     internal static extern int VstHostBridge_SetParameterNormalized(IntPtr moduleHandle, uint paramId, double value);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int VstHostBridge_TakeParameterEdits(IntPtr moduleHandle, [Out] uint[] ids, [Out] double[] values, [Out] int[] kinds, int capacity);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int VstHostBridge_HasEditor(IntPtr moduleHandle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]

@@ -29,6 +29,10 @@ public sealed class AutomationLane : FrameworkElement
         nameof(IdleValue), typeof(double), typeof(AutomationLane),
         new FrameworkPropertyMetadata(0.75, FrameworkPropertyMetadataOptions.AffectsRender));
 
+    public static readonly DependencyProperty TitleProperty = DependencyProperty.Register(
+        nameof(Title), typeof(string), typeof(AutomationLane),
+        new FrameworkPropertyMetadata(string.Empty, FrameworkPropertyMetadataOptions.AffectsRender));
+
     private const double Padding = 4;
     private const double HitRadius = 6;
 
@@ -80,6 +84,13 @@ public sealed class AutomationLane : FrameworkElement
         set => SetValue(IdleValueProperty, value);
     }
 
+    // What the lane moves, written small in its top left corner: Volume, Pan, "SonVerb · Mix".
+    public string Title
+    {
+        get => (string)GetValue(TitleProperty);
+        set => SetValue(TitleProperty, value);
+    }
+
     private bool IsPan => Minimum < 0;
 
     private double Y(double value)
@@ -118,6 +129,15 @@ public sealed class AutomationLane : FrameworkElement
         if (IsPan)
         {
             drawingContext.DrawLine(CentrePen, new Point(0, Y(0)), new Point(ActualWidth, Y(0)));
+        }
+
+        if (!string.IsNullOrEmpty(Title))
+        {
+            var title = new FormattedText(
+                Title, CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
+                new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal),
+                10, PointBrush, VisualTreeHelper.GetDpi(this).PixelsPerDip);
+            drawingContext.DrawText(title, new Point(4, 1));
         }
 
         var points = Points;

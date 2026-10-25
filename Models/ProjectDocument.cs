@@ -77,7 +77,11 @@ public sealed record TrackDocument(
     List<TrackDocument>? KitPieces = null,
     int KitOutput = 0,
     bool KitPieceHeard = false,
-    string? Lyrics = null);
+    string? Lyrics = null,
+    List<ParameterLaneDocument>? ParameterAutomation = null);
+
+// A track's automation of a knob of its plug-in (Effect null) or of one of its effects (see ParameterLane).
+public sealed record ParameterLaneDocument(Guid? Effect, uint Parameter, string Name, List<AutomationPointDocument> Points);
 
 // A block of a track's notes on the timeline (see NoteBlock).
 public sealed record NoteBlockDocument(int StartStep, int LengthSteps);

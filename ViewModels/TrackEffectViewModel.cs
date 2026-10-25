@@ -134,7 +134,7 @@ public sealed class TrackEffectViewModel : ViewModelBase
 
     // Which plug-in instance this is, kept through undo and saving: the effect that takes this one's place
     // after an undo goes on running the same loaded plug-in, with every setting made in its window.
-    public Guid InstanceId { get; private init; } = Guid.NewGuid();
+    public Guid InstanceId { get; internal init; } = Guid.NewGuid();
 
     public string? PluginPath { get; private init; }
 

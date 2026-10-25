@@ -616,6 +616,9 @@
                         <Separator />
                         <MenuItem Header="Show _volume automation" Click="ShowVolumeAutomation_Click" />
                         <MenuItem Header="Show _pan automation" Click="ShowPanAutomation_Click" />
+                        <MenuItem Header="_Automate a parameter" SubmenuOpened="AutomateMenu_SubmenuOpened">
+                            <MenuItem Header="..." />
+                        </MenuItem>
                         <MenuItem Header="Hide automation" Click="HideAutomation_Click" />
                         <MenuItem Header="Clear the automation shown" Click="ClearAutomation_Click" />
                     </MenuItem>
@@ -1763,6 +1766,7 @@
                                                                       Points="{Binding SourceTrack.ShownAutomationPoints}"
                                                                       Minimum="{Binding SourceTrack.ShownAutomationMinimum}"
                                                                       IdleValue="{Binding SourceTrack.ShownAutomationIdleValue, Mode=OneWay}"
+                                                                      Title="{Binding SourceTrack.ShownAutomationTitle}"
                                                                       StepWidth="{Binding DataContext.TimelineSixteenthWidth, RelativeSource={RelativeSource AncestorType=Window}}"
                                                                       EditStarting="AutomationLane_EditStarting">
                                                     <local:AutomationLane.Style>
@@ -2003,6 +2007,9 @@
                                                 <ContextMenu>
                                                     <MenuItem Header="Show volume automation" Click="ShowVolumeAutomation_Click" />
                                                     <MenuItem Header="Show pan automation" Click="ShowPanAutomation_Click" />
+                                                    <MenuItem Header="Automate a parameter" SubmenuOpened="AutomateMenu_SubmenuOpened">
+                                                        <MenuItem Header="..." />
+                                                    </MenuItem>
                                                     <MenuItem Header="Hide automation" Click="HideAutomation_Click" />
                                                     <MenuItem Header="Clear the automation shown" Click="ClearAutomation_Click" />
                                                     <Separator />
@@ -2642,7 +2649,26 @@
                         <Button Content="STOP" Command="{Binding StopCommand}" />
                         <Button Content="START" Command="{Binding PlayCommand}" />
                     </UniformGrid>
-                    <Button Content="IMPORT MIDI" Command="{Binding ImportMidiCommand}" Margin="0,0,0,4" />
+                    <UniformGrid Columns="2" Margin="0,0,0,4">
+                        <ToggleButton Content="AUTO WRITE" IsChecked="{Binding IsAutomationWriteEnabled}"
+                                      ToolTip="While on, what you move as the song plays (a fader, a pan knob, a knob of an effect or in a plug-in's window) is written into the track's automation">
+                            <ToggleButton.Style>
+                                <Style TargetType="ToggleButton" BasedOn="{StaticResource MetronomeToggleStyle}">
+                                    <Setter Property="Margin" Value="{Binding Margin, ElementName=ImportMidiButton}" />
+                                    <Setter Property="FontFamily" Value="{Binding FontFamily, ElementName=ImportMidiButton}" />
+                                    <Setter Property="FontSize" Value="{Binding FontSize, ElementName=ImportMidiButton}" />
+                                    <Setter Property="FontWeight" Value="{Binding FontWeight, ElementName=ImportMidiButton}" />
+                                    <Style.Triggers>
+                                        <Trigger Property="IsChecked" Value="True">
+                                            <Setter Property="Background" Value="#D94C4C" />
+                                            <Setter Property="Foreground" Value="#FFF4F4" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ToggleButton.Style>
+                        </ToggleButton>
+                        <Button x:Name="ImportMidiButton" Content="IMPORT MIDI" Command="{Binding ImportMidiCommand}" />
+                    </UniformGrid>
                     <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="10" Margin="2,2,2,0" />
                 </StackPanel>
                 </GroupBox>
