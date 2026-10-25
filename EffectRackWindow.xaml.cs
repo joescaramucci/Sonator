@@ -114,6 +114,17 @@ public partial class EffectRackWindow : Window
 
     public PatternTrackViewModel Track { get; }
 
+    // The tracks a sidechain can come from, read again each time the list opens.
+    private void Sidechain_Loaded(object? sender, EventArgs e)
+    {
+        if (sender is ComboBox { DataContext: TrackEffectViewModel effect } list)
+        {
+            var choices = _viewModel.SidechainChoices(Track);
+            list.ItemsSource = choices;
+            list.SelectedValue = effect.SidechainChoice;
+        }
+    }
+
     // Where the track was in the track list when the rack opened, to find its successor after undo.
     public int TrackIndex { get; }
 

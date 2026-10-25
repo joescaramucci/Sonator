@@ -952,6 +952,11 @@ namespace
 
             component->activateBus(kAudio, kInput, 0, 1);
             component->activateBus(kAudio, kOutput, 0, 1);
+            // Its second input, when it has one, is its sidechain: fed with the sidechain's track, silent without.
+            if (inputBuses > 1)
+            {
+                sidechainActive_ = component->activateBus(kAudio, kInput, 1, 1) == kResultOk;
+            }
             busesActive_ = true;
 
             ProcessSetup setup{};
@@ -1021,6 +1026,11 @@ namespace
                         const float* source = channels[std::min<int>(c, numChannels - 1)];
                         std::copy(source, source + frames, target);
                     }
+                    else if (bus == 1 && sidechainChannels > 0)
+                    {
+                        const float* source = sidechain[std::min(c, sidechainChannels - 1)];
+                        std::copy(source, source + frames, target);
+                    }
                     else
                     {
                         std::fill(target, target + frames, 0.0f);
@@ -1085,6 +1095,11 @@ namespace
             {
                 module_->component->activateBus(kAudio, kInput, 0, 0);
                 module_->component->activateBus(kAudio, kOutput, 0, 0);
+                if (sidechainActive_)
+                {
+                    module_->component->activateBus(kAudio, kInput, 1, 0);
+                    sidechainActive_ = false;
+                }
                 busesActive_ = false;
             }
             storage_.clear();
@@ -1093,6 +1108,7 @@ namespace
         BridgeModule* module_;
         IAudioProcessor* processor_ = nullptr;
         bool busesActive_ = false;
+        bool sidechainActive_ = false;
         bool active_ = false;
         bool processing_ = false;
         int maxBlock_ = 0;
@@ -2202,6 +2218,8 @@ namespace
 
         const auto& voices = *g_audioThreadVoices;
 
+        son::NextBlock();
+
         // Every track is brought in line with the latest, as it was in the block before.
         int32 latest = 0;
         for (const auto& voice : voices)
@@ -2615,6 +2633,33 @@ int VstHostBridge_GetDspLoad(double* outPeakLoad, double* outAverageLoad, int64_
 void VstHostBridge_ResetDropouts()
 {
     g_dspMeter.dropouts = 0;
+}
+
+void VstHostBridge_SetEffectSidechain(void* chainHandle, int32_t slot, void* sourceChainHandle)
+{
+    if (chainHandle == nullptr)
+    {
+        return;
+    }
+
+    auto& chain = *static_cast<std::shared_ptr<son::EffectChain>*>(chainHandle);
+    std::shared_ptr<son::EffectChain> source;
+    if (sourceChainHandle != nullptr)
+    {
+        source = *static_cast<std::shared_ptr<son::EffectChain>*>(sourceChainHandle);
+    }
+    chain->SetSidechain(slot, source);
+}
+
+int VstHostBridge_HasSidechainInput(void* moduleHandle)
+{
+    if (moduleHandle == nullptr)
+    {
+        return 0;
+    }
+
+    auto* module = static_cast<BridgeModule*>(moduleHandle);
+    return module->component != nullptr && module->component->getBusCount(kAudio, kInput) > 1 ? 1 : 0;
 }
 
 int VstHostBridge_GetDelayCompensation(int32_t* outSamples, double* outSampleRate)

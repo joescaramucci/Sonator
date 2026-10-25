@@ -44,6 +44,13 @@ VSTHOSTBRIDGE_API int VstHostBridge_GetDspLoad(double* outPeakLoad, double* outA
 // Sets the dropout count back to zero.
 VSTHOSTBRIDGE_API void VstHostBridge_ResetDropouts(void);
 
+// The chain whose sound drives the effect in a slot of another (a sidechain: a compressor ducking under the
+// kick), heard one block late; null for none.
+VSTHOSTBRIDGE_API void VstHostBridge_SetEffectSidechain(void* chainHandle, int32_t slot, void* sourceChainHandle);
+
+// 1 when an effect plug-in has a sidechain input (a second audio input).
+VSTHOSTBRIDGE_API int VstHostBridge_HasSidechainInput(void* moduleHandle);
+
 // How many samples every track is delayed to, to play in line with the one whose plug-ins and effects make its
 // sound the latest (delay compensation), and the sample rate it is counted at.
 VSTHOSTBRIDGE_API int VstHostBridge_GetDelayCompensation(int32_t* outSamples, double* outSampleRate);

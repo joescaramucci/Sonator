@@ -201,6 +201,11 @@ public interface IVst3PluginHost
     void SetClipFades(Vst3ModuleHandle handle, double fadeInSeconds, double fadeOutSeconds);
 
     /// <summary>
+    /// True when an effect plug-in has a sidechain input.
+    /// </summary>
+    bool HasSidechainInput(Vst3ModuleHandle handle);
+
+    /// <summary>
     /// Makes a clip only to be heard, as the master's test tone: it joins the output after the master's
     /// effects, is left out of the recorded mix, and the master's meters see it at meterPeak (linear) whatever
     /// gain it plays at.

@@ -248,7 +248,10 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         AppSettingsService? appSettingsService = null,
         AudioOutputDeviceService? audioOutputDeviceService = null)
     {
-        _trackEffects = new TrackEffectsHost(_liveInstrumentHost);
+        _trackEffects = new TrackEffectsHost(_liveInstrumentHost)
+        {
+            FindTrack = id => Tracks.Concat(Tracks.SelectMany(track => track.KitPieces)).FirstOrDefault(track => track.BusId == id),
+        };
         _inputRecorder = new AudioInputRecorder(_liveInstrumentHost, () => AudioOutputSelection.FromSettings(new AppSettingsService().Load()));
         _trackInstruments = new TrackInstrumentsHost(_liveInstrumentHost, track => _trackEffects.ChainFor(track), _trackEffects.FollowMainOutput);
         _trackEffects.UseAsMaster(MasterTrack);

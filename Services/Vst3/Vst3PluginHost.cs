@@ -490,6 +490,19 @@ public sealed class Vst3PluginHost : IVst3PluginHost
         }
     }
 
+    public bool HasSidechainInput(Vst3ModuleHandle handle)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+        try
+        {
+            return handle.NativeHandle != IntPtr.Zero && Vst3HostInterop.VstHostBridge_HasSidechainInput(handle.NativeHandle) != 0;
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            return false;
+        }
+    }
+
     public void SetClipFades(Vst3ModuleHandle handle, double fadeInSeconds, double fadeOutSeconds)
     {
         ArgumentNullException.ThrowIfNull(handle);

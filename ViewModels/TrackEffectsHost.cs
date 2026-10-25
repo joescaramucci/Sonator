@@ -279,6 +279,17 @@ internal sealed class TrackEffectsHost : IDisposable
     // True when the effect's plug-in could not be loaded: the rack shows it as missing.
     public bool IsPluginMissing(TrackEffectViewModel effect) => _failedPlugins.Contains(effect.InstanceId);
 
+    // Finds a track by its BusId, for the effects that take their sidechain from it.
+    public Func<Guid, PatternTrackViewModel?>? FindTrack { get; set; }
+
+    // Hands the effect in a slot the chain of its sidechain's track, or none.
+    private void ApplySidechain(PatternTrackViewModel track, NativeEffectChain chain, int slot)
+    {
+        var effect = track.Effects[slot];
+        var source = effect.SidechainSource is { } id ? FindTrack?.Invoke(id) : null;
+        chain.SetSidechain(slot, source is not null && !ReferenceEquals(source, track) ? ChainFor(source) : null);
+    }
+
     // The effect's plug-in when it is loaded, without loading it.
     public Vst3ModuleHandle? LoadedPluginModule(TrackEffectViewModel effect) =>
         effect.IsPlugin && _pluginModules.TryGetValue(effect.InstanceId, out var module) ? module : null;
@@ -420,7 +431,11 @@ internal sealed class TrackEffectsHost : IDisposable
             return;
         }
 
-        if (change.ParameterIndex < 0)
+        if (change.ParameterIndex == TrackEffectViewModel.SidechainChange)
+        {
+            ApplySidechain(track, chain, slot);
+        }
+        else if (change.ParameterIndex < 0)
         {
             chain.SetEnabled(slot, change.Effect.IsEnabled);
         }
@@ -467,6 +482,13 @@ internal sealed class TrackEffectsHost : IDisposable
             {
                 chain.SetParameter(slot, parameter.Definition, parameter.Index, parameter.Value);
             }
+
+            if (modules[slot] is { } module && _pluginHost is not null)
+            {
+                effect.CanSidechain = _pluginHost.HasSidechainInput(module);
+            }
+
+            ApplySidechain(track, chain, slot);
         }
     }
 }

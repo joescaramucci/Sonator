@@ -10,5 +10,8 @@ public sealed record AutomatedParameter(Guid? Effect, uint Parameter, string Nam
     public override int GetHashCode() => HashCode.Combine(Effect, Parameter);
 }
 
+// A track an effect can take its sidechain from, as the rack's list shows it (Guid.Empty for none).
+public sealed record SidechainChoice(Guid Id, string Name);
+
 // A track's automation of one parameter: points from 0 to 1, the knob's travel or the plug-in's own value.
 public sealed record ParameterLane(AutomatedParameter Target, IReadOnlyList<AutomationPoint> Points);

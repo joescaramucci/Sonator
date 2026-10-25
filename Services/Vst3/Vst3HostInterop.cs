@@ -29,6 +29,12 @@ internal static class Vst3HostInterop
     internal static extern void VstHostBridge_ResetDropouts();
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void VstHostBridge_SetEffectSidechain(IntPtr chain, int slot, IntPtr sourceChain);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int VstHostBridge_HasSidechainInput(IntPtr moduleHandle);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int VstHostBridge_GetDelayCompensation(out int samples, out double sampleRate);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]

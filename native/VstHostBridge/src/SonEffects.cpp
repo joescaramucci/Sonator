@@ -291,12 +291,15 @@ namespace son
                 const float slope = 1.0f / ratio - 1.0f;
                 float deepest = 0.0f;
 
+                // With a sidechain, the other track's level sets how much this one is turned down.
+                float* const* detector = sidechainChannels > 0 ? sidechain : channels;
+                const int detectorChannels = sidechainChannels > 0 ? sidechainChannels : numChannels;
                 for (int n = 0; n < frames; ++n)
                 {
                     float peak = 0.0f;
-                    for (int c = 0; c < numChannels; ++c)
+                    for (int c = 0; c < detectorChannels; ++c)
                     {
-                        peak = std::max(peak, std::fabs(channels[c][n]));
+                        peak = std::max(peak, std::fabs(detector[c][n]));
                     }
 
                     const float over = static_cast<float>(GainToDb(peak)) - threshold;
@@ -1411,6 +1414,44 @@ namespace son
         };
     }
 
+    namespace
+    {
+        std::atomic<uint64_t> g_block{1};
+    }
+
+    uint64_t CurrentBlock() { return g_block.load(std::memory_order_relaxed); }
+
+    void NextBlock() { g_block.fetch_add(1, std::memory_order_relaxed); }
+
+    void EffectChain::SetSidechain(int32_t slot, const std::shared_ptr<EffectChain>& source)
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+        if (slot >= 0 && slot < static_cast<int32_t>(_effects.size()))
+        {
+            _effects[static_cast<size_t>(slot)]->sidechainSource = source.get() == this ? std::shared_ptr<EffectChain>() : source;
+        }
+        if (source != nullptr)
+        {
+            source->_hasListeners.store(true);
+        }
+    }
+
+    bool EffectChain::ReadTap(uint64_t block, float** channels, int& numChannels, int frames)
+    {
+        const size_t slot = static_cast<size_t>(block % 2);
+        if (_tapBlock[slot].load(std::memory_order_acquire) != block || _tapFrames[slot].load() < frames)
+        {
+            return false;
+        }
+
+        numChannels = _tapChannels[slot].load();
+        for (int c = 0; c < numChannels; ++c)
+        {
+            channels[c] = _tap[slot][c].data();
+        }
+        return numChannels > 0;
+    }
+
     void EffectChain::SetLayout(const int32_t* types, int32_t count)
     {
         SetLayout(types, nullptr, count, [](int32_t type, void*) { return CreateEffect(static_cast<EffectType>(type)); });
@@ -1546,13 +1587,24 @@ namespace son
                 }
             }
 
-            // Each effect's level is measured going in and coming out, for its IN and OUT meters.
+            // Each effect's level is measured going in and coming out, for its IN and OUT meters. An effect with a
+            // sidechain hears its source's sound from the block before.
+            const uint64_t block = CurrentBlock();
             int latency = 0;
             for (auto& effect : _effects)
             {
                 StorePeak(effect->inputPeak, PeakOf(channels, numChannels, frames));
                 if (effect->enabled.load())
                 {
+                    effect->sidechainChannels = 0;
+                    if (auto source = effect->sidechainSource.lock())
+                    {
+                        int count = 0;
+                        if (source->ReadTap(block - 1, effect->sidechain, count, frames))
+                        {
+                            effect->sidechainChannels = count;
+                        }
+                    }
                     effect->Process(channels, numChannels, frames);
                     latency += std::max(0, effect->Latency());
                 }
@@ -1615,6 +1667,26 @@ namespace son
         float stored = _peak.load();
         while (peak > stored && !_peak.compare_exchange_weak(stored, peak))
         {
+        }
+
+        // Kept for the chains it drives, when there are any.
+        if (_hasListeners.load(std::memory_order_relaxed))
+        {
+            const uint64_t block = CurrentBlock();
+            const size_t slot = static_cast<size_t>(block % 2);
+            const int count = std::min(numChannels, 2);
+            for (int c = 0; c < count; ++c)
+            {
+                auto& tap = _tap[slot][c];
+                if (tap.size() < static_cast<size_t>(frames))
+                {
+                    tap.resize(static_cast<size_t>(frames));
+                }
+                std::copy(channels[c], channels[c] + frames, tap.data());
+            }
+            _tapChannels[slot].store(count);
+            _tapFrames[slot].store(frames);
+            _tapBlock[slot].store(block, std::memory_order_release);
         }
     }
 

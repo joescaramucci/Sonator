@@ -110,7 +110,7 @@ internal static class ProjectDocumentMapper
                 .Select(effect => new EffectDocument(
                     effect.Name, effect.IsEnabled, effect.Values.ToList(), effect.PresetName, effect.IsPresetModified,
                     effect.PluginPath, effect.PluginState, effect.PluginEditorState,
-                    effect.InstanceId))
+                    effect.InstanceId, effect.SidechainSource))
                 .ToList();
 
     private static IReadOnlyList<MidiControllerEventViewModel> Controllers(IEnumerable<MidiControllerEventDocument>? documents) =>
@@ -121,15 +121,25 @@ internal static class ProjectDocumentMapper
     // even when its plug-in is missing here, so the project keeps it for a computer that has it.
     internal static IEnumerable<TrackEffectViewModel> BuildEffects(IEnumerable<EffectDocument>? documents) =>
         (documents ?? Enumerable.Empty<EffectDocument>())
-            .Select(document => document.PluginPath is { } pluginPath
+            .Select(document => WithSidechain(document, document.PluginPath is { } pluginPath
                 ? TrackEffectViewModel.ForPlugin(pluginPath, document.Name, document.IsEnabled, document.PluginState, document.PluginEditorState, document.PluginInstance)
                 : EffectCatalog.FindByName(document.Name) is { } definition
                     ? new TrackEffectViewModel(definition, document.IsEnabled, document.Values, document.Preset, document.PresetModified)
                     {
                         InstanceId = document.PluginInstance ?? Guid.NewGuid(), // kept, for its automation
                     }
-                    : null)
+                    : null))
             .OfType<TrackEffectViewModel>();
+
+    private static TrackEffectViewModel? WithSidechain(EffectDocument document, TrackEffectViewModel? effect)
+    {
+        if (effect is not null)
+        {
+            effect.SidechainSource = document.Sidechain;
+        }
+
+        return effect;
+    }
 
     internal static void ApplyTrackDocumentToTrack(PatternTrackViewModel targetTrack, TrackDocument sourceTrack)
     {

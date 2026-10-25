@@ -160,6 +160,47 @@ public sealed class TrackEffectViewModel : ViewModelBase
     // Sonator's own effects have presets and knobs; a plug-in has its own window instead.
     public bool HasKnobs => !IsPlugin;
 
+    // ---- Sidechain ----
+
+    // The ParameterIndex of a change of the sidechain's track.
+    public const int SidechainChange = -2;
+
+    private Guid? _sidechainSource;
+    private bool? _canSidechain;
+
+    // The track (by its BusId) whose sound drives the effect instead of its own, as a compressor ducking the bass
+    // under the kick; null for none.
+    public Guid? SidechainSource
+    {
+        get => _sidechainSource;
+        set
+        {
+            if (SetProperty(ref _sidechainSource, value))
+            {
+                RaisePropertyChanged(nameof(SidechainChoice));
+                RaisePropertyChanged(nameof(HasSidechain));
+                Changed?.Invoke(this, SidechainChange);
+            }
+        }
+    }
+
+    public bool HasSidechain => _sidechainSource is not null;
+
+    // The same for the rack's list, where Guid.Empty is "none".
+    public Guid SidechainChoice
+    {
+        get => _sidechainSource ?? Guid.Empty;
+        set => SidechainSource = value == Guid.Empty ? null : value;
+    }
+
+    // True when the effect can take a sidechain: SonCompress, and a plug-in with a sidechain input (known once it
+    // is loaded).
+    public bool CanSidechain
+    {
+        get => _canSidechain ?? Definition.Kind == EffectKind.Compress;
+        set => SetProperty(ref _canSidechain, value);
+    }
+
     public IReadOnlyList<EffectParameterViewModel> Parameters { get; }
 
     public bool IsEnabled

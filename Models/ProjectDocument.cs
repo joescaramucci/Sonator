@@ -107,7 +107,8 @@ public sealed record EffectDocument(
     string? PluginPath = null,
     byte[]? PluginState = null,
     byte[]? PluginEditorState = null,
-    Guid? PluginInstance = null);
+    Guid? PluginInstance = null,
+    Guid? Sidechain = null);
 
 public sealed record StepDocument(
     int Index,

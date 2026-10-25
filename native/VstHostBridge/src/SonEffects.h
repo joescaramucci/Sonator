@@ -32,6 +32,13 @@ namespace son
     // How many buses (effect returns) the mix has room for.
     constexpr int MaxBuses = 16;
 
+    class EffectChain;
+
+    // The blocks of the mix, counted: the mixer moves it on before each block, so a chain can hand another the
+    // sound it made in the block before (a sidechain), while both are made in parallel.
+    uint64_t CurrentBlock();
+    void NextBlock();
+
     class Effect
     {
     public:
@@ -57,6 +64,12 @@ namespace son
         std::atomic<float> parameters[MaxParameters]{};
         std::atomic<bool> enabled{true};
 
+        // The track whose sound drives the effect instead of its own (a compressor ducking under the kick), and,
+        // during Process, that sound from the block before: null when there is none. Set by the chain.
+        std::weak_ptr<EffectChain> sidechainSource;
+        float* sidechain[2]{};
+        int sidechainChannels = 0;
+
         // The highest absolute sample going in and coming out since the UI last read them.
         std::atomic<float> inputPeak{0.0f};
         std::atomic<float> outputPeak{0.0f};
@@ -79,6 +92,13 @@ namespace son
 
         void SetParameter(int32_t slot, int32_t parameter, double value);
         void SetEnabled(int32_t slot, bool enabled);
+
+        // The chain whose sound drives the effect in the slot (its sidechain), or null for none.
+        void SetSidechain(int32_t slot, const std::shared_ptr<EffectChain>& source);
+
+        // The sound the chain made in a block (after its effects, gain and pan), up to two channels of frames
+        // samples; false when it made none then. Read by other chains while this one makes the next block.
+        bool ReadTap(uint64_t block, float** channels, int& numChannels, int frames);
         double Meter(int32_t slot);
 
         // The effect's input and output peaks since the previous call, then starts measuring afresh.
@@ -125,6 +145,13 @@ namespace son
         std::atomic<float> _peak{0.0f};
         std::atomic<float> _sidePeaks[2]{};
         std::atomic<int> _latency{0};
+
+        // The sound of the last two blocks, by the block's number, for the chains that take it as a sidechain.
+        std::vector<float> _tap[2][2];
+        std::atomic<uint64_t> _tapBlock[2]{~0ull, ~0ull};
+        std::atomic<int> _tapFrames[2]{};
+        std::atomic<int> _tapChannels[2]{};
+        std::atomic<bool> _hasListeners{false};
 
         // The gain each channel had at the end of the last block, for gliding to a new one. Negative
         // until the first block.

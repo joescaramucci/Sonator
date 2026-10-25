@@ -50,6 +50,10 @@ public sealed class NativeEffectChain : IDisposable
 
     public void SetEnabled(int slot, bool enabled) => Vst3HostInterop.VstHostBridge_SetEffectEnabled(_handle, slot, enabled ? 1 : 0);
 
+    // The chain whose sound drives the effect in the slot (its sidechain), heard a block late; null for none.
+    public void SetSidechain(int slot, NativeEffectChain? source) =>
+        Vst3HostInterop.VstHostBridge_SetEffectSidechain(_handle, slot, source?._handle ?? IntPtr.Zero);
+
     public void SetGain(double gain) => Vst3HostInterop.VstHostBridge_SetEffectChainGain(_handle, gain);
 
     // -1 hard left, 0 the centre, +1 hard right.

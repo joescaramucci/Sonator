@@ -207,6 +207,20 @@
                                               Data="M 6,0.8 L 6,5.6 M 3.2,2.6 A 4.4,4.4 0 1 0 8.8,2.6" />
                                     </ToggleButton>
                                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                        <!-- The sidechain: another track whose sound drives the effect (a compressor ducking under the kick). -->
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,10,0" Visibility="{Binding CanSidechain, Converter={StaticResource VisibleWhenTrue}}">
+                                            <TextBlock Text="SC" FontFamily="Arial" FontWeight="Bold" FontSize="11" Foreground="{StaticResource EngravedInk}"
+                                                       Effect="{StaticResource Engraved}" VerticalAlignment="Center" Margin="0,0,5,0" />
+                                            <ComboBox Width="130"
+                                                      Height="24"
+                                                      DisplayMemberPath="Name"
+                                                      SelectedValuePath="Id"
+                                                      SelectedValue="{Binding SidechainChoice}"
+                                                      Loaded="Sidechain_Loaded"
+                                                      DropDownOpened="Sidechain_Loaded"
+                                                      AutomationProperties.Name="SIDECHAIN"
+                                                      ToolTip="Sidechain: the track whose sound drives this effect instead of its own, as the kick ducking the bass through a compressor" />
+                                        </StackPanel>
                                         <!-- The preset: choosing one sets every knob; SAVE keeps the current knobs under a name. -->
                                         <StackPanel Orientation="Horizontal" Visibility="{Binding HasKnobs, Converter={StaticResource VisibleWhenTrue}}">
                                             <TextBlock Text="modified" FontFamily="Arial" FontWeight="Bold" FontSize="10" Foreground="#B05A10" VerticalAlignment="Center" Margin="0,0,6,0"

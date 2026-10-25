@@ -264,6 +264,22 @@ public sealed partial class MainViewModel
         return _trackInstruments.RunningFor(track) is { } instrument ? _liveInstrumentHost.GetParameterValue(instrument, parameter.Parameter) : null;
     }
 
+    // The tracks an effect of a track can take its sidechain from: none, the other tracks, and the pieces of their
+    // drum kits that have played (the kick, to duck the bass under it).
+    public IReadOnlyList<SidechainChoice> SidechainChoices(PatternTrackViewModel forTrack)
+    {
+        var choices = new List<SidechainChoice> { new(Guid.Empty, "none") };
+        foreach (var track in Tracks.Where(track => !ReferenceEquals(track, forTrack)))
+        {
+            choices.Add(new SidechainChoice(track.BusId, track.Name));
+            choices.AddRange(track.KitPieces
+                .Where(piece => piece.IsHeard && !ReferenceEquals(piece, forTrack))
+                .Select(piece => new SidechainChoice(piece.BusId, $"{track.Name} · {piece.Name}")));
+        }
+
+        return choices;
+    }
+
     // Shows a parameter's lane over the track's row in the timeline.
     public void ShowParameterAutomation(PatternTrackViewModel? track, AutomatedParameter parameter)
     {
