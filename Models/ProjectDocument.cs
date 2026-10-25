@@ -24,7 +24,8 @@ public sealed record ProjectDocument(
         bool HasLoopRange = false,
         string? ScoreTitle = null,
         string? ScoreAuthor = null,
-        List<MidiMappingDocument>? MidiMappings = null);
+        List<MidiMappingDocument>? MidiMappings = null,
+        bool ArrangeMode = false);
 
 // A controller assigned to a control (see MidiMapping).
 public sealed record MidiMappingDocument(int Channel, int Controller, Guid Track, string Target, Guid? Effect, uint? Parameter, string Name);

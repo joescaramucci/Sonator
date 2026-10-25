@@ -7281,7 +7281,8 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             HasLoopRange,
             string.IsNullOrWhiteSpace(ScoreTitle) ? null : ScoreTitle,
             string.IsNullOrWhiteSpace(ScoreAuthor) ? null : ScoreAuthor,
-            MidiMappingDocuments());
+            MidiMappingDocuments(),
+            IsArrangeMode);
     }
 
     // ---- The score (Cromator) ----
@@ -7500,6 +7501,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             ScoreTitle = document.ScoreTitle ?? string.Empty;
             ScoreAuthor = document.ScoreAuthor ?? string.Empty;
             RestoreMidiMappings(document.MidiMappings);
+            IsArrangeMode = document.ArrangeMode; // the song plays as it was left: its arrangement, or one pattern
 
             SelectedMidiOutputDevice = MidiOutputDevices.FirstOrDefault(device => device.DisplayName == document.SelectedMidiOutputDeviceName)
                 ?? MidiOutputDevices.FirstOrDefault(device => device.IsOff);
