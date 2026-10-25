@@ -1653,61 +1653,70 @@
                                                                     StepsPerBeat="{Binding DataContext.Meter.StepsPerBeat, RelativeSource={RelativeSource AncestorType=Window}}"
                                                                     ShowSteps="{Binding HasStepCells}"
                                                                     IsHitTestVisible="False" />
-                                                <!-- The audio clip, where it starts: drag it along to move it in time (SNAP sets the grid),
-                                                     or onto another empty track to move it there; double-click it to edit it. -->
-                                                <Border HorizontalAlignment="Left"
-                                                        VerticalAlignment="Stretch"
-                                                        CornerRadius="2"
-                                                        Background="#24463F"
-                                                        BorderBrush="#62B7A4"
-                                                        BorderThickness="1"
-                                                        Tag="AudioClip"
-                                                        ToolTip="Audio clip: drag it along to move it in time, or onto another empty track. Double-click to edit it"
-                                                        PreviewMouseLeftButtonDown="AudioClip_PreviewMouseLeftButtonDown"
-                                                        PreviewMouseMove="AudioClip_PreviewMouseMove"
-                                                        PreviewMouseLeftButtonUp="AudioClip_PreviewMouseLeftButtonUp">
-                                                    <Border.ContextMenu>
-                                                        <ContextMenu>
-                                                            <MenuItem Header="Detect tempo and sync the song..." Click="DetectTempoMenuItem_Click" />
-                                                            <MenuItem Header="Edit in the waveform editor" Click="EditClipMenuItem_Click" />
-                                                            <MenuItem Header="Follow the song's tempo" IsCheckable="True" IsChecked="{Binding SourceTrack.FollowsTempo, Mode=OneWay}"
-                                                                      Click="FollowTempoMenuItem_Click"
-                                                                      ToolTip="At another tempo the clip plays stretched or squeezed, its pitch kept, to stay with the beat" />
-                                                            <MenuItem Header="Correct the pitch in Sondyne..." Click="SondyneMenuItem_Click" />
-                                                        </ContextMenu>
-                                                    </Border.ContextMenu>
-                                                    <Border.Margin>
-                                                        <MultiBinding Converter="{StaticResource StepOffsetConverter}">
-                                                            <Binding Path="AudioStartStep" />
-                                                            <Binding Path="DataContext.TimelineSixteenthWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        </MultiBinding>
-                                                    </Border.Margin>
-                                                    <Border.Style>
-                                                        <Style TargetType="Border">
-                                                            <Setter Property="Visibility" Value="Collapsed" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding HasAudioClip}" Value="True">
-                                                                    <Setter Property="Visibility" Value="Visible" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </Border.Style>
-                                                    <Border.Width>
-                                                        <MultiBinding Converter="{StaticResource AudioClipWidthConverter}">
-                                                            <Binding Path="AudioLengthSteps" />
-                                                            <Binding Path="DataContext.TimelineSixteenthWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        </MultiBinding>
-                                                    </Border.Width>
-                                                    <Grid>
-                                                        <!-- The wave itself, more detailed as the timeline zooms in. -->
-                                                        <local:WaveformView Summary="{Binding AudioWaveform}" Margin="1,2" />
-                                                        <!-- The clip's fades, each with its handle on top. -->
-                                                        <local:ClipFadeOverlay FadeIn="{Binding SourceTrack.AudioFadeInSeconds}"
-                                                                               FadeOut="{Binding SourceTrack.AudioFadeOutSeconds}"
-                                                                               ClipSeconds="{Binding AudioSeconds}"
-                                                                               EditStarting="ClipFade_EditStarting" />
-                                                    </Grid>
-                                                </Border>
+                                                <!-- The audio clips of the track's sections, each where it starts: drag one along to move it in
+                                                     time (SNAP sets the grid), or onto another empty track to move it there; double-click it to
+                                                     edit it. -->
+                                                <ItemsControl ItemsSource="{Binding AudioClips}" Focusable="False">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate><Grid /></ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border HorizontalAlignment="Left"
+                                                                    VerticalAlignment="Stretch"
+                                                                    CornerRadius="2"
+                                                                    Background="#24463F"
+                                                                    BorderBrush="#62B7A4"
+                                                                    BorderThickness="1"
+                                                                    Tag="AudioClip"
+                                                                    ToolTip="Audio clip: drag it along to move it in time, or onto another empty track. Double-click to edit it"
+                                                                    PreviewMouseLeftButtonDown="AudioClip_PreviewMouseLeftButtonDown"
+                                                                    PreviewMouseMove="AudioClip_PreviewMouseMove"
+                                                                    PreviewMouseLeftButtonUp="AudioClip_PreviewMouseLeftButtonUp">
+                                                                <Border.ContextMenu>
+                                                                    <ContextMenu>
+                                                                        <MenuItem Header="Detect tempo and sync the song..." Click="DetectTempoMenuItem_Click" />
+                                                                        <MenuItem Header="Edit in the waveform editor" Click="EditClipMenuItem_Click" />
+                                                                        <MenuItem Header="Follow the song's tempo" IsCheckable="True" IsChecked="{Binding SourceTrack.FollowsTempo, Mode=OneWay}"
+                                                                                  Click="FollowTempoMenuItem_Click"
+                                                                                  ToolTip="At another tempo the clip plays stretched or squeezed, its pitch kept, to stay with the beat" />
+                                                                        <MenuItem Header="Correct the pitch in Sondyne..." Click="SondyneMenuItem_Click" />
+                                                                    </ContextMenu>
+                                                                </Border.ContextMenu>
+                                                                <Border.Margin>
+                                                                    <MultiBinding Converter="{StaticResource StepOffsetConverter}">
+                                                                        <Binding Path="StartStep" />
+                                                                        <Binding Path="DataContext.TimelineSixteenthWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                                    </MultiBinding>
+                                                                </Border.Margin>
+                                                                <Border.Style>
+                                                                    <Style TargetType="Border">
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsRepeat}" Value="True">
+                                                                                <Setter Property="Opacity" Value="0.55" />
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </Border.Style>
+                                                                <Border.Width>
+                                                                    <MultiBinding Converter="{StaticResource AudioClipWidthConverter}">
+                                                                        <Binding Path="AudioLengthSteps" />
+                                                                        <Binding Path="DataContext.TimelineSixteenthWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                                    </MultiBinding>
+                                                                </Border.Width>
+                                                                <Grid>
+                                                                    <!-- The wave itself, more detailed as the timeline zooms in. -->
+                                                                    <local:WaveformView Summary="{Binding AudioWaveform}" Margin="1,2" />
+                                                                    <!-- The clip's fades, each with its handle on top. -->
+                                                                    <local:ClipFadeOverlay FadeIn="{Binding SourceTrack.AudioFadeInSeconds}"
+                                                                                           FadeOut="{Binding SourceTrack.AudioFadeOutSeconds}"
+                                                                                           ClipSeconds="{Binding AudioSeconds}"
+                                                                                           EditStarting="ClipFade_EditStarting" />
+                                                                </Grid>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
                                                 <!-- The track's blocks of notes, opaque over the lane's grid. Each keeps its bounds, so blocks
                                                      side by side show as two until joined. Drag one to move it, drag an edge to stretch it;
                                                      a rectangle drawn on the lane selects the blocks it touches, and the right button's menu

@@ -71,6 +71,41 @@ public static class AudioSplice
         return (left, right);
     }
 
+    // Clips laid one after another (or over each other) in one stereo clip at rate, each at its start (seconds from
+    // the first's), faded in and out as given with an equal-power curve, as the bridge fades a clip.
+    public static AudioClip Place(IReadOnlyList<(AudioClip Clip, double Start, double FadeIn, double FadeOut)> clips, int rate)
+    {
+        var end = clips.Count == 0 ? 0 : clips.Max(placed => placed.Start + placed.Clip.Duration.TotalSeconds);
+        var frames = Math.Max(0, (int)Math.Ceiling(end * rate));
+        var samples = new float[frames * 2];
+        foreach (var (clip, start, fadeIn, fadeOut) in clips)
+        {
+            var seconds = clip.Duration.TotalSeconds;
+            var first = Math.Max(0, (int)Math.Floor(start * rate));
+            var last = Math.Min(frames, (int)Math.Ceiling((start + seconds) * rate));
+            for (var i = first; i < last; i++)
+            {
+                var into = (double)i / rate - start;
+                var level = 1.0;
+                if (fadeIn > 0 && into < fadeIn)
+                {
+                    level *= Math.Sin(Math.PI / 2 * Math.Max(0, into) / fadeIn);
+                }
+
+                if (fadeOut > 0 && seconds - into < fadeOut)
+                {
+                    level *= Math.Sin(Math.PI / 2 * Math.Max(0, seconds - into) / fadeOut);
+                }
+
+                var (left, right) = SampleAt(clip, into);
+                samples[i * 2] += (float)(left * level);
+                samples[i * 2 + 1] += (float)(right * level);
+            }
+        }
+
+        return new AudioClip(samples, 2, rate);
+    }
+
     // The part of a clip from one time to another (seconds from its start).
     public static AudioClip Part(AudioClip clip, double from, double to)
     {

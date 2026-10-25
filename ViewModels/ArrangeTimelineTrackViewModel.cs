@@ -52,6 +52,9 @@ public sealed class ArrangeTimelineTrackViewModel : ViewModelBase
     // The clip's length in sixteenth-note steps at the song tempo.
     public double AudioLengthSteps { get; }
 
+    // The clips of the track's sections, each where its section is.
+    public IReadOnlyList<TimelineAudioClipViewModel> AudioClips { get; init; } = Array.Empty<TimelineAudioClipViewModel>();
+
     // The song's tempo, when the clip's length on the timeline is counted at its own (it follows the song's).
     public double? SongTempo { get; init; }
 

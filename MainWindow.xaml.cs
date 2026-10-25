@@ -484,13 +484,21 @@ public partial class MainWindow : Window
     // ---- Dragging an audio clip: along its track to move it in time, onto another empty track to move it there ----
 
     private Border? _clipBorder;
-    private ArrangeTimelineTrackViewModel? _clipTimeline;
+    private TimelineAudioClipViewModel? _clipTimeline;
+
+    // The track whose clip a menu or a press is on: a section's clip, or a lane's track.
+    private static PatternTrackViewModel? ClipTrack(object? context) => context switch
+    {
+        TimelineAudioClipViewModel clip => clip.SourceTrack,
+        ArrangeTimelineTrackViewModel lane => lane.SourceTrack,
+        _ => null,
+    };
     private Point _clipPressPoint;
     private int _clipMoveSteps;
 
     private void ClipFade_EditStarting(object? sender, EventArgs e)
     {
-        if (DataContext is MainViewModel viewModel && sender is FrameworkElement { DataContext: ArrangeTimelineTrackViewModel timeline } overlay)
+        if (DataContext is MainViewModel viewModel && sender is FrameworkElement { DataContext: TimelineAudioClipViewModel timeline } overlay)
         {
             viewModel.BeginClipFadeEdit();
 
@@ -511,7 +519,7 @@ public partial class MainWindow : Window
 
     private void AudioClip_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (sender is not Border clip || clip.DataContext is not ArrangeTimelineTrackViewModel timeline || e.OriginalSource is ClipFadeOverlay)
+        if (sender is not Border clip || clip.DataContext is not TimelineAudioClipViewModel timeline || e.OriginalSource is ClipFadeOverlay)
         {
             return; // a fade's handle drags the fade, not the clip
         }
@@ -549,13 +557,13 @@ public partial class MainWindow : Window
 
         var stepWidth = viewModel.TimelineSixteenthWidth;
         var moved = e.GetPosition(this) - _clipPressPoint;
-        var start = _clipTimeline.AudioStartStep;
+        var start = _clipTimeline.StartStep;
         _clipMoveSteps = Math.Max(0, viewModel.SnapStep(start + (int)Math.Round(moved.X / stepWidth))) - start;
         _clipBorder.RenderTransform = new TranslateTransform(_clipMoveSteps * stepWidth, 0);
 
         // The clip stays drawn in its own lane; the status line says where it will land.
         var newStart = start + _clipMoveSteps;
-        var onto = TrackUnder(e.GetPosition(this), _clipBorder)?.SourceTrack;
+        var onto = TrackUnder(e.GetPosition(this), _clipBorder)?.SourceTrack is { } lane ? viewModel.PartIn(_clipTimeline.Pattern, lane) : null;
         var where = onto is null || ReferenceEquals(onto, _clipTimeline.SourceTrack)
             ? _clipTimeline.SourceTrack.Name
             : MainViewModel.IsEmptyTrack(onto) ? onto.Name : $"{_clipTimeline.SourceTrack.Name} ({onto.Name} is not empty)";
@@ -599,15 +607,15 @@ public partial class MainWindow : Window
         clip.RenderTransform = Transform.Identity;
         clip.Cursor = null;
 
-        var target = TrackUnder(e.GetPosition(this), clip);
-        var onto = target?.SourceTrack is { } other && !ReferenceEquals(other, timeline.SourceTrack) ? other : null;
+        var target = TrackUnder(e.GetPosition(this), clip)?.SourceTrack is { } lane ? viewModel.PartIn(timeline.Pattern, lane) : null;
+        var onto = target is { } other && !ReferenceEquals(other, timeline.SourceTrack) ? other : null;
         if (onto is not null && !MainViewModel.IsEmptyTrack(onto))
         {
             viewModel.StatusMessage = $"{onto.Name} is not empty: the clip stays on {timeline.SourceTrack.Name}";
             onto = null;
         }
 
-        viewModel.MoveAudioClip(timeline.SourceTrack, timeline.AudioStartStep + moveSteps, onto);
+        viewModel.MoveAudioClip(timeline.SourceTrack, timeline.StartStep + moveSteps - timeline.SectionStartStep, onto);
         e.Handled = true;
     }
 
@@ -1845,9 +1853,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var track = (sender as FrameworkElement)?.DataContext is ArrangeTimelineTrackViewModel timeline
-            ? timeline.SourceTrack
-            : viewModel.SelectedTrack;
+        var track = ClipTrack((sender as FrameworkElement)?.DataContext) ?? viewModel.SelectedTrack;
         if (track is null || string.IsNullOrEmpty(track.AudioClipPath))
         {
             SonatorMessageDialog.Show(this, "Detect tempo", "Select a track with an audio clip first: the tempo is found from its clip.");
@@ -1906,9 +1912,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var track = (sender as FrameworkElement)?.DataContext is ArrangeTimelineTrackViewModel timeline
-            ? timeline.SourceTrack
-            : viewModel.SelectedTrack;
+        var track = ClipTrack((sender as FrameworkElement)?.DataContext) ?? viewModel.SelectedTrack;
         if (track?.AudioClipPath is not { } path || !File.Exists(path))
         {
             SonatorMessageDialog.Show(this, "Sondyne", "Select an audio track with a take first: Sondyne corrects the pitch of a sung or played take.");
@@ -1930,9 +1934,9 @@ public partial class MainWindow : Window
 
     private void EditClipMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        if ((sender as FrameworkElement)?.DataContext is ArrangeTimelineTrackViewModel timeline)
+        if (ClipTrack((sender as FrameworkElement)?.DataContext) is { } track)
         {
-            OpenClipInWaveformEditor(timeline.SourceTrack);
+            OpenClipInWaveformEditor(track);
         }
     }
 
@@ -3160,9 +3164,9 @@ public partial class MainWindow : Window
 
     private void FollowTempoMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        if (DataContext is MainViewModel viewModel && sender is MenuItem { DataContext: ArrangeTimelineTrackViewModel timeline })
+        if (DataContext is MainViewModel viewModel && sender is MenuItem menu && ClipTrack(menu.DataContext) is { } track)
         {
-            viewModel.SetClipFollowsTempo(timeline.SourceTrack, !timeline.SourceTrack.FollowsTempo);
+            viewModel.SetClipFollowsTempo(track, !track.FollowsTempo);
         }
     }
 

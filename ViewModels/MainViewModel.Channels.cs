@@ -44,6 +44,13 @@ public sealed partial class MainViewModel
         return -1;
     }
 
+    // The track of a channel in a pattern: the track in the same place there; the track itself without a pattern.
+    public PatternTrackViewModel PartIn(PatternViewModel? pattern, PatternTrackViewModel track)
+    {
+        var index = TrackIndexOf(track);
+        return pattern is not null && index >= 0 && index < pattern.Tracks.Count ? pattern.Tracks[index] : track;
+    }
+
     // True when the track is in one of the song's patterns.
     public bool IsInSong(PatternTrackViewModel track) => Patterns.Any(pattern => pattern.Tracks.Contains(track));
 

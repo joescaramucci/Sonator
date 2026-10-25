@@ -2583,7 +2583,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             }
         }
 
-        foreach (var (module, track) in _playingClips)
+        foreach (var (module, track, _) in _playingClips)
         {
             names.TryAdd((ulong)module.NativeHandle.ToInt64(), track.Name);
         }
@@ -4549,7 +4549,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
     // Plays the audio clips of the unmuted tracks from the current position with the sequence, each
     // through its track's effects.
     // The audio tracks' clips playing in the plug-ins' mix, one module each, until playback stops.
-    private readonly List<(Vst3ModuleHandle Module, PatternTrackViewModel Track)> _playingClips = new();
+    private readonly List<(Vst3ModuleHandle Module, PatternTrackViewModel Track, int StartStep)> _playingClips = new();
 
     // True while the clips play through Windows' default output, without the native bridge.
     private bool _clipsOnFallback;
@@ -4565,7 +4565,8 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         }
 
         clip = AudioClipLoader.Load(path);
-        var inUse = Tracks.SelectMany(track => new[] { track.AudioClipPath, track.FrozenAudioPath }).OfType<string>().ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var inUse = Patterns.SelectMany(pattern => pattern.Tracks)
+            .SelectMany(track => new[] { track.AudioClipPath, track.FrozenAudioPath }).OfType<string>().ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var unused in _decodedClips.Keys.Where(key => !inUse.Contains(key)).ToList())
         {
             _decodedClips.Remove(unused);
@@ -4589,17 +4590,19 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         var fallback = new List<(AudioClip Clip, NativeEffectChain? Effects)>();
         // Muted and unsoloed clips start too, silent, so they come in when unmuted or soloed while playing.
         // The clip of the track about to be recorded on is not played under the new take.
-        var recording = IsRecording && _inputRecorder.IsArmed ? AudioRecordTarget : null;
-        foreach (var track in Tracks.Where(track => ClipPathOf(track) is not null && !ReferenceEquals(track, recording)))
+        var recording = IsRecording && _inputRecorder.IsArmed && AudioRecordTarget is { } target ? ChannelOf(target) : null;
+        foreach (var parts in ClipPlacements().GroupBy(placement => ChannelOf(placement.Part)))
         {
-            AudioClip clip;
+            var track = parts.Key;
+            if (ReferenceEquals(track, recording))
+            {
+                continue;
+            }
+
+            (AudioClip Clip, int StartStep, double FadeIn, double FadeOut) played;
             try
             {
-                clip = DecodedClip(ClipPathOf(track)!);
-                if (!track.IsFrozen && track.AudioClipBpm is { } clipBpm)
-                {
-                    clip = StretchedClip(ClipPathOf(track)!, clip, clipBpm / Tempo);
-                }
+                played = ChannelClip(track, parts.ToList());
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
             {
@@ -4607,16 +4610,18 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
                 continue;
             }
 
+            var clip = played.Clip;
+
             // From the playhead into the clip; negative while the playhead is still before it, so it waits.
-            var secondsFromStart = tempoMap.SecondsAt(fromStep) - tempoMap.SecondsAt(ClipStartOf(track));
+            var secondsFromStart = tempoMap.SecondsAt(fromStep) - tempoMap.SecondsAt(played.StartStep);
             if (_liveInstrumentHost.TryCreateClip(clip.Samples, clip.Channels, clip.SampleRate, secondsFromStart) is { } module)
             {
                 // Every clip comes and goes over a few milliseconds at least, so its edges never click.
-                _liveInstrumentHost.SetClipFades(module, Math.Max(MinimumClipFade, track.IsFrozen ? 0 : track.AudioFadeInSeconds), Math.Max(MinimumClipFade, track.IsFrozen ? 0 : track.AudioFadeOutSeconds));
+                _liveInstrumentHost.SetClipFades(module, Math.Max(MinimumClipFade, played.FadeIn), Math.Max(MinimumClipFade, played.FadeOut));
                 _trackEffects.ChainFor(track)?.AttachTo(module);
                 if (_liveInstrumentHost.TryStartAudio(module, selection, out var error))
                 {
-                    _playingClips.Add((module, track));
+                    _playingClips.Add((module, track, played.StartStep));
                     continue;
                 }
 
@@ -4626,8 +4631,9 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             }
 
             // Without the bridge, only the clips heard when playing starts.
+            var key = $"channel:{track.BusId}";
             if (!_trackEffects.IsSilenced(track)
-                && AudioTrackMixer.Mix(new[] { new AudioPlacement(ClipPathOf(track)!, ClipStartOf(track)) }, Tempo, fromStep, _ => clip) is { } mixed)
+                && AudioTrackMixer.Mix(new[] { new AudioPlacement(key, played.StartStep) }, Tempo, fromStep, _ => clip) is { } mixed)
             {
                 fallback.Add((mixed, _trackEffects.ChainFor(track)));
             }
@@ -4641,6 +4647,79 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
     }
 
     internal const double MinimumClipFade = 0.004;
+
+    // ---- The clips of the song's sections ----
+
+    // Every clip the song plays, at its step: in the arrangement, each section's clips at the section's place plus
+    // their own start, a section played twice placing them twice; otherwise the selected pattern's. A frozen
+    // channel plays its sound once, from the start.
+    internal IReadOnlyList<(PatternTrackViewModel Part, int StartStep)> ClipPlacements()
+    {
+        var placements = new List<(PatternTrackViewModel Part, int StartStep)>();
+        var frozen = new HashSet<PatternTrackViewModel>();
+        var sections = IsArrangeMode ? GetArrangePlaybackPatterns() : (SelectedPattern is { } selected ? new List<PatternViewModel> { selected } : new List<PatternViewModel>());
+        var offset = 0;
+        foreach (var pattern in sections)
+        {
+            foreach (var track in pattern.Tracks)
+            {
+                if (track.IsFrozen)
+                {
+                    if (frozen.Add(ChannelOf(track)))
+                    {
+                        placements.Add((track, 0));
+                    }
+                }
+                else if (!string.IsNullOrEmpty(track.AudioClipPath))
+                {
+                    placements.Add((track, offset + track.AudioClipStartStep));
+                }
+            }
+
+            offset += PatternBarCount(pattern, StepsPerBar) * StepsPerBar;
+        }
+
+        return placements;
+    }
+
+    // The clips the engine has been given lately, by channel, so a loop going round does not lay them out again.
+    private readonly Dictionary<PatternTrackViewModel, (string Key, AudioClip Clip)> _channelClips = new();
+
+    // A channel's sound for the engine: its one clip as it is, with its fades; or its clips laid out in one, each
+    // with its fades, starting where the first starts.
+    private (AudioClip Clip, int StartStep, double FadeIn, double FadeOut) ChannelClip(PatternTrackViewModel channel, IReadOnlyList<(PatternTrackViewModel Part, int StartStep)> parts)
+    {
+        if (parts.Count == 1)
+        {
+            var (part, start) = parts[0];
+            return (PlayedClip(part), start, part.IsFrozen ? 0 : part.AudioFadeInSeconds, part.IsFrozen ? 0 : part.AudioFadeOutSeconds);
+        }
+
+        var map = CurrentTempoMap;
+        var first = parts.Min(placement => placement.StartStep);
+        var key = string.Join("|", parts.Select(placement =>
+            $"{placement.Part.AudioClipPath}@{placement.StartStep}:{placement.Part.AudioFadeInSeconds}/{placement.Part.AudioFadeOutSeconds}/{placement.Part.AudioClipBpm}")) + $"@{Tempo}";
+        if (_channelClips.TryGetValue(channel, out var cached) && cached.Key == key)
+        {
+            return (cached.Clip, first, 0, 0);
+        }
+
+        var clips = parts.Select(placement => (Clip: PlayedClip(placement.Part), placement.StartStep, placement.Part)).ToList();
+        var laid = AudioSplice.Place(
+            clips.Select(placed => (placed.Clip, map.SecondsAt(placed.StartStep) - map.SecondsAt(first),
+                Math.Max(MinimumClipFade, placed.Part.AudioFadeInSeconds), Math.Max(MinimumClipFade, placed.Part.AudioFadeOutSeconds))).ToList(),
+            clips[0].Clip.SampleRate);
+        _channelClips[channel] = (key, laid);
+        return (laid, first, 0, 0);
+    }
+
+    // A part's clip as it plays: stretched to the song's tempo when it follows it.
+    private AudioClip PlayedClip(PatternTrackViewModel part)
+    {
+        var path = ClipPathOf(part)!;
+        var clip = DecodedClip(path);
+        return !part.IsFrozen && part.AudioClipBpm is { } clipBpm ? StretchedClip(path, clip, clipBpm / Tempo) : clip;
+    }
 
     // ---- Clips that follow the song's tempo ----
 
@@ -4798,9 +4877,15 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
 
     public void ApplyClipFades(PatternTrackViewModel track)
     {
-        foreach (var (module, playing) in _playingClips)
+        // A channel with clips in several sections plays them laid out in one: the fades show at the next play.
+        if (ClipPlacements().Count(placement => ReferenceEquals(ChannelOf(placement.Part), ChannelOf(track))) > 1)
         {
-            if (ReferenceEquals(playing, track))
+            return;
+        }
+
+        foreach (var (module, playing, _) in _playingClips)
+        {
+            if (ReferenceEquals(playing, ChannelOf(track)))
             {
                 _liveInstrumentHost.SetClipFades(module, Math.Max(MinimumClipFade, track.AudioFadeInSeconds), Math.Max(MinimumClipFade, track.AudioFadeOutSeconds));
             }
@@ -4818,9 +4903,9 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         }
 
         var tempoMap = CurrentTempoMap;
-        foreach (var (module, track) in _playingClips)
+        foreach (var (module, _, startStep) in _playingClips)
         {
-            _liveInstrumentHost.SeekClip(module, tempoMap.SecondsAt(fromStep) - tempoMap.SecondsAt(ClipStartOf(track)));
+            _liveInstrumentHost.SeekClip(module, tempoMap.SecondsAt(fromStep) - tempoMap.SecondsAt(startStep));
         }
     }
 
@@ -4828,7 +4913,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
     {
         AudioTrackPlayback.Stop();
         _clipsOnFallback = false;
-        foreach (var (module, _) in _playingClips)
+        foreach (var (module, _, _) in _playingClips)
         {
             _liveInstrumentHost.StopAudio(module);
             _liveInstrumentHost.UnloadModule(module);
@@ -5373,6 +5458,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
 
             var timelineSteps = new ObservableCollection<ArrangeTimelineStepViewModel>();
             var blocks = new List<TimelineBlockViewModel>();
+            var clips = new List<TimelineAudioClipViewModel>();
             var shownPatterns = new HashSet<PatternViewModel>();
             var absoluteStep = 0;
             foreach (var pattern in timelinePatterns)
@@ -5382,6 +5468,10 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
                 if (track is not null)
                 {
                     blocks.AddRange(BlocksOf(track).Select(block => new TimelineBlockViewModel(track, block, absoluteStep, isRepeat)));
+                    if (!string.IsNullOrEmpty(track.AudioClipPath) && LoadAudioWaveform(track) is { } waveform)
+                    {
+                        clips.Add(new TimelineAudioClipViewModel(track, pattern, absoluteStep, waveform, ClipTempo(track), Tempo, isRepeat));
+                    }
                 }
 
                 var timelineStepCount = PatternBarCount(pattern, StepsPerBar) * StepsPerBar;
@@ -5395,6 +5485,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             TimelineTracks.Add(new ArrangeTimelineTrackViewModel(sourceTrack, timelineSteps, LoadAudioWaveform(sourceTrack), ClipTempo(sourceTrack))
             {
                 Blocks = blocks,
+                AudioClips = clips,
                 SongTempo = Tempo,
             });
             if (sourceTrack.IsKitOnTimeline)
