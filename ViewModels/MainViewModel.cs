@@ -2621,6 +2621,55 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         return true;
     }
 
+    // A drum kit's piece played by another sound: a new track with the sound, playing the notes of the piece's
+    // drum from the kit's track in the selected pattern, and the piece muted, the rest of the kit as it was.
+    // The new track is selected, so another sound loaded goes on it. Null, with the reason in the status line,
+    // when it cannot be done.
+    public PatternTrackViewModel? ReplaceKitPiece(PatternTrackViewModel piece, Services.Sounds.SoundEntry sound)
+    {
+        var kind = KitPieceNamer.KindOfName(piece.Name);
+        if (piece.KitParent is not { } kit || kind < 0)
+        {
+            StatusMessage = $"{piece.Name} is not one drum: only a kick, snare, hi-hat... can take another sound";
+            return null;
+        }
+
+        if (sound.Kind == Services.Sounds.SoundKind.Groove)
+        {
+            StatusMessage = $"{sound.Name} is a groove: pick a sound for the {piece.Name.ToLowerInvariant()}";
+            return null;
+        }
+
+        if (!TryGetNewTrackDefaults(PatternTrackType.MidiChannel, out _, out var instrument, out var source, out var channel, out var noteNumber)
+            || !TryAddTrack(PatternTrackType.MidiChannel, $"{piece.Name} – {SoundDisplayName(sound)}", instrument, source, channel, noteNumber, out var error))
+        {
+            StatusMessage = $"No track could be added for the {piece.Name.ToLowerInvariant()}";
+            return null;
+        }
+
+        var track = SelectedTrack!;
+        track.MidiNoteEvents = kit.MidiNoteEvents.Where(note => KitPieceNamer.KindOf(note.NoteNumber) == kind).ToList();
+        foreach (var step in kit.Steps.Where(step => step.IsActive && KitPieceNamer.KindOf(step.MidiNoteNumber ?? kit.NoteNumber) == kind))
+        {
+            if (step.Index < track.Steps.Count)
+            {
+                var copy = track.Steps[step.Index];
+                copy.MidiNoteNumber = step.MidiNoteNumber ?? kit.NoteNumber;
+                copy.Velocity = step.Velocity;
+                copy.DurationSteps = step.DurationSteps;
+                copy.IsActive = true;
+            }
+        }
+
+        piece.IsMuted = true;
+        RebuildTimeline();
+        var loaded = LoadSound(sound);
+        StatusMessage = loaded
+            ? $"{track.Name}: the {piece.Name.ToLowerInvariant()} of {kit.Name} now plays {sound.Name}, and {kit.Name}'s own is muted"
+            : StatusMessage;
+        return track;
+    }
+
     // A sound's name as a track shows it after its plug-in's: NKS names repeat their family first
     // ("Strings: Discover - Violins 1"), which the track does without ("Discover - Violins 1").
     internal static string SoundDisplayName(Services.Sounds.SoundEntry sound)
