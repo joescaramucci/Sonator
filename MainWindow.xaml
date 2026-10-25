@@ -571,6 +571,9 @@
                         <MenuItem Header="Import _MIDI..." Command="{Binding ImportMidiCommand}" />
                         <MenuItem Header="Import a_udio (WAV, MP3)..." Click="ImportAudioMenuItem_Click"
                                   ToolTip="Put an audio file into the selected track, or the first empty one, or a new audio track. A file can also be dropped on an empty track" />
+                        <MenuItem Header="Song _info and tags..." Click="SongTagsMenuItem_Click"
+                                  ToolTip="Title, artist, album, genre, year, track, composer, comment and cover: every file exported carries them" />
+                        <MenuItem Header="Edit the tags of an MP3 or WAV..." Click="FileTagsMenuItem_Click" />
                         <MenuItem Header="_Export audio (WAV or MP3)..." Click="ExportAudioMenuItem_Click" InputGestureText="Ctrl+E" />
                         <MenuItem Header="Export _stems (a WAV per track)..." Click="ExportStemsMenuItem_Click"
                                   ToolTip="Plays the song once and writes each track's and each bus's own sound, and the mix, into a folder: WAV files that line up from the start" />

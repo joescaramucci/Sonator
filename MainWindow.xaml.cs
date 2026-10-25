@@ -1580,6 +1580,30 @@ public partial class MainWindow : Window
         await viewModel.ExportAudioAsync(dialog.FileName);
     }
 
+    // File > Song info and tags: what the exported files say about the song.
+    private void SongTagsMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel)
+        {
+            new SongTagsWindow(viewModel.SongTags, viewModel.SetSongTags) { Owner = this }.ShowDialog();
+        }
+    }
+
+    // File > Edit the tags of an MP3 or WAV: any song file's, chosen first.
+    private void FileTagsMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        var dialog = new Microsoft.Win32.OpenFileDialog { Title = "Edit the tags of a song file", Filter = "Song files (*.mp3;*.wav;*.flac;*.m4a;*.ogg)|*.mp3;*.wav;*.flac;*.m4a;*.ogg" };
+        if (dialog.ShowDialog(this) == true)
+        {
+            new SongTagsWindow(viewModel.SongTags, viewModel.SetSongTags, dialog.FileName) { Owner = this }.ShowDialog();
+        }
+    }
+
     // File > Export stems: a folder of WAV files, one per track and bus, and the mix.
     private async void ExportStemsMenuItem_Click(object sender, RoutedEventArgs e)
     {

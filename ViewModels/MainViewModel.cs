@@ -2473,12 +2473,14 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         }
 
         var (mix, sampleRate, stems, stemNames, seconds) = recorded.Value;
+        var exportTags = ExportTags();
         try
         {
             if (stemsFolder is not null && stems is not null && stemNames is not null)
             {
                 StatusMessage = $"Writing {stems.Count} stems...";
-                await Task.Run(() => WriteStems(stemsFolder, stems, stemNames, sampleRate));
+                var tags = ExportTags();
+                await Task.Run(() => WriteStems(stemsFolder, stems, stemNames, sampleRate, tags));
             }
 
             var measure = await Task.Run(() =>
@@ -2492,6 +2494,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
                     WriteWav(path, mix, sampleRate);
                 }
 
+                WriteTags(path, exportTags);
                 return Loudness.Of(mix, 2, sampleRate);
             });
             LastExportLoudness = measure;
@@ -2629,7 +2632,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
     }
 
     // One WAV per stem, numbered in the order the tracks come, each name once; a stem that is all silence is left out.
-    internal static void WriteStems(string folder, IReadOnlyList<(ulong Key, float[] Samples)> stems, IReadOnlyDictionary<ulong, string> names, int sampleRate)
+    internal static void WriteStems(string folder, IReadOnlyList<(ulong Key, float[] Samples)> stems, IReadOnlyDictionary<ulong, string> names, int sampleRate, SongTags? tags = null)
     {
         Directory.CreateDirectory(folder);
         var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -2650,6 +2653,66 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             }
 
             WriteWav(Path.Combine(folder, file + ".wav"), samples, sampleRate);
+            if (tags is not null)
+            {
+                WriteTags(Path.Combine(folder, file + ".wav"), tags with { Title = $"{tags.Title} – {name}" });
+            }
+        }
+    }
+
+    // ---- The song's tags ----
+
+    private SongTags _songTags = SongTags.Empty;
+
+    // What the exported files say about the song: its title, artist, album, genre, year... and its cover.
+    public SongTags SongTags
+    {
+        get => _songTags;
+        set => SetProperty(ref _songTags, value ?? SongTags.Empty);
+    }
+
+    // Sets the song's tags, so it can be undone.
+    public void SetSongTags(SongTags tags)
+    {
+        if (tags == _songTags)
+        {
+            return;
+        }
+
+        CaptureUndoStateIfNeeded();
+        SongTags = tags;
+        StatusMessage = "Song info saved: the exported files will carry it";
+    }
+
+    // The tags the export writes: the song's, its title the score's or the project's name when it has none.
+    private SongTags ExportTags()
+    {
+        var title = _songTags.Title;
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            title = !string.IsNullOrWhiteSpace(ScoreTitle)
+                ? ScoreTitle
+                : CurrentProjectPath is { } project ? Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(project)) : null;
+        }
+
+        var artist = string.IsNullOrWhiteSpace(_songTags.Artist) && !string.IsNullOrWhiteSpace(ScoreAuthor) ? ScoreAuthor : _songTags.Artist;
+        return _songTags with { Title = title, Artist = artist };
+    }
+
+    // Writes the tags into an exported file; a file the tags cannot go into is left as it is.
+    private static void WriteTags(string path, SongTags tags)
+    {
+        if (tags.IsEmpty || !SongTags.CanTag(path))
+        {
+            return;
+        }
+
+        try
+        {
+            tags.Write(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or TagLib.CorruptFileException or TagLib.UnsupportedFormatException)
+        {
         }
     }
 
@@ -7352,7 +7415,8 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             string.IsNullOrWhiteSpace(ScoreTitle) ? null : ScoreTitle,
             string.IsNullOrWhiteSpace(ScoreAuthor) ? null : ScoreAuthor,
             MidiMappingDocuments(),
-            IsArrangeMode);
+            IsArrangeMode,
+            SongTags.IsEmpty ? null : SongTags);
     }
 
     // ---- The score (Cromator) ----
@@ -7572,6 +7636,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             ScoreAuthor = document.ScoreAuthor ?? string.Empty;
             RestoreMidiMappings(document.MidiMappings);
             IsArrangeMode = document.ArrangeMode; // the song plays as it was left: its arrangement, or one pattern
+            SongTags = document.Tags ?? SongTags.Empty;
 
             SelectedMidiOutputDevice = MidiOutputDevices.FirstOrDefault(device => device.DisplayName == document.SelectedMidiOutputDeviceName)
                 ?? MidiOutputDevices.FirstOrDefault(device => device.IsOff);
