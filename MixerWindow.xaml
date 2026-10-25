@@ -284,7 +284,7 @@
                                 <Style TargetType="Button" BasedOn="{StaticResource ConsoleButton}">
                                     <Setter Property="Visibility" Value="Hidden" />
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding HasKitPieces}" Value="True">
+                                        <DataTrigger Binding="{Binding ShowsKit}" Value="True">
                                             <Setter Property="Visibility" Value="Visible" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding IsKitOpen}" Value="True">

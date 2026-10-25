@@ -332,53 +332,6 @@
             </Setter>
         </Style>
 
-        <Style x:Key="MasterLevelMeterStyle" TargetType="ProgressBar">
-            <Setter Property="Width" Value="18" />
-            <Setter Property="Height" Value="132" />
-            <Setter Property="Minimum" Value="0" />
-            <Setter Property="Maximum" Value="1" />
-            <Setter Property="Background" Value="#222222" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ProgressBar">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="#454545"
-                                BorderThickness="1"
-                                CornerRadius="4"
-                                Padding="2">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="*" />
-                                    <RowDefinition Height="*" />
-                                    <RowDefinition Height="*" />
-                                    <RowDefinition Height="*" />
-                                    <RowDefinition Height="*" />
-                                    <RowDefinition Height="*" />
-                                    <RowDefinition Height="*" />
-                                    <RowDefinition Height="*" />
-                                    <RowDefinition Height="*" />
-                                    <RowDefinition Height="*" />
-                                    <RowDefinition Height="*" />
-                                    <RowDefinition Height="*" />
-                                </Grid.RowDefinitions>
-                                <Border Grid.Row="0" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MasterMeterSegmentBrushConverter}, ConverterParameter=11}" />
-                                <Border Grid.Row="1" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MasterMeterSegmentBrushConverter}, ConverterParameter=10}" />
-                                <Border Grid.Row="2" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MasterMeterSegmentBrushConverter}, ConverterParameter=9}" />
-                                <Border Grid.Row="3" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MasterMeterSegmentBrushConverter}, ConverterParameter=8}" />
-                                <Border Grid.Row="4" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MasterMeterSegmentBrushConverter}, ConverterParameter=7}" />
-                                <Border Grid.Row="5" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MasterMeterSegmentBrushConverter}, ConverterParameter=6}" />
-                                <Border Grid.Row="6" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MasterMeterSegmentBrushConverter}, ConverterParameter=5}" />
-                                <Border Grid.Row="7" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MasterMeterSegmentBrushConverter}, ConverterParameter=4}" />
-                                <Border Grid.Row="8" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MasterMeterSegmentBrushConverter}, ConverterParameter=3}" />
-                                <Border Grid.Row="9" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MasterMeterSegmentBrushConverter}, ConverterParameter=2}" />
-                                <Border Grid.Row="10" Margin="0,0,0,1" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MasterMeterSegmentBrushConverter}, ConverterParameter=1}" />
-                                <Border Grid.Row="11" Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource MasterMeterSegmentBrushConverter}, ConverterParameter=0}" />
-                            </Grid>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
 
         <Style x:Key="VerticalMeter" TargetType="ProgressBar">
             <Setter Property="Width" Value="42" />
@@ -1121,7 +1074,7 @@
                                                                <Setter Property="Background" Value="#5D5D5D" />
                                                            </DataTrigger>
                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                               <Setter Property="Background" Value="#7A7B7D" />
+                                                               <Setter Property="Background" Value="#9A5A1E" />
                                                            </DataTrigger>
                                                            <DataTrigger Binding="{Binding IsPlaying}" Value="True">
                                                                <Setter Property="Background" Value="#2D745D" />
@@ -1159,7 +1112,7 @@
                                                                <Setter Property="Background" Value="#5D5D5D" />
                                                            </DataTrigger>
                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                               <Setter Property="Background" Value="#7A7B7D" />
+                                                               <Setter Property="Background" Value="#9A5A1E" />
                                                            </DataTrigger>
                                                            <DataTrigger Binding="{Binding IsPlaying}" Value="True">
                                                                <Setter Property="Background" Value="#2D745D" />
@@ -1207,10 +1160,10 @@
                                                                            <Setter Property="Background" Value="#696969" />
                                                                        </DataTrigger>
                                                                        <DataTrigger Binding="{Binding DataContext.IsSelected, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="True">
-                                                                           <Setter Property="Background" Value="#7A7B7D" />
+                                                                           <Setter Property="Background" Value="#9A5A1E" />
                                                                        </DataTrigger>
                                                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                                           <Setter Property="Background" Value="#7A7B7D" />
+                                                                           <Setter Property="Background" Value="#9A5A1E" />
                                                                        </DataTrigger>
                                                                    </Style.Triggers>
                                                                </Style>
@@ -2604,16 +2557,7 @@
                                 </DockPanel>
                             </Border>
                             <Grid Grid.Row="1" Margin="0,0,0,4">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="16" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <ProgressBar Style="{StaticResource MasterLevelMeterStyle}"
-                                             Value="{Binding MasterSignalLevel, Mode=OneWay}"
-                                             VerticalAlignment="Stretch"
-                                             ToolTip="Master level" />
-                                <Slider Grid.Column="1"
-                                        Style="{StaticResource MasterMixSliderStyle}"
+                                <Slider Style="{StaticResource MasterMixSliderStyle}"
                                         Minimum="0"
                                         Maximum="100"
                                         Orientation="Vertical"

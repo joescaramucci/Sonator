@@ -164,7 +164,7 @@ public partial class MixerWindow : Window
 
     private void Fader_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        if (sender is not Slider { DataContext: PatternTrackViewModel { HasKitPieces: true } track } slider
+        if (sender is not Slider { DataContext: PatternTrackViewModel { ShowsKit: true } track } slider
             || Math.Abs(slider.Value - _faderValueAtPress) > 1e-9)
         {
             return;

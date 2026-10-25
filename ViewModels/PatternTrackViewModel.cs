@@ -72,7 +72,12 @@ public sealed class PatternTrackViewModel : ViewModelBase
     {
         RaisePropertyChanged(nameof(HasKitPieces));
         RaisePropertyChanged(nameof(HasHeardKitPieces));
+        RaisePropertyChanged(nameof(ShowsKit));
     }
+
+    // True when the mixer offers the track's KIT: a drum track whose plug-in has outputs of its own, or any whose
+    // pieces have played apart. A piano or synth with spare outputs it does not use shows none.
+    public bool ShowsKit => HasHeardKitPieces || (HasKitPieces && GeneralMidiDrums.LooksLikeDrums(this));
 
     // ---- The channel a track plays through ----
 
@@ -531,6 +536,7 @@ public sealed class PatternTrackViewModel : ViewModelBase
             if (SetProperty(ref _isHeard, value))
             {
                 KitParent?.RaisePropertyChanged(nameof(HasHeardKitPieces));
+                KitParent?.RaisePropertyChanged(nameof(ShowsKit));
             }
         }
     }
