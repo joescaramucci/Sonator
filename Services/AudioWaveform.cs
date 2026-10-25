@@ -12,11 +12,21 @@ public sealed class AudioWaveformSummary
     private const double PathHeight = 100;
     private const double PathHalfHeight = PathHeight / 2;
 
-    private AudioWaveformSummary(double durationSeconds, float[] peaks)
+    // The fine outline: the lowest and highest sample of each slice this long, for drawing the wave itself.
+    public const int SlicesPerSecond = 200;
+
+    private AudioWaveformSummary(double durationSeconds, float[] peaks, float[] minimums, float[] maximums)
     {
         DurationSeconds = durationSeconds;
         Peaks = peaks;
+        Minimums = minimums;
+        Maximums = maximums;
     }
+
+    // The lowest and highest sample (of any side) of each slice of SlicesPerSecond, from -1 to 1.
+    public float[] Minimums { get; }
+
+    public float[] Maximums { get; }
 
     public double DurationSeconds { get; }
 
@@ -45,7 +55,28 @@ public sealed class AudioWaveformSummary
             peaks[bucket] = Math.Min(1f, peak);
         }
 
-        return new AudioWaveformSummary(clip.Duration.TotalSeconds, peaks);
+        var slices = Math.Max(1, (int)Math.Ceiling(clip.Duration.TotalSeconds * SlicesPerSecond));
+        var minimums = new float[slices];
+        var maximums = new float[slices];
+        var framesPerSlice = Math.Max(1.0, clip.SampleRate / (double)SlicesPerSecond);
+        for (var slice = 0; slice < slices; slice++)
+        {
+            var from = (int)(slice * framesPerSlice);
+            var to = Math.Min(frames, (int)((slice + 1) * framesPerSlice));
+            var low = 0f;
+            var high = 0f;
+            for (var index = from * clip.Channels; index < to * clip.Channels; index++)
+            {
+                var sample = clip.Samples[index];
+                low = Math.Min(low, sample);
+                high = Math.Max(high, sample);
+            }
+
+            minimums[slice] = Math.Max(-1f, low);
+            maximums[slice] = Math.Min(1f, high);
+        }
+
+        return new AudioWaveformSummary(clip.Duration.TotalSeconds, peaks, minimums, maximums);
     }
 
     private static string BuildPathData(float[] peaks)

@@ -1699,11 +1699,8 @@
                                                         </MultiBinding>
                                                     </Border.Width>
                                                     <Grid>
-                                                        <Viewbox Stretch="Fill" Margin="2">
-                                                            <Canvas Width="1000" Height="100">
-                                                                <Path Fill="#62B7A4" Data="{Binding AudioPathData}" />
-                                                            </Canvas>
-                                                        </Viewbox>
+                                                        <!-- The wave itself, more detailed as the timeline zooms in. -->
+                                                        <local:WaveformView Summary="{Binding AudioWaveform}" Margin="1,2" />
                                                         <!-- The clip's fades, each with its handle on top. -->
                                                         <local:ClipFadeOverlay FadeIn="{Binding SourceTrack.AudioFadeInSeconds}"
                                                                                FadeOut="{Binding SourceTrack.AudioFadeOutSeconds}"
