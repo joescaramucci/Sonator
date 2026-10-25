@@ -28,6 +28,9 @@ internal static class Vst3HostInterop
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern void VstHostBridge_ResetDropouts();
 
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void VstHostBridge_SetTransport(double tempo, int numerator, int denominator, double quarterNotes, int playing, int jump);
+
     // ---- Sonator's insert effects (native/VstHostBridge/src/SonEffects.h) ----
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]

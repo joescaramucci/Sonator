@@ -292,6 +292,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable, ISpectrumSource
         MidiInputDevices = new ObservableCollection<MidiInputDeviceViewModel>();
         ReloadMidiInputDevices();
         _engine.PluginNoteRouter = RouteSequencerNoteToPlugin;
+        _engine.TransportChanged = PluginTransport.Send;
         _engine.PluginControllerRouter = (track, channel, controller, value) =>
         {
             if (_trackInstruments.RunningFor(track) is { } instrument)

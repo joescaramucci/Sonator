@@ -44,6 +44,11 @@ VSTHOSTBRIDGE_API int VstHostBridge_GetDspLoad(double* outPeakLoad, double* outA
 // Sets the dropout count back to zero.
 VSTHOSTBRIDGE_API void VstHostBridge_ResetDropouts(void);
 
+// The song's transport, handed to every plug-in with each block (VST3 ProcessContext): the tempo in BPM,
+// the time signature, and whether it plays. With jump set, the song is at quarterNotes from its start (a
+// start, a loop going back, a seek); otherwise the audio thread moves the position on by itself while it plays.
+VSTHOSTBRIDGE_API void VstHostBridge_SetTransport(double tempo, int32_t numerator, int32_t denominator, double quarterNotes, int32_t playing, int32_t jump);
+
 // ---- Sonator's insert effects (see src/SonEffects.h) ----
 // A chain holds one track's effects in order, then the track's gain. Effect types: 1 SonVerb,
 // 2 SonDelay, 3 SonCompress, 4 SonEQ, 5 SonLimiter. Parameters are numbered per effect.

@@ -41,6 +41,7 @@
 #include "pluginterfaces/vst/ivsthostapplication.h"
 #include "pluginterfaces/vst/ivstmessage.h"
 #include "pluginterfaces/vst/ivstaudioprocessor.h"
+#include "pluginterfaces/vst/ivstprocesscontext.h"
 #include "pluginterfaces/vst/ivstevents.h"
 #include "pluginterfaces/vst/ivstmidicontrollers.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
@@ -517,6 +518,89 @@ namespace
         }
     }
 
+    // ---- The song's transport, as plug-ins read it ----
+    // Sonator's tempo, time signature, position and whether it plays, for the plug-ins that follow the host:
+    // arpeggiators, sequencers and grooves inside a plug-in, tempo-synced delays and LFOs. Sonator sets it
+    // (VstHostBridge_SetTransport); the audio thread moves the position on block by block while it plays, and
+    // hands every plug-in the same ProcessContext for the block.
+    std::atomic<double> g_transportTempo{120.0};
+    std::atomic<int32> g_transportNumerator{4};
+    std::atomic<int32> g_transportDenominator{4};
+    std::atomic<bool> g_transportPlaying{false};
+    std::atomic<double> g_transportJumpTo{0.0};
+    std::atomic<uint32> g_transportJumps{0};
+
+    // Audio thread only: the context of the block being rendered, and where the song is.
+    ProcessContext g_processContext{};
+    uint32 g_transportJumpsTaken = 0;
+    double g_transportQuarters = 0.0;
+    int64 g_transportSamples = 0;
+    int64 g_continuousSamples = 0;
+
+    // True while the song plays, for a plug-in that follows the transport to be kept awake.
+    bool TransportPlaying()
+    {
+        return g_transportPlaying.load(std::memory_order_relaxed);
+    }
+
+    // Fills the context for the block about to be rendered, taking a jump Sonator asked for (a start, a loop
+    // going back, a click on the ruler).
+    void BeginTransportBlock(double sampleRate)
+    {
+        const double tempo = std::clamp(g_transportTempo.load(std::memory_order_relaxed), 1.0, 999.0);
+        const uint32 jumps = g_transportJumps.load(std::memory_order_acquire);
+        if (jumps != g_transportJumpsTaken)
+        {
+            g_transportJumpsTaken = jumps;
+            g_transportQuarters = std::max(0.0, g_transportJumpTo.load(std::memory_order_relaxed));
+            g_transportSamples = static_cast<int64>(std::llround(g_transportQuarters * 60.0 / tempo * sampleRate));
+        }
+
+        const int32 numerator = std::max<int32>(1, g_transportNumerator.load(std::memory_order_relaxed));
+        const int32 denominator = std::max<int32>(1, g_transportDenominator.load(std::memory_order_relaxed));
+        const double quartersPerBar = numerator * 4.0 / denominator;
+        auto& context = g_processContext;
+        context.state = ProcessContext::kTempoValid | ProcessContext::kTimeSigValid | ProcessContext::kProjectTimeMusicValid
+            | ProcessContext::kBarPositionValid | ProcessContext::kContTimeValid
+            | (TransportPlaying() ? ProcessContext::kPlaying : 0);
+        context.sampleRate = sampleRate;
+        context.projectTimeSamples = g_transportSamples;
+        context.continousTimeSamples = g_continuousSamples;
+        context.projectTimeMusic = g_transportQuarters;
+        context.barPositionMusic = std::floor(g_transportQuarters / quartersPerBar + 1e-9) * quartersPerBar;
+        context.tempo = tempo;
+        context.timeSigNumerator = numerator;
+        context.timeSigDenominator = denominator;
+    }
+
+    // Moves the song on by the block just rendered, while it plays.
+    void EndTransportBlock(int32 frames, double sampleRate)
+    {
+        g_continuousSamples += frames;
+        if (TransportPlaying())
+        {
+            g_transportQuarters += frames / sampleRate * g_processContext.tempo / 60.0;
+            g_transportSamples += frames;
+        }
+    }
+
+    // True when the plug-in may follow the host's tempo or transport: it says so, or does not say.
+    bool FollowsTransport(IAudioProcessor* processor)
+    {
+        IProcessContextRequirements* requirements = nullptr;
+        if (processor == nullptr
+            || processor->queryInterface(IProcessContextRequirements_iid, reinterpret_cast<void**>(&requirements)) != kResultOk
+            || requirements == nullptr)
+        {
+            return true;
+        }
+
+        const uint32 needs = requirements->getProcessContextRequirements();
+        requirements->release();
+        return (needs & (IProcessContextRequirements::kNeedTempo | IProcessContextRequirements::kNeedTransportState
+            | IProcessContextRequirements::kNeedProjectTimeMusic | IProcessContextRequirements::kNeedBarPositionMusic)) != 0;
+    }
+
     // A VST3 effect plug-in in a track's chain: the track's sound goes in on its first input and comes back
     // from its first output. Any other buses (a side-chain, extra outputs) get silence and are ignored. The
     // module stays the caller's; this only runs its processor while it is in a chain.
@@ -594,6 +678,7 @@ namespace
             data_ = ProcessData{};
             data_.processMode = kRealtime;
             data_.symbolicSampleSize = kSample32;
+            data_.processContext = &g_processContext;
             data_.numInputs = inputBuses;
             data_.inputs = inputs_.data();
             data_.numOutputs = outputBuses;
@@ -1104,9 +1189,13 @@ namespace
         int32 heldNotes = 0;
 
         // A plug-in with no note held whose sound has been silent for half a second is not run, as Cubase
-        // does: it is asleep until a note or any other event arrives for it. Audio thread only.
+        // does: it is asleep until a note or any other event arrives for it. One that may follow the host's
+        // transport (its own sequencer or arpeggiator) is woken when the song starts or jumps, and sleeps only
+        // after four seconds of silence while it plays. Audio thread only.
         int64 silentFrames = 0;
         bool asleep = false;
+        bool followsTransport = true;
+        uint32 transportJumpsSeen = 0;
 
         int32 channels = 2;
 
@@ -1218,6 +1307,8 @@ namespace
             }
             processData.processMode = kRealtime;
             processData.symbolicSampleSize = kSample32;
+            processData.processContext = &g_processContext;
+            followsTransport = FollowsTransport(processor);
             processData.numInputs = 0;
             processData.inputs = nullptr;
             processData.numOutputs = static_cast<int32>(allOutputs.size());
@@ -1280,6 +1371,13 @@ namespace
 
             PrepareControllers();
             const bool hasEvents = !blockEvents.events.empty() || !blockControllers.empty();
+            const bool playing = followsTransport && TransportPlaying();
+            if (playing && transportJumpsSeen != g_transportJumpsTaken)
+            {
+                transportJumpsSeen = g_transportJumpsTaken;
+                asleep = false; // the song starts or jumps: its own sequencer may start too
+                silentFrames = 0;
+            }
             if (asleep && !hasEvents)
             {
                 return; // silent: AddTo leaves it out of the mix
@@ -1332,7 +1430,7 @@ namespace
             }
 
             silentFrames = silent ? silentFrames + frames : 0;
-            if (silentFrames >= static_cast<int64>(sampleRate * 0.5))
+            if (silentFrames >= static_cast<int64>(sampleRate * (playing ? 4.0 : 0.5)))
             {
                 asleep = true;
                 silentFrames = 0;
@@ -1818,10 +1916,12 @@ namespace
     // effects on it, and records it when the song is being exported. Called by the audio thread for each block.
     void MixVoices(float* left, float* right, int32 frames, double sampleRate)
     {
+        BeginTransportBlock(sampleRate);
         PrepareBuses(frames);
         MixVoicesInto(left, right, frames, sampleRate);
         MixBuses(left, right, frames, sampleRate);
         ApplyMasterEffects(left, right, frames, sampleRate);
+        EndTransportBlock(frames, sampleRate);
         CaptureBlock(left, right, frames, sampleRate);
         for (int32 i = 0; i < frames; ++i)
         {
@@ -2261,6 +2361,22 @@ int VstHostBridge_GetDspLoad(double* outPeakLoad, double* outAverageLoad, int64_
 void VstHostBridge_ResetDropouts()
 {
     g_dspMeter.dropouts = 0;
+}
+
+void VstHostBridge_SetTransport(double tempo, int32_t numerator, int32_t denominator, double quarterNotes, int32_t playing, int32_t jump)
+{
+    if (std::isfinite(tempo) && tempo > 0.0)
+    {
+        g_transportTempo.store(tempo, std::memory_order_relaxed);
+    }
+    g_transportNumerator.store(std::max<int32_t>(1, numerator), std::memory_order_relaxed);
+    g_transportDenominator.store(std::max<int32_t>(1, denominator), std::memory_order_relaxed);
+    if (jump != 0 && std::isfinite(quarterNotes))
+    {
+        g_transportJumpTo.store(quarterNotes, std::memory_order_relaxed);
+        g_transportJumps.fetch_add(1, std::memory_order_release);
+    }
+    g_transportPlaying.store(playing != 0, std::memory_order_relaxed);
 }
 
 // An effect chain handle is a heap-held shared_ptr, so a module it is attached to keeps the chain alive.

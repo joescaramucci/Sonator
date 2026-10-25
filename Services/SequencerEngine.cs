@@ -70,6 +70,39 @@ internal sealed class SequencerEngine : IDisposable
 
     public int StepsPerBeat { get; set; } = 4;
 
+    // Told the song's transport for the plug-ins that follow the host's (their own sequencers and arpeggiators,
+    // tempo-synced delays and LFOs): when it starts and stops, when it jumps (a loop going back, a seek), and
+    // when the tempo or the time signature changes. Called on the playback thread while it plays.
+    public Action<PluginTransport>? TransportChanged { get; set; }
+
+    // The step last told as playing, to tell a jump from the next step; int.MinValue before the first.
+    private int _transportStep = int.MinValue;
+    private double _transportTempo;
+
+    private void TellTransport(int step, double tempo, bool playing, bool jump)
+    {
+        _transportTempo = tempo;
+        var beat = Math.Max(1, StepsPerBeat);
+        TransportChanged?.Invoke(new PluginTransport(
+            tempo,
+            Math.Max(1, StepsPerBar / beat),
+            Math.Max(1, 16 / beat),
+            step / 4.0,
+            playing,
+            jump));
+    }
+
+    private bool IsPlaying
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return _playbackCts is not null;
+            }
+        }
+    }
+
     // Offered each note of a track that has a plug-in. Returns true when the plug-in took the note, so the MIDI output is skipped.
     public Func<PatternTrackViewModel, int, int, int, bool, bool>? PluginNoteRouter { get; set; }
 
@@ -230,6 +263,12 @@ internal sealed class SequencerEngine : IDisposable
             return;
         }
 
+        // Stopped, the plug-ins are told where the song now is; playing, the next step tells them.
+        if (!IsPlaying)
+        {
+            TellTransport(position, TempoAtStep(position), playing: false, jump: true);
+        }
+
         _dispatcher.InvokeAsync(() =>
         {
             HighlightStep(pattern, position);
@@ -252,6 +291,7 @@ internal sealed class SequencerEngine : IDisposable
             }
 
             ApplyProgramChanges(_pattern);
+            _transportStep = int.MinValue; // the first step tells where the song starts
             _playbackCts = new CancellationTokenSource();
             var playbackGeneration = unchecked(++_playbackGeneration);
             _playbackTask = RunPlaybackLoopAsync(_playbackCts.Token, playbackGeneration);
@@ -342,11 +382,18 @@ internal sealed class SequencerEngine : IDisposable
 
         cts.Cancel();
         AllNotesOff();
+        var step = GetCurrentStep();
+        TellTransport(step, TempoAtStep(step), playing: false, jump: false);
     }
 
     public void UpdateTempo(double tempoBpm)
     {
         TempoBpm = tempoBpm;
+        if (!IsPlaying)
+        {
+            var step = GetCurrentStep();
+            TellTransport(step, TempoAtStep(step), playing: false, jump: false);
+        }
     }
 
     private TempoMap? _tempoMap;
@@ -485,6 +532,16 @@ internal sealed class SequencerEngine : IDisposable
 
     private void ProcessStep(int stepIndex, int playbackGeneration)
     {
+        // The plug-ins move on by themselves from step to step: they are told only where the song jumps
+        // (its start, a loop going back) and when the tempo changes.
+        var tempo = TempoAtStep(stepIndex);
+        var jump = stepIndex != _transportStep + 1;
+        if (jump || tempo != _transportTempo)
+        {
+            TellTransport(stepIndex, tempo, playing: true, jump);
+        }
+
+        _transportStep = stepIndex;
         Volatile.Write(ref _liveStep, stepIndex);
         Volatile.Write(ref _liveStepLengthTicks, (long)(GetInterval(TempoAtStep(stepIndex)).TotalSeconds * Stopwatch.Frequency));
         Volatile.Write(ref _liveStepStartTicks, Stopwatch.GetTimestamp());
