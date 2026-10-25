@@ -3063,6 +3063,30 @@ public partial class MainWindow : Window
 
     private void ShowVolumeAutomation_Click(object sender, RoutedEventArgs e) => ShowAutomation(sender, AutomationTarget.Volume);
 
+    // Freeze a plug-in track (render it to audio) or unfreeze it; bounce it to a new audio track.
+    private async void FreezeMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel && MenuTrack(sender, viewModel) is { } track)
+        {
+            if (track.IsFrozen)
+            {
+                viewModel.UnfreezeTrack(track);
+            }
+            else
+            {
+                await viewModel.FreezeTrackAsync(track, toNewTrack: false);
+            }
+        }
+    }
+
+    private async void BounceMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel && MenuTrack(sender, viewModel) is { } track)
+        {
+            await viewModel.FreezeTrackAsync(track, toNewTrack: true);
+        }
+    }
+
     // The parameters a track's automation can move, made as the menu opens: the knob last turned on the track,
     // the lanes it has, the knobs of each of its effects, and its plug-ins' parameters, chosen from a list.
     private void AutomateMenu_SubmenuOpened(object sender, RoutedEventArgs e)

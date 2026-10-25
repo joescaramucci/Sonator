@@ -80,7 +80,8 @@ public sealed record TrackDocument(
     string? Lyrics = null,
     List<ParameterLaneDocument>? ParameterAutomation = null,
     double AudioFadeIn = 0,
-    double AudioFadeOut = 0);
+    double AudioFadeOut = 0,
+    string? FrozenAudio = null);
 
 // A track's automation of a knob of its plug-in (Effect null) or of one of its effects (see ParameterLane).
 public sealed record ParameterLaneDocument(Guid? Effect, uint Parameter, string Name, List<AutomationPointDocument> Points);

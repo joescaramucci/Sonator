@@ -154,6 +154,22 @@ internal sealed class TrackEffectsHost : IDisposable
     // A bus has no sends of its own, nor does the master.
     private void ApplyMix(PatternTrackViewModel track, NativeEffectChain chain)
     {
+        // A track being rendered to freeze it plays at 0 dB and centre, whatever its fader, pan and mute: its fader
+        // goes on working on the frozen sound. Its kit's pieces play at their own faders alone.
+        if (ReferenceEquals(track, _rendering))
+        {
+            chain.SetGain(1.0);
+            chain.SetPan(0);
+            return;
+        }
+
+        if (track.KitParent is { } renderedKit && ReferenceEquals(renderedKit, _rendering))
+        {
+            chain.SetGain(track.IsMuted ? 0.0 : track.MixVolume / UnityVolume);
+            chain.SetPan(track.MixPan);
+            return;
+        }
+
         // A kit piece plays at its own fader times its track's, silent with its track, with its own pan and sends.
         if (track.KitParent is { } parent)
         {
@@ -208,6 +224,13 @@ internal sealed class TrackEffectsHost : IDisposable
 
     private void OnTrackPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(PatternTrackViewModel.FrozenAudioPath)
+            && sender is PatternTrackViewModel frozen && _chains.TryGetValue(frozen, out var frozenChain))
+        {
+            ApplyAll(frozen, frozenChain);
+            return;
+        }
+
         if (e.PropertyName is nameof(PatternTrackViewModel.MixVolume) or nameof(PatternTrackViewModel.MixPan)
                 or nameof(PatternTrackViewModel.Sends) or nameof(PatternTrackViewModel.IsMuted) or nameof(PatternTrackViewModel.IsSolo)
                 or nameof(PatternTrackViewModel.IsHeard)
@@ -278,6 +301,30 @@ internal sealed class TrackEffectsHost : IDisposable
 
     // True when the effect's plug-in could not be loaded: the rack shows it as missing.
     public bool IsPluginMissing(TrackEffectViewModel effect) => _failedPlugins.Contains(effect.InstanceId);
+
+    private PatternTrackViewModel? _rendering;
+
+    // The track being rendered to audio, to freeze it, or null: its chain plays it at 0 dB (see ApplyMix).
+    public void SetRendering(PatternTrackViewModel? track)
+    {
+        var before = _rendering;
+        _rendering = track;
+        foreach (var changed in new[] { before, track }.OfType<PatternTrackViewModel>())
+        {
+            if (_chains.TryGetValue(changed, out var chain))
+            {
+                ApplyMix(changed, chain);
+            }
+
+            foreach (var piece in changed.KitPieces)
+            {
+                if (_chains.TryGetValue(piece, out var pieceChain))
+                {
+                    ApplyMix(piece, pieceChain);
+                }
+            }
+        }
+    }
 
     // Finds a track by its BusId, for the effects that take their sidechain from it.
     public Func<Guid, PatternTrackViewModel?>? FindTrack { get; set; }
@@ -448,6 +495,18 @@ internal sealed class TrackEffectsHost : IDisposable
 
     private void ApplyAll(PatternTrackViewModel track, NativeEffectChain chain, bool withPlugins = true)
     {
+        // A frozen track's effects are in its frozen sound: its chain runs none, only its fader, pan and sends.
+        if (track.IsFrozen)
+        {
+            foreach (var id in _pluginHolders.Where(entry => ReferenceEquals(entry.Value, track)).Select(entry => entry.Key).ToList())
+            {
+                _pluginHolders.Remove(id);
+            }
+
+            chain.SetLayout(Array.Empty<EffectKind>(), Array.Empty<Vst3ModuleHandle?>());
+            return;
+        }
+
         var modules = new List<Vst3ModuleHandle?>();
         foreach (var effect in track.Effects)
         {

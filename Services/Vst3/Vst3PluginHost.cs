@@ -450,6 +450,18 @@ public sealed class Vst3PluginHost : IVst3PluginHost
         }
     }
 
+    public long MixCaptureSongStart()
+    {
+        try
+        {
+            return Vst3HostInterop.VstHostBridge_GetMixCaptureSongStart();
+        }
+        catch (Exception ex) when (IsBridgeUnavailableException(ex))
+        {
+            return -1;
+        }
+    }
+
     public bool TryStartStemCapture()
     {
         try

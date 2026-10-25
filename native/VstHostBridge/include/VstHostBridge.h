@@ -241,6 +241,9 @@ VSTHOSTBRIDGE_API int64_t VstHostBridge_StopMixCapture(double* outSampleRate);
 // Copies the frames recorded (interleaved stereo floats) and frees the recording. Returns 1 when copied.
 VSTHOSTBRIDGE_API int VstHostBridge_ReadMixCapture(float* interleaved, int64_t frames);
 
+// Where in the mix's recording the song started playing, in frames; -1 when it has not.
+VSTHOSTBRIDGE_API int64_t VstHostBridge_GetMixCaptureSongStart(void);
+
 // Stems: while the mix is recorded (StartMixCapture first), each track's and each bus's own sound is kept apart,
 // after its effects, volume and pan. Stop returns how many were kept; each has its key (the plug-in's or clip's
 // module, or 1 + a bus's number) and its length in frames of the mix's recording, and is read as interleaved

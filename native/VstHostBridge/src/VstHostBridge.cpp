@@ -2006,6 +2006,10 @@ namespace
         std::atomic<int64> frames{0};
         std::atomic<bool> recording{false};
         std::atomic<double> sampleRate{0.0};
+
+        // Where in the recording the song started playing (the first block with the transport playing), so the
+        // export can begin exactly at the song's start; -1 until then.
+        std::atomic<int64> songStart{-1};
     };
 
     MixCapture g_capture;
@@ -2019,6 +2023,10 @@ namespace
 
         g_capture.sampleRate.store(sampleRate, std::memory_order_relaxed);
         const auto start = g_capture.frames.load(std::memory_order_relaxed);
+        if (g_capture.songStart.load(std::memory_order_relaxed) < 0 && TransportPlaying())
+        {
+            g_capture.songStart.store(start, std::memory_order_relaxed);
+        }
         const auto room = static_cast<int64>(g_capture.samples.size() / 2) - start;
         const auto count = static_cast<int64>(frames) < room ? static_cast<int64>(frames) : room;
         for (int64 i = 0; i < count; ++i)
@@ -5209,8 +5217,14 @@ int VstHostBridge_StartMixCapture(double maxSeconds)
     g_capture.samples.assign(static_cast<size_t>(maxSeconds * rate) * 2, 0.0f);
     g_capture.frames.store(0, std::memory_order_relaxed);
     g_capture.sampleRate.store(0.0, std::memory_order_relaxed);
+    g_capture.songStart.store(-1, std::memory_order_relaxed);
     g_capture.recording.store(true, std::memory_order_release);
     return 1;
+}
+
+int64_t VstHostBridge_GetMixCaptureSongStart(void)
+{
+    return g_capture.songStart.load(std::memory_order_relaxed);
 }
 
 int64_t VstHostBridge_StopMixCapture(double* outSampleRate)

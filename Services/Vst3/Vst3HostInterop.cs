@@ -35,6 +35,9 @@ internal static class Vst3HostInterop
     internal static extern int VstHostBridge_HasSidechainInput(IntPtr moduleHandle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern long VstHostBridge_GetMixCaptureSongStart();
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int VstHostBridge_StartStemCapture();
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]

@@ -2427,65 +2427,15 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
 
     private async Task<bool> ExportAsync(string path, string? stemsFolder)
     {
-        if (IsExporting)
+        var recorded = await RecordSongAsync(withStems: stemsFolder is not null, rendering: null);
+        if (recorded is null)
         {
             return false;
         }
 
-        if (IsPlaying)
-        {
-            StopPlayback();
-        }
-
-        var lengthSteps = ExportLengthSteps();
-        var seconds = CurrentTempoMap.SecondsAt(lengthSteps);
-        const double tail = 2.0;
-        var wasLooping = IsLoopEnabled;
-        var startStep = CurrentStepIndex;
-        IsExporting = true;
+        var (mix, sampleRate, stems, stemNames, seconds) = recorded.Value;
         try
         {
-            IsLoopEnabled = false;
-            SeekToStep(0);
-
-            // The plug-ins start first, so the recording begins with the song and not with their loading.
-            foreach (var pluginTrack in PlaybackInstrumentTracks(Patterns.SelectMany(pattern => pattern.Tracks), SelectedTrack, recording: false))
-            {
-                EnsureTrackInstrument(pluginTrack);
-            }
-
-            if (!_liveInstrumentHost.TryStartMixCapture(seconds + tail + 5)
-                || (stemsFolder is not null && !_liveInstrumentHost.TryStartStemCapture()))
-            {
-                _liveInstrumentHost.StopMixCapture(out _);
-                StatusMessage = "Export: the audio engine is not available";
-                return false;
-            }
-
-            StartPlayback();
-            var clock = System.Diagnostics.Stopwatch.StartNew();
-            while (clock.Elapsed.TotalSeconds < seconds && IsPlaying)
-            {
-                StatusMessage = $"Exporting... {clock.Elapsed.TotalSeconds:0} of {seconds:0} s";
-                await Task.Delay(250);
-            }
-
-            // The stems' names, by the module or bus each comes from, taken while the clips still play.
-            var stemNames = stemsFolder is null ? null : StemNames();
-            if (IsPlaying)
-            {
-                StopPlayback(); // the notes are released and ring out in the tail
-            }
-
-            await Task.Delay(TimeSpan.FromSeconds(tail));
-            var mix = _liveInstrumentHost.StopMixCapture(out var sampleRate);
-            var stems = stemsFolder is null ? null : _liveInstrumentHost.StopStemCapture(mix is null ? 0 : mix.Length / 2);
-            if (mix is null)
-            {
-                StatusMessage = "Export: nothing was heard. Only plug-in and audio tracks are exported";
-                return false;
-            }
-
             if (stemsFolder is not null && stems is not null && stemNames is not null)
             {
                 StatusMessage = $"Writing {stems.Count} stems...";
@@ -2507,24 +2457,111 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             });
             LastExportLoudness = measure;
             StatusMessage = stemsFolder is null
-                ? $"Exported {seconds + tail:0} s to {Path.GetFileName(path)}: {LoudnessReport(measure)}"
+                ? $"Exported {seconds:0} s to {Path.GetFileName(path)}: {LoudnessReport(measure)}"
                 : $"Exported the mix and {stems?.Count ?? 0} stems to {stemsFolder}: {LoudnessReport(measure)}";
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _liveInstrumentHost.StopMixCapture(out _);
             StatusMessage = $"Export failed: {ex.Message}";
             return false;
         }
+    }
+
+    private readonly record struct RecordedSong(
+        float[] Mix, int SampleRate, IReadOnlyList<(ulong Key, float[] Samples)>? Stems, Dictionary<ulong, string>? StemNames, double Seconds);
+
+    // Plays the song from its start to its end, and two seconds more for reverb and releases to ring out,
+    // recording the mix that comes out (and each track's and bus's sound apart, with stems), from the very block
+    // the song starts in and without the delay compensation's wait, so it lines up with the song. While rendering
+    // a track (to freeze it), that track plays at its fader's 0 dB and centre. Null when nothing could be recorded,
+    // with the reason in the status line.
+    private async Task<RecordedSong?> RecordSongAsync(bool withStems, PatternTrackViewModel? rendering)
+    {
+        if (IsExporting)
+        {
+            return null;
+        }
+
+        if (IsPlaying)
+        {
+            StopPlayback();
+        }
+
+        var lengthSteps = ExportLengthSteps();
+        var seconds = CurrentTempoMap.SecondsAt(lengthSteps);
+        const double tail = 2.0;
+        var wasLooping = IsLoopEnabled;
+        var startStep = CurrentStepIndex;
+        IsExporting = true;
+        try
+        {
+            IsLoopEnabled = false;
+            SeekToStep(0);
+            _trackEffects.SetRendering(rendering);
+
+            // The plug-ins start first, so the recording begins with the song and not with their loading.
+            foreach (var pluginTrack in PlaybackInstrumentTracks(Patterns.SelectMany(pattern => pattern.Tracks), SelectedTrack, recording: false))
+            {
+                EnsureTrackInstrument(pluginTrack);
+            }
+
+            if (!_liveInstrumentHost.TryStartMixCapture(seconds + tail + 5)
+                || (withStems && !_liveInstrumentHost.TryStartStemCapture()))
+            {
+                _liveInstrumentHost.StopMixCapture(out _);
+                StatusMessage = "Export: the audio engine is not available";
+                return null;
+            }
+
+            StartPlayback();
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            var doing = rendering is null ? "Exporting" : $"Rendering {rendering.Name}";
+            while (clock.Elapsed.TotalSeconds < seconds && IsPlaying)
+            {
+                StatusMessage = $"{doing}... {clock.Elapsed.TotalSeconds:0} of {seconds:0} s";
+                await Task.Delay(250);
+            }
+
+            // The stems' names, by the module or bus each comes from, taken while the clips still play.
+            var stemNames = withStems ? StemNames() : null;
+            if (IsPlaying)
+            {
+                StopPlayback(); // the notes are released and ring out in the tail
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(tail));
+            var songStart = _liveInstrumentHost.MixCaptureSongStart();
+            var mix = _liveInstrumentHost.StopMixCapture(out var sampleRate);
+            var stems = withStems ? _liveInstrumentHost.StopStemCapture(mix is null ? 0 : mix.Length / 2) : null;
+            if (mix is null)
+            {
+                StatusMessage = "Export: nothing was heard. Only plug-in and audio tracks are exported";
+                return null;
+            }
+
+            // What came before the song's first block, and the compensation's wait, is left out.
+            var lead = Math.Max(0, songStart) + (long)Math.Round(SystemHealthMonitor.DelayCompensationSeconds() * sampleRate);
+            mix = Trimmed(mix, lead);
+            stems = stems?.Select(stem => (stem.Key, Trimmed(stem.Samples, lead))).ToList();
+            return new RecordedSong(mix, sampleRate, stems, stemNames, seconds + tail);
+        }
         finally
         {
+            _trackEffects.SetRendering(null);
             IsExporting = false;
             IsLoopEnabled = wasLooping;
             var message = StatusMessage;
             SeekToStep(startStep);
-            StatusMessage = message; // the export's outcome, not the playhead's new place
+            StatusMessage = message; // the outcome, not the playhead's new place
         }
+    }
+
+    // Interleaved stereo without its first frames.
+    private static float[] Trimmed(float[] interleaved, long frames)
+    {
+        var skip = (int)Math.Min(interleaved.Length, Math.Max(0, frames) * 2);
+        return skip == 0 ? interleaved : interleaved[skip..];
     }
 
     // What each stem is called, by its key: a plug-in's or clip's track by its module, a bus by its number.
@@ -3220,6 +3257,11 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
     // The drums struck name the kit's pieces (see KitPieceNamer).
     private bool RouteSequencerNoteToPlugin(PatternTrackViewModel track, int channel, int noteNumber, int velocity, bool isOn)
     {
+        if (track.IsFrozen)
+        {
+            return true; // its frozen sound plays them
+        }
+
         if (_trackInstruments.RunningFor(track) is not { } instrument
             || !_liveInstrumentHost.TrySendNote(instrument, channel, noteNumber, velocity, isOn))
         {
@@ -4036,6 +4078,11 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
 
         foreach (var track in Patterns.SelectMany(pattern => pattern.Tracks).Concat(Buses))
         {
+            if (track.FrozenAudioPath is { } frozen && moved.TryGetValue(Path.GetFullPath(frozen), out var frozenCopy))
+            {
+                track.FrozenAudioPath = frozenCopy;
+            }
+
             if (track.AudioClipPath is { } path && moved.TryGetValue(Path.GetFullPath(path), out var copy))
             {
                 track.AudioClipPath = copy;
@@ -4288,7 +4335,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         }
 
         clip = AudioClipLoader.Load(path);
-        var inUse = Tracks.Select(track => track.AudioClipPath).OfType<string>().ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var inUse = Tracks.SelectMany(track => new[] { track.AudioClipPath, track.FrozenAudioPath }).OfType<string>().ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var unused in _decodedClips.Keys.Where(key => !inUse.Contains(key)).ToList())
         {
             _decodedClips.Remove(unused);
@@ -4313,12 +4360,12 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         // Muted and unsoloed clips start too, silent, so they come in when unmuted or soloed while playing.
         // The clip of the track about to be recorded on is not played under the new take.
         var recording = IsRecording && _inputRecorder.IsArmed ? AudioRecordTarget : null;
-        foreach (var track in Tracks.Where(track => !string.IsNullOrEmpty(track.AudioClipPath) && !ReferenceEquals(track, recording)))
+        foreach (var track in Tracks.Where(track => ClipPathOf(track) is not null && !ReferenceEquals(track, recording)))
         {
             AudioClip clip;
             try
             {
-                clip = DecodedClip(track.AudioClipPath!);
+                clip = DecodedClip(ClipPathOf(track)!);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
             {
@@ -4327,11 +4374,11 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             }
 
             // From the playhead into the clip; negative while the playhead is still before it, so it waits.
-            var secondsFromStart = tempoMap.SecondsAt(fromStep) - tempoMap.SecondsAt(track.AudioClipStartStep);
+            var secondsFromStart = tempoMap.SecondsAt(fromStep) - tempoMap.SecondsAt(ClipStartOf(track));
             if (_liveInstrumentHost.TryCreateClip(clip.Samples, clip.Channels, clip.SampleRate, secondsFromStart) is { } module)
             {
                 // Every clip comes and goes over a few milliseconds at least, so its edges never click.
-                _liveInstrumentHost.SetClipFades(module, Math.Max(MinimumClipFade, track.AudioFadeInSeconds), Math.Max(MinimumClipFade, track.AudioFadeOutSeconds));
+                _liveInstrumentHost.SetClipFades(module, Math.Max(MinimumClipFade, track.IsFrozen ? 0 : track.AudioFadeInSeconds), Math.Max(MinimumClipFade, track.IsFrozen ? 0 : track.AudioFadeOutSeconds));
                 _trackEffects.ChainFor(track)?.AttachTo(module);
                 if (_liveInstrumentHost.TryStartAudio(module, selection, out var error))
                 {
@@ -4346,7 +4393,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
 
             // Without the bridge, only the clips heard when playing starts.
             if (!_trackEffects.IsSilenced(track)
-                && AudioTrackMixer.Mix(new[] { new AudioPlacement(track.AudioClipPath!, track.AudioClipStartStep) }, Tempo, fromStep, _ => clip) is { } mixed)
+                && AudioTrackMixer.Mix(new[] { new AudioPlacement(ClipPathOf(track)!, ClipStartOf(track)) }, Tempo, fromStep, _ => clip) is { } mixed)
             {
                 fallback.Add((mixed, _trackEffects.ChainFor(track)));
             }
@@ -4360,6 +4407,84 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
     }
 
     internal const double MinimumClipFade = 0.004;
+
+    // The audio a track plays: its frozen sound, from the song's start, or its clip.
+    private static string? ClipPathOf(PatternTrackViewModel track) =>
+        track.FrozenAudioPath ?? (string.IsNullOrEmpty(track.AudioClipPath) ? null : track.AudioClipPath);
+
+    private static int ClipStartOf(PatternTrackViewModel track) => track.IsFrozen ? 0 : track.AudioClipStartStep;
+
+    // ---- Freeze and bounce ----
+
+    // Renders a plug-in track to audio, playing the song once: its plug-in and effects, before its fader. Frozen,
+    // the track then plays that sound in their place, its plug-in let go; bounced, a new audio track plays it and
+    // the track is muted. Undoable.
+    public async Task<bool> FreezeTrackAsync(PatternTrackViewModel track, bool toNewTrack)
+    {
+        if (track.IsFrozen || string.IsNullOrEmpty(track.PluginFilePath))
+        {
+            StatusMessage = $"{track.Name}: only a plug-in track that is not frozen can be rendered";
+            return false;
+        }
+
+        var recorded = await RecordSongAsync(withStems: true, rendering: track);
+        if (recorded is null)
+        {
+            return false;
+        }
+
+        var key = _trackInstruments.RunningFor(track) is { } instrument ? (ulong?)instrument.NativeHandle.ToInt64() : null;
+        var stem = recorded.Value.Stems?.FirstOrDefault(item => key is not null && item.Key == key.Value);
+        if (stem is not { Samples: { } samples } || !samples.Any(sample => Math.Abs(sample) > 1e-6f))
+        {
+            StatusMessage = $"{track.Name}: nothing was heard from it, so it was not rendered";
+            return false;
+        }
+
+        var path = AudioClipLoader.SaveToLibrary(new AudioClip(samples, 2, recorded.Value.SampleRate));
+        CaptureUndoStateIfNeeded();
+        if (toNewTrack)
+        {
+            if (!TryAddTrack(PatternTrackType.AudioInput, $"{track.Name} (audio)", NewTrackDefaults.InstrumentName(PatternTrackType.AudioInput),
+                    NewTrackDefaults.SourceName(PatternTrackType.AudioInput), track.Channel, track.NoteNumber, out var error))
+            {
+                StatusMessage = error;
+                return false;
+            }
+
+            var audio = SelectedTrack!;
+            audio.AudioClipPath = path;
+            audio.AudioClipStartStep = 0;
+            audio.Volume = track.Volume;
+            audio.Pan = track.Pan;
+            track.IsMuted = true;
+            StatusMessage = $"{track.Name} bounced to {audio.Name}, and muted";
+        }
+        else
+        {
+            _trackInstruments.CaptureStates();
+            track.FrozenAudioPath = path;
+            _trackInstruments.Release(track);
+            StatusMessage = $"{track.Name} frozen: its plug-in and effects take no processor time; Unfreeze to change them";
+        }
+
+        RebuildTimeline();
+        return true;
+    }
+
+    // Plays the track's plug-in and effects again in place of its frozen sound.
+    public void UnfreezeTrack(PatternTrackViewModel track)
+    {
+        if (!track.IsFrozen)
+        {
+            return;
+        }
+
+        CaptureUndoStateIfNeeded();
+        track.FrozenAudioPath = null;
+        RebuildTimeline();
+        StatusMessage = $"{track.Name} unfrozen: its plug-in plays again";
+    }
 
     // Called as a clip's fade is dragged, before the change, so it can be undone; the clips playing take it at once.
     public void BeginClipFadeEdit() => CaptureUndoStateIfNeeded();
@@ -4388,7 +4513,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         var tempoMap = CurrentTempoMap;
         foreach (var (module, track) in _playingClips)
         {
-            _liveInstrumentHost.SeekClip(module, tempoMap.SecondsAt(fromStep) - tempoMap.SecondsAt(track.AudioClipStartStep));
+            _liveInstrumentHost.SeekClip(module, tempoMap.SecondsAt(fromStep) - tempoMap.SecondsAt(ClipStartOf(track)));
         }
     }
 
@@ -4712,7 +4837,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         static bool HasPlugin(PatternTrackViewModel track) => track.SupportsMidiPlayback && !string.IsNullOrEmpty(track.PluginFilePath);
         static bool HasNotes(PatternTrackViewModel track) => track.MidiNoteEvents.Count > 0 || track.Steps.Any(step => step.IsActive);
 
-        var playing = tracks.Where(track => HasPlugin(track) && HasNotes(track)).ToList();
+        var playing = tracks.Where(track => HasPlugin(track) && HasNotes(track) && !track.IsFrozen).ToList();
         if (recording && selected is not null && HasPlugin(selected) && !playing.Contains(selected))
         {
             playing.Add(selected);

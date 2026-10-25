@@ -84,7 +84,7 @@ public static class ProjectAudioFiles
 
     // Every clip a document plays, by full path.
     public static IEnumerable<string> ClipsOf(ProjectDocument document) =>
-        Tracks(document).Select(track => track.AudioClipPath).OfType<string>().Where(Path.IsPathRooted);
+        Tracks(document).SelectMany(track => new[] { track.AudioClipPath, track.FrozenAudio }).OfType<string>().Where(Path.IsPathRooted);
 
     // The files of the project's audio folder that none of the documents given plays any more, as clips taken
     // out of the song or replaced by an edit, which no undo can bring back.
@@ -109,8 +109,8 @@ public static class ProjectAudioFiles
     private static ProjectDocument MapClips(ProjectDocument document, Func<string?, string?> map) => document with
     {
         Patterns = document.Patterns
-            .Select(pattern => pattern with { Tracks = pattern.Tracks.Select(track => track with { AudioClipPath = map(track.AudioClipPath) }).ToList() })
+            .Select(pattern => pattern with { Tracks = pattern.Tracks.Select(track => track with { AudioClipPath = map(track.AudioClipPath), FrozenAudio = map(track.FrozenAudio) }).ToList() })
             .ToList(),
-        Buses = document.Buses?.Select(track => track with { AudioClipPath = map(track.AudioClipPath) }).ToList(),
+        Buses = document.Buses?.Select(track => track with { AudioClipPath = map(track.AudioClipPath), FrozenAudio = map(track.FrozenAudio) }).ToList(),
     };
 }

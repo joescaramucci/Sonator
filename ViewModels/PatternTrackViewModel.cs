@@ -252,6 +252,27 @@ public sealed class PatternTrackViewModel : ViewModelBase
     // Where the clip starts on the timeline, in sixteenth-note steps from the start of the pattern.
     public int AudioClipStartStep { get; set; }
 
+    private string? _frozenAudioPath;
+
+    // The track rendered to audio (its plug-in and effects, before its fader), played in their place while it is
+    // frozen, so they take no processor time; null when it is not frozen.
+    public string? FrozenAudioPath
+    {
+        get => _frozenAudioPath;
+        set
+        {
+            if (SetProperty(ref _frozenAudioPath, value))
+            {
+                RaisePropertyChanged(nameof(IsFrozen));
+                RaisePropertyChanged(nameof(FreezeMenuHeader));
+            }
+        }
+    }
+
+    public bool IsFrozen => _frozenAudioPath is not null;
+
+    public string FreezeMenuHeader => IsFrozen ? "Unfreeze (play the plug-in and effects again)" : "Freeze (render to audio, frees the processor)";
+
     private double _audioFadeInSeconds;
     private double _audioFadeOutSeconds;
 

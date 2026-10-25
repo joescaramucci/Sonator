@@ -187,6 +187,11 @@ public interface IVst3PluginHost
     bool TryStartStemCapture();
 
     /// <summary>
+    /// Where in the mix's recording the song started playing, in frames; -1 when it has not.
+    /// </summary>
+    long MixCaptureSongStart();
+
+    /// <summary>
     /// The stems kept, each by its key (a module's native handle, or 1 + a bus's number), as interleaved stereo of
     /// the given length.
     /// </summary>

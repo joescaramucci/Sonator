@@ -621,6 +621,11 @@
                         <MenuItem Header="_Automate a parameter" SubmenuOpened="AutomateMenu_SubmenuOpened">
                             <MenuItem Header="..." />
                         </MenuItem>
+                        <Separator />
+                        <MenuItem Header="_Freeze or unfreeze the track" Click="FreezeMenuItem_Click"
+                                  ToolTip="Freeze: the song plays once and the track's plug-in and effects are rendered to audio, played in their place so they take no processor time. Unfreeze plays them again" />
+                        <MenuItem Header="_Bounce to a new audio track" Click="BounceMenuItem_Click"
+                                  ToolTip="The song plays once and the track's sound is rendered onto a new audio track; the track is muted" />
                         <MenuItem Header="Hide automation" Click="HideAutomation_Click" />
                         <MenuItem Header="Clear the automation shown" Click="ClearAutomation_Click" />
                     </MenuItem>
@@ -2019,6 +2024,9 @@
                                                     <MenuItem Header="Automate a parameter" SubmenuOpened="AutomateMenu_SubmenuOpened">
                                                         <MenuItem Header="..." />
                                                     </MenuItem>
+                                                    <Separator />
+                                                    <MenuItem Header="{Binding SourceTrack.FreezeMenuHeader}" Click="FreezeMenuItem_Click" />
+                                                    <MenuItem Header="Bounce to a new audio track" Click="BounceMenuItem_Click" />
                                                     <MenuItem Header="Hide automation" Click="HideAutomation_Click" />
                                                     <MenuItem Header="Clear the automation shown" Click="ClearAutomation_Click" />
                                                     <Separator />
@@ -2127,6 +2135,12 @@
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="1">
                                                     <DockPanel>
+                                                        <!-- A frozen track plays its rendered sound: its plug-in and effects take no processor time. -->
+                                                        <Border DockPanel.Dock="Right" Margin="4,0,0,0" Padding="4,0" CornerRadius="2" Background="#5CAFD6" VerticalAlignment="Center"
+                                                                ToolTip="Frozen: the track plays its sound rendered to audio. Track menu: Unfreeze to change its plug-in or effects"
+                                                                Visibility="{Binding SourceTrack.IsFrozen, Converter={StaticResource VisibleWhenTrue}}">
+                                                            <TextBlock Text="FROZEN" FontSize="9" FontWeight="Bold" Foreground="#0C1A22" />
+                                                        </Border>
                                                         <!-- KIT shows the drum kit's pieces under the track, once one has played on its own output. -->
                                                         <ToggleButton DockPanel.Dock="Right" Content="KIT" Width="30" Height="15" Padding="0" FontSize="9"
                                                                       Focusable="False" Style="{StaticResource MetronomeToggleStyle}"
