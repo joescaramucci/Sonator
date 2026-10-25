@@ -635,6 +635,12 @@
                     <MenuItem Header="_MIDI">
                         <MenuItem Header="Import MIDI..." Command="{Binding ImportMidiCommand}" />
                         <Separator />
+                        <MenuItem Header="MIDI _Learn" IsCheckable="True" IsChecked="{Binding IsMidiLearning}"
+                                  ToolTip="Move a control in Sonator (a fader, a pan, a knob of an effect or in a plug-in's window), choose this, then move a knob on the MIDI keyboard: it moves that control from then on" />
+                        <MenuItem Header="MIDI _assignments" SubmenuOpened="MidiAssignmentsMenu_SubmenuOpened">
+                            <MenuItem Header="..." />
+                        </MenuItem>
+                        <Separator />
                         <MenuItem Header="Input device" ItemsSource="{Binding MidiInputDevices}">
                             <MenuItem.ItemContainerStyle>
                                 <Style TargetType="MenuItem">

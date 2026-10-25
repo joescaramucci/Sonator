@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using Sonator.Services;
 using Sonator.Services.Vst3;
 
 namespace Sonator.ViewModels;
@@ -35,9 +36,12 @@ public sealed partial class MainViewModel
     // The knob last turned, and on which track: the Automate menu offers its lane first.
     public (PatternTrackViewModel Track, AutomatedParameter Parameter)? LastTouchedParameter { get; private set; }
 
+    // The control last moved, a knob or a track's fader or pan, for MIDI Learn.
+    public (PatternTrackViewModel Track, AutomationTarget Target, AutomatedParameter? Parameter)? LastTouchedControl { get; private set; }
+
     // About every 15 ms: what the plug-ins' windows turned, the passes written, and the automation played where
     // the song is.
-    private void RunAutomation()
+    internal void RunAutomation()
     {
         var step = IsPlaying ? _engine.LivePosition : CurrentStepIndex;
         WatchTracksForAutomation();
@@ -77,18 +81,17 @@ public sealed partial class MainViewModel
 
     private void OnAutomatedTrackChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (sender is not PatternTrackViewModel track || !IsWritingAutomation || _applyingAutomation)
+        if (sender is not PatternTrackViewModel track || _applyingAutomation
+            || e.PropertyName is not (nameof(PatternTrackViewModel.Volume) or nameof(PatternTrackViewModel.Pan)))
         {
             return;
         }
 
-        if (e.PropertyName == nameof(PatternTrackViewModel.Volume))
+        var target = e.PropertyName == nameof(PatternTrackViewModel.Volume) ? AutomationTarget.Volume : AutomationTarget.Pan;
+        LastTouchedControl = (track, target, null);
+        if (IsWritingAutomation)
         {
-            _automationRecorder.Record(track, AutomationTarget.Volume, null, _engine.LivePosition, track.Volume, Stopwatch.GetTimestamp());
-        }
-        else if (e.PropertyName == nameof(PatternTrackViewModel.Pan))
-        {
-            _automationRecorder.Record(track, AutomationTarget.Pan, null, _engine.LivePosition, track.Pan, Stopwatch.GetTimestamp());
+            _automationRecorder.Record(track, target, null, _engine.LivePosition, target == AutomationTarget.Volume ? track.Volume : track.Pan, Stopwatch.GetTimestamp());
         }
     }
 
@@ -109,6 +112,7 @@ public sealed partial class MainViewModel
     private void Touched(PatternTrackViewModel track, AutomatedParameter parameter, double value)
     {
         LastTouchedParameter = (track, parameter);
+        LastTouchedControl = (track, AutomationTarget.Parameter, parameter);
         if (IsWritingAutomation)
         {
             _automationRecorder.Record(track, AutomationTarget.Parameter, parameter, _engine.LivePosition, value, Stopwatch.GetTimestamp());
@@ -262,6 +266,157 @@ public sealed partial class MainViewModel
         }
 
         return _trackInstruments.RunningFor(track) is { } instrument ? _liveInstrumentHost.GetParameterValue(instrument, parameter.Parameter) : null;
+    }
+
+    // ---- MIDI Learn ----
+
+    private volatile bool _isMidiLearning;
+    private IReadOnlyList<MidiMapping> _midiMappings = Array.Empty<MidiMapping>();
+
+    // While on, the next controller moved on the MIDI keyboard is assigned to the control last moved in Sonator.
+    public bool IsMidiLearning
+    {
+        get => _isMidiLearning;
+        set
+        {
+            if (_isMidiLearning == value)
+            {
+                return;
+            }
+
+            _isMidiLearning = value;
+            RaisePropertyChanged();
+            if (value)
+            {
+                StatusMessage = LastTouchedControl is { } control
+                    ? $"MIDI Learn: move a knob, fader or pedal on the MIDI keyboard to assign it to {ControlName(control.Track, control.Target, control.Parameter)}"
+                    : "MIDI Learn: first move the control in Sonator (a fader, a pan or a knob), then a knob on the MIDI keyboard";
+            }
+        }
+    }
+
+    // The controllers assigned to controls of Sonator's.
+    public IReadOnlyList<MidiMapping> MidiMappings
+    {
+        get => _midiMappings;
+        private set => SetProperty(ref _midiMappings, value);
+    }
+
+    // Read on the MIDI thread: the list is replaced, never changed.
+    private MidiMapping? MappingFor(MidiControllerMessage controller)
+    {
+        foreach (var mapping in _midiMappings)
+        {
+            if (mapping.Channel == controller.Channel && mapping.Controller == controller.Controller)
+            {
+                return mapping;
+            }
+        }
+
+        return null;
+    }
+
+    private static string ControlName(PatternTrackViewModel track, AutomationTarget target, AutomatedParameter? parameter) => target switch
+    {
+        AutomationTarget.Volume => $"{track.Name} volume",
+        AutomationTarget.Pan => $"{track.Name} pan",
+        _ => $"{track.Name} · {parameter?.Name}",
+    };
+
+    private PatternTrackViewModel? TrackById(Guid id) =>
+        Tracks.Concat(Tracks.SelectMany(track => track.KitPieces)).FirstOrDefault(track => track.BusId == id);
+
+    // On the UI thread: learns the controller, or moves the control it is assigned to.
+    internal void OnMappedController(MidiControllerMessage controller)
+    {
+        if (_isMidiLearning)
+        {
+            Learn(controller);
+            return;
+        }
+
+        if (MappingFor(controller) is not { } mapping || TrackById(mapping.Track) is not { } track)
+        {
+            return;
+        }
+
+        switch (mapping.Target)
+        {
+            case AutomationTarget.Volume:
+                track.Volume = controller.Value;
+                break;
+            case AutomationTarget.Pan:
+                track.Pan = controller.Value * 2 - 1;
+                break;
+            case AutomationTarget.Parameter when mapping.Parameter is { } parameter:
+                if (SetAutomatedParameter(track, parameter, controller.Value))
+                {
+                    Touched(track, parameter, controller.Value);
+                }
+
+                break;
+        }
+    }
+
+    private void Learn(MidiControllerMessage controller)
+    {
+        if (LastTouchedControl is not { } control)
+        {
+            StatusMessage = "MIDI Learn: first move the control in Sonator (a fader, a pan or a knob), then a knob on the MIDI keyboard";
+            return;
+        }
+
+        CaptureUndoStateIfNeeded();
+        var name = ControlName(control.Track, control.Target, control.Parameter);
+        var mapping = new MidiMapping(controller.Channel, controller.Controller, control.Track.BusId, control.Target, control.Parameter, name);
+        MidiMappings = _midiMappings
+            .Where(other => !(other.Channel == mapping.Channel && other.Controller == mapping.Controller))
+            .Append(mapping)
+            .ToList();
+        IsMidiLearning = false;
+        StatusMessage = $"MIDI Learn: {mapping.Describe()}";
+    }
+
+    public void ForgetMidiMapping(MidiMapping mapping)
+    {
+        CaptureUndoStateIfNeeded();
+        MidiMappings = _midiMappings.Where(other => other != mapping).ToList();
+        StatusMessage = $"Forgotten: {mapping.Describe()}";
+    }
+
+    public void ForgetAllMidiMappings()
+    {
+        if (_midiMappings.Count == 0)
+        {
+            return;
+        }
+
+        CaptureUndoStateIfNeeded();
+        MidiMappings = Array.Empty<MidiMapping>();
+        StatusMessage = "Every MIDI assignment forgotten";
+    }
+
+    private List<Models.MidiMappingDocument>? MidiMappingDocuments() =>
+        _midiMappings.Count == 0
+            ? null
+            : _midiMappings.Select(mapping => new Models.MidiMappingDocument(
+                mapping.Channel, mapping.Controller, mapping.Track, mapping.Target.ToString(),
+                mapping.Parameter?.Effect, mapping.Parameter?.Parameter, mapping.Name)).ToList();
+
+    private void RestoreMidiMappings(IEnumerable<Models.MidiMappingDocument>? documents)
+    {
+        MidiMappings = documents?
+            .Where(document => Enum.TryParse<AutomationTarget>(document.Target, out _))
+            .Select(document =>
+            {
+                var target = Enum.Parse<AutomationTarget>(document.Target);
+                var parameter = target == AutomationTarget.Parameter && document.Parameter is { } id
+                    ? new AutomatedParameter(document.Effect, id, document.Name)
+                    : null;
+                return new MidiMapping(document.Channel, document.Controller, document.Track, target, parameter, document.Name);
+            })
+            .ToList()
+            ?? (IReadOnlyList<MidiMapping>)Array.Empty<MidiMapping>();
     }
 
     // The tracks an effect of a track can take its sidechain from: none, the other tracks, and the pieces of their

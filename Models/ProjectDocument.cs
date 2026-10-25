@@ -23,7 +23,11 @@ public sealed record ProjectDocument(
         bool MasterFadersLinked = true,
         bool HasLoopRange = false,
         string? ScoreTitle = null,
-        string? ScoreAuthor = null);
+        string? ScoreAuthor = null,
+        List<MidiMappingDocument>? MidiMappings = null);
+
+// A controller assigned to a control (see MidiMapping).
+public sealed record MidiMappingDocument(int Channel, int Controller, Guid Track, string Target, Guid? Effect, uint? Parameter, string Name);
 
 // From this step on the song plays at Bpm.
 public sealed record TempoChangeDocument(int Step, double Bpm);

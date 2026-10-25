@@ -18,3 +18,11 @@ public sealed record ParameterLane(AutomatedParameter Target, IReadOnlyList<Auto
 
 // A take of a track: an audio clip and where it starts, or the notes it had; named "Take 3, bar 5" and the like.
 public sealed record TrackTake(string Name, string? AudioPath, int AudioStartStep, IReadOnlyList<MidiNoteEventViewModel>? Notes);
+
+// A controller of a MIDI keyboard or control surface assigned to a control of Sonator's (MIDI Learn): its channel and
+// controller (128 aftertouch, 129 pitch bend), and the track's fader, pan or knob it moves.
+public sealed record MidiMapping(int Channel, int Controller, Guid Track, AutomationTarget Target, AutomatedParameter? Parameter, string Name)
+{
+    public string Describe() =>
+        $"{(Controller switch { 128 => "Aftertouch", 129 => "Pitch bend", _ => $"CC {Controller}" })} (channel {Channel + 1}) → {Name}";
+}

@@ -3063,6 +3063,34 @@ public partial class MainWindow : Window
 
     private void ShowVolumeAutomation_Click(object sender, RoutedEventArgs e) => ShowAutomation(sender, AutomationTarget.Volume);
 
+    // The controllers assigned with MIDI Learn: one chosen is forgotten.
+    private void MidiAssignmentsMenu_SubmenuOpened(object sender, RoutedEventArgs e)
+    {
+        if (!ReferenceEquals(e.OriginalSource, sender) || sender is not MenuItem menu || DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        menu.Items.Clear();
+        foreach (var mapping in viewModel.MidiMappings)
+        {
+            var item = new MenuItem { Header = $"{mapping.Describe()}  (click to forget)" };
+            item.Click += (_, _) => viewModel.ForgetMidiMapping(mapping);
+            menu.Items.Add(item);
+        }
+
+        if (viewModel.MidiMappings.Count == 0)
+        {
+            menu.Items.Add(new MenuItem { Header = "None yet: move a control in Sonator, then MIDI Learn and a knob on the keyboard", IsEnabled = false });
+            return;
+        }
+
+        menu.Items.Add(new Separator());
+        var forget = new MenuItem { Header = "Forget them all" };
+        forget.Click += (_, _) => viewModel.ForgetAllMidiMappings();
+        menu.Items.Add(forget);
+    }
+
     // The track's takes, the latest first: one chosen plays in place of what the track plays now.
     private void TakesMenu_SubmenuOpened(object sender, RoutedEventArgs e)
     {

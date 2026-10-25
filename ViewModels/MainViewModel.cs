@@ -3943,6 +3943,13 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
     // plug-in the keyboard plays; while recording, the UI thread writes it into the track being recorded.
     private void OnKeyboardController(MidiControllerMessage controller)
     {
+        // Learning, or assigned to a control of Sonator's, the controller moves that and not the plug-in.
+        if (_isMidiLearning || MappingFor(controller) is not null)
+        {
+            Application.Current?.Dispatcher.BeginInvoke(() => OnMappedController(controller));
+            return;
+        }
+
         var position = _engine.LivePosition;
         if (IsLiveKeyboardEnabled && LiveInstrumentRegistry.Current is { } instrument)
         {
@@ -6972,7 +6979,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         UpdatePlayhead(CurrentStepIndex);
     }
 
-    private ProjectDocument BuildProjectDocument()
+    internal ProjectDocument BuildProjectDocument()
     {
         return new ProjectDocument(
             "1.4",
@@ -6997,7 +7004,8 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             IsMasterLinked,
             HasLoopRange,
             string.IsNullOrWhiteSpace(ScoreTitle) ? null : ScoreTitle,
-            string.IsNullOrWhiteSpace(ScoreAuthor) ? null : ScoreAuthor);
+            string.IsNullOrWhiteSpace(ScoreAuthor) ? null : ScoreAuthor,
+            MidiMappingDocuments());
     }
 
     // ---- The score (Cromator) ----
@@ -7213,6 +7221,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             HasLoopRange = document.HasLoopRange;
             ScoreTitle = document.ScoreTitle ?? string.Empty;
             ScoreAuthor = document.ScoreAuthor ?? string.Empty;
+            RestoreMidiMappings(document.MidiMappings);
 
             SelectedMidiOutputDevice = MidiOutputDevices.FirstOrDefault(device => device.DisplayName == document.SelectedMidiOutputDeviceName)
                 ?? MidiOutputDevices.FirstOrDefault(device => device.IsOff);
