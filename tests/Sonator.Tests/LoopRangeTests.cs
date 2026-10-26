@@ -135,6 +135,21 @@ public sealed class LoopRangeTests
     }
 
     [Fact]
+    public void ThePlayheadLine_GoesWhereTheSongIsPut_EvenStopped()
+    {
+        OnStaThread(() =>
+        {
+            using var viewModel = new MainViewModel();
+            viewModel.IsArrangeMode = false;
+
+            viewModel.SeekToStep(20); // the line dragged, the ruler clicked, an arrow key
+
+            Assert.Equal(20, viewModel.CurrentStepIndex);
+            Assert.Equal(20, viewModel.TimelinePlayheadStep);
+        });
+    }
+
+    [Fact]
     public void WithArrangeOn_ARangeChosen_LeavesTheSongPlaying()
     {
         OnStaThread(() =>

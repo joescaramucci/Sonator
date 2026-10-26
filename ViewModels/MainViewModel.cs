@@ -6065,6 +6065,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         _engine.SetPlaybackPosition(targetStep);
         CurrentStepIndex = targetStep;
         UpdatePlayhead(targetStep);
+        UpdateSongTimelinePosition(targetStep); // the line over the lanes goes there too, playing or not
         TransportPosition = TransportClock.FormatPosition(targetStep, CurrentTempoMap);
         StatusMessage = $"Position: bar {targetStep / StepsPerBar + 1}";
     }
