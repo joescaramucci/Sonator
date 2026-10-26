@@ -98,4 +98,56 @@ public sealed class LoopRangeTests
             Assert.Equal(0, viewModel.LoopRangeSteps);
         });
     }
+
+    [Fact]
+    public void ARangeChosen_TurnsLoopOn_AndTakingItAway_TurnsItOffAgain()
+    {
+        OnStaThread(() =>
+        {
+            using var viewModel = new MainViewModel();
+            viewModel.IsArrangeMode = false;
+            viewModel.SetLoopRange(16, 31);
+
+            viewModel.LoopTheRange();
+            Assert.True(viewModel.IsLoopEnabled);
+
+            viewModel.ClearLoopRange();
+            Assert.False(viewModel.HasLoopRange);
+            Assert.False(viewModel.IsLoopEnabled); // it went on for the markers, and goes with them
+        });
+    }
+
+    [Fact]
+    public void LoopTurnedOnByItsButton_StaysOn_WhenTheMarkersGo()
+    {
+        OnStaThread(() =>
+        {
+            using var viewModel = new MainViewModel();
+            viewModel.IsArrangeMode = false;
+            viewModel.IsLoopEnabled = true;
+            viewModel.SetLoopRange(16, 31);
+            viewModel.LoopTheRange();
+
+            viewModel.ClearLoopRange();
+
+            Assert.True(viewModel.IsLoopEnabled); // the whole pattern loops, as before the markers
+        });
+    }
+
+    [Fact]
+    public void WithArrangeOn_ARangeChosen_LeavesTheSongPlaying()
+    {
+        OnStaThread(() =>
+        {
+            using var viewModel = new MainViewModel();
+            viewModel.IsArrangeMode = true;
+            viewModel.SetLoopRange(16, 31);
+
+            viewModel.LoopTheRange();
+
+            Assert.True(viewModel.IsArrangeMode);
+            Assert.False(viewModel.IsLoopEnabled);
+            Assert.Contains("ARRANGE", viewModel.StatusMessage);
+        });
+    }
 }

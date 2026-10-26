@@ -1641,6 +1641,29 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         StatusMessage = $"Loop: {DescribeLoopRange()}" + (IsLoopEnabled ? string.Empty : " — turn LOOP on to repeat it");
     }
 
+    // True when LOOP was turned on by choosing a range, not by its button: taking the range away turns it off.
+    private bool _loopOnForRange;
+
+    // Once a range is chosen on the ruler: LOOP goes on, to repeat it. Not with ARRANGE on, which LOOP would
+    // turn off, leaving the song for one pattern.
+    public void LoopTheRange()
+    {
+        if (!_hasLoopRange || IsLoopEnabled)
+        {
+            return;
+        }
+
+        if (IsArrangeMode)
+        {
+            StatusMessage = $"Loop markers on {DescribeLoopRange()}: turn ARRANGE off and LOOP on to repeat them";
+            return;
+        }
+
+        IsLoopEnabled = true;
+        _loopOnForRange = true;
+    }
+
+    // Takes the L and R markers away; LOOP goes off too when it went on for them.
     public void ClearLoopRange()
     {
         if (!_hasLoopRange)
@@ -1649,7 +1672,17 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         }
 
         HasLoopRange = false;
-        StatusMessage = "Loop range cleared: LOOP repeats the whole pattern";
+        if (_loopOnForRange && IsLoopEnabled)
+        {
+            IsLoopEnabled = false;
+            StatusMessage = "Loop markers removed, and LOOP off";
+        }
+        else
+        {
+            StatusMessage = IsLoopEnabled ? "Loop markers removed: LOOP repeats the whole pattern" : "Loop markers removed";
+        }
+
+        _loopOnForRange = false;
     }
 
     private string DescribeLoopRange() =>
@@ -1833,6 +1866,8 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             {
                 return;
             }
+
+            _loopOnForRange = false; // set again by LoopTheRange when it is the one turning LOOP on
 
             if (IsPlaying)
             {

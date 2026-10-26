@@ -778,6 +778,20 @@ public partial class MainWindow : Window
         }
 
         var x = e.GetPosition(ruler).X;
+
+        // A double click inside the loop's range takes its L and R markers away.
+        if (e.ClickCount == 2 && viewModel.HasLoopRange)
+        {
+            var width = viewModel.TimelineSixteenthWidth;
+            if (x >= viewModel.TimelineLoopStartStep * width && x <= (viewModel.TimelineLoopEndStep + 1) * width)
+            {
+                viewModel.ClearLoopRange();
+                _isDraggingTimelineRuler = false;
+                e.Handled = true;
+                return;
+            }
+        }
+
         _rulerDrag = RulerEdgeAt(viewModel, x) ?? RulerDrag.NewRange;
         _rulerAnchorStep = _rulerDrag switch
         {
@@ -833,9 +847,16 @@ public partial class MainWindow : Window
         if (sender is FrameworkElement ruler)
         {
             ruler.ReleaseMouseCapture();
-            if (!_rulerMoved && DataContext is MainViewModel viewModel)
+            if (DataContext is MainViewModel viewModel)
             {
-                viewModel.SeekToStep(viewModel.SongStepOf(RulerStep(viewModel, e.GetPosition(ruler).X))); // a click goes there
+                if (!_rulerMoved)
+                {
+                    viewModel.SeekToStep(viewModel.SongStepOf(RulerStep(viewModel, e.GetPosition(ruler).X))); // a click goes there
+                }
+                else
+                {
+                    viewModel.LoopTheRange(); // a range chosen is meant to be looped
+                }
             }
         }
 
@@ -1803,6 +1824,14 @@ public partial class MainWindow : Window
         tempo.Click += (_, _) => AskTempo(viewModel, step, viewModel.CurrentTempoMap.TempoAt(step));
         menu.Items.Add(marker);
         menu.Items.Add(tempo);
+        if (viewModel.HasLoopRange)
+        {
+            var clear = new MenuItem { Header = "Remove the loop markers (L and R)" };
+            clear.Click += (_, _) => viewModel.ClearLoopRange();
+            menu.Items.Add(new Separator());
+            menu.Items.Add(clear);
+        }
+
         menu.IsOpen = true;
         e.Handled = true;
     }
