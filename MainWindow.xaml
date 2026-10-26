@@ -1896,7 +1896,7 @@
                               Stroke="#E4E5E7" StrokeThickness="1" StrokeDashArray="1 2" SnapsToDevicePixels="True" />
                         <Border Width="9" Margin="-4,0,0,0" HorizontalAlignment="Left" Background="Transparent" Cursor="SizeWE"
                                 Tag="Playhead"
-                                ToolTip="Drag the line to where the song is to play from"
+                                ToolTip="Drag the line to where the song is to play from: a quarter note at a time, a sixteenth with Shift"
                                 MouseLeftButtonDown="Playhead_MouseLeftButtonDown"
                                 MouseMove="Playhead_MouseMove"
                                 MouseLeftButtonUp="Playhead_MouseLeftButtonUp" />

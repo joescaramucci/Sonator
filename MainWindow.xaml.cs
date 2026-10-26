@@ -874,7 +874,8 @@ public partial class MainWindow : Window
         }
     }
 
-    // The line follows the mouse along the SNAP grid; the song plays from where it is left, at once if playing.
+    // The line follows the mouse a quarter note at a time, whatever SNAP is set to (a sixteenth at a time with
+    // Shift); the song plays from where it is left, at once if playing.
     private void Playhead_MouseMove(object sender, MouseEventArgs e)
     {
         if (sender is not UIElement { IsMouseCaptured: true } || DataContext is not MainViewModel viewModel)
@@ -882,8 +883,10 @@ public partial class MainWindow : Window
             return;
         }
 
-        var x = Math.Max(0, e.GetPosition(PlayheadLayer).X);
-        viewModel.SeekToStep(viewModel.SongStepOf(viewModel.SnapStep(RulerStep(viewModel, x + viewModel.TimelineSixteenthWidth / 2))));
+        var sixteenths = Math.Max(0, e.GetPosition(PlayheadLayer).X) / viewModel.TimelineSixteenthWidth;
+        var grid = (Keyboard.Modifiers & ModifierKeys.Shift) != 0 ? 1 : 4;
+        var step = (int)Math.Round(sixteenths / grid) * grid;
+        viewModel.SeekToStep(viewModel.SongStepOf(step));
         e.Handled = true;
     }
 
