@@ -322,6 +322,18 @@ public partial class WaveformEditorWindow : Window
         {
             return;
         }
+
+        // A double-click plays the clip from there to its end.
+        if (e.ClickCount == 2)
+        {
+            ClearSelection();
+            Redraw();
+            var from = FrameAt(e.GetPosition(WaveCanvas).X);
+            Play(from, _clip.FrameCount, $"Playing from {Seconds(from)} (bar {BarBeat(from)}).");
+            e.Handled = true;
+            return;
+        }
+
         _selectionAnchor = FrameAt(e.GetPosition(WaveCanvas).X);
         _selectionStart = _selectionAnchor;
         _selectionEnd = _selectionAnchor;
@@ -631,6 +643,16 @@ public partial class WaveformEditorWindow : Window
         }
 
         var (start, end) = wholeClip ? (0, _clip.FrameCount) : RangeOrWhole();
+        Play(start, end, wholeClip ? "Playing the whole clip." : "Playing the selection.");
+    }
+
+    private void Play(int start, int end, string message)
+    {
+        if (_clip is null || end <= start)
+        {
+            return;
+        }
+
         StopPlayback();
 
         // Through Sonator's own output (ASIO too), as the song plays; Windows' default output only without it.
@@ -644,7 +666,7 @@ public partial class WaveformEditorWindow : Window
             _previewEnd.Tick += (_, _) => StopPlayback();
             _previewEnd.Start();
             StartPlayhead(start, end);
-            Info(wholeClip ? "Playing the whole clip." : "Playing the selection.");
+            Info(message);
             return;
         }
 
@@ -653,7 +675,7 @@ public partial class WaveformEditorWindow : Window
         _output.PlaybackStopped += (_, _) => Dispatcher.InvokeAsync(StopPlayback);
         _output.Play();
         StartPlayhead(start, end);
-        Info(wholeClip ? "Playing the whole clip." : "Playing the selection.");
+        Info(message);
     }
 
     private void StartPlayhead(int from, int to)
