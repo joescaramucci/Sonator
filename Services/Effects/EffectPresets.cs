@@ -88,8 +88,8 @@ public static class FactoryPresets
         // chromatic and the tuning at A440: set the song's after choosing one.
         [EffectKind.Tune] = new[]
         {
-            Factory("Natural", 0, 0, 30, 30, 100, 100, 0),
-            Factory("Tight", 0, 0, 10, 10, 100, 100, 0),
+            Factory("Natural", 0, 0, 25, 20, 100, 100, 0),
+            Factory("Tight", 0, 0, 8, 0, 100, 100, 0),
             Factory("Robot (Hard Tune)", 0, 0, 0, 0, 100, 100, 0),
             Factory("Gentle", 0, 0, 60, 50, 80, 100, 0),
         },

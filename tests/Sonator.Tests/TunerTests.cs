@@ -91,4 +91,58 @@ public sealed class TunerTests
             Assert.Equal(voice[i * 2], output[(i + latency) * 2], 4);
         }
     }
+
+    [Fact]
+    public void WithNothingToCorrect_AVoiceWithVibrato_ComesOutAsItWent_EvenHalfMixed()
+    {
+        // A vowel on A3, 20 cents flat, with a vibrato of 25 cents. Its grains laid the period heard apart slipped
+        // against the voice, and with the dry voice half and half it combed like a flanger.
+        var frames = (int)(Rate * 2);
+        var voice = new float[frames * 2];
+        double phase = 0;
+        for (var i = 0; i < frames; i++)
+        {
+            var frequency = 220 * Math.Pow(2, (-0.20 + 0.25 * Math.Sin(2 * Math.PI * 5.5 * i / Rate)) / 12);
+            phase += 2 * Math.PI * frequency / Rate;
+            double value = 0;
+            for (var harmonic = 1; harmonic < 12; harmonic++)
+            {
+                value += (Math.Exp(-Math.Pow((harmonic * frequency - 800) / 300, 2)) + 0.05) * Math.Sin(harmonic * phase);
+            }
+
+            voice[i * 2] = voice[i * 2 + 1] = (float)(0.15 * value);
+        }
+
+        var output = Tune((float[])voice.Clone(), ("Amount", 0), ("Mix", 50));
+
+        // In 50 ms windows, each at its best delay near the latency: the sound itself, however late.
+        var window = (int)(Rate / 20);
+        var ratios = new List<double>();
+        for (var start = frames / 4; start + window < frames; start += window)
+        {
+            var best = double.MaxValue;
+            double signal = 0;
+            for (var delay = 1400; delay < 1700; delay++)
+            {
+                double error = 0, power = 0;
+                for (var i = start; i < start + window; i += 2)
+                {
+                    var difference = output[i * 2] - voice[(i - delay) * 2];
+                    error += difference * difference;
+                    power += voice[(i - delay) * 2] * voice[(i - delay) * 2];
+                }
+
+                if (error < best)
+                {
+                    best = error;
+                    signal = power;
+                }
+            }
+
+            ratios.Add(10 * Math.Log10(signal / Math.Max(1e-12, best)));
+        }
+
+        var median = ratios.OrderBy(ratio => ratio).ElementAt(ratios.Count / 2);
+        Assert.True(median > 18, $"{median:0.0} dB of signal over the difference");
+    }
 }
