@@ -106,6 +106,7 @@ public static class HelpTexts
         {
             "Edits an audio clip: double-click a clip on the timeline to open it here, or Open... a file. Drag across the waveform to select a part, then Cut, Copy, Paste, Delete, Normalize, or fade it in or out; Undo takes a step back.",
             "The mouse wheel zooms in and out where the mouse is; Shift and the wheel, or the bar below, move along the clip. A press at the very left edge starts the selection at the clip's first sample. WAVE opens the selected track's clip.",
+            "The grid is the song's, from the clip's start: bars numbered, beats, and sixteenths when zoomed in, at the song's tempo and time signature. SNAP puts the selection's ends on its finest lines. While the clip plays, a white line shows where it has got to.",
             "Space plays the selection, or the whole clip without one, and stops; the full stop plays it all from the start; Escape stops.",
             "Send to track puts the clip, or the part selected, back into the track it came from, or into the selected empty track. Stretch to song tempo fits it to the song's tempo from the Clip BPM you give.",
         }),

@@ -32,6 +32,20 @@ public partial class WaveformEditorWindow : Window
     // The frames in view: all of the clip, or the part zoomed in on with the wheel.
     private int _viewStart;
     private int _viewLength;
+
+    // The playhead: where the clip being played has got to, by the time since it started.
+    private readonly System.Diagnostics.Stopwatch _playClock = new();
+    private int _playFrom;
+    private int _playTo;
+    private readonly Line _playhead = new()
+    {
+        Stroke = new SolidColorBrush(Color.FromRgb(242, 242, 242)),
+        StrokeThickness = 1.5,
+        Y1 = 0,
+        Y2 = CanvasHeight,
+        IsHitTestVisible = false,
+    };
+
     private WaveOutEvent? _output;
 
     // Ends a preview played through Sonator's own output when it has played through.
@@ -350,7 +364,7 @@ public partial class WaveformEditorWindow : Window
         }
         else if (_clip is not null)
         {
-            Info($"Selected {Seconds(_selectionStart)} to {Seconds(_selectionEnd)} ({(_selectionEnd - _selectionStart) / (double)_clip.SampleRate:F3} s). Space plays it.");
+            Info($"Selected {Seconds(_selectionStart)} to {Seconds(_selectionEnd)} (bar {BarBeat(_selectionStart)} to {BarBeat(_selectionEnd)}, {(_selectionEnd - _selectionStart) / (double)_clip.SampleRate:F3} s). Space plays it.");
         }
         Redraw();
     }
@@ -426,7 +440,113 @@ public partial class WaveformEditorWindow : Window
         // A few pixels from an edge are the edge itself, so a selection can start right at the clip's start.
         const double Snap = 4;
         var place = x <= Snap ? 0 : x >= width - Snap ? 1 : x / width;
-        return Math.Clamp(_viewStart + (int)Math.Round(place * _viewLength), 0, frames);
+        var frame = _viewStart + place * _viewLength;
+        if (SnapCheckBox.IsChecked == true && place is > 0 and < 1)
+        {
+            var line = GridSteps(width) * FramesPerStep;
+            frame = Math.Round(frame / line) * line;
+        }
+
+        return Math.Clamp((int)Math.Round(frame), 0, frames);
+    }
+
+    // ---- The song's grid, from the clip's start: bars, beats and, zoomed in enough, sixteenths ----
+
+    private static readonly Brush BarLineBrush = Frozen(Color.FromArgb(120, 210, 211, 213));
+    private static readonly Brush BeatLineBrush = Frozen(Color.FromArgb(55, 210, 211, 213));
+    private static readonly Brush StepLineBrush = Frozen(Color.FromArgb(22, 210, 211, 213));
+    private static readonly Brush BarNumberBrush = Frozen(Color.FromRgb(150, 160, 172));
+
+    private static Brush Frozen(Color color)
+    {
+        var brush = new SolidColorBrush(color);
+        brush.Freeze();
+        return brush;
+    }
+
+    private double Tempo => _viewModel is { Tempo: > 0 } viewModel ? viewModel.Tempo : _songTempo;
+
+    private Models.Meter Meter => _viewModel?.Meter ?? Models.Meter.Common;
+
+    // A sixteenth of the song, in the clip's frames (the tempo counts quarter notes).
+    private double FramesPerStep => (_clip?.SampleRate ?? 44100) * 60.0 / Math.Max(1, Tempo) / 4.0;
+
+    // The grid's finest lines at this zoom, in sixteenths: each one, a beat, a bar or several, never closer than 6 pixels.
+    private int GridSteps(double width)
+    {
+        var pixelsPerStep = FramesPerStep / Math.Max(1e-9, _viewLength / width);
+        var meter = Meter;
+        if (pixelsPerStep >= 6)
+        {
+            return 1;
+        }
+
+        if (pixelsPerStep * meter.StepsPerBeat >= 6)
+        {
+            return meter.StepsPerBeat;
+        }
+
+        var bars = 1;
+        while (pixelsPerStep * meter.StepsPerBar * bars < 6)
+        {
+            bars *= 2;
+        }
+
+        return meter.StepsPerBar * bars;
+    }
+
+    private void DrawGrid(double width)
+    {
+        var meter = Meter;
+        var framesPerStep = FramesPerStep;
+        var every = GridSteps(width);
+        var pixelsPerBar = framesPerStep * meter.StepsPerBar / (_viewLength / width);
+        var numberEvery = 1; // bars between numbers, so they never run into each other
+        while (pixelsPerBar * numberEvery < 40)
+        {
+            numberEvery *= 2;
+        }
+
+        var first = (long)Math.Ceiling(_viewStart / framesPerStep / every) * every;
+        var last = (_viewStart + _viewLength) / framesPerStep;
+        for (var step = first; step <= last; step += every)
+        {
+            var x = (step * framesPerStep - _viewStart) / _viewLength * width;
+            var isBar = step % meter.StepsPerBar == 0;
+            WaveCanvas.Children.Add(new Line
+            {
+                X1 = x,
+                X2 = x,
+                Y1 = 0,
+                Y2 = CanvasHeight,
+                Stroke = isBar ? BarLineBrush : step % meter.StepsPerBeat == 0 ? BeatLineBrush : StepLineBrush,
+                StrokeThickness = 1,
+                IsHitTestVisible = false,
+            });
+
+            var bar = step / meter.StepsPerBar;
+            if (isBar && bar % numberEvery == 0)
+            {
+                var number = new TextBlock
+                {
+                    Text = (bar + 1).ToString(CultureInfo.InvariantCulture),
+                    FontSize = 10,
+                    Foreground = BarNumberBrush,
+                    IsHitTestVisible = false,
+                };
+                Canvas.SetLeft(number, x + 3);
+                Canvas.SetTop(number, 2);
+                WaveCanvas.Children.Add(number);
+            }
+        }
+    }
+
+    // Where a frame is in the song's bars, as the transport shows it: bar.beat.sixteenth.
+    private string BarBeat(int frame)
+    {
+        var meter = Meter;
+        var step = (int)Math.Floor(frame / FramesPerStep);
+        return $"{step / meter.StepsPerBar + 1}.{step % meter.StepsPerBar / meter.StepsPerBeat + 1}.{step % meter.StepsPerBeat + 1}";
     }
 
     private bool TryGetRange(out int start, out int end)
@@ -523,6 +643,7 @@ public partial class WaveformEditorWindow : Window
             };
             _previewEnd.Tick += (_, _) => StopPlayback();
             _previewEnd.Start();
+            StartPlayhead(start, end);
             Info(wholeClip ? "Playing the whole clip." : "Playing the selection.");
             return;
         }
@@ -531,11 +652,70 @@ public partial class WaveformEditorWindow : Window
         _output.Init(AudioClipLoader.ToPlayable(_clip, start, end).ToWaveProvider());
         _output.PlaybackStopped += (_, _) => Dispatcher.InvokeAsync(StopPlayback);
         _output.Play();
+        StartPlayhead(start, end);
         Info(wholeClip ? "Playing the whole clip." : "Playing the selection.");
+    }
+
+    private void StartPlayhead(int from, int to)
+    {
+        _playFrom = from;
+        _playTo = to;
+        _playClock.Restart();
+        CompositionTarget.Rendering -= MovePlayhead;
+        CompositionTarget.Rendering += MovePlayhead;
+    }
+
+    private void StopPlayhead()
+    {
+        CompositionTarget.Rendering -= MovePlayhead;
+        _playClock.Reset();
+        WaveCanvas.Children.Remove(_playhead);
+    }
+
+    private int PlayheadFrame => Math.Min(_playTo, _playFrom + (int)(_playClock.Elapsed.TotalSeconds * (_clip?.SampleRate ?? 0)));
+
+    // Each frame drawn: the playhead moved on; zoomed in, the view turns the page when it gets to the end.
+    private void MovePlayhead(object? sender, EventArgs e)
+    {
+        if (_clip is null || !_playClock.IsRunning)
+        {
+            return;
+        }
+
+        var frame = PlayheadFrame;
+        if (_viewLength < _clip.FrameCount && !WaveBorder.IsMouseCaptured
+            && (frame < _viewStart || frame >= _viewStart + _viewLength))
+        {
+            _viewStart = frame - _viewLength / 20;
+            ClampView();
+            Redraw(); // which places the playhead
+            return;
+        }
+
+        PlacePlayhead(frame);
+    }
+
+    private void PlacePlayhead(int frame)
+    {
+        var width = WaveCanvas.ActualWidth;
+        var x = _viewLength > 0 ? (frame - _viewStart) / (double)_viewLength * width : -1;
+        if (x < 0 || x > width)
+        {
+            WaveCanvas.Children.Remove(_playhead);
+            return;
+        }
+
+        _playhead.X1 = x;
+        _playhead.X2 = x;
+        if (!WaveCanvas.Children.Contains(_playhead))
+        {
+            WaveCanvas.Children.Add(_playhead);
+        }
     }
 
     private void StopPlayback()
     {
+        StopPlayhead();
         if (_previewEnd is not null)
         {
             _previewEnd.Stop();
@@ -566,6 +746,7 @@ public partial class WaveformEditorWindow : Window
             return;
         }
 
+        DrawGrid(width);
         var middle = CanvasHeight / 2;
         var framesPerColumn = _viewLength / (double)width;
         var channels = _clip.Channels;
@@ -610,6 +791,11 @@ public partial class WaveformEditorWindow : Window
             Canvas.SetLeft(selection, left);
             Canvas.SetTop(selection, 0);
             WaveCanvas.Children.Add(selection);
+        }
+
+        if (_playClock.IsRunning)
+        {
+            PlacePlayhead(PlayheadFrame);
         }
     }
 
