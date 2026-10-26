@@ -5354,6 +5354,47 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         }
     }
 
+    // File > Import audio and separate into stems: the file is separated (see StemSeparator) in the background,
+    // then each stem goes on a track of its name (Vocals, Drums, Bass, Other) from the pattern's start: an empty
+    // track without a plug-in, else a new audio track. progress goes from 0 to 1 while the song is separated.
+    public async Task<bool> ImportSeparatedAsync(string path, IProgress<double>? progress, CancellationToken cancellation)
+    {
+        if (SelectedPattern is not { } pattern)
+        {
+            StatusMessage = "Choose a pattern to import the stems into";
+            return false;
+        }
+
+        var stems = await Task.Run(() => StemSeparator.SeparateFile(path, progress, cancellation)
+            .Select((clip, index) => (Name: StemSeparator.Stems[index], Clip: clip, Path: AudioClipLoader.SaveToLibrary(clip)))
+            .ToList(), cancellation);
+
+        foreach (var stem in stems.OrderBy(stem => stem.Name == "Vocals" ? 0 : 1)) // the voice first, as a song is listened to
+        {
+            var track = pattern.Tracks.FirstOrDefault(candidate => IsEmptyTrack(candidate) && string.IsNullOrEmpty(candidate.PluginFilePath));
+            if (track is null)
+            {
+                if (!TryGetNewTrackDefaults(PatternTrackType.AudioInput, out _, out var instrument, out var source, out var channel, out var noteNumber)
+                    || !TryAddTrack(PatternTrackType.AudioInput, stem.Name, instrument, source, channel, noteNumber, out _))
+                {
+                    StatusMessage = $"The {stem.Name} stem could not be put on a track";
+                    return false;
+                }
+
+                track = SelectedTrack!;
+            }
+
+            track.Name = stem.Name;
+            _audioWaveforms[stem.Path] = AudioWaveformSummary.FromClip(stem.Clip);
+            AssignAudioClip(track, stem.Path);
+        }
+
+        SelectedTrack = pattern.Tracks.FirstOrDefault(track => track.Name == "Vocals") ?? SelectedTrack;
+        StatusMessage = $"{Path.GetFileName(path)} separated into {string.Join(", ", stems.Select(stem => stem.Name))}: "
+            + "Detect tempo on the Drums track sets the song's tempo from it";
+        return true;
+    }
+
     // File > Import audio: puts the file into the selected track when it is empty, else into the pattern's
     // first empty track, else into a new audio track. False when there is no pattern to put it in.
     public bool ImportAudioFile(string sourcePath)

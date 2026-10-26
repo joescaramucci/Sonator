@@ -18,6 +18,16 @@ It includes or uses the following third-party components.
 - Packages: `NAudio.Vorbis` 1.5.0 and its dependency `NVorbis` 0.10.4 (NuGet), used for playing Ogg Vorbis files: OGG samples and the preview recordings of Kontakt instruments.
 - License: MIT. Copyright (c) Andrew Ward.
 
+## ONNX Runtime
+
+- Package: `Microsoft.ML.OnnxRuntime` 1.31.0 (NuGet), used for running the stem separation model.
+- License: MIT. Copyright (c) Microsoft Corporation.
+
+## HT-Demucs (downloaded, not included)
+
+- The stem separation model, HT-Demucs v4 by Meta Platforms (FAIR), as an ONNX export (`htdemucs_fp16weights.onnx`, huggingface.co/adowu/htdemucs-onnx), is downloaded on first use, after the player agrees, and checked against its SHA-256. It is not part of this repository.
+- The Demucs code is MIT-licensed. The export is published under MIT; the original authors have described the pretrained weights as provided for research, so the stems are meant for the player's own music.
+
 ## VST 3 interfaces (pluginterfaces)
 
 - Location: `native/VstHostBridge/thirdparty/pluginterfaces/`.

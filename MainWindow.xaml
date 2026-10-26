@@ -524,6 +524,8 @@
                         <MenuItem Header="Import _MIDI..." Command="{Binding ImportMidiCommand}" />
                         <MenuItem Header="Import a_udio (WAV, MP3)..." Click="ImportAudioMenuItem_Click"
                                   ToolTip="Put an audio file into the selected track, or the first empty one, or a new audio track. A file can also be dropped on an empty track" />
+                        <MenuItem Header="Import audio and _separate into stems..." Click="ImportSeparatedMenuItem_Click"
+                                  ToolTip="Separate a song (MP3, WAV...) into vocals, drums, bass and the rest, each on a track of its own: done on this computer by HT-Demucs, a model downloaded once" />
                         <MenuItem Header="Song _info and tags..." Click="SongTagsMenuItem_Click"
                                   ToolTip="Title, artist, album, genre, year, track, composer, comment and cover: every file exported carries them" />
                         <MenuItem Header="Edit the tags of an MP3 or WAV..." Click="FileTagsMenuItem_Click" />

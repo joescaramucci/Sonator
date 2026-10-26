@@ -113,6 +113,12 @@ More views are in the [screenshot gallery](docs/GALLERY.md).
   - The clip's waveform is drawn on the timeline.
   - Fade-in and fade-out handles.
   - Time-stretch that follows the song's tempo.
+- **Stem separation.** *Import audio and separate into stems* splits a song
+  (MP3, WAV...) into vocals, drums, bass and the rest, each on a track of its
+  own.
+  - It runs on this computer with HT-Demucs v4, whose model is downloaded once
+    (about 166 MB). A one-minute song takes about a minute on the CPU.
+  - The vocals can then go to Cromator or Sondyne.
 - **Freeze and bounce.** Freeze or bounce a track to audio to save CPU.
 - **Undo and redo** everywhere, plus autosave.
 

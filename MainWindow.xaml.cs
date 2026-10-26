@@ -1553,6 +1553,71 @@ public partial class MainWindow : Window
         }
     }
 
+    // File > Import audio and separate into stems: the song is separated into four stems on this computer, the
+    // model downloaded first if it is not here yet (once asked), with the progress shown and a way to stop.
+    private async void ImportSeparatedMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Import audio and separate into stems",
+            Filter = "Audio files (*.wav, *.mp3, *.m4a, *.flac, *.aif)|*.wav;*.mp3;*.m4a;*.flac;*.aif;*.aiff|All files (*.*)|*.*",
+        };
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        if (!Services.StemSeparator.IsModelReady
+            && !SonatorMessageDialog.Ask(this, "Separate into stems",
+                "To separate a song into vocals, drums, bass and the rest, Sonator needs HT-Demucs, Meta's music separation model "
+                + "(about 166 MB), downloaded once from Hugging Face and kept on this computer. Songs are then separated here, "
+                + "without the internet.\n\nIts authors made it for research: use the stems for your own music. Download it now?",
+                "DOWNLOAD", "CANCEL"))
+        {
+            return;
+        }
+
+        var name = System.IO.Path.GetFileName(dialog.FileName);
+        var progressWindow = new ProgressWindow("Separate into stems") { Owner = this };
+        progressWindow.Show();
+        IsEnabled = false;
+        try
+        {
+            if (!Services.StemSeparator.IsModelReady)
+            {
+                progressWindow.Report("Downloading HT-Demucs...", 0);
+                await Services.StemSeparator.DownloadModelAsync(
+                    new Progress<double>(done => progressWindow.Report($"Downloading HT-Demucs: {done * Services.StemSeparator.ModelBytes / (1 << 20):0} of {Services.StemSeparator.ModelBytes / (1 << 20)} MB", done)),
+                    progressWindow.Cancellation);
+            }
+
+            progressWindow.Report($"Separating {name}: vocals, drums, bass and the rest...", 0);
+            await viewModel.ImportSeparatedAsync(dialog.FileName,
+                new Progress<double>(done => progressWindow.Report($"Separating {name}: {done:P0}", done)),
+                progressWindow.Cancellation);
+        }
+        catch (OperationCanceledException)
+        {
+            viewModel.StatusMessage = $"The separation of {name} was stopped";
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or System.Net.Http.HttpRequestException or System.IO.InvalidDataException
+                                       or Microsoft.ML.OnnxRuntime.OnnxRuntimeException or UnauthorizedAccessException
+                                       or System.Runtime.InteropServices.COMException)
+        {
+            SonatorMessageDialog.Show(this, "Separate into stems", $"{name} could not be separated: {ex.Message}");
+        }
+        finally
+        {
+            IsEnabled = true;
+            progressWindow.Close();
+        }
+    }
+
     // File > Clean up the audio library: the clips kept in Sonator's library that nothing known plays go to the
     // Recycle Bin, once asked.
     private void CleanUpAudioLibraryMenuItem_Click(object sender, RoutedEventArgs e)
