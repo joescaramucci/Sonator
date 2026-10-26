@@ -667,10 +667,10 @@ public partial class MainWindow : Window
 
         // A press on a block belongs to the block: it moves or resizes it instead of scrolling. So does a press
         // on an automation lane, which adds or drags a point, one on an audio clip, which drags the clip, and one
-        // on the ruler, which chooses the part to loop.
+        // on the ruler, which chooses the part to loop, and one on the playhead line, which drags the line.
         if (e.ChangedButton == MouseButton.Left
             && (IsInsideNoteBlock(e.OriginalSource) || IsInsideTagged(e.OriginalSource, "AutomationLane") || IsInsideTagged(e.OriginalSource, "AudioClip")
-                || IsInsideTagged(e.OriginalSource, "TimelineRuler") || IsOnLaneArea(e)))
+                || IsInsideTagged(e.OriginalSource, "TimelineRuler") || IsInsideTagged(e.OriginalSource, "Playhead") || IsOnLaneArea(e)))
         {
             return;
         }

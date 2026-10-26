@@ -1895,6 +1895,7 @@
                         <Line X1="0" X2="0" Y1="0" Y2="{Binding ActualHeight, ElementName=PlayheadLayer}" IsHitTestVisible="False"
                               Stroke="#E4E5E7" StrokeThickness="1" StrokeDashArray="1 2" SnapsToDevicePixels="True" />
                         <Border Width="9" Margin="-4,0,0,0" HorizontalAlignment="Left" Background="Transparent" Cursor="SizeWE"
+                                Tag="Playhead"
                                 ToolTip="Drag the line to where the song is to play from"
                                 MouseLeftButtonDown="Playhead_MouseLeftButtonDown"
                                 MouseMove="Playhead_MouseMove"
