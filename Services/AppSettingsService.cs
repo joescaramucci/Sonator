@@ -33,6 +33,9 @@ public sealed class AppSettings
     // The projects last saved or opened, the latest first, for File > Open recent.
     public List<string> RecentProjects { get; set; } = new();
 
+    // Whether Sonator opens the latest of them when it starts. Null means yes.
+    public bool? OpenLastProjectAtStart { get; set; }
+
     // How often the open project is autosaved, in minutes; 0 is off. Null means the default, 5.
     public int? AutosaveMinutes { get; set; }
 

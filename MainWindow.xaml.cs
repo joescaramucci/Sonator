@@ -98,6 +98,7 @@ public partial class MainWindow : Window
         }
 
         OpenRecentMenuItem.IsEnabled = recent.Count > 0;
+        OpenLastAtStartMenuItem.IsChecked = new AppSettingsService().Load().OpenLastProjectAtStart != false;
 
         AutosaveMenuItem.Items.Clear();
         foreach (var minutes in viewModel.AutosaveIntervalChoices)
@@ -111,6 +112,14 @@ public partial class MainWindow : Window
             item.Click += (_, _) => viewModel.AutosaveMinutes = minutes;
             AutosaveMenuItem.Items.Add(item);
         }
+    }
+
+    private void OpenLastAtStartMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var settingsService = new AppSettingsService();
+        var settings = settingsService.Load();
+        settings.OpenLastProjectAtStart = OpenLastAtStartMenuItem.IsChecked;
+        settingsService.Save(settings);
     }
 
     private void OpenRecentProject(MainViewModel viewModel, string path)
@@ -219,11 +228,19 @@ public partial class MainWindow : Window
         viewModel.TrackInstrumentStopping += ClosePluginWindowsOf;
         viewModel.EffectPluginUnloading += ClosePluginWindowsOf;
         viewModel.SavedInstrumentStarted += DockSavedInstrument;
-        OfferToRecover(viewModel);
+        var recovered = OfferToRecover(viewModel);
 
         // A project given on the command line, as when its file is opened from Explorer. With --export and a WAV
         // or MP3 file after it, the song is exported there once the plug-ins have loaded, and Sonator closes.
         var arguments = Environment.GetCommandLineArgs();
+        // With none, and no work recovered, the song saved or opened last (File > Open the last song at start).
+        if (arguments.Length < 2 && !recovered
+            && new AppSettingsService().Load().OpenLastProjectAtStart != false
+            && viewModel.RecentProjects is [var last, ..])
+        {
+            viewModel.OpenProject(last);
+        }
+
         if (arguments is [_, var project, ..] && File.Exists(project) && viewModel.OpenProject(Path.GetFullPath(project))
             && Array.IndexOf(arguments, "--export") is var at and > 0 && at + 1 < arguments.Length)
         {
@@ -253,23 +270,26 @@ public partial class MainWindow : Window
     }
 
     // When the last session ended without saving its project (Sonator or Windows stopped), offers the work it
-    // autosaved; then autosaving starts for this session.
-    private void OfferToRecover(MainViewModel viewModel)
+    // autosaved; then autosaving starts for this session. True when the work was recovered.
+    private bool OfferToRecover(MainViewModel viewModel)
     {
         var autosave = new ProjectAutosave();
+        var recovered = false;
         if (autosave.Find() is { } info)
         {
             var project = string.IsNullOrWhiteSpace(info.ProjectPath) ? "a new project, never saved" : Path.GetFileName(info.ProjectPath);
             var recover = SonatorMessageDialog.Ask(this, "Recover autosaved work",
                 $"Sonator stopped before saving {project}. Its work was autosaved at {info.SavedAt:HH:mm} on {info.SavedAt:d}. Recover it?",
                 "RECOVER", "DISCARD");
-            if (!recover || !viewModel.RecoverAutosave(autosave, info))
+            recovered = recover && viewModel.RecoverAutosave(autosave, info);
+            if (!recovered)
             {
                 autosave.Discard(info);
             }
         }
 
         viewModel.UseAutosave(autosave);
+        return recovered;
     }
 
     private async Task GenerateVstThumbnailAsync(VstPluginViewModel plugin)

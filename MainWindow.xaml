@@ -515,6 +515,9 @@
                         <MenuItem Header="_New project" Click="NewProjectMenuItem_Click" InputGestureText="Ctrl+N" />
                         <MenuItem Header="_Open project..." Click="OpenProjectMenuItem_Click" InputGestureText="Ctrl+L" />
                         <MenuItem x:Name="OpenRecentMenuItem" Header="Open _recent" />
+                        <MenuItem x:Name="OpenLastAtStartMenuItem" Header="Open the last song at s_tart" IsCheckable="True"
+                                  Click="OpenLastAtStartMenuItem_Click"
+                                  ToolTip="When Sonator starts, it opens the song saved or opened last" />
                         <Separator />
                         <MenuItem Header="_Save project" Command="{Binding SaveProjectCommand}" InputGestureText="Ctrl+S" />
                         <MenuItem Header="Save _As..." Command="{Binding SaveProjectAsCommand}" InputGestureText="Ctrl+Shift+S" />
