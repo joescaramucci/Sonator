@@ -52,7 +52,27 @@ public sealed class HarmonizerTests
         return samples;
     }
 
-    private static float[] Harmonize(double sungHz, double key, double minor, double voice1)
+    // A vowel: the harmonics of the note shaped by a formant at 800 Hz, as a voice's mouth shapes them.
+    private static float[] SingVowel(double frequency, double seconds)
+    {
+        var frames = (int)(seconds * Rate);
+        var samples = new float[frames * 2];
+        for (var i = 0; i < frames; i++)
+        {
+            double value = 0;
+            for (var n = 1; n * frequency < 5000; n++)
+            {
+                var f = n * frequency;
+                value += (Math.Exp(-Math.Pow((f - 800) / 250, 2)) + 0.03) * Math.Sin(2 * Math.PI * f * i / Rate);
+            }
+
+            samples[i * 2] = samples[i * 2 + 1] = (float)(0.15 * value);
+        }
+
+        return samples;
+    }
+
+    private static float[] Harmonize(double sungHz, double key, double minor, double voice1, bool vowel = false)
     {
         using var chain = NativeEffectChain.TryCreate()!;
         chain.SetLayout([EffectKind.Harmonizer]);
@@ -71,7 +91,7 @@ public sealed class HarmonizerTests
         Set("Dry", 0);
         Set("Width", 0);
 
-        var samples = Sing(sungHz, 1.5);
+        var samples = vowel ? SingVowel(sungHz, 1.5) : Sing(sungHz, 1.5);
         const int Block = 512;
         var block = new float[Block * 2];
         for (var start = 0; start < samples.Length / 2; start += Block)
@@ -93,6 +113,21 @@ public sealed class HarmonizerTests
         var c = Strength(output, 261.63);
         Assert.True(c > 10 * Strength(output, 277.18), "C, not C#");
         Assert.True(c > 10 * Strength(output, 220.0), "the harmony, not the voice");
+    }
+
+    [Fact]
+    public void TheHarmony_KeepsTheVoicesTimbre_ItsFormantStaysWhereItWas()
+    {
+        // A vowel on A (220 Hz) with its formant at 800 Hz, a third up: C# (277 Hz). Keeping the timbre, the
+        // harmonic nearest 800 Hz (the third, 832 Hz) stays the strongest; tape-like shifting moved the formant up
+        // with the pitch, to about 1000 Hz, and the fourth (1109 Hz) was the strongest: a small, nasal voice.
+        var output = Harmonize(220.0, key: 0, minor: 0, voice1: 2, vowel: true);
+        const double Shifted = 277.18;
+
+        var third = Strength(output, 3 * Shifted);
+        var fourth = Strength(output, 4 * Shifted);
+        Assert.True(third > 2.5 * fourth, $"832 Hz {third:0.0}, 1109 Hz {fourth:0.0}");
+        Assert.True(third > 1.5 * Strength(output, 2 * Shifted));
     }
 
     [Fact]

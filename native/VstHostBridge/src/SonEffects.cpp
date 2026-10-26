@@ -576,6 +576,7 @@ namespace son
 
                 _sinceAnalysis = 0;
                 const double heard = Detect();
+                Voiced = heard > 0;
                 if (heard <= 0)
                 {
                     return false;
@@ -586,9 +587,11 @@ namespace son
                 return true;
             }
 
-            // The last note heard, in MIDI notes with fractions (-1 until one is), and its period in samples (0).
+            // The last note heard, in MIDI notes with fractions (-1 until one is), and its period in samples (0);
+            // Voiced while the voice is clearly pitched now (not in a consonant, a breath or silence).
             double Sung = -1.0;
             double Period = 0.0;
+            bool Voiced = false;
 
         private:
             // The pitch of the last 40 ms, by YIN; -1 when it is not clearly pitched or too quiet.
@@ -687,6 +690,7 @@ namespace son
             {
                 _line.assign(length, 0.0f);
                 _write = 0;
+                _time = 0;
             }
 
             void Write(float sample)
@@ -697,7 +701,13 @@ namespace son
             void Advance()
             {
                 _write = (_write + 1) % _line.size();
+                ++_time;
             }
+
+            // The time of the sample written last, counted in samples from the start.
+            int64_t Time() const { return _time; }
+
+            size_t Length() const { return _line.size(); }
 
             float Read(double delay) const
             {
@@ -713,13 +723,15 @@ namespace son
         private:
             std::vector<float> _line;
             size_t _write = 0;
+            int64_t _time = 0;
         };
 
-        // Moves a voice's pitch: two read heads, each sliding through its span of the line at the new speed and faded
-        // in and out across it. A head that runs off its span starts again half a span from the other, the span an
-        // even number of the voice's periods, so the two read the same wave in step and never cancel as they cross
-        // (pitch-synchronous, as PSOLA). It reads Delay later than the heads' own place.
-        struct PitchShifter
+        // Moves a voice's pitch as tape played faster or slower does: two read heads, each sliding through its span of
+        // the line at the new speed and faded in and out across it. A head that runs off its span starts again half a
+        // span from the other, the span an even number of the voice's periods, so the two read the same wave in step
+        // and never cancel as they cross. The formants move with the pitch, which is not heard for a few cents (a
+        // choir's singers in unison) but is for a third or more: those go through the PitchShifter below.
+        struct TapeShifter
         {
             static constexpr double MinDelay = 8.0;
 
@@ -771,6 +783,142 @@ namespace son
                 }
 
                 return weights > 1e-3f ? sum / weights : 0.0f;
+            }
+        };
+
+        // Moves a voice's pitch keeping its timbre, by TD-PSOLA. Grains two of the voice's periods long, Hann-faded,
+        // are taken a period apart along the voice (analysis marks) and laid down a period divided by the shift's
+        // ratio apart (synthesis marks): the wave inside each grain is not sped up, so the voice's formants (the
+        // resonances that make it sound like itself) stay where they are and only its pitch moves. Reading the voice
+        // faster instead, as tape does, moved the formants with the pitch and made the voice small and nasal. Each
+        // analysis mark is where the wave best matches the one a period before (within 3%), so the grains overlap in
+        // step even when the period heard is a little off. Where the voice is not pitched (a consonant, a breath),
+        // grains are laid down as they are taken. The voice comes out Latency samples late; extra reads it later
+        // still.
+        struct PitchShifter
+        {
+            std::vector<float> out;   // the grains laid down, by output time (output time modulo its size)
+            double synthesis = 0.0;   // where the next grain is centred, in the voice's time
+            double analysis = 0.0;    // where the grain before it was taken from
+            int latency = 1764;
+
+            void Reset(int grain)
+            {
+                latency = grain;
+                out.assign(static_cast<size_t>(grain) * 4 + 64, 0.0f);
+                synthesis = 0.0;
+                analysis = 0.0;
+            }
+
+            // The next sample of the voice moved by semitones, for the voice's last sample written to the line.
+            float Next(const VoiceLine& line, double semitones, double period, bool voiced, double extra)
+            {
+                const int64_t now = line.Time();
+                const double read = static_cast<double>(now - latency); // the output time heard now
+                const double longest = (latency - 4) / 2.5;              // a grain must be in the line before it is laid
+                const double grainPeriod = voiced && period > 1.0 ? std::min(period, longest) : std::min(longest, latency * 0.15);
+                const double ratio = voiced ? std::exp2(std::clamp(semitones, -24.0, 24.0) / 12.0) : 1.0;
+                const double hop = grainPeriod / ratio;
+
+                // Not called for a while (a section switched off), or a jump: start afresh from here.
+                if (synthesis + grainPeriod < read || synthesis > read + 3.0 * latency)
+                {
+                    std::fill(out.begin(), out.end(), 0.0f);
+                    synthesis = read + grainPeriod;
+                    analysis = synthesis;
+                }
+
+                // Every grain whose start the output is about to reach is laid down now.
+                while (synthesis - grainPeriod <= read + 1.0)
+                {
+                    if (analysis < synthesis - 4.0 * grainPeriod || analysis > synthesis + grainPeriod)
+                    {
+                        analysis = synthesis;
+                    }
+
+                    while (analysis + grainPeriod * 0.5 < synthesis)
+                    {
+                        // A whole period along, where the wave matches the last one best, so the grains stay in step.
+                        analysis = voiced ? NextPeriod(line, now, analysis, grainPeriod, extra) : analysis + grainPeriod;
+                    }
+
+                    AddGrain(line, now, read, grainPeriod, static_cast<float>(hop / grainPeriod), extra);
+                    synthesis += hop;
+                }
+
+                const size_t size = out.size();
+                const size_t slot = static_cast<size_t>(((now - latency) % static_cast<int64_t>(size) + static_cast<int64_t>(size)) % static_cast<int64_t>(size));
+                const float sample = now >= latency ? out[slot] : 0.0f;
+                out[slot] = 0.0f;
+                return sample;
+            }
+
+        private:
+            // The place a period after from, within 3% of it, where a period of the wave is most like the period
+            // starting at from (the normalised cross-correlation of the two).
+            static double NextPeriod(const VoiceLine& line, int64_t now, double from, double period, double extra)
+            {
+                const int length = std::max(8, static_cast<int>(period));
+                const int search = std::max(2, static_cast<int>(period * 0.03));
+                const double lineEnd = static_cast<double>(line.Length()) - 2.0;
+                auto sample = [&](double time)
+                {
+                    const double delay = static_cast<double>(now) - time + extra;
+                    return delay >= 0.0 && delay <= lineEnd ? line.Read(delay) : 0.0f;
+                };
+
+                double best = from + period;
+                double bestScore = -2.0;
+                for (int d = -search; d <= search; ++d)
+                {
+                    const double candidate = from + period + d;
+                    double cross = 0.0;
+                    double energy = 0.0;
+                    for (int j = 0; j < length; j += 2) // every other sample: enough to tell, half the work
+                    {
+                        const float a = sample(from + j);
+                        const float b = sample(candidate + j);
+                        cross += static_cast<double>(a) * b;
+                        energy += static_cast<double>(b) * b;
+                    }
+
+                    const double score = energy > 1e-12 ? cross / std::sqrt(energy) : -1.0;
+                    if (score > bestScore)
+                    {
+                        bestScore = score;
+                        best = candidate;
+                    }
+                }
+
+                return best;
+            }
+
+            // Adds the grain taken around analysis, centred on synthesis, scaled so the overlapping grains add up
+            // to the voice's level.
+            void AddGrain(const VoiceLine& line, int64_t now, double read, double grainPeriod, float scale, double extra)
+            {
+                const int reach = std::max(1, static_cast<int>(grainPeriod));
+                const int64_t centre = static_cast<int64_t>(std::llround(synthesis));
+                const size_t size = out.size();
+                const double lineEnd = static_cast<double>(line.Length()) - 2.0;
+                for (int k = -reach; k <= reach; ++k)
+                {
+                    const int64_t at = centre + k;
+                    if (static_cast<double>(at) <= read || static_cast<double>(at) >= read + static_cast<double>(size))
+                    {
+                        continue; // already heard, or beyond what the buffer holds
+                    }
+
+                    const double delay = static_cast<double>(now) - (analysis + k) + extra;
+                    if (delay < 0.0 || delay > lineEnd)
+                    {
+                        continue;
+                    }
+
+                    const float window = static_cast<float>(0.5 * (1.0 + std::cos(Pi * k / grainPeriod)));
+                    const int64_t length = static_cast<int64_t>(size);
+                    out[static_cast<size_t>((at % length + length) % length)] += line.Read(delay) * window * scale;
+                }
             }
         };
 
@@ -872,7 +1020,7 @@ namespace son
                             continue;
                         }
 
-                        const float sample = voice.shifter.Next(_line, voice.shift, _tracker.Period, _grain, 0.0) * levels[v] * voice.gate;
+                        const float sample = voice.shifter.Next(_line, voice.shift, _tracker.Period, _tracker.Voiced, 0.0) * levels[v] * voice.gate;
                         left += sample * panLeft[v];
                         right += sample * panRight[v];
                     }
@@ -980,6 +1128,7 @@ namespace son
                 {
                     singer = Singer{};
                     singer.shifter.Reset(_grain);
+                    singer.tape.Reset(_grain);
                     singer.detune = random() * 2.0 - 1.0;
                     singer.lateness = random();
                     singer.pan = (i % 2 == 0 ? -1.0 : 1.0) * (0.25 + 0.75 * random());
@@ -1035,8 +1184,13 @@ namespace son
                         singer.phaseB -= std::floor(singer.phaseB);
                         const double waver = wavering * (0.65 * std::sin(twoPi * singer.phaseA) + 0.35 * std::sin(twoPi * singer.phaseB));
                         const double semitones = octave + singer.detune * detune + waver;
-                        const float sample = singer.shifter.Next(_line, semitones, _tracker.Period, _grain, singer.lateness * timing)
-                            * gain * static_cast<float>(singer.gain);
+                        // In unison a singer is a few cents off, which tape does as well and smoother; an octave
+                        // away keeps the voice's timbre (PSOLA), as a lower or higher singer would.
+                        const double late = singer.lateness * timing;
+                        const float shifted = octave == 0.0
+                            ? singer.tape.Next(_line, semitones, _tracker.Period, _grain, late)
+                            : singer.shifter.Next(_line, semitones, _tracker.Period, _tracker.Voiced, late);
+                        const float sample = shifted * gain * static_cast<float>(singer.gain);
                         const double pan = singer.pan * width;
                         left += sample * static_cast<float>(std::sqrt(0.5 * (1.0 - pan)));
                         right += sample * static_cast<float>(std::sqrt(0.5 * (1.0 + pan)));
@@ -1081,7 +1235,8 @@ namespace son
 
             struct Singer
             {
-                PitchShifter shifter;
+                PitchShifter shifter; // for the low and high sections
+                TapeShifter tape;     // for the unison
                 double detune = 0.0;   // -1 to 1, of the detune knob
                 double lateness = 0.0; // 0 to 1, of the timing knob
                 double pan = 0.0;
