@@ -122,9 +122,10 @@ public static class EffectCatalog
             new EffectParameterDefinition("Key", 0, 12, 0, string.Empty, Labels: TuneKeyNames),
             new EffectParameterDefinition("Minor", 0, 1, 0, string.Empty, IsSwitch: true),
             new EffectParameterDefinition("Speed", 0, 400, 20, "ms"),
-            new EffectParameterDefinition("Humanize", 0, 100, 20, "%"),
+            new EffectParameterDefinition("Humanize", 0, 100, 0, "%"),
             new EffectParameterDefinition("Amount", 0, 100, 100, "%"),
             new EffectParameterDefinition("Mix", 0, 100, 100, "%"),
+            new EffectParameterDefinition("Tuning", -50, 50, 0, "cents"),
         }),
     };
 

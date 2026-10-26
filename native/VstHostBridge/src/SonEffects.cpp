@@ -814,7 +814,11 @@ namespace son
             // moves the voice's formants too, by that ratio (1.2 a fifth of the way to a smaller throat, as a woman's or
             // a child's; 0.85 to a bigger one, as a man's): each grain is read that much faster or slower, while the
             // spacing of the grains still sets the pitch.
-            float Next(const VoiceLine& line, double semitones, double period, bool voiced, double extra, double formant = 1.0)
+            // outputPeriod, when given (above 0), is the period the voice is to come out at, in samples: the grains are
+            // laid that far apart whatever the voice's own period is now, so the pitch out is exactly that one (as a
+            // tuner wants it), not the voice's period as last heard moved by semitones.
+            float Next(const VoiceLine& line, double semitones, double period, bool voiced, double extra, double formant = 1.0,
+                double outputPeriod = 0.0)
             {
                 const int64_t now = line.Time();
                 const double read = static_cast<double>(now - latency); // the output time heard now
@@ -822,7 +826,9 @@ namespace son
                 const double longest = (latency - 4) / (1.6 + std::max(1.0, formant)); // a grain must be in the line before it is laid
                 const double grainPeriod = voiced && period > 1.0 ? std::min(period, longest) : std::min(longest, latency * 0.15);
                 const double ratio = voiced ? std::exp2(std::clamp(semitones, -24.0, 24.0) / 12.0) : 1.0;
-                const double hop = grainPeriod / ratio;
+                const double hop = voiced && outputPeriod > 1.0
+                    ? std::clamp(outputPeriod, grainPeriod * 0.25, grainPeriod * 4.0)
+                    : grainPeriod / ratio;
 
                 // Not called for a while (a section switched off), or a jump: start afresh from here.
                 if (synthesis + grainPeriod < read || synthesis > read + 3.0 * latency)
@@ -1327,13 +1333,18 @@ namespace son
         // PitchShifter, keeping its timbre. SPEED is how long the move takes: 0 snaps at once (the robotic sound of
         // so many records), 20 to 50 ms corrects as a singer would. HUMANIZE corrects the note's centre rather than
         // each moment of it, so the vibrato and the slides into a note are kept. AMOUNT is how much of the way the
-        // voice is moved. The voice comes out 32 ms late, the dry voice delayed as much so MIX does not comb, and the
-        // mixer is told, so the track stays in time with the others. Its meter is the note heard (-1 when none).
-        // Parameters: 0 key (0 chromatic, 1..12 C..B), 1 minor (0 or 1), 2 speed ms, 3 humanize %, 4 amount %, 5 mix %.
+        // voice is moved. TUNING is the song's reference in cents off A440, for a song tuned otherwise. The voice comes
+        // out 32 ms late, the dry voice delayed as much so MIX does not comb, and the mixer is told, so the track stays
+        // in time with the others. The correction is delayed as much as the voice it moves (less the 20 ms by which
+        // the note heard lags, as the middle of the 40 ms heard), so each moment of the voice gets its own; applied
+        // at once it went to the voice of 32 ms before, off and often the wrong way on a voice that moves. Its meter
+        // is the note heard (-1 when none).
+        // Parameters: 0 key (0 chromatic, 1..12 C..B), 1 minor (0 or 1), 2 speed ms, 3 humanize %, 4 amount %, 5 mix %,
+        // 6 tuning cents.
         class Tuner final : public Effect
         {
         public:
-            Tuner() { SetDefaults(*this, {0.0f, 0.0f, 20.0f, 20.0f, 100.0f, 100.0f}); }
+            Tuner() { SetDefaults(*this, {0.0f, 0.0f, 20.0f, 0.0f, 100.0f, 100.0f, 0.0f}); }
 
             void Prepare(double sampleRate, int /*maxBlock*/) override
             {
@@ -1346,6 +1357,10 @@ namespace son
                 _target = 0.0;
                 _correction = 0.0;
                 _meter.store(-1.0f);
+                // The note heard is that of the middle of the last 40 ms: 20 ms back. The voice heard now is _grain back.
+                const int lag = std::max(0, _grain - static_cast<int>(sampleRate * 0.020));
+                _history.assign(static_cast<size_t>(lag) + 1, {-1.0, 0.0, 0.0, 0.0});
+                _historyAt = 0;
             }
 
             int Latency() const override { return _grain; }
@@ -1360,6 +1375,7 @@ namespace son
                 const double humanize = std::clamp(static_cast<double>(parameters[3].load()) / 100.0, 0.0, 1.0);
                 const double amount = std::clamp(static_cast<double>(parameters[4].load()) / 100.0, 0.0, 1.0);
                 const float mix = std::clamp(parameters[5].load() / 100.0f, 0.0f, 1.0f);
+                const double tuning = std::clamp(static_cast<double>(parameters[6].load()), -50.0, 50.0) / 100.0; // semitones
                 const double glide = SmoothingCoefficient(std::max(speed, 0.05), _sampleRate);
                 // The note's centre follows the voice within up to 250 ms, as much as HUMANIZE asks, every 10 ms.
                 const double follow = humanize > 0.0 ? 1.0 - std::exp(-0.010 / (0.250 * humanize)) : 1.0;
@@ -1370,9 +1386,16 @@ namespace son
                     if (_tracker.Push(mono))
                     {
                         const double sung = _tracker.Sung;
-                        // A new note (more than a semitone away) is taken at once; within one, the centre follows.
-                        _centre = _centre < 0.0 || std::fabs(sung - _centre) > 1.0 ? sung : _centre + (sung - _centre) * follow;
-                        _target = (Nearest(_centre, key, minor) - _centre) * amount;
+                        // A new note (one whose target is another, or half a semitone away) is taken at once; within
+                        // one, the centre follows. A step of a semitone counted as the same note before, and the
+                        // centre, lagging behind, kept the voice on the note before or halfway between.
+                        const bool newNote = _centre < 0.0 || std::fabs(sung - _centre) > 0.5
+                            || Nearest(sung - tuning, key, minor) != Nearest(_centre - tuning, key, minor);
+                        // The centre is the note's mean so far (its first moment, often a slide into it, soon outweighed),
+                        // then a mean of its last moments.
+                        _heardInNote = newNote ? 1 : _heardInNote + 1;
+                        _centre = newNote ? sung : _centre + (sung - _centre) * std::max(follow, 1.0 / _heardInNote);
+                        _target = (Nearest(_centre - tuning, key, minor) + tuning - _centre) * amount;
                         _meter.store(static_cast<float>(sung));
                     }
 
@@ -1383,7 +1406,16 @@ namespace son
 
                     _line.Write(mono);
                     _correction = _target + (_correction - _target) * glide;
-                    const float tuned = _shifter.Next(_line, _correction, _tracker.Period, _tracker.Voiced, 0.0);
+                    // For the voice heard now (_grain back), the note, period and correction worked out when that
+                    // voice was the one heard; the voice comes out at the note sung plus the correction, its grains
+                    // laid that note's period apart (at a target exactly, with SPEED 0).
+                    _history[_historyAt] = {_tracker.Sung, _tracker.Period, _correction, _tracker.Voiced ? 1.0 : 0.0};
+                    _historyAt = (_historyAt + 1) % _history.size();
+                    const auto& then = _history[_historyAt];
+                    const bool voiced = then[3] > 0.5 && then[0] > 0.0;
+                    const double note = then[0] + then[2];
+                    const double outputPeriod = voiced ? _sampleRate / (440.0 * std::exp2((note - 69.0) / 12.0)) : 0.0;
+                    const float tuned = _shifter.Next(_line, then[2], then[1], voiced, 0.0, 1.0, outputPeriod);
                     const float dry = _line.Read(static_cast<double>(_grain)); // as late as the tuned voice
                     _line.Advance();
                     const float out = dry * (1.0f - mix) + tuned * mix;
@@ -1428,8 +1460,13 @@ namespace son
             PitchTracker _tracker;
             PitchShifter _shifter;
             double _centre = -1.0;     // the centre of the note sung, in MIDI notes with fractions
+            int _heardInNote = 0;      // the times it has been heard since the note began
             double _target = 0.0;      // the correction asked for, in semitones
             double _correction = 0.0;  // the correction gliding to it
+            // The last moments' note heard, period, correction and voiced (1 or 0), to be used as late as the voice
+            // they are for.
+            std::vector<std::array<double, 4>> _history;
+            size_t _historyAt = 0;
             std::atomic<float> _meter{-1.0f};
         };
 
