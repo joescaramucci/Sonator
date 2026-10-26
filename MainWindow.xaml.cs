@@ -2300,7 +2300,7 @@ public partial class MainWindow : Window
         var values = definition.Kind == EffectKind.Choir ? FactoryPresets.For(definition.Kind).FirstOrDefault(preset => preset.Name == "Big Choir")?.Values : null;
         var effect = new TrackEffectViewModel(definition, values: values)
         {
-            MeterValue = definition.Kind switch { EffectKind.Harmonizer => 57, EffectKind.Mastering => -14, _ => 0 },
+            MeterValue = definition.Kind switch { EffectKind.Harmonizer => 57, EffectKind.Tune => 57.3, EffectKind.Choir => 52, EffectKind.Mastering => -14, _ => 0 },
         };
         return EffectRackWindow.PictureOfModule(viewModel, effect);
     }

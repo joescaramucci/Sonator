@@ -95,4 +95,33 @@ public sealed class ChoirTests
 
         Assert.True(Strength(with, 110) > 5 * Strength(without, 110));
     }
+
+    [Fact]
+    public void ForALowVoice_TheLowSection_StaysWherePeopleSing()
+    {
+        // G2 (98 Hz): an octave below (49 Hz) is under any bass; the low section doubles the choir instead.
+        var output = Choir(Sing(98, 2.0), ("Mix", 100), ("Low section", 100));
+
+        Assert.True(Strength(output, 98) > 8 * Strength(output, 49), $"98 Hz {Strength(output, 98):0.0}, 49 Hz {Strength(output, 49):0.0}");
+    }
+
+    [Fact]
+    public void AWomensChoir_FromAMansVoice_SingsAnOctaveUp()
+    {
+        var output = Choir(Sing(110, 2.0), ("Mix", 100), ("Voices", 1), ("Detune", 0), ("Wavering", 0));
+
+        Assert.True(Strength(output, 220) > 3 * Strength(output, 110), $"220 Hz {Strength(output, 220):0.0}, 110 Hz {Strength(output, 110):0.0}");
+    }
+
+    [Fact]
+    public void AMensChoir_FromAWomansVoice_SingsAnOctaveDown()
+    {
+        // The timbre kept, the sound stays where the voice had it (440 and 880 Hz) while the note goes down to 220 Hz,
+        // which the choir as sung does not have at all.
+        var men = Choir(Sing(440, 2.0), ("Mix", 100), ("Voices", 2), ("Detune", 0), ("Wavering", 0));
+        var asSung = Choir(Sing(440, 2.0), ("Mix", 100), ("Voices", 0), ("Detune", 0), ("Wavering", 0));
+
+        Assert.True(Strength(men, 220) > 10 * Strength(asSung, 220), $"men {Strength(men, 220):0.0}, as sung {Strength(asSung, 220):0.0}");
+        Assert.True(Strength(men, 220) > 5 * Strength(men, 110), "one octave down, not two");
+    }
 }

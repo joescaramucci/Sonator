@@ -303,8 +303,9 @@ public sealed class TrackEffectViewModel : ViewModelBase
     // The compressor and the limiter show how far they turn the sound down.
     public bool HasMeter => Definition.Kind is EffectKind.Compress or EffectKind.Limiter;
 
-    // The effects whose meter the rack reads: those above, and the harmonizer, whose meter is the note it hears.
-    public bool ReadsMeter => HasMeter || Definition.Kind is EffectKind.Harmonizer or EffectKind.Mastering;
+    // The effects whose meter the rack reads: those above, the harmonizer and the tuner, whose meter is the note
+    // they hear, the choir, whose meter is where the voice sings, and the mastering, its loudness.
+    public bool ReadsMeter => HasMeter || Definition.Kind is EffectKind.Harmonizer or EffectKind.Mastering or EffectKind.Tune or EffectKind.Choir;
 
     private double _meterValue;
 

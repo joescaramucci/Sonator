@@ -92,8 +92,9 @@ More views are in the [screenshot gallery](docs/GALLERY.md).
   | SonEQ | Equalizer |
   | SonLimiter | Peak limiter |
   | SonArmo | Vocal harmonizer |
-  | SonCoro | Chorus |
+  | SonCoro | A choir from one voice: up to 32 singers, women's, men's or children's, gospel, church, chamber or epic |
   | SonMast | Mastering chain, with streaming presets |
+  | SonTune | Pitch correction to a key, from natural to hard tune |
 
 ### Recording and editing
 

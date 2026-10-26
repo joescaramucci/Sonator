@@ -66,15 +66,32 @@ public static class FactoryPresets
             Factory("Octaves", 0, 0, 7, -7, 45, 45, 50, 100),
             Factory("Power Fifths", 0, 0, 4, -3, 55, 50, 70, 100),
         },
-        // Singers, Detune cents, Timing ms, Wavering %, Low section %, High section %, Width %, Mix %
+        // Singers, Detune cents, Timing ms, Wavering %, Low section %, High section %, Width %, Mix %, Voices (0 as sung,
+        // 1 women, 2 men, 3 children). The kinds of choir: each sets how many sing, how together and how wide.
         [EffectKind.Choir] = new[]
         {
-            Factory("Double Track", 2, 8, 18, 20, 0, 0, 70, 45),
-            Factory("Small Ensemble", 4, 10, 15, 30, 0, 0, 60, 45),
-            Factory("Gospel Choir", 12, 18, 30, 40, 30, 0, 90, 55),
-            Factory("Big Choir", 16, 22, 40, 50, 35, 15, 100, 60),
-            Factory("Octave Choir", 8, 12, 25, 30, 60, 40, 90, 55),
-            Factory("Choir Pad", 16, 30, 50, 70, 0, 0, 100, 75),
+            Factory("Double Track", 2, 8, 18, 20, 0, 0, 70, 45, 0),
+            Factory("Small Ensemble", 4, 10, 15, 30, 0, 0, 60, 45, 0),
+            Factory("Pop Backing Vocals", 6, 8, 12, 20, 0, 20, 80, 50, 0),
+            Factory("Chamber Choir", 10, 7, 12, 35, 20, 15, 70, 55, 0),
+            Factory("Gospel Choir", 16, 18, 30, 40, 30, 0, 90, 55, 0),
+            Factory("Church Choir", 20, 10, 20, 55, 35, 25, 90, 60, 0),
+            Factory("Big Choir", 24, 22, 40, 50, 35, 15, 100, 60, 0),
+            Factory("Epic Cinematic Choir", 32, 20, 45, 45, 50, 30, 100, 65, 0),
+            Factory("Women's Choir", 16, 12, 25, 45, 0, 20, 90, 60, 1),
+            Factory("Men's Choir", 16, 12, 25, 40, 35, 0, 90, 60, 2),
+            Factory("Children's Choir", 16, 15, 30, 25, 0, 0, 90, 60, 3),
+            Factory("Octave Choir", 8, 12, 25, 30, 60, 40, 90, 55, 0),
+            Factory("Choir Pad", 16, 30, 50, 70, 0, 0, 100, 75, 0),
+        },
+        // Key (0 chromatic, 1 C ... 12 B), Minor, Speed ms, Humanize %, Amount %, Mix %. The key stays chromatic:
+        // set the song's key after choosing one.
+        [EffectKind.Tune] = new[]
+        {
+            Factory("Natural", 0, 0, 40, 40, 100, 100),
+            Factory("Tight", 0, 0, 15, 15, 100, 100),
+            Factory("Robot (Hard Tune)", 0, 0, 0, 0, 100, 100),
+            Factory("Gentle", 0, 0, 90, 60, 70, 100),
         },
         // Low dB, Presence dB, Air dB, Glue %, Width %, Drive dB, Ceiling dB
         [EffectKind.Mastering] = new[]

@@ -129,6 +129,9 @@ public sealed class EffectDisplay : FrameworkElement
             case EffectKind.Mastering:
                 DrawMastering(drawingContext, plot, effect);
                 break;
+            case EffectKind.Tune:
+                DrawTuner(drawingContext, plot, effect);
+                break;
         }
 
         foreach (var handle in _handles)
@@ -731,7 +734,9 @@ public sealed class EffectDisplay : FrameworkElement
         var width = Knob(effect, 6) / 100;
         var low = Knob(effect, 4) / 100;
         var high = Knob(effect, 5) / 100;
-        Title(drawingContext, plot, "SINGERS", string.Format(CultureInfo.CurrentCulture, "{0} · ±{1:0} cents", singers, detune));
+        var voices = effect.Parameters.Count > 8 ? (int)Math.Round(Knob(effect, 8)) : 0;
+        var whose = voices switch { 1 => "WOMEN", 2 => "MEN", 3 => "CHILDREN", _ => "SINGERS" };
+        Title(drawingContext, plot, whose, string.Format(CultureInfo.CurrentCulture, "{0} · ±{1:0} cents", singers, detune));
 
         // Left to right across the field; the octave above at the top, the voice's octave in the middle, below at the bottom.
         var middle = plot.Y + plot.Height / 2;
@@ -764,7 +769,7 @@ public sealed class EffectDisplay : FrameworkElement
         }
 
         var teal = Solid(0x3C, 0xC8, 0xA6);
-        for (var i = 0; i < 16; i++)
+        for (var i = 0; i < 32; i++) // as many as the native choir draws, in its order
         {
             if (i < singers)
             {
@@ -815,6 +820,55 @@ public sealed class EffectDisplay : FrameworkElement
         {
             Label(drawingContext, "8va", new Point(plot.X, middle - row - 6), TitleInk, 8);
         }
+    }
+
+    // ---- The tuner: the note heard and the note it goes to, with a needle of how far off it is sung, as a tuner's ----
+
+    private void DrawTuner(DrawingContext drawingContext, Rect plot, TrackEffectViewModel effect)
+    {
+        var key = (int)Math.Round(Knob(effect, 0));
+        var minor = Knob(effect, 1) >= 0.5;
+        var speed = Knob(effect, 2);
+        var heard = effect.MeterValue > 0 ? effect.MeterValue : (double?)null;
+        Title(drawingContext, plot, key == 0 ? "CHROMATIC" : $"{Harmony.KeyNames[key]} {(minor ? "MINOR" : "MAJOR")}",
+            speed < 1 ? "HARD TUNE" : string.Format(CultureInfo.CurrentCulture, "{0:0} ms", speed));
+
+        // The scale of cents: -50 to +50, the middle the note in tune.
+        var centreX = plot.X + plot.Width / 2;
+        var scaleY = plot.Y + plot.Height * 0.62;
+        double X(double cents) => centreX + cents / 50 * (plot.Width / 2 - 10);
+        for (var cents = -50; cents <= 50; cents += 10)
+        {
+            var tall = cents % 50 == 0 ? 9 : cents == 0 ? 12 : 5;
+            drawingContext.DrawLine(cents == 0 ? AxisPen : GridPen, new Point(X(cents), scaleY - tall), new Point(X(cents), scaleY));
+        }
+
+        drawingContext.DrawLine(AxisPen, new Point(X(-50), scaleY), new Point(X(50), scaleY));
+        Label(drawingContext, "-50", new Point(X(-50), scaleY + 2), GridInk, 8);
+        Label(drawingContext, "+50", new Point(X(50), scaleY + 2), GridInk, 8, alignRight: true);
+        if (heard is not { } note)
+        {
+            Label(drawingContext, "SING", new Point(centreX - 12, plot.Y + plot.Height * 0.2), TitleInk, 11);
+            return;
+        }
+
+        // The target: the nearest note of the scale (all twelve with no key), as the native tuner works it out.
+        var scale = minor ? new[] { 0, 2, 3, 5, 7, 8, 10 } : new[] { 0, 2, 4, 5, 7, 9, 11 };
+        var target = (int)Math.Round(note);
+        if (key > 0)
+        {
+            target = Enumerable.Range((int)Math.Floor(note) - 2, 6)
+                .Where(candidate => scale.Contains(((candidate - (key - 1)) % 12 + 12) % 12))
+                .OrderBy(candidate => Math.Abs(candidate - note))
+                .First();
+        }
+
+        var off = Math.Clamp((note - target) * 100, -50, 50);
+        var inTune = Math.Abs(off) < 8;
+        drawingContext.DrawLine(new Pen(inTune ? Solid(0x3C, 0xC8, 0xA6) : OrangeBrush, 2.5), new Point(X(off), scaleY - 16), new Point(X(off), scaleY + 1));
+        Label(drawingContext, Harmony.NoteName((int)Math.Round(note)), new Point(plot.X, plot.Y + plot.Height * 0.16), DryBrush, 12);
+        Label(drawingContext, $"→ {Harmony.NoteName(target)}", new Point(plot.Right, plot.Y + plot.Height * 0.16), inTune ? Solid(0x3C, 0xC8, 0xA6) : OrangeBrush, 12, alignRight: true);
+        Label(drawingContext, string.Format(CultureInfo.CurrentCulture, "{0:+0;-0;0} cents", (note - target) * 100), new Point(centreX - 18, scaleY + 2), TitleInk, 8);
     }
 
     // ---- The harmonizer: the note sung in the middle of an octave either way, the harmony voices above and below it ----

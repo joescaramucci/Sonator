@@ -11,6 +11,7 @@ public enum EffectKind
     Harmonizer = 6,
     Choir = 7,
     Mastering = 8,
+    Tune = 9,
     Plugin = 100, // a VST3 effect plug-in
 }
 
@@ -34,6 +35,12 @@ public sealed record EffectDefinition(EffectKind Kind, string Name, string Descr
 // Sonator's own effects, in the order the add menu lists them. Parameter order matches the bridge.
 public static class EffectCatalog
 {
+    // Whose voices SonCoro's choir sings with. (Before All, which uses them: statics start in the order written.)
+    public static IReadOnlyList<string> ChoirVoiceNames { get; } = ["As sung", "Women", "Men", "Children"];
+
+    // SonTune's keys: with none, every one of the twelve notes is a target.
+    public static IReadOnlyList<string> TuneKeyNames { get; } = ["Chromatic", .. Harmony.KeyNames.Skip(1)];
+
     public static IReadOnlyList<EffectDefinition> All { get; } = new[]
     {
         new EffectDefinition(EffectKind.Verb, "SonVerb", "Room reverb", new[]
@@ -90,7 +97,7 @@ public static class EffectCatalog
         }),
         new EffectDefinition(EffectKind.Choir, "SonCoro", "Choir from one voice", new[]
         {
-            new EffectParameterDefinition("Singers", 2, 16, 8, string.Empty),
+            new EffectParameterDefinition("Singers", 2, 32, 8, string.Empty),
             new EffectParameterDefinition("Detune", 0, 60, 15, "cents"),
             new EffectParameterDefinition("Timing", 0, 60, 25, "ms"),
             new EffectParameterDefinition("Wavering", 0, 100, 40, "%"),
@@ -98,6 +105,7 @@ public static class EffectCatalog
             new EffectParameterDefinition("High section", 0, 100, 0, "%"),
             new EffectParameterDefinition("Width", 0, 100, 80, "%"),
             new EffectParameterDefinition("Mix", 0, 100, 50, "%"),
+            new EffectParameterDefinition("Voices", 0, 3, 0, string.Empty, Labels: ChoirVoiceNames),
         }),
         new EffectDefinition(EffectKind.Mastering, "SonMast", "Mastering for the master", new[]
         {
@@ -108,6 +116,15 @@ public static class EffectCatalog
             new EffectParameterDefinition("Width", 0, 200, 100, "%"),
             new EffectParameterDefinition("Drive", 0, 18, 0, "dB", Decimals: 1),
             new EffectParameterDefinition("Ceiling", -6, 0, -1, "dB", Decimals: 1),
+        }),
+        new EffectDefinition(EffectKind.Tune, "SonTune", "Pitch correction", new[]
+        {
+            new EffectParameterDefinition("Key", 0, 12, 0, string.Empty, Labels: TuneKeyNames),
+            new EffectParameterDefinition("Minor", 0, 1, 0, string.Empty, IsSwitch: true),
+            new EffectParameterDefinition("Speed", 0, 400, 20, "ms"),
+            new EffectParameterDefinition("Humanize", 0, 100, 20, "%"),
+            new EffectParameterDefinition("Amount", 0, 100, 100, "%"),
+            new EffectParameterDefinition("Mix", 0, 100, 100, "%"),
         }),
     };
 
