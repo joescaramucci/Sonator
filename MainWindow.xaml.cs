@@ -754,6 +754,14 @@ public partial class MainWindow : Window
     private static int RulerStep(MainViewModel viewModel, double x) =>
         Math.Max(0, (int)Math.Floor(x / viewModel.TimelineSixteenthWidth));
 
+    // The loop's L and R markers go by eighth notes (by sixteenths with Shift), whatever SNAP is set to: the
+    // grid line nearest the point.
+    private static int LoopMarkerStep(MainViewModel viewModel, double x)
+    {
+        var grid = (Keyboard.Modifiers & ModifierKeys.Shift) != 0 ? 1 : 2;
+        return Math.Max(0, (int)Math.Round(x / viewModel.TimelineSixteenthWidth / grid) * grid);
+    }
+
     private RulerDrag? RulerEdgeAt(MainViewModel viewModel, double x)
     {
         if (!viewModel.HasLoopRange)
@@ -797,7 +805,7 @@ public partial class MainWindow : Window
         {
             RulerDrag.StartEdge => viewModel.LoopEndStep + 1, // the other edge stays where it is
             RulerDrag.EndEdge => viewModel.LoopStartStep,
-            _ => viewModel.SongStepOf(viewModel.SnapStep(RulerStep(viewModel, x))),
+            _ => viewModel.SongStepOf(LoopMarkerStep(viewModel, x)),
         };
         _rulerMoved = false;
         _timelineRulerDragStartX = x;
@@ -825,9 +833,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        // The edges snap to the SNAP grid; the range covers the steps between them.
+        // The edges go by eighth notes (sixteenths with Shift); the range covers the steps between them.
         _rulerMoved = true;
-        var edge = viewModel.SongStepOf(viewModel.SnapStep(RulerStep(viewModel, x + viewModel.TimelineSixteenthWidth / 2)));
+        var edge = viewModel.SongStepOf(LoopMarkerStep(viewModel, x));
         if (edge != _rulerAnchorStep)
         {
             viewModel.SetLoopRange(Math.Min(edge, _rulerAnchorStep), Math.Max(edge, _rulerAnchorStep) - 1);
