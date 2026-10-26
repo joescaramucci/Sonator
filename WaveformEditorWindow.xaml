@@ -52,7 +52,7 @@
                    IsEnabled="False" Scroll="ViewScrollBar_Scroll" />
         <!-- The mouse is taken by the whole frame, its edges too: a press on the left edge selects from the clip's start. -->
         <Border x:Name="WaveBorder" BorderBrush="#607A96" BorderThickness="1" Background="#242424"
-                Focusable="True" FocusVisualStyle="{x:Null}" Cursor="IBeam"
+                Focusable="True" FocusVisualStyle="{x:Null}" Cursor="Arrow"
                 MouseLeftButtonDown="WaveCanvas_MouseLeftButtonDown"
                 MouseMove="WaveCanvas_MouseMove"
                 MouseLeftButtonUp="WaveCanvas_MouseLeftButtonUp"

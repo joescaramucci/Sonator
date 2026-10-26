@@ -26,6 +26,10 @@ public partial class WaveformEditorWindow : Window
     private float[]? _clipboard;
     private int _clipboardChannels;
     private int _selectionAnchor = -1;
+    private double _pressX;
+
+    // Where a click put the start: Space plays from there with nothing selected (from the clip's start, -1).
+    private int _startFrame = -1;
     private int _selectionStart = -1;
     private int _selectionEnd = -1;
 
@@ -109,6 +113,7 @@ public partial class WaveformEditorWindow : Window
             _clip = AudioClipLoader.Load(path);
             _path = path;
             _undo.Clear();
+            _startFrame = -1;
             ClearSelection();
             ShowWholeClip();
             Title = $"Waveform editor - {Path.GetFileName(path)}";
@@ -327,19 +332,23 @@ public partial class WaveformEditorWindow : Window
         if (e.ClickCount == 2)
         {
             ClearSelection();
+            _startFrame = FrameAt(e.GetPosition(WaveCanvas).X);
             Redraw();
-            var from = FrameAt(e.GetPosition(WaveCanvas).X);
-            Play(from, _clip.FrameCount, $"Playing from {Seconds(from)} (bar {BarBeat(from)}).");
+            Play(_startFrame, _clip.FrameCount, $"Playing from {Seconds(_startFrame)} (bar {BarBeat(_startFrame)}).");
             e.Handled = true;
             return;
         }
 
-        _selectionAnchor = FrameAt(e.GetPosition(WaveCanvas).X);
+        _pressX = e.GetPosition(WaveCanvas).X;
+        _selectionAnchor = FrameAt(_pressX);
         _selectionStart = _selectionAnchor;
         _selectionEnd = _selectionAnchor;
         WaveBorder.CaptureMouse();
         Redraw();
     }
+
+    // Moved less than this from where it was pressed, the mouse clicked rather than dragged.
+    private const double ClickPixels = 3;
 
     private void WaveCanvas_MouseMove(object sender, MouseEventArgs e)
     {
@@ -357,6 +366,12 @@ public partial class WaveformEditorWindow : Window
             ClampView();
         }
 
+        if (Math.Abs(x - _pressX) < ClickPixels)
+        {
+            return; // a hand's tremble, not a selection: the click (or the double-click) stays one
+        }
+
+        WaveBorder.Cursor = Cursors.SizeWE;
         var frame = FrameAt(x);
         _selectionStart = Math.Min(_selectionAnchor, frame);
         _selectionEnd = Math.Max(_selectionAnchor, frame);
@@ -370,9 +385,17 @@ public partial class WaveformEditorWindow : Window
             return;
         }
         WaveBorder.ReleaseMouseCapture();
+        WaveBorder.Cursor = Cursors.Arrow;
         if (_selectionEnd - _selectionStart < 2)
         {
+            // A click: the place Space plays from, marked by an orange line.
+            var at = _selectionAnchor;
             ClearSelection();
+            if (_clip is not null && at >= 0)
+            {
+                _startFrame = at;
+                Info($"Space plays from {Seconds(at)} (bar {BarBeat(at)}); a double-click plays from where it is.");
+            }
         }
         else if (_clip is not null)
         {
@@ -468,6 +491,7 @@ public partial class WaveformEditorWindow : Window
     private static readonly Brush BeatLineBrush = Frozen(Color.FromArgb(55, 210, 211, 213));
     private static readonly Brush StepLineBrush = Frozen(Color.FromArgb(22, 210, 211, 213));
     private static readonly Brush BarNumberBrush = Frozen(Color.FromRgb(150, 160, 172));
+    private static readonly Brush StartLineBrush = Frozen(Color.FromRgb(242, 162, 58));
 
     private static Brush Frozen(Color color)
     {
@@ -622,8 +646,12 @@ public partial class WaveformEditorWindow : Window
                 StopPlayback();
                 Info("Stopped.");
                 break;
+            case Key.Space when TryGetRange(out _, out _):
+                Play(wholeClip: false);
+                break;
             case Key.Space:
-                Play(wholeClip: !TryGetRange(out _, out _));
+                var from = Math.Clamp(_startFrame, 0, _clip.FrameCount);
+                Play(from, _clip.FrameCount, from > 0 ? $"Playing from {Seconds(from)} (bar {BarBeat(from)})." : "Playing the whole clip.");
                 break;
             case Key.OemPeriod or Key.Decimal:
                 Play(wholeClip: true);
@@ -813,6 +841,24 @@ public partial class WaveformEditorWindow : Window
             Canvas.SetLeft(selection, left);
             Canvas.SetTop(selection, 0);
             WaveCanvas.Children.Add(selection);
+        }
+
+        if (_startFrame >= 0 && _startFrame <= _clip.FrameCount)
+        {
+            var x = (_startFrame - _viewStart) / (double)_viewLength * width;
+            if (x >= 0 && x <= width)
+            {
+                WaveCanvas.Children.Add(new Line
+                {
+                    X1 = x,
+                    X2 = x,
+                    Y1 = 0,
+                    Y2 = CanvasHeight,
+                    Stroke = StartLineBrush,
+                    StrokeThickness = 1.5,
+                    IsHitTestVisible = false,
+                });
+            }
         }
 
         if (_playClock.IsRunning)
