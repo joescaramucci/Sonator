@@ -69,6 +69,8 @@ public static class StemSeparator
     }
 
     // The stems of an audio file, as clips at 44.1 kHz stereo, in the order of Stems. progress goes from 0 to 1.
+    // It runs on the CPU: on the graphics card (DirectML) a 2 GB card runs out of memory with the model's 7.8 s
+    // segments, and a song takes about as long as it lasts on a 4-core CPU anyway.
     public static IReadOnlyList<AudioClip> SeparateFile(string path, IProgress<double>? progress, CancellationToken cancellation)
     {
         var mix = ToModelFormat(AudioClipLoader.Load(path));

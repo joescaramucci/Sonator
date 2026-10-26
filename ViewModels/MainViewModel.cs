@@ -5389,6 +5389,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             AssignAudioClip(track, stem.Path);
         }
 
+        pattern.Summary = $"Stems of {Path.GetFileNameWithoutExtension(path)}: {string.Join(", ", stems.Select(stem => stem.Name).OrderBy(name => name == "Vocals" ? 0 : 1))}";
         SelectedTrack = pattern.Tracks.FirstOrDefault(track => track.Name == "Vocals") ?? SelectedTrack;
         StatusMessage = $"{Path.GetFileName(path)} separated into {string.Join(", ", stems.Select(stem => stem.Name))}: "
             + "Detect tempo on the Drums track sets the song's tempo from it";
