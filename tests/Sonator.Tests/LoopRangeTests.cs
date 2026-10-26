@@ -135,6 +135,21 @@ public sealed class LoopRangeTests
     }
 
     [Fact]
+    public void ANewProjectsTimeline_ShowsAllTheBarsOfItsPattern_BeforeItIsPlayed()
+    {
+        OnStaThread(() =>
+        {
+            using var viewModel = new MainViewModel();
+            viewModel.IsArrangeMode = false;
+
+            viewModel.NewProjectCommand.Execute(null);
+
+            Assert.Equal(viewModel.SelectedArrangePatternLength, viewModel.TimelineBarNumbers.Count); // 8 bars, not 1
+            Assert.True(viewModel.TimelineBarNumbers.Count > 1);
+        });
+    }
+
+    [Fact]
     public void ThePlayheadLine_GoesWhereTheSongIsPut_EvenStopped()
     {
         OnStaThread(() =>

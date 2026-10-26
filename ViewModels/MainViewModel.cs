@@ -5771,6 +5771,14 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
     private void RebuildTimeline()
     {
         var rebuildStart = Stopwatch.GetTimestamp();
+        // Played on its own, the pattern lasts as long as its block in the arrangement, as playing it makes it:
+        // the timeline shows all its bars before it is played, not only those that have steps yet. In the
+        // arrangement a short pattern is repeated instead, so it is left as it is.
+        if (!IsArrangeMode)
+        {
+            FitSelectedPatternToArrangeLength();
+        }
+
         // One pattern at a time: the one selected, which in the arrangement is the one playing.
         var timelinePatterns = SelectedPattern is { } shown ? new List<PatternViewModel> { shown } : new List<PatternViewModel>();
 
