@@ -1098,6 +1098,28 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
 
     public ObservableCollection<ArrangeTimelineTrackViewModel> TimelineTracks { get; }
 
+    // The arrow keys on the timeline: the track above (-1) or below (+1) the selected one, in the order the
+    // timeline shows them, kit lanes included; the first or the last when none is selected. False when there
+    // is no track to go to.
+    public bool SelectAdjacentTrack(int delta)
+    {
+        var tracks = TimelineTracks.Select(lane => lane.SourceTrack).ToList();
+        if (tracks.Count == 0)
+        {
+            return false;
+        }
+
+        var index = SelectedTrack is { } selected ? tracks.IndexOf(selected) : -1;
+        var next = index < 0 ? (delta > 0 ? 0 : tracks.Count - 1) : Math.Clamp(index + delta, 0, tracks.Count - 1);
+        if (next == index)
+        {
+            return false;
+        }
+
+        SelectedTrack = tracks[next];
+        return true;
+    }
+
     public ObservableCollection<int> TimelineBarNumbers { get; }
 
     public ObservableCollection<MidiOutputDeviceViewModel> MidiOutputDevices { get; }

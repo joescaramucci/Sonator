@@ -1024,7 +1024,40 @@ public partial class MainWindow : Window
         {
             viewModel.MovePlaybackByBars(e.Key == Key.Left ? -1 : 1);
             e.Handled = true;
+            return;
         }
+
+        // Up and Down go through the timeline's tracks, unless a list, a drop-down or a slider has the arrows.
+        if (e.Key is Key.Up or Key.Down && Keyboard.Modifiers == ModifierKeys.None && !ArrowsBelongToFocus())
+        {
+            if (viewModel.SelectAdjacentTrack(e.Key == Key.Up ? -1 : 1))
+            {
+                FrozenTrackListBox.ScrollIntoView(FrozenTrackListBox.SelectedItem);
+                TimelineBodyListBox.ScrollIntoView(TimelineBodyListBox.SelectedItem);
+            }
+
+            e.Handled = true;
+        }
+    }
+
+    // True when the control with the keyboard uses the arrows itself: a drop-down, a slider, a menu, or a list
+    // other than the timeline's own.
+    private bool ArrowsBelongToFocus()
+    {
+        for (var element = Keyboard.FocusedElement as DependencyObject; element is not null; element = VisualTreeHelper.GetParent(element) ?? LogicalTreeHelper.GetParent(element))
+        {
+            if (ReferenceEquals(element, FrozenTrackListBox) || ReferenceEquals(element, TimelineBodyListBox))
+            {
+                return false;
+            }
+
+            if (element is ComboBox or Slider or MenuItem or System.Windows.Controls.Primitives.ScrollBar or ListBox or DataGrid or TreeView)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void PianoRollCell_PreviewMouseDown(object sender, MouseButtonEventArgs e)

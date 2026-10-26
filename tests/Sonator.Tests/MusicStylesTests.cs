@@ -183,6 +183,27 @@ public sealed class MusicStylesTests
         });
     }
 
+    [Fact]
+    public void TheArrows_GoThroughTheTimelinesTracks_StoppingAtTheEnds()
+    {
+        OnSta(() =>
+        {
+            using var viewModel = new MainViewModel();
+            var tracks = viewModel.TimelineTracks.Select(lane => lane.SourceTrack).ToList();
+            viewModel.SelectedTrack = tracks[0];
+
+            Assert.True(viewModel.SelectAdjacentTrack(1));
+            Assert.Same(tracks[1], viewModel.SelectedTrack);
+            Assert.True(viewModel.SelectAdjacentTrack(-1));
+            Assert.Same(tracks[0], viewModel.SelectedTrack);
+            Assert.False(viewModel.SelectAdjacentTrack(-1)); // the first stays selected
+            Assert.Same(tracks[0], viewModel.SelectedTrack);
+
+            viewModel.SelectedTrack = tracks[^1];
+            Assert.False(viewModel.SelectAdjacentTrack(1)); // and so does the last
+        });
+    }
+
     private static void OnSta(Action action)
     {
         Exception? failure = null;
