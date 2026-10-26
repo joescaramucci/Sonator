@@ -453,6 +453,11 @@ namespace
         int32 editorWidth = 0;
         int32 editorHeight = 0;
 
+        // True while the editor is open, read by the audio thread: a plug-in played from its own window (a
+        // drum clicked in EZdrummer, a key of an on-screen keyboard, a groove previewed) sounds with no note from
+        // Sonator, so it is never put to sleep then.
+        std::atomic<bool> editorOpen{false};
+
         // The plug-in's place in the mixer while its audio runs, made by StartAudio. Every running plug-in
         // plays through the one audio output, mixed together. Read under voiceMutex, as notes arrive from
         // other threads than the one that starts and stops the audio.
@@ -1238,6 +1243,7 @@ namespace
             return;
         }
 
+        module->editorOpen.store(false, std::memory_order_relaxed);
         module->editorView->removed();
         module->editorView->setFrame(nullptr);
         module->editorView->release();
@@ -1605,7 +1611,9 @@ namespace
                 asleep = false; // the song starts or jumps: its own sequencer may start too
                 silentFrames = 0;
             }
-            if (asleep && !hasEvents)
+            // Its window open, it may be played from there: awake, whatever Sonator sends it.
+            const bool editorOpen = module != nullptr && module->editorOpen.load(std::memory_order_relaxed);
+            if (asleep && !hasEvents && !editorOpen)
             {
                 return; // silent: AddTo leaves it out of the mix
             }
@@ -1641,7 +1649,7 @@ namespace
             // Silent after its effects, with no note held and none just played: it may go to sleep. About
             // -100 dBFS counts as silence, well below anything heard.
             constexpr float kSilence = 1.0e-5f;
-            bool silent = !notesHeld && !hasEvents;
+            bool silent = !notesHeld && !hasEvents && !editorOpen;
             auto anySound = [&](const std::vector<std::vector<float>>& buffers, int32 count)
             {
                 for (int32 ch = 0; ch < count; ++ch)
@@ -3835,6 +3843,7 @@ int VstHostBridge_OpenEditor(void* moduleHandle, void* parentHwnd, void** outChi
 
     module->editorView = view;
     module->editorFrame = frame;
+    module->editorOpen.store(true, std::memory_order_relaxed);
 
     if (scaledByPlugin)
     {
