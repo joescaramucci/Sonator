@@ -28,6 +28,10 @@ public partial class WaveformEditorWindow : Window
     private int _selectionAnchor = -1;
     private int _selectionStart = -1;
     private int _selectionEnd = -1;
+
+    // The frames in view: all of the clip, or the part zoomed in on with the wheel.
+    private int _viewStart;
+    private int _viewLength;
     private WaveOutEvent? _output;
 
     // Ends a preview played through Sonator's own output when it has played through.
@@ -81,6 +85,8 @@ public partial class WaveformEditorWindow : Window
         }
     }
 
+    public bool HasClip => _clip is not null;
+
     private void OpenFile(string path)
     {
         _sourceTrack = null;
@@ -90,14 +96,30 @@ public partial class WaveformEditorWindow : Window
             _path = path;
             _undo.Clear();
             ClearSelection();
+            ShowWholeClip();
             Title = $"Waveform editor - {Path.GetFileName(path)}";
             Redraw();
             Info($"{Path.GetFileName(path)}: {_clip.Duration.TotalSeconds:F2} s, {_clip.Channels} channel(s), {_clip.SampleRate} Hz.");
+            TakeKeyboard();
         }
         catch (Exception ex)
         {
             Info($"Could not open the file: {ex.Message}");
         }
+    }
+
+    // The editor in front with the keys, once the click or menu that opened it is done: opened from the timeline's
+    // menu, the main window took them back and Space played the song instead of the clip.
+    private void TakeKeyboard()
+    {
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle, () =>
+        {
+            if (IsVisible)
+            {
+                Activate();
+                WaveBorder.Focus();
+            }
+        });
     }
 
     private void PlayButton_Click(object sender, RoutedEventArgs e) => Play(wholeClip: true);
@@ -254,6 +276,7 @@ public partial class WaveformEditorWindow : Window
         }
         _clip = _undo.Pop();
         ClearSelection();
+        ClampView();
         Redraw();
         Info("Undone.");
     }
@@ -280,6 +303,7 @@ public partial class WaveformEditorWindow : Window
 
     private void WaveCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        WaveBorder.Focus(); // Space plays the clip, even after typing in the BPM box
         if (_clip is null)
         {
             return;
@@ -287,17 +311,27 @@ public partial class WaveformEditorWindow : Window
         _selectionAnchor = FrameAt(e.GetPosition(WaveCanvas).X);
         _selectionStart = _selectionAnchor;
         _selectionEnd = _selectionAnchor;
-        WaveCanvas.CaptureMouse();
+        WaveBorder.CaptureMouse();
         Redraw();
     }
 
     private void WaveCanvas_MouseMove(object sender, MouseEventArgs e)
     {
-        if (_clip is null || !WaveCanvas.IsMouseCaptured)
+        if (_clip is null || !WaveBorder.IsMouseCaptured)
         {
             return;
         }
-        var frame = FrameAt(e.GetPosition(WaveCanvas).X);
+
+        // Dragged past an edge while zoomed in: the view follows.
+        var x = e.GetPosition(WaveCanvas).X;
+        var width = WaveCanvas.ActualWidth;
+        if ((x < 0 || x > width) && _viewLength < _clip.FrameCount)
+        {
+            _viewStart += (int)(Math.Clamp((x < 0 ? x : x - width) / Math.Max(1, width), -0.2, 0.2) * _viewLength);
+            ClampView();
+        }
+
+        var frame = FrameAt(x);
         _selectionStart = Math.Min(_selectionAnchor, frame);
         _selectionEnd = Math.Max(_selectionAnchor, frame);
         Redraw();
@@ -305,23 +339,94 @@ public partial class WaveformEditorWindow : Window
 
     private void WaveCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        if (!WaveCanvas.IsMouseCaptured)
+        if (!WaveBorder.IsMouseCaptured)
         {
             return;
         }
-        WaveCanvas.ReleaseMouseCapture();
+        WaveBorder.ReleaseMouseCapture();
         if (_selectionEnd - _selectionStart < 2)
         {
             ClearSelection();
         }
+        else if (_clip is not null)
+        {
+            Info($"Selected {Seconds(_selectionStart)} to {Seconds(_selectionEnd)} ({(_selectionEnd - _selectionStart) / (double)_clip.SampleRate:F3} s). Space plays it.");
+        }
         Redraw();
     }
+
+    // The wheel zooms in and out around the mouse; with Shift (or tilted) it moves along the clip.
+    private void WaveCanvas_MouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        e.Handled = true;
+        var width = WaveCanvas.ActualWidth;
+        if (_clip is null || width <= 0)
+        {
+            return;
+        }
+
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+        {
+            _viewStart -= Math.Sign(e.Delta) * Math.Max(1, _viewLength / 8);
+        }
+        else
+        {
+            var place = Math.Clamp(e.GetPosition(WaveCanvas).X / width, 0, 1);
+            var anchor = _viewStart + place * _viewLength;
+            var length = e.Delta > 0 ? _viewLength / 1.5 : _viewLength * 1.5;
+            _viewLength = (int)Math.Clamp(length, Math.Min(_clip.FrameCount, Math.Max(64, width)), _clip.FrameCount);
+            _viewStart = (int)(anchor - place * _viewLength);
+        }
+
+        ClampView();
+        Redraw();
+    }
+
+    private void ViewScrollBar_Scroll(object sender, System.Windows.Controls.Primitives.ScrollEventArgs e)
+    {
+        _viewStart = (int)ViewScrollBar.Value;
+        ClampView();
+        Redraw();
+    }
+
+    private void WaveCanvas_SizeChanged(object sender, SizeChangedEventArgs e) => Redraw();
+
+    private void ShowWholeClip()
+    {
+        _viewStart = 0;
+        _viewLength = _clip?.FrameCount ?? 0;
+    }
+
+    // The view kept inside the clip (shorter now after an edit or an undo), and the scroll bar set to it.
+    private void ClampView()
+    {
+        var frames = _clip?.FrameCount ?? 0;
+        _viewLength = Math.Clamp(_viewLength, Math.Min(frames, 1), Math.Max(frames, 1));
+        _viewStart = Math.Clamp(_viewStart, 0, Math.Max(0, frames - _viewLength));
+        ViewScrollBar.Minimum = 0;
+        ViewScrollBar.Maximum = Math.Max(0, frames - _viewLength);
+        ViewScrollBar.ViewportSize = _viewLength;
+        ViewScrollBar.LargeChange = Math.Max(1, _viewLength * 0.9);
+        ViewScrollBar.SmallChange = Math.Max(1, _viewLength / 10.0);
+        ViewScrollBar.Value = _viewStart;
+        ViewScrollBar.IsEnabled = _viewLength < frames;
+    }
+
+    private string Seconds(int frame) => $"{frame / (double)(_clip?.SampleRate ?? 1):F3} s";
 
     private int FrameAt(double x)
     {
         var frames = _clip?.FrameCount ?? 0;
-        var frame = (int)(Math.Clamp(x, 0, WaveCanvas.Width) / WaveCanvas.Width * frames);
-        return Math.Clamp(frame, 0, frames);
+        var width = WaveCanvas.ActualWidth;
+        if (width <= 0)
+        {
+            return 0;
+        }
+
+        // A few pixels from an edge are the edge itself, so a selection can start right at the clip's start.
+        const double Snap = 4;
+        var place = x <= Snap ? 0 : x >= width - Snap ? 1 : x / width;
+        return Math.Clamp(_viewStart + (int)Math.Round(place * _viewLength), 0, frames);
     }
 
     private bool TryGetRange(out int start, out int end)
@@ -346,7 +451,13 @@ public partial class WaveformEditorWindow : Window
     private void Apply(float[] samples, string operation)
     {
         _undo.Push(_clip!);
+        var wasWhole = _viewStart == 0 && _viewLength >= _clip!.FrameCount;
         _clip = new AudioClip(samples, _clip!.Channels, _clip.SampleRate);
+        if (wasWhole)
+        {
+            ShowWholeClip();
+        }
+        ClampView();
         Redraw();
         Info($"{operation}. Duration now {_clip.Duration.TotalSeconds:F2} s.");
     }
@@ -357,8 +468,18 @@ public partial class WaveformEditorWindow : Window
     // stops it; the full stop plays the whole clip from its start; Escape stops. Not while a box is typed in.
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (Keyboard.FocusedElement is TextBox || Keyboard.Modifiers != ModifierKeys.None || _clip is null)
+        if (Keyboard.FocusedElement is TextBox || Keyboard.Modifiers != ModifierKeys.None)
         {
+            return;
+        }
+
+        if (_clip is null)
+        {
+            if (e.Key == Key.Space)
+            {
+                Info("No clip to play: open an audio file, or a track's clip from the timeline (double-click it).");
+                e.Handled = true;
+            }
             return;
         }
 
@@ -439,15 +560,20 @@ public partial class WaveformEditorWindow : Window
             return;
         }
 
-        var width = (int)WaveCanvas.Width;
+        var width = (int)WaveCanvas.ActualWidth;
+        if (width <= 0 || _viewLength <= 0)
+        {
+            return;
+        }
+
         var middle = CanvasHeight / 2;
-        var framesPerColumn = Math.Max(1.0, _clip.FrameCount / (double)width);
+        var framesPerColumn = _viewLength / (double)width;
         var channels = _clip.Channels;
 
         for (var column = 0; column < width; column++)
         {
-            var from = (int)(column * framesPerColumn);
-            var to = Math.Min(_clip.FrameCount, (int)((column + 1) * framesPerColumn));
+            var from = _viewStart + (int)(column * framesPerColumn);
+            var to = Math.Min(_clip.FrameCount, Math.Max(from + 1, _viewStart + (int)((column + 1) * framesPerColumn)));
             var min = 0f;
             var max = 0f;
             for (var frame = from; frame < to; frame++)
@@ -473,11 +599,11 @@ public partial class WaveformEditorWindow : Window
 
         if (_selectionStart >= 0 && _selectionEnd > _selectionStart)
         {
-            var left = _selectionStart / (double)_clip.FrameCount * width;
-            var right = _selectionEnd / (double)_clip.FrameCount * width;
+            var left = Math.Clamp((_selectionStart - _viewStart) / (double)_viewLength * width, 0, width);
+            var right = Math.Clamp((_selectionEnd - _viewStart) / (double)_viewLength * width, 0, width);
             var selection = new Rectangle
             {
-                Width = right - left,
+                Width = Math.Max(0, right - left),
                 Height = CanvasHeight,
                 Fill = new SolidColorBrush(Color.FromArgb(70, 242, 193, 78)),
             };

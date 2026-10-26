@@ -105,6 +105,7 @@ public static class HelpTexts
         [typeof(WaveformEditorWindow)] = new("Waveform editor", new[]
         {
             "Edits an audio clip: double-click a clip on the timeline to open it here, or Open... a file. Drag across the waveform to select a part, then Cut, Copy, Paste, Delete, Normalize, or fade it in or out; Undo takes a step back.",
+            "The mouse wheel zooms in and out where the mouse is; Shift and the wheel, or the bar below, move along the clip. A press at the very left edge starts the selection at the clip's first sample. WAVE opens the selected track's clip.",
             "Space plays the selection, or the whole clip without one, and stops; the full stop plays it all from the start; Escape stops.",
             "Send to track puts the clip, or the part selected, back into the track it came from, or into the selected empty track. Stretch to song tempo fits it to the song's tempo from the Clip BPM you give.",
         }),

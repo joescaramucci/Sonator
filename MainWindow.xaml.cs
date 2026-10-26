@@ -2035,6 +2035,15 @@ public partial class MainWindow : Window
 
     private void ShowWaveformButton_Click(object sender, RoutedEventArgs e)
     {
+        // With no clip open yet, the selected track's clip, when it has one.
+        if (_waveformEditorWindow?.HasClip != true
+            && DataContext is MainViewModel { SelectedTrack: { AudioClipPath: { } path } track }
+            && File.Exists(path))
+        {
+            OpenClipInWaveformEditor(track);
+            return;
+        }
+
         ShowWaveformEditorWindow();
     }
 

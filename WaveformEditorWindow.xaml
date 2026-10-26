@@ -45,11 +45,18 @@
             <Button Content="Save as WAV..." Click="SaveButton_Click" />
         </WrapPanel>
         <TextBlock x:Name="InfoText" DockPanel.Dock="Bottom" Margin="0,8,0,0" FontSize="11" Opacity="0.85" TextWrapping="Wrap" />
-        <Border BorderBrush="#607A96" BorderThickness="1" Background="#242424">
-            <Canvas x:Name="WaveCanvas" Width="1000" Height="360" Background="Transparent"
-                    MouseLeftButtonDown="WaveCanvas_MouseLeftButtonDown"
-                    MouseMove="WaveCanvas_MouseMove"
-                    MouseLeftButtonUp="WaveCanvas_MouseLeftButtonUp" />
+        <!-- The part of the clip in view, when zoomed in with the wheel. -->
+        <ScrollBar x:Name="ViewScrollBar" DockPanel.Dock="Bottom" Orientation="Horizontal" Height="14" Margin="0,4,0,0"
+                   IsEnabled="False" Scroll="ViewScrollBar_Scroll" />
+        <!-- The mouse is taken by the whole frame, its edges too: a press on the left edge selects from the clip's start. -->
+        <Border x:Name="WaveBorder" BorderBrush="#607A96" BorderThickness="1" Background="#242424"
+                Focusable="True" FocusVisualStyle="{x:Null}" Cursor="IBeam"
+                MouseLeftButtonDown="WaveCanvas_MouseLeftButtonDown"
+                MouseMove="WaveCanvas_MouseMove"
+                MouseLeftButtonUp="WaveCanvas_MouseLeftButtonUp"
+                MouseWheel="WaveCanvas_MouseWheel">
+            <Canvas x:Name="WaveCanvas" Height="360" Background="Transparent" ClipToBounds="True"
+                    SizeChanged="WaveCanvas_SizeChanged" />
         </Border>
     </DockPanel>
 </Window>
