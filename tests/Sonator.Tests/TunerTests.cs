@@ -93,6 +93,39 @@ public sealed class TunerTests
     }
 
     [Fact]
+    public void FromOneNoteToTheNext_TheVoiceSlides_OverGlide()
+    {
+        // A3 then B3, a whole tone up at once: hard tuned, the voice goes from one to the other over GLIDE.
+        static int Between(double glide)
+        {
+            var frames = (int)(Rate * 1.2);
+            var samples = new float[frames * 2];
+            double phase = 0;
+            for (var i = 0; i < frames; i++)
+            {
+                phase += 2 * Math.PI * (i < frames / 2 ? 220.0 : 246.94) / Rate;
+                samples[i * 2] = samples[i * 2 + 1] = (float)(0.3 * Math.Sin(phase) + 0.12 * Math.Sin(2 * phase));
+            }
+
+            var output = Tune(samples, ("Speed", 0), ("Humanize", 0), ("Glide", glide));
+            var left = new float[frames];
+            for (var i = 0; i < frames; i++)
+            {
+                left[i] = output[i * 2];
+            }
+
+            // The 10 ms frames whose pitch is well between the two notes.
+            var (pitch, _) = Sonator.Services.Score.VoicePitch.Track(left, (int)Rate);
+            return pitch.Count(p => !double.IsNaN(p) && p > 57.3 && p < 58.7);
+        }
+
+        var sliding = Between(120);
+        var stepped = Between(0);
+        Assert.True(sliding >= 5, $"{sliding} frames between the notes with a glide of 120 ms");
+        Assert.True(stepped <= 2, $"{stepped} frames between the notes with none");
+    }
+
+    [Fact]
     public void WithNothingToCorrect_AVoiceWithVibrato_ComesOutAsItWent_EvenHalfMixed()
     {
         // A vowel on A3, 20 cents flat, with a vibrato of 25 cents. Its grains laid the period heard apart slipped

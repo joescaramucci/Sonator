@@ -126,6 +126,7 @@ public static class EffectCatalog
             new EffectParameterDefinition("Amount", 0, 100, 100, "%"),
             new EffectParameterDefinition("Mix", 0, 100, 100, "%"),
             new EffectParameterDefinition("Tuning", -50, 50, 0, "cents"),
+            new EffectParameterDefinition("Glide", 0, 300, 50, "ms"),
         }),
     };
 

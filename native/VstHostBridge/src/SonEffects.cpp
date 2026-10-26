@@ -983,30 +983,37 @@ namespace son
                 return from + guess + best + shift;
             }
 
-            // Adds the grain taken around analysis, centred on synthesis, scaled so the overlapping grains add up
-            // to the voice's level.
+            // Adds the grain taken around analysis, centred on synthesis (to a fraction of a sample), scaled so the
+            // overlapping grains add up to the voice's level. Its two sides are a period each, or less where the
+            // output there has already been heard (the period grown at once, as a sung note starts after a
+            // consonant) or the voice there is not in the line yet: the window is squeezed into what is left. Cut
+            // off instead, the grain started or stopped at full level, a click.
             void AddGrain(const VoiceLine& line, int64_t now, double read, double grainPeriod, float scale, double extra, double formant)
             {
-                const int reach = std::max(1, static_cast<int>(grainPeriod));
                 const int64_t centre = static_cast<int64_t>(std::llround(synthesis));
+                const double fraction = synthesis - static_cast<double>(centre);
+                const double left = std::clamp(synthesis - read - 1.0, 1.0, grainPeriod);
+                const double right = std::clamp((static_cast<double>(now) + extra - analysis) / formant - 1.0, 1.0, grainPeriod);
                 const size_t size = out.size();
+                const int64_t length = static_cast<int64_t>(size);
                 const double lineEnd = static_cast<double>(line.Length()) - 2.0;
-                for (int k = -reach; k <= reach; ++k)
+                for (int k = -static_cast<int>(std::ceil(left)) - 1; k <= static_cast<int>(std::ceil(right)) + 1; ++k)
                 {
+                    const double x = k - fraction; // from the grain's centre
                     const int64_t at = centre + k;
-                    if (static_cast<double>(at) <= read || static_cast<double>(at) >= read + static_cast<double>(size))
+                    if (x <= -left || x >= right
+                        || static_cast<double>(at) <= read || static_cast<double>(at) >= read + static_cast<double>(size))
                     {
-                        continue; // already heard, or beyond what the buffer holds
+                        continue; // outside the window, already heard, or beyond what the buffer holds
                     }
 
-                    const double delay = static_cast<double>(now) - (analysis + k * formant) + extra;
+                    const double delay = static_cast<double>(now) - (analysis + x * formant) + extra;
                     if (delay < 0.0 || delay > lineEnd)
                     {
                         continue;
                     }
 
-                    const float window = static_cast<float>(0.5 * (1.0 + std::cos(Pi * k / grainPeriod)));
-                    const int64_t length = static_cast<int64_t>(size);
+                    const float window = static_cast<float>(0.5 * (1.0 + std::cos(Pi * x / (x < 0.0 ? left : right))));
                     out[static_cast<size_t>((at % length + length) % length)] += line.Read(delay) * window * scale;
                 }
             }
@@ -1413,18 +1420,19 @@ namespace son
         // PitchShifter, keeping its timbre. SPEED is how long the move takes: 0 snaps at once (the robotic sound of
         // so many records), 20 to 50 ms corrects as a singer would. HUMANIZE corrects the note's centre rather than
         // each moment of it, so the vibrato and the slides into a note are kept. AMOUNT is how much of the way the
-        // voice is moved. TUNING is the song's reference in cents off A440, for a song tuned otherwise. The voice comes
+        // voice is moved. GLIDE is how long the voice slides from one note to the next (an S, as Auto-Tune's soft
+        // portamento). TUNING is the song's reference in cents off A440, for a song tuned otherwise. The voice comes
         // out 32 ms late and the mixer is told, so the track stays in time with the others; the dry voice is read in
         // step with the tuned one, so MIX does not comb. The note sung is taken from the period the shifter finds on
         // the very voice it is moving, one mark to the next, so each moment gets its own correction; taken from the
         // note heard every 10 ms over 40 ms, it went to the voice of a moment before, off and often the wrong way on a
         // voice that moves. Its meter is the note heard (-1 when none).
         // Parameters: 0 key (0 chromatic, 1..12 C..B), 1 minor (0 or 1), 2 speed ms, 3 humanize %, 4 amount %, 5 mix %,
-        // 6 tuning cents.
+        // 6 tuning cents, 7 glide ms.
         class Tuner final : public Effect
         {
         public:
-            Tuner() { SetDefaults(*this, {0.0f, 0.0f, 20.0f, 0.0f, 100.0f, 100.0f, 0.0f}); }
+            Tuner() { SetDefaults(*this, {0.0f, 0.0f, 20.0f, 0.0f, 100.0f, 100.0f, 0.0f, 50.0f}); }
 
             void Prepare(double sampleRate, int /*maxBlock*/) override
             {
@@ -1438,6 +1446,13 @@ namespace son
                 _note = -1.0;
                 _noteOfCentre = -1.0;
                 _voicedFor = 0;
+                _glided = -1.0;
+                _glideTo = -1.0;
+                _glideFrom = 0.0;
+                _glideAt = 1.0;
+                _dryDelay = -1.0;
+                _dryFade = 0;
+                _dryFadeLength = std::max(16, static_cast<int>(sampleRate * 0.005));
                 _target = 0.0;
                 _correction = 0.0;
                 _meter.store(-1.0f);
@@ -1464,6 +1479,8 @@ namespace son
                 // The note's centre follows the voice within up to 250 ms, as much as HUMANIZE asks.
                 const double follow = humanize > 0.0 ? 1.0 - std::exp(-1.0 / (_sampleRate * 0.250 * humanize)) : 1.0;
                 const double choose = 1.0 - std::exp(-1.0 / (_sampleRate * 0.008));
+                const double glideMs = std::clamp(static_cast<double>(parameters[7].load()), 0.0, 300.0);
+                const double glideStep = glideMs > 0.5 ? 1000.0 / (glideMs * _sampleRate) : 1.0;
 
                 for (int n = 0; n < frames; ++n)
                 {
@@ -1493,9 +1510,48 @@ namespace son
                         _smoothed = _smoothed < 0.0 ? sung : _smoothed + (sung - _smoothed) * std::max(choose, 1.0 / _voicedFor);
                         const double nearest = Nearest(_smoothed - tuning, key, minor) + tuning;
                         const bool settled = _voicedFor > static_cast<int>(_sampleRate * 0.040);
-                        if (_note < 0.0 || !settled || std::fabs(_smoothed - _note) > std::fabs(_smoothed - nearest) + 0.06)
+                        if (_note < 0.0 || !settled)
                         {
                             _note = nearest;
+                            _switching = 0;
+                        }
+                        else if (std::fabs(_smoothed - _note) > std::fabs(_smoothed - nearest) + 0.06)
+                        {
+                            // Another note is nearer: taken once the voice has stayed nearer it for 20 ms, or at once
+                            // when it is well on it (a step sung), not as a slide or a vibrato passes the edge between
+                            // the two, which threw the voice to the next note and back for a moment.
+                            if (++_switching > static_cast<int>(_sampleRate * 0.020) || std::fabs(_smoothed - nearest) < 0.25)
+                            {
+                                _note = nearest;
+                                _switching = 0;
+                            }
+                        }
+                        else
+                        {
+                            _switching = 0;
+                        }
+
+                        // From one note to the next the voice slides, over GLIDE, along an S (slow out of the note,
+                        // quick across, slow into the next), the soft portamento of Auto-Tune between notes. Stepped at
+                        // once, or by SPEED's curve (all of it at the start), there was none.
+                        if (_glided < 0.0)
+                        {
+                            _glided = _note; // the first note sung comes in on its own pitch
+                            _glideAt = 1.0;
+                        }
+                        else if (_note != _glideTo)
+                        {
+                            _glideFrom = _glided;
+                            _glideAt = glideStep >= 1.0 ? 1.0 : 0.0;
+                        }
+
+                        _glideTo = _note;
+                        _glideAt = std::min(1.0, _glideAt + glideStep);
+                        _glided = _glideFrom + (_note - _glideFrom) * (0.5 - 0.5 * std::cos(Pi * _glideAt));
+                        if (_glideAt >= 1.0)
+                        {
+                            _glided = _note;
+                            _glideFrom = _note;
                         }
 
                         // A new note (a jump of half a semitone, or another target) is taken at once; within one,
@@ -1506,7 +1562,7 @@ namespace son
                         // outweighed), then a mean of its last moments.
                         _heardInNote = newNote ? 1 : _heardInNote + 1;
                         _centre = newNote ? sung : _centre + (sung - _centre) * std::max(follow, 1.0 / _heardInNote);
-                        _target = (_note - _centre) * amount;
+                        _target = (_glided - _centre) * amount;
                     }
                     else
                     {
@@ -1514,6 +1570,8 @@ namespace son
                         _smoothed = -1.0;
                         _note = -1.0;
                         _voicedFor = 0;
+                        _glided = -1.0;
+                        _glideTo = -1.0;
                     }
 
                     // The voice comes out at the note sung plus the correction: on the target itself with SPEED 0
@@ -1522,8 +1580,23 @@ namespace son
                     // Pinned to the note (no HUMANIZE), the voice's flutter is taken out with the rest.
                     const float tuned = _shifter.Next(_line, _correction, then[0], voiced, 0.0, 1.0, humanize <= 0.0 && amount > 0.0);
                     // In step with the tuned voice when the two are heard together; alone, exactly as late as the
-                    // mixer is told.
-                    const float dry = _line.Read(mix > 0.0f ? _shifter.Delay(_line) : static_cast<double>(_grain));
+                    // mixer is told. Where the tuned voice drops or repeats a period, the dry one jumps as far: it
+                    // crosses over to there in 5 ms, where the jump was a click.
+                    const double dryDelay = mix > 0.0f ? _shifter.Delay(_line) : static_cast<double>(_grain);
+                    if (_dryDelay >= 0.0 && std::fabs(dryDelay - _dryDelay) > 4.0)
+                    {
+                        _dryFrom = _dryFade > 0 ? _dryFrom : _dryDelay;
+                        _dryFade = _dryFadeLength;
+                    }
+
+                    _dryDelay = dryDelay;
+                    float dry = _line.Read(dryDelay);
+                    if (_dryFade > 0)
+                    {
+                        const float from = static_cast<float>(_dryFade) / static_cast<float>(_dryFadeLength);
+                        dry = dry * (1.0f - from) + _line.Read(std::min(_dryFrom, static_cast<double>(_line.Length()) - 2.0)) * from;
+                        --_dryFade;
+                    }
                     _line.Advance();
                     const float out = dry * (1.0f - mix) + tuned * mix;
                     for (int c = 0; c < numChannels; ++c)
@@ -1572,6 +1645,15 @@ namespace son
             double _note = -1.0;       // the note it goes to
             double _noteOfCentre = -1.0; // the one the centre was for
             int _voicedFor = 0;        // the samples since the voice began to sing
+            int _switching = 0;        // the samples another note has been nearer
+            double _glided = -1.0;     // the note the voice is on now, sliding from one to the next
+            double _glideFrom = 0.0;   // where the slide began
+            double _glideTo = -1.0;    // the note it goes to
+            double _glideAt = 1.0;     // how far along it is, 0 to 1
+            double _dryDelay = -1.0;   // how late the dry voice is read
+            double _dryFrom = 0.0;     // how late it was read before its last jump, faded out
+            int _dryFade = 0;          // the samples of that fade left
+            int _dryFadeLength = 240;
             double _target = 0.0;      // the correction asked for, in semitones
             double _correction = 0.0;  // the correction gliding to it
             // The last moments' period heard and voiced (1 or 0), to be used as late as the voice they are for.

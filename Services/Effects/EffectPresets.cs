@@ -84,14 +84,14 @@ public static class FactoryPresets
             Factory("Octave Choir", 8, 12, 25, 30, 60, 40, 90, 55, 0),
             Factory("Choir Pad", 16, 30, 50, 70, 0, 0, 100, 75, 0),
         },
-        // Key (0 chromatic, 1 C ... 12 B), Minor, Speed ms, Humanize %, Amount %, Mix %, Tuning cents. The key stays
+        // Key (0 chromatic, 1 C ... 12 B), Minor, Speed ms, Humanize %, Amount %, Mix %, Tuning cents, Glide ms. The key stays
         // chromatic and the tuning at A440: set the song's after choosing one.
         [EffectKind.Tune] = new[]
         {
-            Factory("Natural", 0, 0, 25, 20, 100, 100, 0),
-            Factory("Tight", 0, 0, 8, 0, 100, 100, 0),
-            Factory("Robot (Hard Tune)", 0, 0, 0, 0, 100, 100, 0),
-            Factory("Gentle", 0, 0, 60, 50, 80, 100, 0),
+            Factory("Natural", 0, 0, 25, 20, 100, 100, 0, 80),
+            Factory("Tight", 0, 0, 8, 0, 100, 100, 0, 50),
+            Factory("Robot (Hard Tune)", 0, 0, 0, 0, 100, 100, 0, 25),
+            Factory("Gentle", 0, 0, 60, 50, 80, 100, 0, 120),
         },
         // Low dB, Presence dB, Air dB, Glue %, Width %, Drive dB, Ceiling dB
         [EffectKind.Mastering] = new[]
