@@ -16,6 +16,17 @@ public sealed class AudioEditsTests
     }
 
     [Fact]
+    public void APlayedPart_Looped_StartsAgainAtItsStart_AndOnce_Ends()
+    {
+        var clip = new AudioClip(new[] { 0f, 1f, 2f, 3f, 4f }, 1, 44100);
+        var buffer = new float[7];
+
+        Assert.Equal(7, AudioClipLoader.ToPlayable(clip, 1, 4, loops: true).Read(buffer, 0, 7));
+        Assert.Equal(new[] { 1f, 2f, 3f, 1f, 2f, 3f, 1f }, buffer);
+        Assert.Equal(3, AudioClipLoader.ToPlayable(clip, 1, 4).Read(buffer, 0, 7));
+    }
+
+    [Fact]
     public void Normalize_ScalesPeakToTarget()
     {
         var result = AudioEdits.Normalize(new[] { 0.1f, -0.4f, 0.2f }, targetPeak: 1f);

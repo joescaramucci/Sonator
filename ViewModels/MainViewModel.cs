@@ -6661,15 +6661,21 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
 
     private Vst3ModuleHandle? _previewModule;
 
-    // Plays interleaved samples once through Sonator's own output, the one the plug-ins and the clips use (ASIO
-    // too), only to be heard: past the master, and never in an export. False without the native bridge.
-    public bool StartPreview(float[] interleaved, int channels, int sampleRate)
+    // Plays interleaved samples once (or, looped, over and over until stopped) through Sonator's own output, the
+    // one the plug-ins and the clips use (ASIO too), only to be heard: past the master, and never in an export.
+    // False without the native bridge.
+    public bool StartPreview(float[] interleaved, int channels, int sampleRate, bool loops = false)
     {
         StopPreview();
         if (interleaved.Length < channels
             || _liveInstrumentHost.TryCreateClip(interleaved, channels, sampleRate, 0) is not { } module)
         {
             return false;
+        }
+
+        if (loops)
+        {
+            _liveInstrumentHost.SetClipPlayback(module, true, 1.0);
         }
 
         _liveInstrumentHost.SetClipMonitor(module, true, 0);

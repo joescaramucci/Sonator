@@ -72,39 +72,54 @@ public static class AudioClipLoader
         return path;
     }
 
-    // Plays a clip (or a part of it) through the default output.
-    public static ISampleProvider ToPlayable(AudioClip clip, int startFrame, int endFrame)
+    // Plays a clip (or a part of it) through the default output; looped, that part over and over until stopped.
+    public static ISampleProvider ToPlayable(AudioClip clip, int startFrame, int endFrame, bool loops = false)
     {
-        return new ClipSampleProvider(clip, startFrame, endFrame);
+        return new ClipSampleProvider(clip, startFrame, endFrame, loops);
     }
 
     private sealed class ClipSampleProvider : ISampleProvider
     {
         private readonly AudioClip _clip;
+        private readonly int _startSample;
         private readonly int _endSample;
+        private readonly bool _loops;
         private int _position;
 
-        public ClipSampleProvider(AudioClip clip, int startFrame, int endFrame)
+        public ClipSampleProvider(AudioClip clip, int startFrame, int endFrame, bool loops)
         {
             _clip = clip;
             WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(clip.SampleRate, clip.Channels);
-            _position = startFrame * clip.Channels;
+            _startSample = startFrame * clip.Channels;
+            _position = _startSample;
             _endSample = endFrame * clip.Channels;
+            _loops = loops && _endSample > _startSample;
         }
 
         public WaveFormat WaveFormat { get; }
 
         public int Read(float[] buffer, int offset, int count)
         {
-            var available = Math.Min(count, _endSample - _position);
-            if (available <= 0)
+            var written = 0;
+            while (written < count)
             {
-                return 0;
+                if (_position >= _endSample)
+                {
+                    if (!_loops)
+                    {
+                        break;
+                    }
+
+                    _position = _startSample;
+                }
+
+                var available = Math.Min(count - written, _endSample - _position);
+                Array.Copy(_clip.Samples, _position, buffer, offset + written, available);
+                _position += available;
+                written += available;
             }
 
-            Array.Copy(_clip.Samples, _position, buffer, offset, available);
-            _position += available;
-            return available;
+            return written;
         }
     }
 }

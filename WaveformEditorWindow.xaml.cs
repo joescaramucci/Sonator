@@ -41,6 +41,7 @@ public partial class WaveformEditorWindow : Window
     private readonly System.Diagnostics.Stopwatch _playClock = new();
     private int _playFrom;
     private int _playTo;
+    private bool _playLoops;
     private readonly Line _playhead = new()
     {
         Stroke = new SolidColorBrush(Color.FromRgb(242, 242, 242)),
@@ -618,7 +619,10 @@ public partial class WaveformEditorWindow : Window
         Info($"{operation}. Duration now {_clip.Duration.TotalSeconds:F2} s.");
     }
 
-    private bool IsPlaying => _previewEnd is not null || _output is not null;
+    // A preview playing through Sonator's output (stopped by _previewEnd, or by Space when it loops).
+    private bool _isPreviewing;
+
+    private bool IsPlaying => _isPreviewing || _output is not null;
 
     // The keys of the transport, for the clip: Space plays the selection, or the whole clip without one, and
     // stops it; the full stop plays the whole clip from its start; Escape stops. Not while a box is typed in.
@@ -656,6 +660,10 @@ public partial class WaveformEditorWindow : Window
             case Key.OemPeriod or Key.Decimal:
                 Play(wholeClip: true);
                 break;
+            case Key.L:
+                LoopCheckBox.IsChecked = LoopCheckBox.IsChecked != true;
+                LoopCheckBox_Click(LoopCheckBox, e);
+                break;
             default:
                 return;
         }
@@ -682,34 +690,69 @@ public partial class WaveformEditorWindow : Window
         }
 
         StopPlayback();
+        var loops = LoopCheckBox.IsChecked == true;
+        if (loops)
+        {
+            message = message.TrimEnd('.') + ", in a loop: Space stops it.";
+        }
 
         // Through Sonator's own output (ASIO too), as the song plays; Windows' default output only without it.
         if (_viewModel is not null
-            && _viewModel.StartPreview(AudioEdits.Copy(_clip.Samples, _clip.Channels, start, end), _clip.Channels, _clip.SampleRate))
+            && _viewModel.StartPreview(AudioEdits.Copy(_clip.Samples, _clip.Channels, start, end), _clip.Channels, _clip.SampleRate, loops))
         {
-            _previewEnd = new System.Windows.Threading.DispatcherTimer
+            _isPreviewing = true;
+            if (!loops)
             {
-                Interval = TimeSpan.FromSeconds((end - start) / (double)_clip.SampleRate + 0.2),
-            };
-            _previewEnd.Tick += (_, _) => StopPlayback();
-            _previewEnd.Start();
-            StartPlayhead(start, end);
+                StopAfter((end - start) / (double)_clip.SampleRate + 0.2);
+            }
+
+            StartPlayhead(start, end, loops);
             Info(message);
             return;
         }
 
         _output = new WaveOutEvent();
-        _output.Init(AudioClipLoader.ToPlayable(_clip, start, end).ToWaveProvider());
+        _output.Init(AudioClipLoader.ToPlayable(_clip, start, end, loops).ToWaveProvider());
         _output.PlaybackStopped += (_, _) => Dispatcher.InvokeAsync(StopPlayback);
         _output.Play();
-        StartPlayhead(start, end);
+        StartPlayhead(start, end, loops);
         Info(message);
     }
 
-    private void StartPlayhead(int from, int to)
+    private void StopAfter(double seconds)
+    {
+        _previewEnd?.Stop();
+        _previewEnd = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(Math.Max(0.01, seconds)) };
+        _previewEnd.Tick += (_, _) => StopPlayback();
+        _previewEnd.Start();
+    }
+
+    // LOOP turned on while the clip plays: the part playing starts again, looped. Turned off: it stops at the
+    // end of the time round it is in.
+    private void LoopCheckBox_Click(object sender, RoutedEventArgs e)
+    {
+        if (!IsPlaying || _clip is null)
+        {
+            return;
+        }
+
+        if (LoopCheckBox.IsChecked == true)
+        {
+            Play(_playFrom, _playTo, "Playing");
+        }
+        else if (_playLoops)
+        {
+            _playLoops = false;
+            StopAfter((_playTo - PlayheadFrame) / (double)_clip.SampleRate);
+            Info("The loop stops at the end of this time round.");
+        }
+    }
+
+    private void StartPlayhead(int from, int to, bool loops)
     {
         _playFrom = from;
         _playTo = to;
+        _playLoops = loops;
         _playClock.Restart();
         CompositionTarget.Rendering -= MovePlayhead;
         CompositionTarget.Rendering += MovePlayhead;
@@ -722,7 +765,19 @@ public partial class WaveformEditorWindow : Window
         WaveCanvas.Children.Remove(_playhead);
     }
 
-    private int PlayheadFrame => Math.Min(_playTo, _playFrom + (int)(_playClock.Elapsed.TotalSeconds * (_clip?.SampleRate ?? 0)));
+    private int PlayheadFrame
+    {
+        get
+        {
+            var played = (long)(_playClock.Elapsed.TotalSeconds * (_clip?.SampleRate ?? 0));
+            if (_playLoops && _playTo > _playFrom)
+            {
+                played %= _playTo - _playFrom; // round again from the start of the part
+            }
+
+            return (int)Math.Min(_playTo, _playFrom + played);
+        }
+    }
 
     // Each frame drawn: the playhead moved on; zoomed in, the view turns the page when it gets to the end.
     private void MovePlayhead(object? sender, EventArgs e)
@@ -766,10 +821,11 @@ public partial class WaveformEditorWindow : Window
     private void StopPlayback()
     {
         StopPlayhead();
-        if (_previewEnd is not null)
+        _previewEnd?.Stop();
+        _previewEnd = null;
+        if (_isPreviewing)
         {
-            _previewEnd.Stop();
-            _previewEnd = null;
+            _isPreviewing = false;
             _viewModel?.StopPreview();
         }
 
