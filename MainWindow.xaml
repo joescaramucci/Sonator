@@ -1882,17 +1882,24 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <!-- Where the song plays, one dashed line down all the lanes, below the ruler. -->
-                <Border Margin="260,45,0,0" HorizontalAlignment="Left" IsHitTestVisible="False" Panel.ZIndex="9">
-                    <Line X1="0" X2="0" Y1="0" Y2="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Border}}"
-                          Stroke="#E4E5E7" StrokeThickness="1" StrokeDashArray="1 2" SnapsToDevicePixels="True">
-                        <Line.Margin>
+                <!-- Where the song plays, one dashed line down all the lanes, below the ruler. It can be grabbed and
+                     dragged to where the song is to play from. -->
+                <Border x:Name="PlayheadLayer" Margin="260,45,0,0" HorizontalAlignment="Left" Panel.ZIndex="9">
+                    <Grid HorizontalAlignment="Left">
+                        <Grid.Margin>
                             <MultiBinding Converter="{StaticResource StepOffsetConverter}" ConverterParameter="0">
                                 <Binding Path="TimelinePlayheadStep" />
                                 <Binding Path="TimelineSixteenthWidth" />
                             </MultiBinding>
-                        </Line.Margin>
-                    </Line>
+                        </Grid.Margin>
+                        <Line X1="0" X2="0" Y1="0" Y2="{Binding ActualHeight, ElementName=PlayheadLayer}" IsHitTestVisible="False"
+                              Stroke="#E4E5E7" StrokeThickness="1" StrokeDashArray="1 2" SnapsToDevicePixels="True" />
+                        <Border Width="9" Margin="-4,0,0,0" HorizontalAlignment="Left" Background="Transparent" Cursor="SizeWE"
+                                ToolTip="Drag the line to where the song is to play from"
+                                MouseLeftButtonDown="Playhead_MouseLeftButtonDown"
+                                MouseMove="Playhead_MouseMove"
+                                MouseLeftButtonUp="Playhead_MouseLeftButtonUp" />
+                    </Grid>
                 </Border>
                 <!-- The part of the song chosen to loop, over the ruler and the lanes, its L and R locators on the ruler. -->
                 <Grid IsHitTestVisible="False" Visibility="{Binding HasLoopRange, Converter={StaticResource VisibleWhenLoopRange}}">

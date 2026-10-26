@@ -863,6 +863,39 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
+    // ---- The playhead line, dragged to where the song is to play from ----
+
+    private void Playhead_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is UIElement grip)
+        {
+            grip.CaptureMouse();
+            e.Handled = true;
+        }
+    }
+
+    // The line follows the mouse along the SNAP grid; the song plays from where it is left, at once if playing.
+    private void Playhead_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (sender is not UIElement { IsMouseCaptured: true } || DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        var x = Math.Max(0, e.GetPosition(PlayheadLayer).X);
+        viewModel.SeekToStep(viewModel.SongStepOf(viewModel.SnapStep(RulerStep(viewModel, x + viewModel.TimelineSixteenthWidth / 2))));
+        e.Handled = true;
+    }
+
+    private void Playhead_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is UIElement { IsMouseCaptured: true } grip)
+        {
+            grip.ReleaseMouseCapture();
+            e.Handled = true;
+        }
+    }
+
     private void Timeline_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
             if (DataContext is not MainViewModel viewModel)
