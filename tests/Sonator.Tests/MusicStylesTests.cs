@@ -169,6 +169,16 @@ public sealed class MusicStylesTests
             Assert.Equal(new[] { "Drums", "Bass", "Piano" }, viewModel.SelectedPattern!.Tracks.Select(track => track.Name));
             Assert.Equal("Dance", viewModel.SongTags.Genre);
             Assert.Equal("House song: Drums, Bass, Piano", viewModel.SelectedPattern.Summary);
+            Assert.Equal("New project — House song — SONATOR 1.0", viewModel.HeaderTitle); // the style always in sight
+            var saved = viewModel.BuildProjectDocument();
+            Assert.Equal("House", saved.Style); // kept with the song
+
+            viewModel.NewProjectCommand.Execute(null);
+            Assert.Null(viewModel.SongStyle);
+            Assert.Equal("New project — SONATOR 1.0", viewModel.HeaderTitle);
+
+            viewModel.LoadDocument(saved);
+            Assert.Equal("House", viewModel.SongStyle); // and back when the song is opened
             Assert.False(viewModel.UndoCommand.CanExecute(null)); // the song starts here
         });
     }

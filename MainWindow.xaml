@@ -659,7 +659,7 @@
                     </MenuItem>
                 </Menu>
 
-                <TextBlock Text="{Binding SongTitle, StringFormat='{}{0} — SONATOR 1.0'}"
+                <TextBlock Text="{Binding HeaderTitle}"
                            local:HelpBadge.Topic="Sonator"
                            Padding="0,0,22,0"
                            HorizontalAlignment="Center"

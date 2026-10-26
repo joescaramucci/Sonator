@@ -28,7 +28,8 @@ public sealed record ProjectDocument(
         string? ScoreAuthor = null,
         List<MidiMappingDocument>? MidiMappings = null,
         bool ArrangeMode = false,
-        SongTags? Tags = null);
+        SongTags? Tags = null,
+        string? Style = null);
 
 // A controller assigned to a control (see MidiMapping).
 public sealed record MidiMappingDocument(int Channel, int Controller, Guid Track, string Target, Guid? Effect, uint? Parameter, string Name);

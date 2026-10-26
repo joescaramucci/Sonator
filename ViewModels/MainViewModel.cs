@@ -2124,6 +2124,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             {
                 RaisePropertyChanged(nameof(SongTitle));
                 RaisePropertyChanged(nameof(WindowTitle));
+                RaisePropertyChanged(nameof(HeaderTitle));
             }
         }
     }
@@ -2132,7 +2133,26 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         ? "New project"
         : System.IO.Path.GetFileNameWithoutExtension(CurrentProjectPath);
 
-    public string WindowTitle => $"Sonator - {SongTitle}";
+    public string WindowTitle => SongStyle is { } style ? $"Sonator - {SongTitle} ({style})" : $"Sonator - {SongTitle}";
+
+    private string? _songStyle;
+
+    // The kind of music the song is being made in (Pop, Blues...), as chosen for a new song; null when none was.
+    public string? SongStyle
+    {
+        get => _songStyle;
+        set
+        {
+            if (SetProperty(ref _songStyle, string.IsNullOrWhiteSpace(value) ? null : value))
+            {
+                RaisePropertyChanged(nameof(HeaderTitle));
+                RaisePropertyChanged(nameof(WindowTitle));
+            }
+        }
+    }
+
+    // The title over the song: its name and, when it has one, its style, so it is never forgotten.
+    public string HeaderTitle => SongStyle is { } style ? $"{SongTitle} — {style} song — SONATOR 1.0" : $"{SongTitle} — SONATOR 1.0";
 
     public string NotesSummary => "Next milestones: MIDI device routing, pattern copy/paste, save/load, and a real piano roll.";
 
@@ -3240,6 +3260,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             HasLoopRange = false;
             TimeSignature = "4/4";
             CurrentProjectPath = null;
+            SongStyle = null;
             StatusMessage = "New project created";
         }
         finally
@@ -3302,6 +3323,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
         }
 
         SongTags = SongTags.Empty with { Genre = style.TagGenre };
+        SongStyle = style.Name;
         pattern.Summary = $"{style.Name} song: {string.Join(", ", parts.Select(part => part.Part))}";
         SelectedTrack = pattern.Tracks.FirstOrDefault();
         _history.Clear(); // the song starts here: Undo does not take its tracks away one by one
@@ -7565,7 +7587,8 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             string.IsNullOrWhiteSpace(ScoreAuthor) ? null : ScoreAuthor,
             MidiMappingDocuments(),
             IsArrangeMode,
-            SongTags.IsEmpty ? null : SongTags);
+            SongTags.IsEmpty ? null : SongTags,
+            SongStyle);
     }
 
     // ---- The score (Cromator) ----
@@ -7786,6 +7809,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable, ISpectru
             RestoreMidiMappings(document.MidiMappings);
             IsArrangeMode = document.ArrangeMode; // the song plays as it was left: its arrangement, or one pattern
             SongTags = document.Tags ?? SongTags.Empty;
+            SongStyle = document.Style;
 
             SelectedMidiOutputDevice = MidiOutputDevices.FirstOrDefault(device => device.DisplayName == document.SelectedMidiOutputDeviceName)
                 ?? MidiOutputDevices.FirstOrDefault(device => device.IsOff);
